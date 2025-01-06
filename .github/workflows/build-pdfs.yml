@@ -20,7 +20,7 @@ jobs:
 
       - run: mkdir -p ./reports
 
-      - run: nix build ./plonk/project/report
+      - run: nix build ./plonk/report
 
       - run: cp ./build/* ./reports
 
