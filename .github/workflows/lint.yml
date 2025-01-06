@@ -1,0 +1,67 @@
+name: Lint
+
+on:
+    # Triggers the workflow on push or pull request events but only for the main branch
+    push:
+        branches: [main, release**]
+    pull_request:
+        branches: [main, release**]
+        # Don't run on draft PR's, see: https://github.com/orgs/community/discussions/25722#discussioncomment-3248917
+        types: [opened, synchronize, reopened, ready_for_review]
+    # Allows us to run the workflow manually from the Actions tab
+    workflow_dispatch:
+
+jobs:
+  fmt-accumulation:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - run: nix develop -c check-fmt
+        working-directory: ./accumulation/code
+
+  clippy-accumulation:
+    needs: fmt-accumulation
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - run: nix develop -c check-lint
+        working-directory: ./accumulation/code
+
+  fmt-plonk:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - run: nix develop -c check-fmt
+        working-directory: ./plonk/code
+
+  clippy-plonk:
+    needs: fmt-plonk
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - run: nix develop -c check-lint
+        working-directory: ./plonk/code

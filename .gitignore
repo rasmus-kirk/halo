@@ -1,0 +1,9 @@
+# Rust compilation output dir
+**/target
+# Pandoc output files
+**/*.pdf
+**/*.pdf
+# Nix output symlink
+**/result
+# Zip archives
+**/*.zip

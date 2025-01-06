@@ -1,0 +1,155 @@
+\usepackage{xcolor}
+\definecolor{GbGreenNt}{HTML}{98971a}
+\definecolor{GbBlueNt}{HTML}{458588}
+\definecolor{GbGrayNt}{HTML}{928374}
+\definecolor{GbBlueDk}{HTML}{076678}
+\definecolor{GbFg4}{HTML}{7c6f64}
+\definecolor{GbFg3}{HTML}{665c54}
+\definecolor{GbFg2}{HTML}{504945}
+\definecolor{GbFg2}{HTML}{3c3836}
+\usepackage{mathtools}
+
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows, positioning}
+
+\tikzstyle{process} = [rectangle, minimum width=2cm, minimum height=1cm, text centered, draw=black]
+\tikzstyle{data} = [trapezium, trapezium left angle=70, trapezium right angle=110, minimum width=1.5cm, minimum height=1cm, text centered, draw=black]
+\tikzstyle{arrow} = [thick, ->, >=stealth]
+\tikzstyle{node} = [rectangle, draw=black, minimum width=1cm, minimum height=1cm, text centered]
+
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true, %set true if you want colored links
+    linktoc=all,     %set to all if you want both sections and subsections linked
+    linkcolor=GbBlueNt,    % Internal links (e.g., section links)
+    citecolor=GbGreenNt,   % Citation links
+    urlcolor=GbBlueDk      % External URL links
+}
+
+\usepackage{caption}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+\newcommand{\Desc}[2]{\hspace*{\algorithmicindent} \makebox[14.5em][l]{#1}\parbox[t]{32em}{#2}}
+
+\usepackage[style=iso]{datetime2}
+
+% Float figures
+\usepackage{float}
+\let\origfigure\figure
+\let\endorigfigure\endfigure
+\renewenvironment{figure}[1][2] {
+    \expandafter\origfigure\expandafter[H]
+} {
+    \endorigfigure
+}
+
+\newcommand*\Bb{\mathbb{B}}
+\newcommand*\Zb{\mathbb{Z}}
+\newcommand*\Fb{\mathbb{F}}
+\newcommand*\Nb{\mathbb{N}}
+\newcommand*\Rb{\mathbb{R}}
+\newcommand*\Eb{\mathbb{E}}
+\newcommand*\Gb{\mathbb{G}}
+\newcommand*\Ac{\mathcal{A}}
+\newcommand*\Ec{\mathcal{E}}
+\newcommand*\Rc{\mathcal{R}}
+\newcommand*\Ic{\mathcal{I}}
+\newcommand*\Oc{\mathcal{O}}
+\newcommand*\Uc{\mathcal{U}}
+\newcommand*\Mc{\mathcal{M}}
+\newcommand*\Pc{\mathcal{P}}
+\newcommand*\Vc{\mathcal{V}}
+\newcommand*\Sc{\mathcal{S}}
+\newcommand*\Hc{\mathcal{H}}
+
+\renewcommand*\a{\alpha}
+\renewcommand*\b{\beta}
+\renewcommand*\d{\delta}
+\newcommand*\e{\epsilon}
+\newcommand*\g{\gamma}
+\renewcommand*\l{\lambda}
+\newcommand*\p{\phi}
+\renewcommand*\o{\omega}
+\newcommand*\s{\sigma}
+\newcommand*\ps{\psi}
+\renewcommand*\S{\Sigma}
+
+\renewcommand*\mod{\bmod}
+\newcommand*\cat{\mathbin{+\mkern-10mu+}}
+\newcommand*\bor{\mathbin{\&\mkern-7mu\&}}
+\newcommand*\xor{\oplus}
+\newcommand*\meq{\stackrel{?}{=}}
+\newcommand*\iso{\cong}
+\newcommand{\qed}{\hfill \ensuremath{\Box}}
+\newcommand{\defend}{\hfill \ensuremath{\triangle}}
+\newcommand*{\then}{\implies}
+\newcommand*{\from}{\leftarrow}
+
+\newcommand*\algind{\hspace*{\algorithmicindent}}
+\newcommand*\algindd{\algind \algind}
+
+\newcommand{\textblue}[1]{\textcolor{GbBlueDk}{#1}}
+\newcommand{\mathblue}[1]{\mathcolor{GbBlueDk}{#1}}
+\newcommand{\floor}[1]{\left \lfloor #1 \right \rfloor }
+\newcommand{\ceil}[1]{\left \lceil #1 \right \rceil }
+\renewcommand{\vec}[1]{ \boldsymbol{#1} }
+\newcommand{\ran}[1]{ \mathrm{#1} }
+\newcommand{\ranvec}[1]{ \boldsymbol{\ran{#1}} }
+\newcommand{\dotp}[2]{ \langle #1, #2 \rangle }
+\newcommand{\ip}[2]{ \langle #1, #2 \rangle }
+
+\newcommand{\negl}{\text{negl}}
+\newcommand{\poly}{\text{poly}}
+
+\newcommand*{\pp}{\text{pp}}
+\newcommand*{\acc}{\text{acc}}
+\newcommand*{\Prover}{\mathrm{\text{P\scriptsize ROVER}}}
+\newcommand*{\Verifier}{\mathrm{\text{V\scriptsize ERIFIER}}}
+\newcommand*{\Setup}{\mathrm{\text{S{\scriptsize ETUP}}}}
+\newcommand*{\Generator}{\mathrm{\text{G{\scriptsize ENERATOR}}}}
+\newcommand*{\Trim}{\mathrm{\text{T{\scriptsize RIM}}}}
+\newcommand*{\Commit}{\mathrm{\text{C{\scriptsize OMMIT}}}}
+\newcommand*{\Decider}{\mathrm{\text{D{\scriptsize ECIDER}}}}
+\newcommand*{\SNARKProver}{\mathrm{\text{SNARK}}.\Prover}
+\newcommand*{\SNARKVerifier}{\mathrm{\text{SNARK}}.\Verifier}
+\newcommand*{\SNARKVerifierSlow}{\mathrm{\text{SNARK}}.\mathrm{\text{V\scriptsize ERIFIER}\text{S\scriptsize LOW}}}
+\newcommand*{\IVCProver}{\mathrm{\text{IVC}}.\Prover}
+\newcommand*{\IVCVerifier}{\mathrm{\text{IVC}}.\Verifier}
+\newcommand*{\AS}{\text{AS}}
+\newcommand*{\ASGenerator}{\AS.\Generator}
+\newcommand*{\ASProver}{\AS.\Prover}
+\newcommand*{\ASVerifier}{\AS.\Verifier}
+\newcommand*{\ASDecider}{\AS.\Decider}
+\newcommand*{\PC}{\text{PC}}
+\newcommand*{\PCSetup}{\PC.\Setup}
+\newcommand*{\PCTrim}{\PC.\Trim}
+\newcommand*{\PCCommit}{\PC.\Commit}
+\newcommand*{\PCOpen}{\PC.\mathrm{\text{O\scriptsize PEN}}}
+\newcommand*{\PCCheck}{\PC.\mathrm{\text{C\scriptsize HECK}}}
+\newcommand*{\PCDL}{\text{PC}_{\text{DL}}}
+\newcommand*{\PCDLSetup}{\PCDL.\Setup}
+\newcommand*{\PCDLTrim}{\PCDL.\Trim}
+\newcommand*{\PCDLCommit}{\PCDL.\Commit}
+\newcommand*{\PCDLOpen}{\PCDL.\mathrm{\text{O\scriptsize PEN}}}
+\newcommand*{\PCDLSuccinctCheck}{\PCDL.\mathrm{\text{S{\scriptsize UCCINCT}C{\scriptsize HECK}}}}
+\newcommand*{\PCDLCheck}{\PCDL.\mathrm{\text{C\scriptsize HECK}}}
+\newcommand*{\ASDL}{\text{AS}_{\text{DL}}}
+\newcommand*{\ASDLGenerator}{\ASDL.\Generator}
+\newcommand*{\ASDLIndexer}{\ASDL.\mathrm{\text{I\scriptsize NDEXER}}}
+\newcommand*{\ASDLCommonSubroutine}{\ASDL.\mathrm{\text{C{\scriptsize OMMON}S{\scriptsize UBROUTINE}}}}
+\newcommand*{\ASDLProver}{\ASDL.\mathrm{\text{P\scriptsize ROVER}}}
+\newcommand*{\ASDLVerifier}{\ASDL.\mathrm{\text{V\scriptsize ERIFIER}}}
+\newcommand*{\ASDLDecider}{\ASDL.\mathrm{\text{D\scriptsize ECIDER}}}
+\newcommand*{\CM}{\mathrm{\text{CM}}}
+\newcommand*{\CMSetup}{\CM.\Setup}
+\newcommand*{\CMTrim}{\CM.\Trim}
+\newcommand*{\CMCommit}{\CM.\Commit}
+
+\newcommand*\Result{\mathbf{Result}}
+\newcommand*\Option{\mathbf{Option}}
+\newcommand*\Acc{\mathbf{Acc}}
+\newcommand*\AccHiding{\mathbf{AccHiding}}
+\newcommand*\EvalProof{\mathbf{EvalProof}}
+
+
