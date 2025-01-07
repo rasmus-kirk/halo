@@ -22,7 +22,7 @@ jobs:
 
       - run: nix build ./plonk/report
 
-      - run: cp ./build/* ./reports
+      - run: cp ./result/* ./reports
 
       - run: nix build ./accumulation/report
 
