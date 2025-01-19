@@ -465,14 +465,14 @@ fn get_pp(n: usize) -> (PallasPoint, PallasPoint, Vec<PallasPoint>) {
 
 We have four main functions:
 
-- $\PCDLCommit(p: \Fb^d'_q[X], d: \Nb, \o: \Option(\Fb_q)) \to \Eb(\Fb_q)$:
+- $\PCDLCommit(p: \Fb^{d'}_q[X], d: \Nb, \o: \Option(\Fb_q)) \to \Eb(\Fb_q)$:
 
   Creates a commitment to the coefficients of the polynomial $p$ of degree
   $d' < d$, with optional hiding $\o$, using pedersen commitments.
 
-- $\PCDLOpen(p: \Fb^d'_q[X], d: \Nb, C: \Eb(\Fb_q), z: \Fb_q, \o: \Option(\Fb_q)) \to \EvalProof$:
+- $\PCDLOpen(p: \Fb^{d'}_q[X], d: \Nb, C: \Eb(\Fb_q), z: \Fb_q, \o: \Option(\Fb_q)) \to \EvalProof$:
 
-  Creates a proof $\pi$ that states: "I know $p \in \Fb^d'_q[X]$, where $d'
+  Creates a proof $\pi$ that states: "I know $p \in \Fb^{d'}_q[X]$, where $d'
   \leq d$ with commitment $C \in \Eb(\Fb_q)$ s.t. $p(z) = v$" where $p$
   is private and $d, z, v$ are public.
 
