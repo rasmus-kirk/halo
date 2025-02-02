@@ -25,8 +25,8 @@ pub fn proof(rng: &mut ThreadRng, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     // Sᵢ₁(X), Sᵢ₂(X), Sᵢ₃(X)
     let [sida, sidb, sidc] = &x.sids;
     // Round 1 -----------------------------------------------------
-    let comms_abc = &Poly::commit_many(&w.ws);
-    transcript.append_points(b"abc", comms_abc);
+    let comms_abc = Poly::commit_many(&w.ws);
+    transcript.append_points(b"abc", &comms_abc);
     // Round 2 -----------------------------------------------------
     // β = H(transcript, 0)
     let beta = &transcript.challenge_scalar_augment(0, b"beta");
@@ -50,8 +50,8 @@ pub fn proof(rng: &mut ThreadRng, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     let z = &x.h.interpolate(z_points);
     // Z(ω X)
     let zbar = &x.h.poly_times_arg(z, &x.h.w(1));
-    let comm_z = &z.commit();
-    transcript.append_point(b"z", comm_z);
+    let comm_z = z.commit();
+    transcript.append_point(b"z", &comm_z);
     // Round 3 -----------------------------------------------------
     // α = H(transcript)
     let alpha = &transcript.challenge_scalar(b"alpha");
@@ -69,19 +69,19 @@ pub fn proof(rng: &mut ThreadRng, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
         t_ = t_ + (Poly::a_exp(alpha, i as u64) * f);
     }
     let t = &(t_ / x.h.zh());
-    let comm_t = &t.commit();
-    transcript.append_point(b"t", comm_t);
+    let comm_t = t.commit();
+    transcript.append_point(b"t", &comm_t);
     // Round 4 -----------------------------------------------------
     // 𝔷 = H(transcript)
     let ch = &transcript.challenge_scalar(b"xi");
 
-    let qs_abc = PCDLProofs::<{ Slots::COUNT }, true>::new_from_comm(rng, &w.ws, comms_abc, ch);
-    let q_fgc = PCDLProof::<false>::new(rng, f_gc, ch);
-    let q_z = PCDLProof::<true>::new_from_comm(rng, z, ch, comm_z);
-    let q_fcc1 = PCDLProof::<false>::new(rng, f_cc1, ch);
+    let tw = f_gc + (alpha * (x.h.lagrange(1) * z)) + (alpha.pow(2) * (z * zf)) - (t * x.h.zh());
+    let q_tw = PCDLProof::new(rng, &tw, ch);
+    let abc_ev = Poly::evaluate_many(&w.ws, ch);
+    let comm_fgc = f_gc.commit();
+    let comm_fcc1 = f_cc1.commit();
     let zbar_ev = zbar.evaluate(ch);
-    let q_fcc2 = PCDLProof::<false>::new(rng, f_cc2, ch);
-    let q_t = PCDLProof::<true>::new_from_comm(rng, t, ch, comm_t);
+    let comm_fcc2 = f_cc2.commit();
 
     let hdrs = vec![
         "F_GC(X)".to_string(),
@@ -95,12 +95,14 @@ pub fn proof(rng: &mut ThreadRng, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
         x.h.evals_str(&[f_gc, z, zbar, f_cc1, f_cc2], hdrs, vec![false; 5])
     );
     SNARKProof {
-        qs_abc,
-        q_fgc,
-        q_z,
-        q_fcc1,
+        comms_abc,
+        abc_ev,
+        comm_fgc,
+        comm_z,
+        comm_fcc1,
         zbar_ev,
-        q_fcc2,
-        q_t,
+        comm_fcc2,
+        comm_t,
+        q_tw,
     }
 }
