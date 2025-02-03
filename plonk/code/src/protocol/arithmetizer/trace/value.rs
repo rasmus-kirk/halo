@@ -36,8 +36,8 @@ impl Value {
         Self::AnonWire(-Scalar::ONE)
     }
 
-    pub fn new_wire(id: WireID, value: Scalar) -> Self {
-        Self::Wire(id, ValueType::Field, value)
+    pub fn new_wire(wire: WireID, value: Scalar) -> Self {
+        Self::Wire(wire, ValueType::Field, value)
     }
 
     /// Check if the value scalar is zero.

@@ -48,10 +48,11 @@ impl Trace {
             permutation: HashMap::new(),
             constraints: vec![],
         };
-        for (i, value) in input_values.into_iter().enumerate() {
-            let val = Value::new_wire(i, value).set_bit_type(wires);
-            eval.evals.insert(i, val);
-            eval.bool_constraint(wires, i, val)?;
+        for (wire, value) in input_values.into_iter().enumerate() {
+            let value = Value::new_wire(wire, value).set_bit_type(wires);
+            eval.evals.insert(wire, value);
+            eval.bool_constraint(wires, wire, value)?;
+            eval.public_constraint(wires, wire, value)?;
         }
         // fix input wire values
         for w in output_wires {
@@ -97,22 +98,44 @@ impl Trace {
                 (Constraints::mul(lhs, rhs, out), *out)
             }
         };
-        self.bool_constraint(wires, wire, value)?;
+        self.constraints.push(constraint);
         if !constraint.is_satisfied() {
             return Err(TraceError::constraint_not_satisfied(&constraint));
         }
-        self.constraints.push(constraint);
+        self.bool_constraint(wires, wire, value)?;
+        self.public_constraint(wires, wire, value)?;
         self.evals.insert(wire, value);
         Ok(value)
     }
 
-    fn bool_constraint(&mut self, wires: &ArithWireCache, wire: WireID, value: Value) -> Result<(), TraceError> {
+    fn bool_constraint(
+        &mut self,
+        wires: &ArithWireCache,
+        wire: WireID,
+        value: Value,
+    ) -> Result<(), TraceError> {
         if value.is_bit() && wires.is_bool_constraint(wire) {
             let bool_constraint = Constraints::boolean(&value);
             if !bool_constraint.is_satisfied() {
                 return Err(TraceError::constraint_not_satisfied(&bool_constraint));
             }
             self.constraints.push(bool_constraint);
+        }
+        Ok(())
+    }
+
+    fn public_constraint(
+        &mut self,
+        wires: &ArithWireCache,
+        wire: WireID,
+        value: Value,
+    ) -> Result<(), TraceError> {
+        if wires.is_public(wire) {
+            let pub_constraint = Constraints::constant(&value);
+            if !pub_constraint.is_satisfied() {
+                return Err(TraceError::constraint_not_satisfied(&pub_constraint));
+            }
+            self.constraints.push(pub_constraint);
         }
         Ok(())
     }

@@ -11,7 +11,7 @@ pub use trace::{Pos, Trace};
 pub use wire::Wire;
 
 use rand::rngs::ThreadRng;
-use std::{cell::RefCell, collections::HashSet, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 /// A unique identifier for a wire in the circuit.
 type WireID = usize;
@@ -21,7 +21,6 @@ type WireID = usize;
 pub struct Arithmetizer {
     inputs: usize,
     wires: cache::ArithWireCache,
-    public_inputs: HashSet<WireID>,
 }
 // TODO standard library package
 // TODO primitive ops for std::public(x) and std::bit(x)
@@ -34,7 +33,6 @@ impl Arithmetizer {
         Self {
             inputs,
             wires: cache::ArithWireCache::new(),
-            public_inputs: HashSet::new(),
         }
     }
 
@@ -69,6 +67,10 @@ impl Arithmetizer {
     }
 
     // operators ----------------------------------------------------------
+
+    pub fn publicize(&mut self, id: WireID) {
+        self.wires.publicize(id);
+    }
 
     /// a + b : 𝔽
     pub fn add(&mut self, a: WireID, b: WireID) -> WireID {
@@ -163,7 +165,6 @@ mod tests {
     fn new() {
         let arith = Arithmetizer::new(2);
         assert_eq!(arith.inputs, 2);
-        assert_eq!(arith.public_inputs.len(), 0);
     }
 
     #[test]

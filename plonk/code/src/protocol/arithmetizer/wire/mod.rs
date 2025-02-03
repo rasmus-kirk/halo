@@ -58,6 +58,13 @@ impl Wire {
         }
         self.clone()
     }
+
+    /// Publicize the wire's value to Q꜀.
+    pub fn is_public(&self) -> Self {
+        let mut arith = self.arith().borrow_mut();
+        arith.publicize(self.id);
+        self.clone()
+    }
 }
 
 impl fmt::Display for Wire {

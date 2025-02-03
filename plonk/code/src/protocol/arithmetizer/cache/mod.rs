@@ -10,7 +10,7 @@ pub use commutative_set::CommutativeSet;
 pub use errors::{BitError, CacheError};
 
 use bimap::BiMap;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// Cache of arithmetized wires.
 /// Wire reuse leads to smaller circuits.
@@ -20,6 +20,7 @@ pub struct ArithWireCache {
     wires: BiMap<WireID, ArithWire>,
     commutative_lookup: HashMap<CommutativeSet, WireID>,
     bit_wires: HashMap<WireID, bool>,
+    public_wires: HashSet<WireID>,
 }
 
 impl Default for ArithWireCache {
@@ -35,6 +36,7 @@ impl ArithWireCache {
             wires: BiMap::new(),
             commutative_lookup: HashMap::new(),
             bit_wires: HashMap::new(),
+            public_wires: HashSet::new(),
         }
     }
 
@@ -50,6 +52,14 @@ impl ArithWireCache {
         let id = self.next_id();
         self.wires.insert(id, wire);
         id
+    }
+
+    pub fn publicize(&mut self, id: WireID) {
+        self.public_wires.insert(id);
+    }
+
+    pub fn is_public(&self, id: WireID) -> bool {
+        self.public_wires.contains(&id)
     }
 
     // Get the WireID of a wire
