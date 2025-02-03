@@ -1,4 +1,5 @@
-use super::utils::{CommitData, Scalar};
+use crate::curve::{Point, Scalar};
+
 use ark_ff::PrimeField;
 use ark_serialize::CanonicalSerialize;
 use halo_accumulation::group::{PallasPoint, PallasScalar};
@@ -6,8 +7,9 @@ use merlin::Transcript;
 
 pub trait TranscriptProtocol {
     fn domain_sep(&mut self);
-    fn append_point(&mut self, label: &'static [u8], point: &PallasPoint);
-    fn append_comm(&mut self, label: &'static [u8], comm: &CommitData);
+    fn append_point(&mut self, label: &'static [u8], point: &Point);
+    fn append_points(&mut self, label: &'static [u8], comms: &[Point]);
+    #[allow(dead_code)]
     fn append_scalar(&mut self, label: &'static [u8], scalar: &Scalar);
     fn challenge_scalar(&mut self, label: &'static [u8]) -> Scalar;
     fn challenge_scalar_augment(&mut self, val: u64, label: &'static [u8]) -> Scalar;
@@ -20,19 +22,25 @@ impl TranscriptProtocol for Transcript {
         self.append_message(b"dom-sep", b"Plonk");
     }
 
-    fn append_point(&mut self, label: &'static [u8], point: &PallasPoint) {
+    fn append_point(&mut self, label: &'static [u8], point: &Point) {
         let mut buf = Vec::new();
-        point.serialize_compressed(&mut buf).unwrap();
+        let pallas_point: PallasPoint = point.into();
+        pallas_point.serialize_compressed(&mut buf).unwrap();
         self.append_message(label, &buf);
     }
 
-    fn append_comm(&mut self, label: &'static [u8], comm: &CommitData) {
-        self.append_point(label, &comm.pt);
+    fn append_points(&mut self, label: &'static [u8], comms: &[Point]) {
+        for (i, comm) in comms.iter().enumerate() {
+            let mut new_label = label.to_vec();
+            new_label.extend_from_slice(i.to_string().as_bytes());
+            self.append_point(Box::leak(new_label.into_boxed_slice()), comm);
+        }
     }
 
     fn append_scalar(&mut self, label: &'static [u8], scalar: &Scalar) {
         let mut buf = [0; 64];
-        scalar.val.serialize_compressed(buf.as_mut()).unwrap();
+        let val: PallasScalar = scalar.into();
+        val.serialize_compressed(buf.as_mut()).unwrap();
         self.append_message(label, &buf);
     }
 
