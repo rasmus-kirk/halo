@@ -15,20 +15,20 @@ use std::{cell::RefCell, fmt, rc::Rc};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Wire {
     id: WireID,
-    circuit: Rc<RefCell<Arithmetizer>>,
+    arith: Rc<RefCell<Arithmetizer>>,
     ast: WireAST,
 }
 
 impl Wire {
     // constructors -------------------------------------------------------
 
-    pub fn new(id: WireID, circuit: Rc<RefCell<Arithmetizer>>, ast: WireAST) -> Self {
-        Self { id, circuit, ast }
+    pub fn new(id: WireID, arith: Rc<RefCell<Arithmetizer>>, ast: WireAST) -> Self {
+        Self { id, arith, ast }
     }
 
     /// Create a new input wire.
-    pub fn new_input(id: WireID, circuit: Rc<RefCell<Arithmetizer>>) -> Self {
-        Self::new(id, circuit, WireAST::Input(id))
+    pub fn new_input(id: WireID, arith: Rc<RefCell<Arithmetizer>>) -> Self {
+        Self::new(id, arith, WireAST::Input(id))
     }
 
     // getters ------------------------------------------------------------
@@ -39,13 +39,24 @@ impl Wire {
     }
 
     /// Returns the circuit that the wire belongs to.
-    pub fn circuit(&self) -> &Rc<RefCell<Arithmetizer>> {
-        &self.circuit
+    pub fn arith(&self) -> &Rc<RefCell<Arithmetizer>> {
+        &self.arith
     }
 
     /// Returns the AST of the wire.
     pub fn ast(&self) -> WireAST {
         self.ast.clone()
+    }
+
+    // operations ----------------------------------------------------------
+
+    /// Requires that the wire is a bit
+    pub fn is_bit(&self) -> Self {
+        let mut arith = self.arith().borrow_mut();
+        if let Err(e) = arith.enforce_bit(self.id) {
+            panic!("Failed to enforce bit: {}", e);
+        }
+        self.clone()
     }
 }
 
@@ -65,7 +76,7 @@ mod tests {
     #[test]
     fn new() {
         let [wire_, _] = &Arithmetizer::build::<2>();
-        let arithmetizer = wire_.circuit().clone();
+        let arithmetizer = wire_.arith().clone();
         let wire = Wire::new_input(0, arithmetizer);
         assert_eq!(wire.id(), 0);
         assert_eq!(format!("{}", wire), map_to_alphabet(0));

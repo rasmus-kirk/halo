@@ -1,4 +1,4 @@
-use super::PCDLProof;
+use super::Instance;
 use crate::{
     curve::{Point, Poly, Scalar},
     util,
@@ -6,20 +6,20 @@ use crate::{
 
 use rand::rngs::ThreadRng;
 
-pub struct PCDLProofs<const N: usize, const EV: bool>([PCDLProof<EV>; N]);
+pub struct Instances<const N: usize, const EV: bool>([Instance<EV>; N]);
 
-impl<const N: usize, const EV: bool> From<[PCDLProof<EV>; N]> for PCDLProofs<N, EV> {
-    fn from(proofs: [PCDLProof<EV>; N]) -> Self {
-        PCDLProofs(proofs)
+impl<const N: usize, const EV: bool> From<[Instance<EV>; N]> for Instances<N, EV> {
+    fn from(proofs: [Instance<EV>; N]) -> Self {
+        Instances(proofs)
     }
 }
 
-impl<const N: usize, const EV: bool> PCDLProofs<N, EV> {
+impl<const N: usize, const EV: bool> Instances<N, EV> {
     pub fn new(rng: &mut ThreadRng, polys: &[Poly; N], ch: &Scalar) -> Self {
-        util::map_fix(polys, |poly| PCDLProof::new(rng, poly, ch)).into()
+        util::map_fix(polys, |poly| Instance::new(rng, poly, ch)).into()
     }
 
-    pub fn unwrap(&self) -> &[PCDLProof<EV>; N] {
+    pub fn unwrap(&self) -> &[Instance<EV>; N] {
         &self.0
     }
 
@@ -31,7 +31,7 @@ impl<const N: usize, const EV: bool> PCDLProofs<N, EV> {
     ) -> Self {
         let xs = &util::zip_fix(polys, comm);
         util::map_fix(xs, |(poly, comm)| {
-            PCDLProof::new_from_comm(rng, poly, ch, comm)
+            Instance::new_from_comm(rng, poly, ch, comm)
         })
         .into()
     }
@@ -40,7 +40,7 @@ impl<const N: usize, const EV: bool> PCDLProofs<N, EV> {
         self.0.iter().all(|p| p.check(ch, None))
     }
 
-    pub fn set_ev_many(&self, ev: &Scalar) -> PCDLProofs<N, true> {
+    pub fn set_ev_many(&self, ev: &Scalar) -> Instances<N, true> {
         util::map_fix(&self.0, |f| f.set_ev(ev)).into()
     }
 

@@ -10,6 +10,9 @@ use halo_accumulation::group::PallasPoint;
 
 use std::ops::{Add, Neg, Sub};
 
+/// G ∈ 𝔼(𝔽ₚ)
+/// Elliptic curve point G over the field 𝔽ₚ
+/// with optional degree bound d ∈ ℕ if its a commitment
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Point {
     d: u64,

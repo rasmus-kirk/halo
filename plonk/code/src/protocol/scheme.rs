@@ -3,7 +3,7 @@ use std::fmt;
 use crate::curve::Scalar;
 
 /// Used to determine degree of root of unity along with number of constraints.
-pub const MAX_BLIND_TERMS: u64 = 3;
+pub const MAX_BLIND_TERMS: u64 = 0;
 
 /// Enum of slots in the constraint system; private polynomials.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

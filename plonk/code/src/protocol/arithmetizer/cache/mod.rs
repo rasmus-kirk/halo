@@ -7,7 +7,7 @@ use super::{
 };
 use crate::{curve::Scalar, util::if_empty};
 pub use commutative_set::CommutativeSet;
-use errors::CacheError;
+pub use errors::{BitError, CacheError};
 
 use bimap::BiMap;
 use std::collections::HashMap;
@@ -19,6 +19,7 @@ pub struct ArithWireCache {
     uuid: WireID,
     wires: BiMap<WireID, ArithWire>,
     commutative_lookup: HashMap<CommutativeSet, WireID>,
+    bit_wires: HashMap<WireID, bool>,
 }
 
 impl Default for ArithWireCache {
@@ -33,6 +34,7 @@ impl ArithWireCache {
             uuid: 0,
             wires: BiMap::new(),
             commutative_lookup: HashMap::new(),
+            bit_wires: HashMap::new(),
         }
     }
 
@@ -131,6 +133,57 @@ impl ArithWireCache {
             }
         }
         Ok(set.iter().flatten().copied().collect())
+    }
+
+    // bit typechecking -------------------------------------------------------
+
+    /// Set a wire as a bit, marking it for boolean constraint generation.
+    pub fn set_bit(&mut self, id: WireID) -> Result<(), CacheError> {
+        self.set_bit_(id, true)
+    }
+
+    fn set_bit_(&mut self, id: WireID, gen_constraint: bool) -> Result<(), CacheError> {
+        match self.to_arith(id) {
+            Some(w) => match w {
+                ArithWire::Input(_) => {
+                    self.bit_wires.insert(id, gen_constraint);
+                    Ok(())
+                }
+                ArithWire::Constant(b) => {
+                    if b != Scalar::ZERO && b != Scalar::ONE {
+                        return Err(BitError::ScalarIsNotBit(b).into());
+                    }
+                    Ok(())
+                }
+                ArithWire::AddGate(_, _) | ArithWire::MulGate(_, _) => {
+                    for operand in w.inputs() {
+                        self.set_bit_(operand, false)?;
+                    }
+                    self.bit_wires.insert(id, gen_constraint);
+                    Ok(())
+                }
+            },
+            None => Err(CacheError::WireIDNotInCache),
+        }
+    }
+
+    pub fn is_bit(&self, id: WireID) -> bool {
+        match self.to_arith(id) {
+            Some(w) => match w {
+                ArithWire::Input(_) => self.bit_wires.contains_key(&id),
+                ArithWire::Constant(b) => b == Scalar::ZERO || b == Scalar::ONE,
+                ArithWire::AddGate(_, _) | ArithWire::MulGate(_, _) => {
+                    !w.inputs().iter().any(|&operand| {
+                        !self.bit_wires.contains_key(&operand) && !self.is_bit(operand)
+                    })
+                }
+            },
+            None => false,
+        }
+    }
+
+    pub fn is_bool_constraint(&self, id: WireID) -> bool {
+        self.bit_wires.get(&id).copied().unwrap_or(false)
     }
 }
 

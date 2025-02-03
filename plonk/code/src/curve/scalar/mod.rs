@@ -17,6 +17,8 @@ use std::{
     ops::{Add, Div, Mul, Neg, Sub},
 };
 
+/// a ∈ 𝔽ₚ
+/// Scalar a, an element of the field 𝔽ₚ
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Scalar {
     scalar: PallasScalar,

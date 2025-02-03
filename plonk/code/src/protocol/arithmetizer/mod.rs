@@ -60,7 +60,7 @@ impl Arithmetizer {
         T: Into<Scalar> + Copy + std::fmt::Display,
     {
         ArithmetizerError::validate(&input_values, output_wires)?;
-        let wires = &output_wires[0].circuit().borrow().wires;
+        let wires = &output_wires[0].arith().borrow().wires;
         let input_scalars = input_values.iter().map(|&v| v.into()).collect();
         let output_ids = output_wires.iter().map(Wire::id).collect();
         Trace::new(rng, wires, input_scalars, output_ids)
@@ -106,6 +106,11 @@ impl Arithmetizer {
         let right = self.wires.get_const_id(b);
         let gate = ArithWire::MulGate(a, right);
         self.wires.get_id(gate)
+    }
+
+    /// Requires that the wire is a bit
+    pub fn enforce_bit(&mut self, a: WireID) -> Result<(), ArithmetizerError> {
+        self.wires.set_bit(a).map_err(ArithmetizerError::CacheError)
     }
 
     // utils --------------------------------------------------------------
@@ -174,7 +179,7 @@ mod tests {
         assert_eq!(b.id(), 1);
         let c = a + b;
         assert_eq!(c.id(), 2);
-        let wires = &c.circuit().borrow().wires;
+        let wires = &c.arith().borrow().wires;
         assert_eq!(wires.to_arith_(a.id()), ArithWire::Input(0));
         assert_eq!(wires.to_arith_(b.id()), ArithWire::Input(1));
         assert_eq!(wires.to_arith_(c.id()), ArithWire::AddGate(a.id(), b.id()));
@@ -187,7 +192,7 @@ mod tests {
         assert_eq!(b.id(), 1);
         let c = a * b;
         assert_eq!(c.id(), 2);
-        let wires = &c.circuit().borrow().wires;
+        let wires = &c.arith().borrow().wires;
         assert_eq!(wires.to_arith_(0), ArithWire::Input(0));
         assert_eq!(wires.to_arith_(1), ArithWire::Input(1));
         assert_eq!(wires.to_arith_(c.id()), ArithWire::MulGate(a.id(), b.id()));
@@ -200,7 +205,7 @@ mod tests {
         assert_eq!(b.id(), 1);
         let c = &(a - b);
         assert_eq!(c.id(), 4);
-        let wires = &c.circuit().borrow().wires;
+        let wires = &c.arith().borrow().wires;
         assert_eq!(wires.to_arith_(a.id()), ArithWire::Input(0));
         assert_eq!(wires.to_arith_(b.id()), ArithWire::Input(1));
         assert_eq!(wires.to_arith_(2), ArithWire::Constant(-Scalar::ONE));
@@ -214,7 +219,7 @@ mod tests {
         assert_eq!(a.id(), 0);
         let c: &Wire = &(a + 1);
         assert_eq!(c.id(), 2);
-        let wires = &c.circuit().borrow().wires;
+        let wires = &c.arith().borrow().wires;
         assert_eq!(wires.to_arith_(0), ArithWire::Input(0));
         assert_eq!(wires.to_arith_(1), ArithWire::Constant(Scalar::ONE));
     }
@@ -225,7 +230,7 @@ mod tests {
         assert_eq!(a.id(), 0);
         let c: &Wire = &(a - 1);
         assert_eq!(c.id(), 2);
-        let wires = &c.circuit().borrow().wires;
+        let wires = &c.arith().borrow().wires;
         assert_eq!(wires.to_arith_(a.id()), ArithWire::Input(0));
         assert_eq!(wires.to_arith_(1), ArithWire::Constant(-Scalar::ONE));
         assert_eq!(wires.to_arith_(c.id()), ArithWire::AddGate(a.id(), 1));
@@ -237,7 +242,7 @@ mod tests {
         assert_eq!(a.id(), 0);
         let c: &Wire = &(a * 1);
         assert_eq!(c.id(), 2);
-        let wires = &c.circuit().borrow().wires;
+        let wires = &c.arith().borrow().wires;
         assert_eq!(wires.to_arith_(a.id()), ArithWire::Input(0));
         assert_eq!(wires.to_arith_(1), ArithWire::Constant(Scalar::ONE));
         assert_eq!(wires.to_arith_(c.id()), ArithWire::MulGate(a.id(), 1));

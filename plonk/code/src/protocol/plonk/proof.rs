@@ -2,7 +2,7 @@ use merlin::Transcript;
 use rand::rngs::ThreadRng;
 
 use super::{
-    pcdl::{many::PCDLProofs, PCDLProof},
+    instance::{many::Instances, Instance},
     transcript::TranscriptProtocol,
     SNARKProof,
 };
@@ -75,13 +75,13 @@ pub fn proof(rng: &mut ThreadRng, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     // 𝔷 = H(transcript)
     let ch = &transcript.challenge_scalar(b"xi");
 
-    let qs_abc = PCDLProofs::<{ Slots::COUNT }, true>::new_from_comm(rng, &w.ws, comms_abc, ch);
-    let q_fgc = PCDLProof::<false>::new(rng, f_gc, ch);
-    let q_z = PCDLProof::<true>::new_from_comm(rng, z, ch, comm_z);
-    let q_fcc1 = PCDLProof::<false>::new(rng, f_cc1, ch);
+    let qs_abc = Instances::<{ Slots::COUNT }, true>::new_from_comm(rng, &w.ws, comms_abc, ch);
+    let q_fgc = Instance::<false>::new(rng, f_gc, ch);
+    let q_z = Instance::<true>::new_from_comm(rng, z, ch, comm_z);
+    let q_fcc1 = Instance::<false>::new(rng, f_cc1, ch);
     let zbar_ev = zbar.evaluate(ch);
-    let q_fcc2 = PCDLProof::<false>::new(rng, f_cc2, ch);
-    let q_t = PCDLProof::<true>::new_from_comm(rng, t, ch, comm_t);
+    let q_fcc2 = Instance::<false>::new(rng, f_cc2, ch);
+    let q_t = Instance::<true>::new_from_comm(rng, t, ch, comm_t);
 
     let hdrs = vec![
         "F_GC(X)".to_string(),

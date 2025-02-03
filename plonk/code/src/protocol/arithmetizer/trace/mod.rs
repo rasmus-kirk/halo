@@ -15,7 +15,7 @@ use crate::{
     },
 };
 use constraints::Constraints;
-pub use errors::EvaluatorError;
+pub use errors::TraceError;
 pub use pos::Pos;
 use value::Value;
 
@@ -41,19 +41,19 @@ impl Trace {
         wires: &ArithWireCache,
         input_values: Vec<Scalar>,
         output_wires: Vec<WireID>,
-    ) -> Result<Self, EvaluatorError> {
-        let mut evals = HashMap::new();
-        for (i, value) in input_values.into_iter().enumerate() {
-            evals.insert(i, Value::Wire(i, value));
-        }
-        // fix input wire values
-
+    ) -> Result<Self, TraceError> {
         let mut eval = Self {
             h: Default::default(),
-            evals,
+            evals: HashMap::new(),
             permutation: HashMap::new(),
             constraints: vec![],
         };
+        for (i, value) in input_values.into_iter().enumerate() {
+            let val = Value::new_wire(i, value).set_bit_type(wires);
+            eval.evals.insert(i, val);
+            eval.bool_constraint(val)?;
+        }
+        // fix input wire values
         for w in output_wires {
             eval.resolve(wires, w)?;
         }
@@ -63,51 +63,62 @@ impl Trace {
         // compute copy constraint values
 
         let m = eval.constraints.len() as u64;
-        eval.h =
-            Coset::new(rng, m + MAX_BLIND_TERMS).ok_or(EvaluatorError::FailedToMakeCoset(m))?;
+        eval.h = Coset::new(rng, m + MAX_BLIND_TERMS).ok_or(TraceError::FailedToMakeCoset(m))?;
         // compute coset
 
         Ok(eval)
     }
 
     /// Compute the values and constraints for the wire and all its dependencies.
-    fn eval(&mut self, wires: &ArithWireCache, wire: WireID) -> Result<Value, EvaluatorError> {
+    fn eval(&mut self, wires: &ArithWireCache, wire: WireID) -> Result<Value, TraceError> {
         let arith_wire = match wires.to_arith(wire) {
             Some(wire) => wire,
-            None => return Err(EvaluatorError::WireNotInCache(wire)),
+            None => return Err(TraceError::WireNotInCache(wire)),
         };
         let (constraint, value) = match arith_wire {
-            ArithWire::Input(id) => return Err(EvaluatorError::InputNotSet(id)),
+            ArithWire::Input(id) => return Err(TraceError::InputNotSet(id)),
             ArithWire::Constant(scalar) => match wires.lookup_const_id(scalar) {
                 Some(id) => {
-                    let val = Value::Wire(id, scalar);
+                    let val = Value::new_wire(id, scalar);
                     (Constraints::constant(&val), val)
                 }
-                None => return Err(EvaluatorError::ConstNotInCache(scalar)),
+                None => return Err(TraceError::ConstNotInCache(scalar)),
             },
             ArithWire::AddGate(lhs_, rhs_) => {
                 let lhs = &self.resolve(wires, lhs_)?;
                 let rhs = &self.resolve(wires, rhs_)?;
-                let out = &(lhs + rhs).set_id(wire);
+                let out = &(lhs + rhs).set_id(wire).set_bit_type(wires);
                 (Constraints::add(lhs, rhs, out), *out)
             }
             ArithWire::MulGate(lhs_, rhs_) => {
                 let lhs = &self.resolve(wires, lhs_)?;
                 let rhs = &self.resolve(wires, rhs_)?;
-                let out = &(lhs * rhs).set_id(wire);
+                let out = &(lhs * rhs).set_id(wire).set_bit_type(wires);
                 (Constraints::mul(lhs, rhs, out), *out)
             }
         };
+        self.bool_constraint(value)?;
         if !constraint.is_satisfied() {
-            return Err(EvaluatorError::constraint_not_satisfied(&constraint));
+            return Err(TraceError::constraint_not_satisfied(&constraint));
         }
         self.constraints.push(constraint);
         self.evals.insert(wire, value);
         Ok(value)
     }
 
+    fn bool_constraint(&mut self, value: Value) -> Result<(), TraceError> {
+        if value.is_bit() {
+            let bool_constraint = Constraints::boolean(&value);
+            if !bool_constraint.is_satisfied() {
+                return Err(TraceError::constraint_not_satisfied(&bool_constraint));
+            }
+            self.constraints.push(bool_constraint);
+        }
+        Ok(())
+    }
+
     /// Look up for the wire's evaluation, otherwise start the evaluating.
-    fn resolve(&mut self, wires: &ArithWireCache, wire: WireID) -> Result<Value, EvaluatorError> {
+    fn resolve(&mut self, wires: &ArithWireCache, wire: WireID) -> Result<Value, TraceError> {
         match self.evals.get(&wire) {
             Some(val) => Ok(*val),
             None => self.eval(wires, wire),
@@ -115,13 +126,13 @@ impl Trace {
     }
 
     /// Compute the permutation of slot positions as per copy constraints.
-    fn compute_pos_permutation(&mut self) -> Result<(), EvaluatorError> {
+    fn compute_pos_permutation(&mut self) -> Result<(), TraceError> {
         let mut pos_sets: HashMap<WireID, Vec<Pos>> = HashMap::new();
         for (i_, eqn) in self.constraints.iter().enumerate() {
             let i = (i_ + 1) as ConstraintID;
             for slot in Slots::iter() {
                 let pos = Pos::new(slot, i);
-                if let Value::Wire(wire, _) = eqn[Terms::F(slot)] {
+                if let Value::Wire(wire, _, _) = eqn[Terms::F(slot)] {
                     pos_sets.entry(wire).or_default().push(pos);
                 }
             }
@@ -266,7 +277,7 @@ mod tests {
         let output_wires: &[Wire; 1] = &[3 * (x * x) + (y * 5) - 47];
         // build circuit
 
-        let circuit = output_wires[0].circuit().borrow();
+        let circuit = output_wires[0].arith().borrow();
         let input_scalars = input_values.iter().map(|&v| v.into()).collect();
         let output_ids = output_wires.iter().map(Wire::id).collect();
         let eval_res = Trace::new(rng, &circuit.wires, input_scalars, output_ids);
@@ -276,32 +287,32 @@ mod tests {
         let eval = eval_res.unwrap();
         let expected_constraints = vec![
             Constraints::mul(
-                &Value::Wire(0, Scalar::ONE),
-                &Value::Wire(0, Scalar::ONE),
-                &Value::Wire(2, Scalar::ONE),
+                &Value::new_wire(0, Scalar::ONE),
+                &Value::new_wire(0, Scalar::ONE),
+                &Value::new_wire(2, Scalar::ONE),
             ),
-            Constraints::constant(&Value::Wire(3, 3.into())),
+            Constraints::constant(&Value::new_wire(3, 3.into())),
             Constraints::mul(
-                &Value::Wire(2, Scalar::ONE),
-                &Value::Wire(3, 3.into()),
-                &Value::Wire(4, 3.into()),
+                &Value::new_wire(2, Scalar::ONE),
+                &Value::new_wire(3, 3.into()),
+                &Value::new_wire(4, 3.into()),
             ),
-            Constraints::constant(&Value::Wire(5, 5.into())),
+            Constraints::constant(&Value::new_wire(5, 5.into())),
             Constraints::mul(
-                &Value::Wire(1, 2.into()),
-                &Value::Wire(5, 5.into()),
-                &Value::Wire(6, 10.into()),
+                &Value::new_wire(1, 2.into()),
+                &Value::new_wire(5, 5.into()),
+                &Value::new_wire(6, 10.into()),
             ),
             Constraints::add(
-                &Value::Wire(4, 3.into()),
-                &Value::Wire(6, 10.into()),
-                &Value::Wire(7, 13.into()),
+                &Value::new_wire(4, 3.into()),
+                &Value::new_wire(6, 10.into()),
+                &Value::new_wire(7, 13.into()),
             ),
-            Constraints::constant(&Value::Wire(8, (-47).into())),
+            Constraints::constant(&Value::new_wire(8, (-47).into())),
             Constraints::add(
-                &Value::Wire(7, 13.into()),
-                &Value::Wire(8, (-47).into()),
-                &Value::Wire(9, (-34).into()),
+                &Value::new_wire(7, 13.into()),
+                &Value::new_wire(8, (-47).into()),
+                &Value::new_wire(9, (-34).into()),
             ),
         ];
         let expected_permutation = [

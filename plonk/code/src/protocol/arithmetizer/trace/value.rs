@@ -1,16 +1,31 @@
 use super::WireID;
-use crate::{curve::Scalar, util::map_to_alphabet};
+use crate::{curve::Scalar, protocol::arithmetizer::cache::ArithWireCache, util::map_to_alphabet};
 
 use std::{
     fmt,
     ops::{Add, Mul},
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ValueType {
+    Bit,
+    Field,
+}
+
+impl fmt::Display for ValueType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ValueType::Bit => write!(f, "𝔹 "),
+            ValueType::Field => write!(f, "𝔽 "),
+        }
+    }
+}
+
 /// Possible evaluation values
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Value {
     AnonWire(Scalar),
-    Wire(WireID, Scalar),
+    Wire(WireID, ValueType, Scalar),
 }
 
 impl Value {
@@ -21,14 +36,34 @@ impl Value {
         Self::AnonWire(-Scalar::ONE)
     }
 
+    pub fn new_wire(id: WireID, value: Scalar) -> Self {
+        Self::Wire(id, ValueType::Field, value)
+    }
+
     /// Check if the value scalar is zero.
     pub fn is_zero(&self) -> bool {
         Into::<Scalar>::into(*self) == Scalar::ZERO
     }
 
+    /// Check if the value is a bit type.
+    pub fn is_bit(&self) -> bool {
+        matches!(self, Self::Wire(_, ValueType::Bit, _))
+    }
+
     /// Use the scalar of the value and construct a Value::Wire with the given id.
     pub fn set_id(self, id: WireID) -> Self {
-        Self::Wire(id, self.into())
+        match self {
+            Self::AnonWire(scalar) => Self::Wire(id, ValueType::Field, scalar),
+            Self::Wire(_, val_type, scalar) => Self::Wire(id, val_type, scalar),
+        }
+    }
+
+    /// Set the value type of the value to bit if the wire id is a bit.
+    pub fn set_bit_type(self, cache: &ArithWireCache) -> Self {
+        match self {
+            Self::Wire(id, _, scalar) if cache.is_bit(id) => Self::Wire(id, ValueType::Bit, scalar),
+            x => x,
+        }
     }
 }
 
@@ -36,7 +71,7 @@ impl From<Value> for Scalar {
     fn from(value: Value) -> Self {
         match value {
             Value::AnonWire(scalar) => scalar,
-            Value::Wire(_, scalar) => scalar,
+            Value::Wire(_, _, scalar) => scalar,
         }
     }
 }
@@ -109,7 +144,9 @@ impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Value::AnonWire(scalar) => write!(f, "{}", scalar),
-            Value::Wire(wire_id, scalar) => write!(f, "{}:{}", map_to_alphabet(*wire_id), scalar),
+            Value::Wire(wire_id, val_type, scalar) => {
+                write!(f, "{} {}:{}", map_to_alphabet(*wire_id), scalar, val_type)
+            }
         }
     }
 }

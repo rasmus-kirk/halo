@@ -1,5 +1,5 @@
 use super::{
-    pcdl::{many::PCDLProofs, PCDLProof},
+    instance::{many::Instances, Instance},
     transcript::TranscriptProtocol,
 };
 use crate::{
@@ -10,13 +10,13 @@ use crate::{
 use merlin::Transcript;
 
 pub struct SNARKProof {
-    pub qs_abc: PCDLProofs<{ Slots::COUNT }, true>,
-    pub q_fgc: PCDLProof<false>,
-    pub q_z: PCDLProof<true>,
-    pub q_fcc1: PCDLProof<false>,
+    pub qs_abc: Instances<{ Slots::COUNT }, true>,
+    pub q_fgc: Instance<false>,
+    pub q_z: Instance<true>,
+    pub q_fcc1: Instance<false>,
     pub zbar_ev: Scalar,
-    pub q_fcc2: PCDLProof<false>,
-    pub q_t: PCDLProof<true>,
+    pub q_fcc2: Instance<false>,
+    pub q_t: Instance<true>,
 }
 
 pub fn verify(x: &CircuitPublic, pi: SNARKProof) -> bool {
@@ -26,7 +26,7 @@ pub fn verify(x: &CircuitPublic, pi: SNARKProof) -> bool {
     let [sa, sb, sc] = &x.ss;
     let [sida, sidb, sidc] = &x.sids;
     // Round 1 -----------------------------------------------------
-    transcript.append_points(b"abc", &PCDLProofs::get_comms(&pi.qs_abc));
+    transcript.append_points(b"abc", &Instances::get_comms(&pi.qs_abc));
     // Round 2 -----------------------------------------------------
     let beta = &transcript.challenge_scalar_augment(0, b"beta");
     let gamma = &transcript.challenge_scalar_augment(1, b"gamma");
@@ -38,12 +38,12 @@ pub fn verify(x: &CircuitPublic, pi: SNARKProof) -> bool {
     let ch = &transcript.challenge_scalar(b"xi");
     let zh_ev = &x.h.zh().evaluate(ch);
     // check commits
-    if !PCDLProofs::check(&pi.qs_abc, ch) || !pi.q_z.check(ch, None) || !pi.q_t.check(ch, None) {
+    if !Instances::check(&pi.qs_abc, ch) || !pi.q_z.check(ch, None) || !pi.q_t.check(ch, None) {
         println!("FAILED COMMITS");
         return false;
     }
     // get / compute evaluations on challenge
-    let [a, b, c] = &PCDLProofs::get_evs(&pi.qs_abc).unwrap();
+    let [a, b, c] = &Instances::get_evs(&pi.qs_abc).unwrap();
     let [ql, qr, qo, qm, qc] = &Poly::evaluate_many(&x.qs, ch);
     // F_GC(𝔷) = A(𝔷)Qₗ(𝔷) + B(𝔷)Qᵣ(𝔷) + C(𝔷)Qₒ(𝔷) + A(𝔷)B(𝔷)Qₘ(𝔷) + Q꜀(𝔷)
     let f_gc_ev = &((a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc);

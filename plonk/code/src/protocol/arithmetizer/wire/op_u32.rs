@@ -12,10 +12,10 @@ impl Add<u32> for Wire {
     type Output = Wire;
 
     fn add(self, other: u32) -> Self::Output {
-        let mut circuit = self.circuit.borrow_mut();
+        let mut circuit = self.arith.borrow_mut();
         Wire {
             id: circuit.add_const(self.id, other.into()),
-            circuit: Rc::clone(&self.circuit),
+            arith: Rc::clone(&self.arith),
             ast: self.add_ast_const(other.into()),
         }
     }
@@ -25,10 +25,10 @@ impl Add<&u32> for Wire {
     type Output = Wire;
 
     fn add(self, other: &u32) -> Self::Output {
-        let mut circuit = self.circuit.borrow_mut();
+        let mut circuit = self.arith.borrow_mut();
         Wire {
             id: circuit.add_const(self.id, (*other).into()),
-            circuit: Rc::clone(&self.circuit),
+            arith: Rc::clone(&self.arith),
             ast: self.add_ast_const((*other).into()),
         }
     }
@@ -38,10 +38,10 @@ impl Add<u32> for &Wire {
     type Output = Wire;
 
     fn add(self, other: u32) -> Self::Output {
-        let mut circuit = self.circuit.borrow_mut();
+        let mut circuit = self.arith.borrow_mut();
         Wire {
             id: circuit.add_const(self.id, other.into()),
-            circuit: Rc::clone(&self.circuit),
+            arith: Rc::clone(&self.arith),
             ast: self.add_ast_const(other.into()),
         }
     }
@@ -51,10 +51,10 @@ impl Add<&u32> for &Wire {
     type Output = Wire;
 
     fn add(self, other: &u32) -> Self::Output {
-        let mut circuit = self.circuit.borrow_mut();
+        let mut circuit = self.arith.borrow_mut();
         Wire {
             id: circuit.add_const(self.id, (*other).into()),
-            circuit: Rc::clone(&self.circuit),
+            arith: Rc::clone(&self.arith),
             ast: self.add_ast_const((*other).into()),
         }
     }
@@ -100,11 +100,11 @@ impl Sub<u32> for Wire {
     type Output = Wire;
 
     fn sub(self, other: u32) -> Self::Output {
-        let mut circuit = self.circuit.borrow_mut();
+        let mut circuit = self.arith.borrow_mut();
         let scalar: Scalar = other.into();
         Wire {
             id: circuit.add_const(self.id, -scalar),
-            circuit: Rc::clone(&self.circuit),
+            arith: Rc::clone(&self.arith),
             ast: self.add_ast_const(-scalar),
         }
     }
@@ -114,11 +114,11 @@ impl Sub<&u32> for Wire {
     type Output = Wire;
 
     fn sub(self, other: &u32) -> Self::Output {
-        let mut circuit = self.circuit.borrow_mut();
+        let mut circuit = self.arith.borrow_mut();
         let scalar: Scalar = other.into();
         Wire {
             id: circuit.add_const(self.id, -scalar),
-            circuit: Rc::clone(&self.circuit),
+            arith: Rc::clone(&self.arith),
             ast: self.add_ast_const(-scalar),
         }
     }
@@ -128,11 +128,11 @@ impl Sub<u32> for &Wire {
     type Output = Wire;
 
     fn sub(self, other: u32) -> Self::Output {
-        let mut circuit = self.circuit.borrow_mut();
+        let mut circuit = self.arith.borrow_mut();
         let scalar: Scalar = other.into();
         Wire {
             id: circuit.add_const(self.id, -scalar),
-            circuit: Rc::clone(&self.circuit),
+            arith: Rc::clone(&self.arith),
             ast: self.add_ast_const(-scalar),
         }
     }
@@ -142,11 +142,11 @@ impl Sub<&u32> for &Wire {
     type Output = Wire;
 
     fn sub(self, other: &u32) -> Self::Output {
-        let mut circuit = self.circuit.borrow_mut();
+        let mut circuit = self.arith.borrow_mut();
         let scalar: Scalar = other.into();
         Wire {
             id: circuit.add_const(self.id, -scalar),
-            circuit: Rc::clone(&self.circuit),
+            arith: Rc::clone(&self.arith),
             ast: self.add_ast_const(-scalar),
         }
     }
@@ -159,10 +159,10 @@ impl Sub<Wire> for u32 {
 
     fn sub(self, other: Wire) -> Self::Output {
         let neg = &other * -Scalar::ONE;
-        let mut circuit = other.circuit.borrow_mut();
+        let mut circuit = other.arith.borrow_mut();
         Wire {
             id: circuit.add_const(neg.id, self.into()),
-            circuit: Rc::clone(&other.circuit),
+            arith: Rc::clone(&other.arith),
             ast: neg.add_ast_const(self.into()),
         }
     }
@@ -173,10 +173,10 @@ impl Sub<&Wire> for u32 {
 
     fn sub(self, other: &Wire) -> Self::Output {
         let neg = other * -Scalar::ONE;
-        let mut circuit = other.circuit.borrow_mut();
+        let mut circuit = other.arith.borrow_mut();
         Wire {
             id: circuit.add_const(neg.id, self.into()),
-            circuit: Rc::clone(&other.circuit),
+            arith: Rc::clone(&other.arith),
             ast: neg.add_ast_const(self.into()),
         }
     }
@@ -187,10 +187,10 @@ impl Sub<Wire> for &u32 {
 
     fn sub(self, other: Wire) -> Self::Output {
         let neg = &other * -Scalar::ONE;
-        let mut circuit = other.circuit.borrow_mut();
+        let mut circuit = other.arith.borrow_mut();
         Wire {
             id: circuit.add_const(neg.id, (*self).into()),
-            circuit: Rc::clone(&other.circuit),
+            arith: Rc::clone(&other.arith),
             ast: neg.add_ast_const((*self).into()),
         }
     }
@@ -201,10 +201,10 @@ impl Sub<&Wire> for &u32 {
 
     fn sub(self, other: &Wire) -> Self::Output {
         let neg = other * -Scalar::ONE;
-        let mut circuit = other.circuit.borrow_mut();
+        let mut circuit = other.arith.borrow_mut();
         Wire {
             id: circuit.add_const(neg.id, (*self).into()),
-            circuit: Rc::clone(&other.circuit),
+            arith: Rc::clone(&other.arith),
             ast: neg.add_ast_const((*self).into()),
         }
     }
@@ -216,10 +216,10 @@ impl Mul<u32> for Wire {
     type Output = Wire;
 
     fn mul(self, other: u32) -> Self::Output {
-        let mut circuit = self.circuit.borrow_mut();
+        let mut circuit = self.arith.borrow_mut();
         Wire {
             id: circuit.mul_const(self.id, other.into()),
-            circuit: Rc::clone(&self.circuit),
+            arith: Rc::clone(&self.arith),
             ast: self.mul_ast_const(other.into()),
         }
     }
@@ -229,10 +229,10 @@ impl Mul<&u32> for Wire {
     type Output = Wire;
 
     fn mul(self, other: &u32) -> Self::Output {
-        let mut circuit = self.circuit.borrow_mut();
+        let mut circuit = self.arith.borrow_mut();
         Wire {
             id: circuit.mul_const(self.id, (*other).into()),
-            circuit: Rc::clone(&self.circuit),
+            arith: Rc::clone(&self.arith),
             ast: self.mul_ast_const((*other).into()),
         }
     }
@@ -242,10 +242,10 @@ impl Mul<u32> for &Wire {
     type Output = Wire;
 
     fn mul(self, other: u32) -> Self::Output {
-        let mut circuit = self.circuit.borrow_mut();
+        let mut circuit = self.arith.borrow_mut();
         Wire {
             id: circuit.mul_const(self.id, other.into()),
-            circuit: Rc::clone(&self.circuit),
+            arith: Rc::clone(&self.arith),
             ast: self.mul_ast_const(other.into()),
         }
     }
@@ -255,10 +255,10 @@ impl Mul<&u32> for &Wire {
     type Output = Wire;
 
     fn mul(self, other: &u32) -> Self::Output {
-        let mut circuit = self.circuit.borrow_mut();
+        let mut circuit = self.arith.borrow_mut();
         Wire {
             id: circuit.mul_const(self.id, (*other).into()),
-            circuit: Rc::clone(&self.circuit),
+            arith: Rc::clone(&self.arith),
             ast: self.mul_ast_const((*other).into()),
         }
     }
@@ -304,10 +304,10 @@ impl Div<u32> for Wire {
     type Output = Wire;
 
     fn div(self, other: u32) -> Self::Output {
-        let mut circuit = self.circuit.borrow_mut();
+        let mut circuit = self.arith.borrow_mut();
         Wire {
             id: circuit.mul_const(self.id, (1 / other).into()),
-            circuit: Rc::clone(&self.circuit),
+            arith: Rc::clone(&self.arith),
             ast: self.mul_ast_const((1 / other).into()),
         }
     }
@@ -317,10 +317,10 @@ impl Div<&u32> for Wire {
     type Output = Wire;
 
     fn div(self, other: &u32) -> Self::Output {
-        let mut circuit = self.circuit.borrow_mut();
+        let mut circuit = self.arith.borrow_mut();
         Wire {
             id: circuit.mul_const(self.id, (1 / *other).into()),
-            circuit: Rc::clone(&self.circuit),
+            arith: Rc::clone(&self.arith),
             ast: self.mul_ast_const((1 / *other).into()),
         }
     }
@@ -330,10 +330,10 @@ impl Div<u32> for &Wire {
     type Output = Wire;
 
     fn div(self, other: u32) -> Self::Output {
-        let mut circuit = self.circuit.borrow_mut();
+        let mut circuit = self.arith.borrow_mut();
         Wire {
             id: circuit.mul_const(self.id, (1 / other).into()),
-            circuit: Rc::clone(&self.circuit),
+            arith: Rc::clone(&self.arith),
             ast: self.mul_ast_const((1 / other).into()),
         }
     }
@@ -343,10 +343,10 @@ impl Div<&u32> for &Wire {
     type Output = Wire;
 
     fn div(self, other: &u32) -> Self::Output {
-        let mut circuit = self.circuit.borrow_mut();
+        let mut circuit = self.arith.borrow_mut();
         Wire {
             id: circuit.mul_const(self.id, (1 / *other).into()),
-            circuit: Rc::clone(&self.circuit),
+            arith: Rc::clone(&self.arith),
             ast: self.mul_ast_const((1 / *other).into()),
         }
     }

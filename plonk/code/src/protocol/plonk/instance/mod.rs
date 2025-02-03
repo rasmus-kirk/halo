@@ -7,13 +7,13 @@ use halo_accumulation::pcdl::{self, EvalProof};
 use rand::rngs::ThreadRng;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PCDLProof<const EV: bool> {
+pub struct Instance<const EV: bool> {
     pub comm: Point,
     pub pi: EvalProof,
     pub ev: Option<Scalar>,
 }
 
-impl<const EV: bool> PCDLProof<EV> {
+impl<const EV: bool> Instance<EV> {
     pub fn new(rng: &mut ThreadRng, poly: &Poly, ch: &Scalar) -> Self {
         let commit = &poly.commit();
         Self {
@@ -48,8 +48,8 @@ impl<const EV: bool> PCDLProof<EV> {
         .is_ok()
     }
 
-    pub fn set_ev(&self, ev: &Scalar) -> PCDLProof<true> {
-        PCDLProof {
+    pub fn set_ev(&self, ev: &Scalar) -> Instance<true> {
+        Instance {
             comm: self.comm,
             pi: self.pi.clone(),
             ev: Some(*ev),

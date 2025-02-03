@@ -1,7 +1,10 @@
-use super::{ConstraintID, Pos, Trace};
-use crate::protocol::{
-    coset::Coset,
-    scheme::{Selectors, Slots, Terms},
+use super::{value::Value, ConstraintID, Pos, Trace};
+use crate::{
+    curve::Scalar,
+    protocol::{
+        coset::Coset,
+        scheme::{Selectors, Slots, Terms},
+    },
 };
 
 use std::fmt;
@@ -17,7 +20,13 @@ impl Trace {
             .map(|(i_, eqn)| {
                 let i = (i_ + 1) as ConstraintID;
                 let mut row: Vec<String> = vec![format!("{}", Pos::new(Slots::A, i))];
-                row.extend(Terms::iter().map(|term| format!("{}", eqn[term])));
+                row.extend(Slots::iter().map(|term| match eqn[Terms::F(term)] {
+                    Value::AnonWire(x) if x == Scalar::ZERO => "".to_string(),
+                    x => format!("{}", x),
+                }));
+                row.extend(
+                    Selectors::iter().map(|selector| format!("{}", eqn[Terms::Q(selector)])),
+                );
                 row.extend(Slots::iter().map(|slot| {
                     let pos = Pos::new(slot, i);
                     format!("{}", self.permutation.get(&pos).unwrap_or(&pos))

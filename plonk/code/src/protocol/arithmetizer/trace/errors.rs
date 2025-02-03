@@ -2,7 +2,7 @@ use super::constraints::Constraints;
 use crate::{curve::Scalar, protocol::arithmetizer::WireID, util::map_to_alphabet};
 
 #[derive(Debug)]
-pub enum EvaluatorError {
+pub enum TraceError {
     InputNotSet(WireID),
     WireNotInCache(WireID),
     ConstNotInCache(Scalar),
@@ -10,28 +10,28 @@ pub enum EvaluatorError {
     ConstraintNotSatisfied(String),
 }
 
-impl EvaluatorError {
+impl TraceError {
     pub fn constraint_not_satisfied(constraint: &Constraints) -> Self {
-        EvaluatorError::ConstraintNotSatisfied(constraint.to_string())
+        TraceError::ConstraintNotSatisfied(constraint.to_string())
     }
 }
 
-impl std::fmt::Display for EvaluatorError {
+impl std::fmt::Display for TraceError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            EvaluatorError::InputNotSet(id) => {
+            TraceError::InputNotSet(id) => {
                 write!(f, "Evaluator: Input `{}` not set", map_to_alphabet(*id))
             }
-            EvaluatorError::WireNotInCache(id) => {
+            TraceError::WireNotInCache(id) => {
                 write!(f, "Evaluator: Wire `{}` not in cache", map_to_alphabet(*id))
             }
-            EvaluatorError::ConstNotInCache(c) => {
+            TraceError::ConstNotInCache(c) => {
                 write!(f, "Evaluator: Constant `{}` not in cache", c)
             }
-            EvaluatorError::FailedToMakeCoset(m) => {
+            TraceError::FailedToMakeCoset(m) => {
                 write!(f, "Evaluator: Failed to make coset for `m={}`", m)
             }
-            EvaluatorError::ConstraintNotSatisfied(constraint_str) => {
+            TraceError::ConstraintNotSatisfied(constraint_str) => {
                 write!(
                     f,
                     "Evaluator: Constraints not satisfied: {}",
@@ -42,4 +42,4 @@ impl std::fmt::Display for EvaluatorError {
     }
 }
 
-impl std::error::Error for EvaluatorError {}
+impl std::error::Error for TraceError {}
