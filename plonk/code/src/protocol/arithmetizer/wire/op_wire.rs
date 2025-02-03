@@ -1,7 +1,7 @@
 use super::Wire;
 
 use std::{
-    ops::{Add, Mul, Sub},
+    ops::{Add, BitAnd, BitOr, Mul, Not, Sub},
     rc::Rc,
 };
 
@@ -163,6 +163,142 @@ impl Mul for &Wire {
             id: circuit.mul(self.id, other.id),
             arith: Rc::clone(&self.arith),
             ast: self.mul_ast(other),
+        }
+    }
+}
+
+// Not -----------------------------------------------------
+
+impl Not for Wire {
+    type Output = Wire;
+
+    fn not(self) -> Self::Output {
+        let mut circuit = self.arith.borrow_mut();
+        Wire {
+            id: circuit.not(self.id),
+            arith: Rc::clone(&self.arith),
+            ast: self.not_ast(),
+        }
+    }
+}
+
+impl Not for &Wire {
+    type Output = Wire;
+
+    fn not(self) -> Self::Output {
+        let mut circuit = self.arith.borrow_mut();
+        Wire {
+            id: circuit.not(self.id),
+            arith: Rc::clone(&self.arith),
+            ast: self.not_ast(),
+        }
+    }
+}
+
+// BitAnd -----------------------------------------------------
+
+impl BitAnd for Wire {
+    type Output = Wire;
+
+    fn bitand(self, other: Wire) -> Self::Output {
+        let mut circuit = self.arith.borrow_mut();
+        Wire {
+            id: circuit.and(self.id, other.id),
+            arith: Rc::clone(&self.arith),
+            ast: self.and_ast(&other),
+        }
+    }
+}
+
+impl BitAnd<&Wire> for Wire {
+    type Output = Wire;
+
+    fn bitand(self, other: &Wire) -> Self::Output {
+        let mut circuit = self.arith.borrow_mut();
+        Wire {
+            id: circuit.and(self.id, other.id),
+            arith: Rc::clone(&self.arith),
+            ast: self.and_ast(other),
+        }
+    }
+}
+
+impl BitAnd<Wire> for &Wire {
+    type Output = Wire;
+
+    fn bitand(self, other: Wire) -> Self::Output {
+        let mut circuit = self.arith.borrow_mut();
+        Wire {
+            id: circuit.and(self.id, other.id),
+            arith: Rc::clone(&self.arith),
+            ast: self.and_ast(&other),
+        }
+    }
+}
+
+impl BitAnd for &Wire {
+    type Output = Wire;
+
+    fn bitand(self, other: &Wire) -> Self::Output {
+        let mut circuit = self.arith.borrow_mut();
+        Wire {
+            id: circuit.and(self.id, other.id),
+            arith: Rc::clone(&self.arith),
+            ast: self.and_ast(other),
+        }
+    }
+}
+
+// BitOr -----------------------------------------------------
+
+impl BitOr for Wire {
+    type Output = Wire;
+
+    fn bitor(self, other: Wire) -> Self::Output {
+        let mut circuit = self.arith.borrow_mut();
+        Wire {
+            id: circuit.or(self.id, other.id),
+            arith: Rc::clone(&self.arith),
+            ast: self.or_ast(&other),
+        }
+    }
+}
+
+impl BitOr<&Wire> for Wire {
+    type Output = Wire;
+
+    fn bitor(self, other: &Wire) -> Self::Output {
+        let mut circuit = self.arith.borrow_mut();
+        Wire {
+            id: circuit.or(self.id, other.id),
+            arith: Rc::clone(&self.arith),
+            ast: self.or_ast(other),
+        }
+    }
+}
+
+impl BitOr<Wire> for &Wire {
+    type Output = Wire;
+
+    fn bitor(self, other: Wire) -> Self::Output {
+        let mut circuit = self.arith.borrow_mut();
+        Wire {
+            id: circuit.or(self.id, other.id),
+            arith: Rc::clone(&self.arith),
+            ast: self.or_ast(&other),
+        }
+    }
+}
+
+impl BitOr for &Wire {
+    type Output = Wire;
+
+    fn bitor(self, other: &Wire) -> Self::Output {
+        let mut circuit = self.arith.borrow_mut();
+        Wire {
+            id: circuit.or(self.id, other.id),
+            arith: Rc::clone(&self.arith),
+            ast: self.or_ast(other),
         }
     }
 }

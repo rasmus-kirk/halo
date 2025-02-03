@@ -70,47 +70,72 @@ impl Arithmetizer {
 
     // operators ----------------------------------------------------------
 
-    /// Returns a new wire that is the sum of `a` and `b`.
+    /// a + b : 𝔽
     pub fn add(&mut self, a: WireID, b: WireID) -> WireID {
         self.wires.get_id(ArithWire::AddGate(a, b))
     }
 
-    /// Returns a new wire that is the product of `a` and `b`.
+    /// a b : 𝔽
     pub fn mul(&mut self, a: WireID, b: WireID) -> WireID {
         self.wires.get_id(ArithWire::MulGate(a, b))
     }
 
-    /// Returns a new wire that is the sum of `a` and mul of `b` by -1.
+    /// a - b : 𝔽
     pub fn sub(&mut self, a: WireID, b: WireID) -> WireID {
         let neg_one = self.wires.get_const_id(-Scalar::ONE);
         let b_ = self.mul(b, neg_one);
         self.add(a, b_)
     }
 
-    /// Returns a new wire that is the sum of `a` and `b` where `b` is a constant.
+    /// a + b : 𝔽
     pub fn add_const(&mut self, a: WireID, b: Scalar) -> WireID {
         let right = self.wires.get_const_id(b);
         let gate = ArithWire::AddGate(a, right);
         self.wires.get_id(gate)
     }
 
-    /// Returns a new wire that is the sum of `a` and mul of `b` by -1 where `b` is a constant.
+    /// a - b : 𝔽
     pub fn sub_const(&mut self, a: WireID, b: Scalar) -> WireID {
         let right = self.wires.get_const_id(-b);
         let gate = ArithWire::AddGate(a, right);
         self.wires.get_id(gate)
     }
 
-    /// Returns a new wire that is the product of `a` and `b` where `b` is a constant.
+    /// a b : 𝔽
     pub fn mul_const(&mut self, a: WireID, b: Scalar) -> WireID {
         let right = self.wires.get_const_id(b);
         let gate = ArithWire::MulGate(a, right);
         self.wires.get_id(gate)
     }
 
-    /// Requires that the wire is a bit
+    // boolean operators --------------------------------------------------
+
+    /// a : 𝔹
     pub fn enforce_bit(&mut self, a: WireID) -> Result<(), ArithmetizerError> {
         self.wires.set_bit(a).map_err(ArithmetizerError::CacheError)
+    }
+
+    /// ¬a
+    pub fn not(&mut self, a: WireID) -> WireID {
+        let one = self.wires.get_const_id(Scalar::ONE);
+        self.sub(one, a)
+    }
+
+    /// a ∧ b : 𝔹
+    pub fn and(&mut self, a: WireID, b: WireID) -> WireID {
+        self.mul(a, b)
+    }
+
+    /// a ∨ b : 𝔹
+    /// ¬(¬a ∧ ¬b)
+    /// 1 - ((1 - a) * (1 - b))
+    /// 1 - (1 - a - b + a b)
+    /// 1 - 1 + a + b - a b
+    /// a + b - a b
+    pub fn or(&mut self, a: WireID, b: WireID) -> WireID {
+        let a_plus_b = self.add(a, b);
+        let a_b = self.mul(a, b);
+        self.sub(a_plus_b, a_b)
     }
 
     // utils --------------------------------------------------------------

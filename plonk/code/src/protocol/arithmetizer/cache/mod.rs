@@ -157,7 +157,7 @@ impl ArithWireCache {
                 }
                 ArithWire::AddGate(_, _) | ArithWire::MulGate(_, _) => {
                     for operand in w.inputs() {
-                        self.set_bit_(operand, false)?;
+                        let _ = self.set_bit_(operand, false);
                     }
                     self.bit_wires.insert(id, gen_constraint);
                     Ok(())

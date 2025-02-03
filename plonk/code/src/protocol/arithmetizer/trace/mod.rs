@@ -51,7 +51,7 @@ impl Trace {
         for (i, value) in input_values.into_iter().enumerate() {
             let val = Value::new_wire(i, value).set_bit_type(wires);
             eval.evals.insert(i, val);
-            eval.bool_constraint(val)?;
+            eval.bool_constraint(wires, i, val)?;
         }
         // fix input wire values
         for w in output_wires {
@@ -97,7 +97,7 @@ impl Trace {
                 (Constraints::mul(lhs, rhs, out), *out)
             }
         };
-        self.bool_constraint(value)?;
+        self.bool_constraint(wires, wire, value)?;
         if !constraint.is_satisfied() {
             return Err(TraceError::constraint_not_satisfied(&constraint));
         }
@@ -106,8 +106,8 @@ impl Trace {
         Ok(value)
     }
 
-    fn bool_constraint(&mut self, value: Value) -> Result<(), TraceError> {
-        if value.is_bit() {
+    fn bool_constraint(&mut self, wires: &ArithWireCache, wire: WireID, value: Value) -> Result<(), TraceError> {
+        if value.is_bit() && wires.is_bool_constraint(wire) {
             let bool_constraint = Constraints::boolean(&value);
             if !bool_constraint.is_satisfied() {
                 return Err(TraceError::constraint_not_satisfied(&bool_constraint));
