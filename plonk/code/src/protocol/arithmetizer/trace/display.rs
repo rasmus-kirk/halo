@@ -27,6 +27,7 @@ impl Trace {
                 row.extend(
                     Selectors::iter().map(|selector| format!("{}", eqn[Terms::Q(selector)])),
                 );
+                row.extend([eqn[Terms::PublicInputs]].iter().map(|x| format!("{}", x)));
                 row.extend(Slots::iter().map(|slot| {
                     let pos = Pos::new(slot, i);
                     format!("{}", self.permutation.get(&pos).unwrap_or(&pos))
@@ -53,6 +54,10 @@ impl fmt::Display for Trace {
                 .set_header(format!("{}", selector))
                 .set_align(Align::Right);
         }
+        ascii_table
+            .column(Terms::COUNT)
+            .set_header(format!("{}", Terms::PublicInputs))
+            .set_align(Align::Right);
         for (i, slot) in Slots::iter().enumerate() {
             ascii_table
                 .column(1 + Terms::COUNT + i)
