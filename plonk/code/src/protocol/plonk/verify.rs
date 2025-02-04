@@ -46,8 +46,9 @@ pub fn verify(x: &CircuitPublic, pi: SNARKProof) -> bool {
     // get / compute evaluations on challenge
     let [a, b, c] = &Instances::get_evs(&pi.qs_abc).unwrap();
     let [ql, qr, qo, qm, qc] = &Poly::evaluate_many(&x.qs, ch);
+    let pi_ev = x.pi.evaluate(ch);
     // F_GC(𝔷) = A(𝔷)Qₗ(𝔷) + B(𝔷)Qᵣ(𝔷) + C(𝔷)Qₒ(𝔷) + A(𝔷)B(𝔷)Qₘ(𝔷) + Q꜀(𝔷)
-    let f_gc_ev = &((a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc);
+    let f_gc_ev = &((a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc + pi_ev);
     if *f_gc_ev == Scalar::ZERO || !pi.q_fgc.check(ch, Some(f_gc_ev)) {
         println!("FAILED GC");
         return false;

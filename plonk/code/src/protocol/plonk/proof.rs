@@ -71,7 +71,7 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     let alpha = &transcript.challenge_scalar(b"alpha");
     let [ql, qr, qo, qm, qc] = &x.qs;
     // F_GC(X) = A(X)Qₗ(X) + B(X)Qᵣ(X) + C(X)Qₒ(X) + A(X)B(X)Qₘ(X) + Q꜀(X)
-    let f_gc = &((a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc);
+    let f_gc = &((a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc + &x.pi);
     // F_CC1(X) = L₁(X) (Z(X) - 1)
     let f_cc1 = &(x.h.lagrange(1) * (z - Poly::a(&Scalar::ONE)));
     // F_CC2(X) = Z(X)f'(X) - g'(X)Z(ω X)

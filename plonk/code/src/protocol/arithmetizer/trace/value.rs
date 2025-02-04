@@ -3,7 +3,7 @@ use crate::{curve::Scalar, protocol::arithmetizer::cache::ArithWireCache, util::
 
 use std::{
     fmt,
-    ops::{Add, Mul},
+    ops::{Add, Mul, Neg},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -73,6 +73,25 @@ impl From<Value> for Scalar {
             Value::AnonWire(scalar) => scalar,
             Value::Wire(_, _, scalar) => scalar,
         }
+    }
+}
+
+impl Neg for Value {
+    type Output = Value;
+
+    fn neg(self) -> Self::Output {
+        match self {
+            Value::AnonWire(scalar) => Value::AnonWire(-scalar),
+            Value::Wire(_, _, scalar) => Value::AnonWire(-scalar),
+        }
+    }
+}
+
+impl Neg for &Value {
+    type Output = Value;
+
+    fn neg(self) -> Self::Output {
+        -*self
     }
 }
 
