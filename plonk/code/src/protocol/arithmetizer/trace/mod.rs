@@ -131,7 +131,7 @@ impl Trace {
         value: Value,
     ) -> Result<(), TraceError> {
         if wires.is_public(wire) {
-            let pub_constraint = Constraints::constant(&value);
+            let pub_constraint = Constraints::public_input(&value);
             if !pub_constraint.is_satisfied() {
                 return Err(TraceError::constraint_not_satisfied(&pub_constraint));
             }
@@ -226,11 +226,12 @@ impl From<(Vec<Constraints>, [Vec<Pos>; Slots::COUNT])> for Trace {
 
 impl From<Trace> for Circuit {
     fn from(eval: Trace) -> Self {
-        let [a, b, c, ql, qr, qo, qm, qc] = eval.gate_polys();
+        let [a, b, c, ql, qr, qo, qm, qc, pi] = eval.gate_polys();
         let [sa, sb, sc, sida, sidb, sidc] = eval.copy_constraints();
         let x = CircuitPublic {
             h: eval.h,
             qs: [ql, qr, qo, qm, qc],
+            pi,
             sids: [sida, sidb, sidc],
             ss: [sa, sb, sc],
         };

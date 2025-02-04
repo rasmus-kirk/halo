@@ -10,6 +10,8 @@ pub struct CircuitPublic {
     pub h: Coset,
     // selector polynomials
     pub qs: [Poly; Selectors::COUNT],
+    // public input polynomial
+    pub pi: Poly,
     // identity permutation polynomial
     pub sids: [Poly; Slots::COUNT],
     // permutation polynomial
@@ -30,6 +32,7 @@ pub fn print_poly_evaluations(x: &CircuitPublic, w: &CircuitPrivate) {
         x.h.evals_str(
             w.ws.iter()
                 .chain(x.qs.iter())
+                .chain([x.pi.clone()].iter())
                 .chain(x.ss.iter())
                 .collect::<Vec<&Poly>>()
                 .as_slice(),
