@@ -12,56 +12,49 @@ on:
     workflow_dispatch:
 
 jobs:
-  fmt-accumulation:
+  spellcheck:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
 
-      - run: nix develop -c check-fmt
+      - name: Accumulation report spellcheck
+        run: nix run .#spellcheck
+        working-directory: ./accumulation/report
+
+      - name: Accumulation slides spellcheck
+        run: nix run .#spellcheck
+        working-directory: ./accumulation/slides
+
+  fmt:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Format accumulation code
+        run: nix develop -c check-fmt
         working-directory: ./accumulation/code
 
-  clippy-accumulation:
-    needs: fmt-accumulation
+  clippy:
+    needs: fmt
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
 
-      - run: nix develop -c check-lint
+      - name: Lint accumulation code
+        run: nix develop -c check-lint
         working-directory: ./accumulation/code
-
-  fmt-plonk:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: recursive
-
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@main
-
-      - run: nix develop -c check-fmt
-        working-directory: ./plonk/code
-
-  clippy-plonk:
-    needs: fmt-plonk
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: recursive
-
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@main
-
-      - run: nix develop -c check-lint
-        working-directory: ./plonk/code

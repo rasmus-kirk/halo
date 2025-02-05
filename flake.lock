@@ -1,0 +1,142 @@
+{
+  "nodes": {
+    "accumulation-code": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "rust-overlay": "rust-overlay"
+      },
+      "locked": {
+        "lastModified": 1,
+        "narHash": "sha256-h9jRc0LkpMXB+z4KnepKuX9Papst3+h906R9Ntnh/Do=",
+        "path": "/nix/store/5xmknhdmhib4xifddnwgpyny18fcyxq4-source/accumulation/code",
+        "type": "path"
+      },
+      "original": {
+        "path": "/nix/store/5xmknhdmhib4xifddnwgpyny18fcyxq4-source/accumulation/code",
+        "type": "path"
+      }
+    },
+    "accumulation-report": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1,
+        "narHash": "sha256-HrKy6HKDvbXdbRoOYrqswhX+AQnAPCPJaTeI3FRmS4Q=",
+        "path": "/nix/store/5xmknhdmhib4xifddnwgpyny18fcyxq4-source/accumulation/report",
+        "type": "path"
+      },
+      "original": {
+        "path": "/nix/store/5xmknhdmhib4xifddnwgpyny18fcyxq4-source/accumulation/report",
+        "type": "path"
+      }
+    },
+    "accumulation-slides": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1,
+        "narHash": "sha256-2A2B1Qc0ZpF44q91yeaSEQSDBpACXpxpn5p2ysR0+6U=",
+        "path": "/nix/store/5xmknhdmhib4xifddnwgpyny18fcyxq4-source/accumulation/slides",
+        "type": "path"
+      },
+      "original": {
+        "path": "/nix/store/5xmknhdmhib4xifddnwgpyny18fcyxq4-source/accumulation/slides",
+        "type": "path"
+      }
+    },
+    "contract": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1,
+        "narHash": "sha256-zyjix6d0X3nValmRF3v5iA9eKAu99/73vXQfjy/wEUw=",
+        "path": "/nix/store/5xmknhdmhib4xifddnwgpyny18fcyxq4-source/project-contract",
+        "type": "path"
+      },
+      "original": {
+        "path": "/nix/store/5xmknhdmhib4xifddnwgpyny18fcyxq4-source/project-contract",
+        "type": "path"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1738297584,
+        "narHash": "sha256-AYvaFBzt8dU0fcSK2jKD0Vg23K2eIRxfsVXIPCW9a0E=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "9189ac18287c599860e878e905da550aa6dec1cd",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "ref": "nixpkgs-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "accumulation-code": "accumulation-code",
+        "accumulation-report": "accumulation-report",
+        "accumulation-slides": "accumulation-slides",
+        "contract": "contract",
+        "nixpkgs": "nixpkgs",
+        "website-builder": "website-builder"
+      }
+    },
+    "rust-overlay": {
+      "inputs": {
+        "nixpkgs": [
+          "accumulation-code",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1738290352,
+        "narHash": "sha256-YKOHUmc0Clm4tMV8grnxYL4IIwtjTayoq/3nqk0QM7k=",
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "rev": "b031b584125d33d23a0182f91ddbaf3ab4880236",
+        "type": "github"
+      },
+      "original": {
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "type": "github"
+      }
+    },
+    "website-builder": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1737502356,
+        "narHash": "sha256-IF8rpMs63pPu+EvLRQ1mfyc1EZHP7BNeK3dN048tf1U=",
+        "owner": "rasmus-kirk",
+        "repo": "website-builder",
+        "rev": "d9fc8c15f297fa7a588b3ca251ef77e1f0c6ebb5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "rasmus-kirk",
+        "repo": "website-builder",
+        "type": "github"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

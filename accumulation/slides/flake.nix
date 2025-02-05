@@ -1,5 +1,5 @@
 {
-  description = "A report built with Pandoc, with continious compilation.";
+  description = "Slides built with Pandoc, with continious compilation.";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
@@ -32,9 +32,10 @@
           for filename in ./*.md; do
               pandoc "$filename" \
                 -H header.tex \
-                --citeproc \
-                --metadata date="$(date -u '+%Y-%m-%d - %H:%M:%S %Z')" \
                 --highlight-style gruvbox.theme \
+                -t beamer \
+                --slide-level 2 \
+                --metadata date="$(date -u '+%Y-%m-%d - %H:%M:%S %Z')" \
                 -o "$1/''${filename%.md}.pdf"
           done
         '';
@@ -78,8 +79,8 @@
         runtimeInputs = [pkgs.nodePackages_latest.cspell];
         text = ''watch --color cspell --color "*.md"'';
       };
-      report = pkgs.stdenv.mkDerivation {
-        name = "report";
+      slides = pkgs.stdenv.mkDerivation {
+        name = "slides";
         src = ./.;
         buildInputs = latexPkgs;
         phases = ["unpackPhase" "buildPhase"];
@@ -90,7 +91,7 @@
         '';
       };
       in {
-        default = report;
+        default = slides;
         loop = mk-pandoc-loop;
         pandoc = mk-pandoc;
         debug = debug;

@@ -21,30 +21,11 @@ pub fn commit(w: Option<&PallasScalar>, Gs: &[PallasAffine], ms: &[PallasScalar]
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use crate::consts;
-    use ark_ec::CurveGroup;
-    use ark_ff::BigInt;
     use ark_std::UniformRand;
     use rand::Rng;
 
     use super::*;
-
-    #[test]
-    fn test_lol() {
-        let a = PallasScalar::new(BigInt::new([420, 0, 0, 0]));
-        let b = PallasScalar::new(BigInt::new([210, 0, 0, 0]));
-        let c = PallasScalar::new(BigInt::new([69, 0, 0, 0]));
-        let Gs = &consts::GS[0..2];
-        let ass = [a, c];
-        let abs = [a*b, c*b];
-
-        let c1 = commit(None, Gs, &abs);
-        let c2 = commit(None, Gs, &ass) * b;
-
-        assert_eq!(c1, c2)
-    }
 
     fn test_single_homomorphism<R: Rng>(rng: &mut R, l: usize) {
         // Generate random commit keys
