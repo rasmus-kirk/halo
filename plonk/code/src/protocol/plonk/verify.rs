@@ -10,13 +10,13 @@ use crate::{
 use merlin::Transcript;
 
 pub struct SNARKProof {
-    pub qs_abc: Instances<{ Slots::COUNT }, true>,
-    pub q_fgc: Instance<false>,
-    pub q_z: Instance<true>,
-    pub q_fcc1: Instance<false>,
+    pub qs_abc: Instances<{ Slots::COUNT }>,
+    pub q_fgc: Instance,
+    pub q_z: Instance,
+    pub q_fcc1: Instance,
     pub zbar_ev: Scalar,
-    pub q_fcc2: Instance<false>,
-    pub q_t: Instance<true>,
+    pub q_fcc2: Instance,
+    pub q_t: Instance,
 }
 
 pub fn verify(x: &CircuitPublic, pi: SNARKProof) -> bool {

@@ -1,8 +1,8 @@
-use super::{
-    scheme::{Selectors, Slots},
-    Coset,
+use super::scheme::{Selectors, Slots};
+use crate::{
+    curve::{Coset, Poly},
+    protocol::scheme::Terms,
 };
-use crate::{curve::Poly, protocol::scheme::Terms};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CircuitPublic {
