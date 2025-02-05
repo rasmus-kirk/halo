@@ -1,4 +1,4 @@
-mod pcdl;
+mod instance;
 mod proof;
 mod transcript;
 mod verify;

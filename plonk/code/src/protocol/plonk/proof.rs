@@ -2,7 +2,7 @@ use merlin::Transcript;
 use rand::rngs::ThreadRng;
 
 use super::{
-    pcdl::{many::PCDLProofs, PCDLProof},
+    instance::{many::Instances, Instance},
     transcript::TranscriptProtocol,
     SNARKProof,
 };
@@ -76,7 +76,7 @@ pub fn proof(rng: &mut ThreadRng, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     let ch = &transcript.challenge_scalar(b"xi");
 
     let tw = f_gc + (alpha * (x.h.lagrange(1) * z)) + (alpha.pow(2) * (z * zf)) - (t * x.h.zh());
-    let q_tw = PCDLProof::new(rng, &tw, ch);
+    let q_tw = Instance::new(rng, &tw, ch, true);
     let abc_ev = Poly::evaluate_many(&w.ws, ch);
     let comm_fgc = f_gc.commit();
     let comm_fcc1 = f_cc1.commit();

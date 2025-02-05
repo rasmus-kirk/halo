@@ -51,4 +51,29 @@ impl Wire {
     pub fn mul_ast_const(&self, other: Scalar) -> WireAST {
         WireAST::Mul(Box::new(self.ast()), Box::new(WireAST::Constant(other)))
     }
+
+    pub fn not_ast_(ast: WireAST) -> WireAST {
+        WireAST::Add(
+            Box::new(WireAST::Constant(Scalar::ONE)),
+            Box::new(WireAST::Mul(
+                Box::new(ast),
+                Box::new(WireAST::Constant(-Scalar::ONE)),
+            )),
+        )
+    }
+
+    pub fn not_ast(&self) -> WireAST {
+        Wire::not_ast_(self.ast())
+    }
+
+    pub fn and_ast(&self, other: &Wire) -> WireAST {
+        self.mul_ast(other)
+    }
+
+    pub fn or_ast(&self, other: &Wire) -> WireAST {
+        let a_plus_b = self.add_ast(other);
+        let a_b = self.mul_ast(other);
+        let neg_a_b = WireAST::Mul(Box::new(a_b), Box::new(WireAST::Constant(-Scalar::ONE)));
+        WireAST::Add(Box::new(a_plus_b), Box::new(neg_a_b))
+    }
 }

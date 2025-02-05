@@ -1,7 +1,7 @@
-use super::{ConstraintID, Pos, Trace};
-use crate::protocol::{
-    coset::Coset,
-    scheme::{Selectors, Slots, Terms},
+use super::{value::Value, ConstraintID, Pos, Trace};
+use crate::{
+    curve::{Coset, Scalar},
+    protocol::scheme::{Selectors, Slots, Terms},
 };
 
 use std::fmt;
@@ -17,7 +17,14 @@ impl Trace {
             .map(|(i_, eqn)| {
                 let i = (i_ + 1) as ConstraintID;
                 let mut row: Vec<String> = vec![format!("{}", Pos::new(Slots::A, i))];
-                row.extend(Terms::iter().map(|term| format!("{}", eqn[term])));
+                row.extend(Slots::iter().map(|term| match eqn[Terms::F(term)] {
+                    Value::AnonWire(x) if x == Scalar::ZERO => "".to_string(),
+                    x => format!("{}", x),
+                }));
+                row.extend(
+                    Selectors::iter().map(|selector| format!("{}", eqn[Terms::Q(selector)])),
+                );
+                row.extend([eqn[Terms::PublicInputs]].iter().map(|x| format!("{}", x)));
                 row.extend(Slots::iter().map(|slot| {
                     let pos = Pos::new(slot, i);
                     format!("{}", self.permutation.get(&pos).unwrap_or(&pos))
@@ -44,6 +51,10 @@ impl fmt::Display for Trace {
                 .set_header(format!("{}", selector))
                 .set_align(Align::Right);
         }
+        ascii_table
+            .column(Terms::COUNT)
+            .set_header(format!("{}", Terms::PublicInputs))
+            .set_align(Align::Right);
         for (i, slot) in Slots::iter().enumerate() {
             ascii_table
                 .column(1 + Terms::COUNT + i)

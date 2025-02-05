@@ -1,4 +1,4 @@
-use super::{arith_wire::ArithWire, trace::EvaluatorError, Wire};
+use super::{arith_wire::ArithWire, cache::CacheError, trace::TraceError, Wire};
 
 use std::rc::Rc;
 
@@ -7,7 +7,8 @@ pub enum ArithmetizerError {
     EmptyOutputWires,
     MismatchedCircuits,
     InvalidInputLength { expected: usize, got: usize },
-    EvaluatorError(EvaluatorError),
+    EvaluatorError(TraceError),
+    CacheError(CacheError),
     CommutativeSetTypeConversionError(ArithWire),
 }
 
@@ -18,10 +19,10 @@ impl ArithmetizerError {
         }
         // verify at least one output wire
 
-        let ptr = output_wires[0].circuit();
+        let ptr = output_wires[0].arith();
         let circuit = ptr.borrow();
         for w in output_wires.iter() {
-            if !Rc::ptr_eq(ptr, w.circuit()) {
+            if !Rc::ptr_eq(ptr, w.arith()) {
                 return Err(ArithmetizerError::MismatchedCircuits);
             }
         }
@@ -54,6 +55,7 @@ impl std::fmt::Display for ArithmetizerError {
                 write!(f, "Arithmetizer: output wires belong to different circuits")
             }
             ArithmetizerError::EvaluatorError(e) => write!(f, "Arithmetizer: {}", e),
+            ArithmetizerError::CacheError(e) => write!(f, "Arithmetizer: {}", e),
             ArithmetizerError::CommutativeSetTypeConversionError(gate) => {
                 write!(
                     f,

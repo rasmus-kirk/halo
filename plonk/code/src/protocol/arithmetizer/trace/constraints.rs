@@ -76,6 +76,23 @@ impl Constraints {
         vs
     }
 
+    pub fn boolean(val: &Value) -> Self {
+        let mut vs = Constraints::default();
+        vs[Terms::F(Slots::A)] = *val;
+        vs[Terms::F(Slots::B)] = *val;
+        vs[Terms::Q(Selectors::Ql)] = Value::neg_one();
+        vs[Terms::Q(Selectors::Qm)] = Value::ONE;
+        vs
+    }
+
+    pub fn public_input(val: &Value) -> Self {
+        let mut vs = Constraints::default();
+        vs[Terms::F(Slots::A)] = *val;
+        vs[Terms::Q(Selectors::Ql)] = Value::ONE;
+        vs[Terms::PublicInputs] = -val;
+        vs
+    }
+
     pub fn scalars(&self) -> [Scalar; Terms::COUNT] {
         self.vs
             .iter()
@@ -101,7 +118,9 @@ impl Constraints {
             if lhs_scalar != rhs_scalar {
                 return false;
             }
-            if let (Value::Wire(lhs_id, _), Value::Wire(rhs_id, _)) = (self[term], other[term]) {
+            if let (Value::Wire(lhs_id, _, _), Value::Wire(rhs_id, _, _)) =
+                (self[term], other[term])
+            {
                 if let Some(rhs_enforced) = enforced_map.get_by_left(&lhs_id) {
                     if *rhs_enforced != rhs_id {
                         return false;
@@ -137,8 +156,8 @@ mod tests {
         let rng = &mut rand::thread_rng();
         for _ in 0..N {
             let scalar: Scalar = rng.gen();
-            let eqn_values = Constraints::constant(&Value::Wire(0, scalar));
-            assert_eq!(eqn_values[Terms::F(Slots::A)], Value::Wire(0, scalar));
+            let eqn_values = Constraints::constant(&Value::new_wire(0, scalar));
+            assert_eq!(eqn_values[Terms::F(Slots::A)], Value::new_wire(0, scalar));
             assert_eq!(
                 eqn_values[Terms::Q(Selectors::Qc)],
                 Value::AnonWire(-scalar)
@@ -151,9 +170,9 @@ mod tests {
     fn add() {
         let rng = &mut rand::thread_rng();
         for _ in 0..N {
-            let a = &Value::Wire(0, rng.gen());
-            let b = &Value::Wire(1, rng.gen());
-            let c = &Value::Wire(2, (a + b).into());
+            let a = &Value::new_wire(0, rng.gen());
+            let b = &Value::new_wire(1, rng.gen());
+            let c = &Value::new_wire(2, (a + b).into());
             let eqn_values = Constraints::add(a, b, c);
             assert_eq!(eqn_values[Terms::F(Slots::A)], *a);
             assert_eq!(eqn_values[Terms::F(Slots::B)], *b);
@@ -166,9 +185,9 @@ mod tests {
     fn mul() {
         let rng = &mut rand::thread_rng();
         for _ in 0..N {
-            let a = &Value::Wire(0, rng.gen());
-            let b = &Value::Wire(1, rng.gen());
-            let c = &Value::Wire(2, (a * b).into());
+            let a = &Value::new_wire(0, rng.gen());
+            let b = &Value::new_wire(1, rng.gen());
+            let c = &Value::new_wire(2, (a * b).into());
             let eqn_values = Constraints::mul(a, b, c);
             assert_eq!(eqn_values[Terms::F(Slots::A)], *a);
             assert_eq!(eqn_values[Terms::F(Slots::B)], *b);
@@ -178,23 +197,63 @@ mod tests {
     }
 
     #[test]
+    fn boolean() {
+        let rng = &mut rand::thread_rng();
+        for _ in 0..N {
+            let bit: bool = rng.gen();
+            let a = &Value::new_wire(0, if bit { Scalar::ONE } else { Scalar::ZERO });
+            let eqn_values = Constraints::boolean(a);
+            assert_eq!(eqn_values[Terms::F(Slots::A)], *a);
+            assert_eq!(eqn_values[Terms::F(Slots::B)], *a);
+            assert!(eqn_values.is_satisfied());
+        }
+        for _ in 0..N {
+            let mut val: Scalar = rng.gen();
+            loop {
+                if val == Scalar::ZERO || val == Scalar::ONE {
+                    val = rng.gen();
+                } else {
+                    break;
+                }
+            }
+            let a = &Value::new_wire(0, val);
+            let eqn_values = Constraints::boolean(a);
+            assert_eq!(eqn_values[Terms::F(Slots::A)], *a);
+            assert_eq!(eqn_values[Terms::F(Slots::B)], *a);
+            assert!(!eqn_values.is_satisfied());
+        }
+    }
+
+    #[test]
+    fn public_input() {
+        let rng = &mut rand::thread_rng();
+        for _ in 0..N {
+            let scalar: Scalar = rng.gen();
+            let eqn_values = Constraints::public_input(&Value::new_wire(0, scalar));
+            assert_eq!(eqn_values[Terms::F(Slots::A)], Value::new_wire(0, scalar));
+            assert_eq!(eqn_values[Terms::PublicInputs], -Value::new_wire(0, scalar));
+            assert!(eqn_values.is_satisfied());
+        }
+    }
+
+    #[test]
     fn structural_eq() {
-        let c1 = Constraints::constant(&Value::Wire(0, Scalar::ZERO));
-        let c2 = Constraints::constant(&Value::Wire(1, Scalar::ZERO));
+        let c1 = Constraints::constant(&Value::new_wire(0, Scalar::ZERO));
+        let c2 = Constraints::constant(&Value::new_wire(1, Scalar::ZERO));
         let hmap = &mut BiMap::new();
         assert!(c1.structural_eq(&c2, hmap));
         assert_eq!(hmap.len(), 1);
         assert_eq!(hmap.get_by_left(&0), Some(&1));
 
         let c1 = Constraints::add(
-            &Value::Wire(0, Scalar::ONE),
-            &Value::Wire(1, 2.into()),
-            &Value::Wire(2, 3.into()),
+            &Value::new_wire(0, Scalar::ONE),
+            &Value::new_wire(1, 2.into()),
+            &Value::new_wire(2, 3.into()),
         );
         let c2 = Constraints::add(
-            &Value::Wire(1, Scalar::ONE),
-            &Value::Wire(2, 2.into()),
-            &Value::Wire(0, 3.into()),
+            &Value::new_wire(1, Scalar::ONE),
+            &Value::new_wire(2, 2.into()),
+            &Value::new_wire(0, 3.into()),
         );
         let hmap = &mut BiMap::new();
         assert!(c1.structural_eq(&c2, hmap));
@@ -204,14 +263,14 @@ mod tests {
         assert_eq!(hmap.get_by_left(&2), Some(&0));
 
         let c1 = Constraints::mul(
-            &Value::Wire(0, 2.into()),
-            &Value::Wire(1, 3.into()),
-            &Value::Wire(2, 6.into()),
+            &Value::new_wire(0, 2.into()),
+            &Value::new_wire(1, 3.into()),
+            &Value::new_wire(2, 6.into()),
         );
         let c2 = Constraints::mul(
-            &Value::Wire(1, 2.into()),
-            &Value::Wire(2, 3.into()),
-            &Value::Wire(0, 6.into()),
+            &Value::new_wire(1, 2.into()),
+            &Value::new_wire(2, 3.into()),
+            &Value::new_wire(0, 6.into()),
         );
         let hmap = &mut BiMap::new();
         assert!(c1.structural_eq(&c2, hmap));
@@ -221,14 +280,14 @@ mod tests {
         assert_eq!(hmap.get_by_left(&2), Some(&0));
 
         let c1 = Constraints::mul(
-            &Value::Wire(0, 2.into()),
-            &Value::Wire(1, 3.into()),
-            &Value::Wire(2, 6.into()),
+            &Value::new_wire(0, 2.into()),
+            &Value::new_wire(1, 3.into()),
+            &Value::new_wire(2, 6.into()),
         );
         let c2 = Constraints::mul(
-            &Value::Wire(1, 2.into()),
-            &Value::Wire(1, 3.into()),
-            &Value::Wire(0, 6.into()),
+            &Value::new_wire(1, 2.into()),
+            &Value::new_wire(1, 3.into()),
+            &Value::new_wire(0, 6.into()),
         );
         let hmap = &mut BiMap::new();
         assert!(!c1.structural_eq(&c2, hmap));

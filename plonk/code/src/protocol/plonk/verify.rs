@@ -1,7 +1,4 @@
-use super::{
-    pcdl::PCDLProof,
-    transcript::TranscriptProtocol,
-};
+use super::{instance::Instance, transcript::TranscriptProtocol};
 use crate::{
     curve::{Point, Poly, Scalar},
     protocol::{circuit::CircuitPublic, scheme::Slots},
@@ -19,7 +16,7 @@ pub struct SNARKProof {
     pub zbar_ev: Scalar,
     pub comm_fcc2: Point,
     pub comm_t: Point,
-    pub q_tw: PCDLProof<false>,
+    pub q_tw: Instance,
 }
 
 pub fn verify(x: &CircuitPublic, pi: SNARKProof) -> bool {
@@ -52,7 +49,9 @@ pub fn verify(x: &CircuitPublic, pi: SNARKProof) -> bool {
         * (b + beta * sidb.evaluate(ch) + gamma)
         * (c + beta * sidc.evaluate(ch) + gamma));
     // g'(𝔷) = (A(𝔷)) + β S₁(𝔷)) + γ) (B(𝔷)) + β S₂(𝔷)) + γ) (C(𝔷)) + β S₃(𝔷)) + γ)
-    let zg_ev = &((a + beta * sa.evaluate(ch) + gamma) * (b + beta * sb.evaluate(ch) + gamma) * (c + beta * sc.evaluate(ch) + gamma));
+    let zg_ev = &((a + beta * sa.evaluate(ch) + gamma)
+        * (b + beta * sb.evaluate(ch) + gamma)
+        * (c + beta * sc.evaluate(ch) + gamma));
     // F_CC2(𝔷) = (Z(𝔷)f'(𝔷)) - (g'(𝔷)Z(ω 𝔷))
     let pt_fcc2: &Point = &(pi.comm_z * zf_ev).into();
     let val_fcc2 = &(zg_ev * pi.zbar_ev);
@@ -63,7 +62,14 @@ pub fn verify(x: &CircuitPublic, pi: SNARKProof) -> bool {
     let pt_t: Point = pi.comm_t.into();
     let pt_tv: Point = pt_fgc + (alpha * pt_fcc1) + (alpha2 * pt_fcc2) - (pt_t * zh_ev);
     let t_ev = (alpha * l1_ev) + (alpha2 * val_fcc2);
-    pcdl::check(&pt_tv.into(), pi.q_tw.comm.into(), &ch.into(), &t_ev.into(), pi.q_tw.pi).is_ok()
+    pcdl::check(
+        &pt_tv.into(),
+        pi.q_tw.comm.into(),
+        &ch.into(),
+        &t_ev.into(),
+        pi.q_tw.pi,
+    )
+    .is_ok()
 }
 
 // TODO use commits instead of evals

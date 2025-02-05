@@ -9,6 +9,7 @@ pub trait TranscriptProtocol {
     fn domain_sep(&mut self);
     fn append_point(&mut self, label: &'static [u8], point: &Point);
     fn append_points(&mut self, label: &'static [u8], comms: &[Point]);
+    #[allow(dead_code)]
     fn append_scalar(&mut self, label: &'static [u8], scalar: &Scalar);
     fn challenge_scalar(&mut self, label: &'static [u8]) -> Scalar;
     fn challenge_scalar_augment(&mut self, val: u64, label: &'static [u8]) -> Scalar;

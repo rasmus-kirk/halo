@@ -18,6 +18,8 @@ use std::ops::{Add, Div, Mul, Neg, Sub};
 
 use crate::curve::{Point, Scalar};
 
+/// f ∈ 𝔽ₚᵈ[X]
+/// Polynomial f of degree d over the field 𝔽ₚ
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct Poly {
     poly: PallasPoly,
