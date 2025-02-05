@@ -91,13 +91,13 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     // 𝔷 = H(transcript)
     let ch = &transcript.challenge_scalar(b"xi");
 
-    let qs_abc = Instances::<{ Slots::COUNT }, true>::new_from_comm(rng, &w.ws, comms_abc, ch);
-    let q_fgc = Instance::<false>::new(rng, f_gc, ch);
-    let q_z = Instance::<true>::new_from_comm(rng, z, ch, comm_z);
-    let q_fcc1 = Instance::<false>::new(rng, f_cc1, ch);
+    let qs_abc = Instances::<{ Slots::COUNT }>::new_from_comm(rng, &w.ws, comms_abc, ch, true);
+    let q_fgc = Instance::new(rng, f_gc, ch, false);
+    let q_z = Instance::new_from_comm(rng, z, ch, comm_z, true);
+    let q_fcc1 = Instance::new(rng, f_cc1, ch, false);
     let zbar_ev = zbar.evaluate(ch);
-    let q_fcc2 = Instance::<false>::new(rng, f_cc2, ch);
-    let q_t = Instance::<true>::new_from_comm(rng, t, ch, comm_t);
+    let q_fcc2 = Instance::new(rng, f_cc2, ch, false);
+    let q_t = Instance::new_from_comm(rng, t, ch, comm_t, true);
 
     // let hdrs = vec![
     //     "F_GC(X)".to_string(),
