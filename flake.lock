@@ -10,11 +10,11 @@
       "locked": {
         "lastModified": 1,
         "narHash": "sha256-h9jRc0LkpMXB+z4KnepKuX9Papst3+h906R9Ntnh/Do=",
-        "path": "/nix/store/5xmknhdmhib4xifddnwgpyny18fcyxq4-source/accumulation/code",
+        "path": "/nix/store/hgiwx0hzfjnakzh2n57666bwby6qvkmh-source/accumulation/code",
         "type": "path"
       },
       "original": {
-        "path": "/nix/store/5xmknhdmhib4xifddnwgpyny18fcyxq4-source/accumulation/code",
+        "path": "/nix/store/hgiwx0hzfjnakzh2n57666bwby6qvkmh-source/accumulation/code",
         "type": "path"
       }
     },
@@ -27,11 +27,11 @@
       "locked": {
         "lastModified": 1,
         "narHash": "sha256-HrKy6HKDvbXdbRoOYrqswhX+AQnAPCPJaTeI3FRmS4Q=",
-        "path": "/nix/store/5xmknhdmhib4xifddnwgpyny18fcyxq4-source/accumulation/report",
+        "path": "/nix/store/hgiwx0hzfjnakzh2n57666bwby6qvkmh-source/accumulation/report",
         "type": "path"
       },
       "original": {
-        "path": "/nix/store/5xmknhdmhib4xifddnwgpyny18fcyxq4-source/accumulation/report",
+        "path": "/nix/store/hgiwx0hzfjnakzh2n57666bwby6qvkmh-source/accumulation/report",
         "type": "path"
       }
     },
@@ -44,11 +44,11 @@
       "locked": {
         "lastModified": 1,
         "narHash": "sha256-2A2B1Qc0ZpF44q91yeaSEQSDBpACXpxpn5p2ysR0+6U=",
-        "path": "/nix/store/5xmknhdmhib4xifddnwgpyny18fcyxq4-source/accumulation/slides",
+        "path": "/nix/store/hgiwx0hzfjnakzh2n57666bwby6qvkmh-source/accumulation/slides",
         "type": "path"
       },
       "original": {
-        "path": "/nix/store/5xmknhdmhib4xifddnwgpyny18fcyxq4-source/accumulation/slides",
+        "path": "/nix/store/hgiwx0hzfjnakzh2n57666bwby6qvkmh-source/accumulation/slides",
         "type": "path"
       }
     },
@@ -60,12 +60,12 @@
       },
       "locked": {
         "lastModified": 1,
-        "narHash": "sha256-zyjix6d0X3nValmRF3v5iA9eKAu99/73vXQfjy/wEUw=",
-        "path": "/nix/store/5xmknhdmhib4xifddnwgpyny18fcyxq4-source/project-contract",
+        "narHash": "sha256-b+GzmlzVOhCbKDM+Xs2O0GB2HKGu94P1H2B3ujWQbFg=",
+        "path": "/nix/store/hgiwx0hzfjnakzh2n57666bwby6qvkmh-source/project-contract",
         "type": "path"
       },
       "original": {
-        "path": "/nix/store/5xmknhdmhib4xifddnwgpyny18fcyxq4-source/project-contract",
+        "path": "/nix/store/hgiwx0hzfjnakzh2n57666bwby6qvkmh-source/project-contract",
         "type": "path"
       }
     },

@@ -75,8 +75,8 @@
         runtimeInputs = [pkgs.nodePackages_latest.cspell];
         text = ''watch --color cspell --color "*.md"'';
       };
-      report = pkgs.stdenv.mkDerivation {
-        name = "report";
+      contract = pkgs.stdenv.mkDerivation {
+        name = "contract";
         src = ./.;
         buildInputs = latexPkgs;
         phases = ["unpackPhase" "buildPhase"];
@@ -87,7 +87,7 @@
         '';
       };
       in {
-        default = report;
+        default = contract;
         loop = mk-pandoc-loop;
         mk-pandoc = mk-pandoc;
         debug = debug;
