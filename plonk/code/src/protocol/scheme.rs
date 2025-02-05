@@ -42,6 +42,12 @@ impl Slots {
     }
 }
 
+impl From<Slots> for usize {
+    fn from(slot: Slots) -> Self {
+        slot as usize
+    }
+}
+
 impl From<usize> for Slots {
     fn from(index: usize) -> Self {
         match index {
@@ -91,6 +97,12 @@ impl Selectors {
         ]
         .iter()
         .copied()
+    }
+}
+
+impl From<Selectors> for usize {
+    fn from(selector: Selectors) -> Self {
+        selector as usize
     }
 }
 

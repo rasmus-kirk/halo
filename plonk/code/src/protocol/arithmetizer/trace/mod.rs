@@ -7,10 +7,9 @@ mod value;
 
 use super::{arith_wire::ArithWire, cache::ArithWireCache, WireID};
 use crate::{
-    curve::{Poly, Scalar},
+    curve::{Coset, Poly, Scalar},
     protocol::{
         circuit::{Circuit, CircuitPrivate, CircuitPublic},
-        coset::Coset,
         scheme::{Slots, Terms, MAX_BLIND_TERMS},
     },
 };
@@ -64,7 +63,8 @@ impl Trace {
         // compute copy constraint values
 
         let m = eval.constraints.len() as u64;
-        eval.h = Coset::new(rng, m + MAX_BLIND_TERMS).ok_or(TraceError::FailedToMakeCoset(m))?;
+        eval.h = Coset::new(rng, m + MAX_BLIND_TERMS, Slots::COUNT)
+            .ok_or(TraceError::FailedToMakeCoset(m))?;
         // compute coset
 
         Ok(eval)

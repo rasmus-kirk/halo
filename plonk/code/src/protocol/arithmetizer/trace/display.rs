@@ -1,10 +1,7 @@
 use super::{value::Value, ConstraintID, Pos, Trace};
 use crate::{
-    curve::Scalar,
-    protocol::{
-        coset::Coset,
-        scheme::{Selectors, Slots, Terms},
-    },
+    curve::{Coset, Scalar},
+    protocol::scheme::{Selectors, Slots, Terms},
 };
 
 use std::fmt;
