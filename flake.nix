@@ -70,7 +70,7 @@
           }
           {
             title = "Github";
-            location = "https://github.com/rasmus-kirk/halo-accumulation";
+            location = "https://github.com/rasmus-kirk/halo";
           }
         ];
       };
