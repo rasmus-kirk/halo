@@ -44,6 +44,10 @@ jobs:
         run: nix develop -c check-fmt
         working-directory: ./accumulation/code
 
+      - name: Format plonk code
+        run: nix develop -c check-fmt
+        working-directory: ./plonk/code
+
   clippy:
     needs: fmt
     runs-on: ubuntu-24.04
@@ -58,3 +62,7 @@ jobs:
       - name: Lint accumulation code
         run: nix develop -c check-lint
         working-directory: ./accumulation/code
+
+      - name: Lint plonk code
+        run: nix develop -c check-lint
+        working-directory: ./plonk/code
