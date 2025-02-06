@@ -39,8 +39,10 @@ pub fn verify(x: &CircuitPublic, pi: SNARKProof) -> bool {
     // get / compute evaluations on challenge
     let [a, b, c] = &pi.abc_ev;
     let [ql, qr, qo, qm, qc] = &Poly::commit_many(&x.qs);
+    let comm_pi = &x.pi.commit();
     // F_GC(𝔷) = A(𝔷)Qₗ(𝔷) + B(𝔷)Qᵣ(𝔷) + C(𝔷)Qₒ(𝔷) + A(𝔷)B(𝔷)Qₘ(𝔷) + Q꜀(𝔷)
-    let pt_fgc: &Point = &((a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc).into();
+    let pt_fgc: &Point = &((a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc + comm_pi).into();
+    assert_eq!(pi.comm_fgc, *pt_fgc);
     // F_CC1(𝔷) = L₁(𝔷) (Z(𝔷) - 1) = (L₁(𝔷) Z(𝔷)) - (L₁(𝔷))
     let l1_ev = &x.h.lagrange(1).evaluate(ch);
     let pt_fcc1: &Point = &(l1_ev * pi.comm_z);
@@ -61,16 +63,16 @@ pub fn verify(x: &CircuitPublic, pi: SNARKProof) -> bool {
     let alpha2 = &alpha.pow(2);
     let pt_t: Point = pi.comm_t.into();
     let pt_tv: Point = pt_fgc + (alpha * pt_fcc1) + (alpha2 * pt_fcc2) - (pt_t * zh_ev);
-    let t_ev = (alpha * l1_ev) + (alpha2 * val_fcc2);
     pcdl::check(
         &pt_tv.into(),
         pi.q_tw.comm.into(),
         &ch.into(),
-        &t_ev.into(),
+        &pi.q_tw.ev.unwrap().into(),
         pi.q_tw.pi,
     )
     .is_ok()
 }
 
+// TODO figure out multiplying commits
 // TODO use commits instead of evals
 // TODO avoid using evaluate in verifier
