@@ -1,6 +1,7 @@
 mod arith_wire;
 mod cache;
 mod errors;
+mod plonkup;
 mod synthesize;
 mod trace;
 mod wire;
