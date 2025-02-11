@@ -226,11 +226,11 @@ impl From<(Vec<Constraints>, [Vec<Pos>; Slots::COUNT])> for Trace {
 
 impl From<Trace> for Circuit {
     fn from(eval: Trace) -> Self {
-        let [a, b, c, ql, qr, qo, qm, qc, pi] = eval.gate_polys();
+        let [a, b, c, ql, qr, qo, qm, qc, qk, pi] = eval.gate_polys();
         let [sa, sb, sc, sida, sidb, sidc] = eval.copy_constraints();
         let x = CircuitPublic {
             h: eval.h,
-            qs: [ql, qr, qo, qm, qc],
+            qs: [ql, qr, qo, qm, qc, qk],
             pi,
             sids: [sida, sidb, sidc],
             ss: [sa, sb, sc],
