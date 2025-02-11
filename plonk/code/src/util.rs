@@ -28,6 +28,14 @@ pub fn to_superscript(num: u64) -> String {
         .collect()
 }
 
+pub fn to_subscript(num: u64) -> String {
+    let subscripts = ['₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉'];
+    num.to_string()
+        .chars()
+        .map(|c| subscripts[c.to_digit(10).expect("Invalid digit") as usize])
+        .collect()
+}
+
 pub fn pair_app<T, U>(f: impl Fn(T) -> U) -> impl Fn((T, T)) -> (U, U) {
     move |(a, b)| (f(a), f(b))
 }

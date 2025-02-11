@@ -55,9 +55,9 @@ pub fn proof(rng: &mut ThreadRng, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     // Round 3 -----------------------------------------------------
     // α = H(transcript)
     let alpha = &transcript.challenge_scalar(b"alpha");
-    let [ql, qr, qo, qm, qc] = &x.qs;
+    let [ql, qr, qo, qm, qc, _] = &x.qs;
     // F_GC(X) = A(X)Qₗ(X) + B(X)Qᵣ(X) + C(X)Qₒ(X) + A(X)B(X)Qₘ(X) + Q꜀(X)
-    let f_gc = &((a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc);
+    let f_gc = &((a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc + &x.pi);
     // F_CC1(X) = L₁(X) (Z(X) - 1)
     let f_cc1 = &(x.h.lagrange(1) * (z - Poly::a(&Scalar::ONE)));
     // F_CC2(X) = Z(X)f'(X) - g'(X)Z(ω X)
@@ -75,13 +75,13 @@ pub fn proof(rng: &mut ThreadRng, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     // 𝔷 = H(transcript)
     let ch = &transcript.challenge_scalar(b"xi");
 
-    let qs_abc = Instances::<{ Slots::COUNT }, true>::new_from_comm(rng, &w.ws, comms_abc, ch);
-    let q_fgc = Instance::<false>::new(rng, f_gc, ch);
-    let q_z = Instance::<true>::new_from_comm(rng, z, ch, comm_z);
-    let q_fcc1 = Instance::<false>::new(rng, f_cc1, ch);
+    let qs_abc = Instances::<{ Slots::COUNT }>::new_from_comm(rng, &w.ws, comms_abc, ch, true);
+    let q_fgc = Instance::new(rng, f_gc, ch, false);
+    let q_z = Instance::new_from_comm(rng, z, ch, comm_z, true);
+    let q_fcc1 = Instance::new(rng, f_cc1, ch, false);
     let zbar_ev = zbar.evaluate(ch);
-    let q_fcc2 = Instance::<false>::new(rng, f_cc2, ch);
-    let q_t = Instance::<true>::new_from_comm(rng, t, ch, comm_t);
+    let q_fcc2 = Instance::new(rng, f_cc2, ch, false);
+    let q_t = Instance::new_from_comm(rng, t, ch, comm_t, true);
 
     let hdrs = vec![
         "F_GC(X)".to_string(),

@@ -7,10 +7,9 @@ mod value;
 
 use super::{arith_wire::ArithWire, cache::ArithWireCache, WireID};
 use crate::{
-    curve::{Poly, Scalar},
+    curve::{Coset, Poly, Scalar},
     protocol::{
         circuit::{Circuit, CircuitPrivate, CircuitPublic},
-        coset::Coset,
         scheme::{Slots, Terms, MAX_BLIND_TERMS},
     },
 };
@@ -64,7 +63,8 @@ impl Trace {
         // compute copy constraint values
 
         let m = eval.constraints.len() as u64;
-        eval.h = Coset::new(rng, m + MAX_BLIND_TERMS).ok_or(TraceError::FailedToMakeCoset(m))?;
+        eval.h = Coset::new(rng, m + MAX_BLIND_TERMS, Slots::COUNT)
+            .ok_or(TraceError::FailedToMakeCoset(m))?;
         // compute coset
 
         Ok(eval)
@@ -131,7 +131,7 @@ impl Trace {
         value: Value,
     ) -> Result<(), TraceError> {
         if wires.is_public(wire) {
-            let pub_constraint = Constraints::constant(&value);
+            let pub_constraint = Constraints::public_input(&value);
             if !pub_constraint.is_satisfied() {
                 return Err(TraceError::constraint_not_satisfied(&pub_constraint));
             }
@@ -226,11 +226,12 @@ impl From<(Vec<Constraints>, [Vec<Pos>; Slots::COUNT])> for Trace {
 
 impl From<Trace> for Circuit {
     fn from(eval: Trace) -> Self {
-        let [a, b, c, ql, qr, qo, qm, qc] = eval.gate_polys();
+        let [a, b, c, ql, qr, qo, qm, qc, qk, pi] = eval.gate_polys();
         let [sa, sb, sc, sida, sidb, sidc] = eval.copy_constraints();
         let x = CircuitPublic {
             h: eval.h,
-            qs: [ql, qr, qo, qm, qc],
+            qs: [ql, qr, qo, qm, qc, qk],
+            pi,
             sids: [sida, sidb, sidc],
             ss: [sa, sb, sc],
         };

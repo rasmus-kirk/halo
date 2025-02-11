@@ -85,6 +85,14 @@ impl Constraints {
         vs
     }
 
+    pub fn public_input(val: &Value) -> Self {
+        let mut vs = Constraints::default();
+        vs[Terms::F(Slots::A)] = *val;
+        vs[Terms::Q(Selectors::Ql)] = Value::ONE;
+        vs[Terms::PublicInputs] = -val;
+        vs
+    }
+
     pub fn scalars(&self) -> [Scalar; Terms::COUNT] {
         self.vs
             .iter()
@@ -213,6 +221,18 @@ mod tests {
             assert_eq!(eqn_values[Terms::F(Slots::A)], *a);
             assert_eq!(eqn_values[Terms::F(Slots::B)], *a);
             assert!(!eqn_values.is_satisfied());
+        }
+    }
+
+    #[test]
+    fn public_input() {
+        let rng = &mut rand::thread_rng();
+        for _ in 0..N {
+            let scalar: Scalar = rng.gen();
+            let eqn_values = Constraints::public_input(&Value::new_wire(0, scalar));
+            assert_eq!(eqn_values[Terms::F(Slots::A)], Value::new_wire(0, scalar));
+            assert_eq!(eqn_values[Terms::PublicInputs], -Value::new_wire(0, scalar));
+            assert!(eqn_values.is_satisfied());
         }
     }
 

@@ -1,4 +1,4 @@
-# Report:
+# PLONK
 
 Building, running, etc...
 
@@ -71,7 +71,8 @@ The plonk library has the following structure:
 - `plonk::curve` contains structs that wrap the underlying curve
   - `::point` point of the elliptic curve
   - `::scalar` scalar of the field for the curve
-  - `::poly` polynomial over the scalar field
+  - `::poly` polynomial over the scalar field 
+  - `::coset` set of elements generated from the root of unity of the curve used as indices for wires in the circuit
 - `plonk::protocol`
   - `::arithmetizer` arithmetizes a program
     - `::cache` cache of unique identifiers and computation used to minimize circuit size
@@ -79,5 +80,8 @@ The plonk library has the following structure:
     - `::trace` computes the values of the wires prior to circuit construction
   - `::scheme` contains the arithmetization scheme constants and constraint structure
   - `::circuit` $x R w$ where $x$ are public polynomials, $w$ are private, and $R$ is the arithmetized program as a relation
-  - `::coset` set of elements generated from the root of unity of the curve used as indices for wires in the circuit
-  - `::plonk` the PLONK protocol, contains `proof, verify`
+  - `::plonk` the PLONK protocol
+    - `::proof` generates the SNARK proof
+    - `::verify` verifies the SNARK proof
+    - `::instance` the data for a PCS
+    - `::transcript` the hash scheme used (merlin)

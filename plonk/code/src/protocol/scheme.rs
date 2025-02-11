@@ -42,6 +42,12 @@ impl Slots {
     }
 }
 
+impl From<Slots> for usize {
+    fn from(slot: Slots) -> Self {
+        slot as usize
+    }
+}
+
 impl From<usize> for Slots {
     fn from(index: usize) -> Self {
         match index {
@@ -63,6 +69,7 @@ pub enum Selectors {
     Qo,
     Qm,
     Qc,
+    Qk,
 }
 
 impl fmt::Display for Selectors {
@@ -73,13 +80,14 @@ impl fmt::Display for Selectors {
             Selectors::Qo => "Qₒ",
             Selectors::Qm => "Qₘ",
             Selectors::Qc => "Q꜀",
+            Selectors::Qk => "Qₖ",
         };
         write!(f, "{}", s)
     }
 }
 
 impl Selectors {
-    pub const COUNT: usize = 5;
+    pub const COUNT: usize = 6;
 
     pub fn iter() -> impl Iterator<Item = Self> {
         [
@@ -88,9 +96,16 @@ impl Selectors {
             Selectors::Qo,
             Selectors::Qm,
             Selectors::Qc,
+            Selectors::Qk,
         ]
         .iter()
         .copied()
+    }
+}
+
+impl From<Selectors> for usize {
+    fn from(selector: Selectors) -> Self {
+        selector as usize
     }
 }
 
@@ -102,6 +117,7 @@ impl From<usize> for Selectors {
             2 => Selectors::Qo,
             3 => Selectors::Qm,
             4 => Selectors::Qc,
+            5 => Selectors::Qk,
             _ => panic!("Invalid index for Selectors"),
         }
     }
@@ -112,6 +128,7 @@ impl From<usize> for Selectors {
 pub enum Terms {
     F(Slots),
     Q(Selectors),
+    PublicInputs,
 }
 
 impl Default for Terms {
@@ -121,24 +138,25 @@ impl Default for Terms {
 }
 
 impl Terms {
-    pub const COUNT: usize = Slots::COUNT + Selectors::COUNT;
+    pub const COUNT: usize = Slots::COUNT + Selectors::COUNT + 1;
 
     pub fn iter() -> impl Iterator<Item = Self> {
         Slots::iter()
             .map(Terms::F)
             .chain(Selectors::iter().map(Terms::Q))
+            .chain(std::iter::once(Terms::PublicInputs))
     }
 
     pub fn eqn(terms: [Scalar; Self::COUNT]) -> Scalar {
-        let [a, b, c, ql, qr, qo, qm, qc] = terms;
-        (a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc
+        let [a, b, c, ql, qr, qo, qm, qc, _, pi] = terms;
+        (a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc + pi
     }
 
     pub fn eqn_str(terms: [String; Self::COUNT]) -> String {
-        let [a, b, c, ql, qr, qo, qm, qc] = terms;
+        let [a, b, c, ql, qr, qo, qm, qc, _, pi] = terms;
         format!(
-            "{} × {} + {} × {} + {} × {} + {} × {} × {} + {})",
-            a, ql, b, qr, c, qo, a, b, qm, qc
+            "{} × {} + {} × {} + {} × {} + {} × {} × {} + {} + {})",
+            a, ql, b, qr, c, qo, a, b, qm, qc, pi
         )
     }
 
@@ -156,6 +174,7 @@ impl From<Terms> for usize {
         match term {
             Terms::F(slot) => slot as usize,
             Terms::Q(selector) => Slots::COUNT + selector as usize,
+            Terms::PublicInputs => Slots::COUNT + Selectors::COUNT,
         }
     }
 }
@@ -177,6 +196,7 @@ impl fmt::Display for Terms {
         match self {
             Terms::F(slot) => write!(f, "{}", slot),
             Terms::Q(selector) => write!(f, "{}", selector),
+            Terms::PublicInputs => write!(f, "PI"),
         }
     }
 }
