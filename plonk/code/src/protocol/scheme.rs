@@ -69,6 +69,7 @@ pub enum Selectors {
     Qo,
     Qm,
     Qc,
+    Qk,
 }
 
 impl fmt::Display for Selectors {
@@ -79,13 +80,14 @@ impl fmt::Display for Selectors {
             Selectors::Qo => "Qₒ",
             Selectors::Qm => "Qₘ",
             Selectors::Qc => "Q꜀",
+            Selectors::Qk => "Qₖ",
         };
         write!(f, "{}", s)
     }
 }
 
 impl Selectors {
-    pub const COUNT: usize = 5;
+    pub const COUNT: usize = 6;
 
     pub fn iter() -> impl Iterator<Item = Self> {
         [
@@ -94,6 +96,7 @@ impl Selectors {
             Selectors::Qo,
             Selectors::Qm,
             Selectors::Qc,
+            Selectors::Qk,
         ]
         .iter()
         .copied()
@@ -114,6 +117,7 @@ impl From<usize> for Selectors {
             2 => Selectors::Qo,
             3 => Selectors::Qm,
             4 => Selectors::Qc,
+            5 => Selectors::Qk,
             _ => panic!("Invalid index for Selectors"),
         }
     }
@@ -144,12 +148,12 @@ impl Terms {
     }
 
     pub fn eqn(terms: [Scalar; Self::COUNT]) -> Scalar {
-        let [a, b, c, ql, qr, qo, qm, qc, pi] = terms;
+        let [a, b, c, ql, qr, qo, qm, qc, _, pi] = terms;
         (a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc + pi
     }
 
     pub fn eqn_str(terms: [String; Self::COUNT]) -> String {
-        let [a, b, c, ql, qr, qo, qm, qc, pi] = terms;
+        let [a, b, c, ql, qr, qo, qm, qc, _, pi] = terms;
         format!(
             "{} × {} + {} × {} + {} × {} + {} × {} × {} + {} + {})",
             a, ql, b, qr, c, qo, a, b, qm, qc, pi
