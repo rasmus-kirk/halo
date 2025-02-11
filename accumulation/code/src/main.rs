@@ -1,101 +1,195 @@
 #![allow(non_snake_case)]
 
-use std::{fs::File, path::Path};
+use std::{
+    env,
+    fmt::Display,
+    fs::{self, create_dir, OpenOptions},
+    io::Write,
+    path::PathBuf,
+    sync::Arc,
+    time::{Duration, SystemTime},
+};
 
+use acc::Accumulator;
 use anyhow::Result;
-use ark_ec::{CurveGroup, PrimeGroup};
-use ark_ff::PrimeField;
-use ark_pallas::Affine;
-use ark_serialize::Write;
-use sha3::{Digest, Sha3_256};
+use archive::std_config;
+use pcdl::Instance;
+use pp::PublicParams;
+use tokio::task::JoinSet;
+use wrappers::{WrappedAccumulator, WrappedInstance};
 
-mod group;
+pub mod acc;
+mod archive;
+pub mod consts;
+pub mod group;
+pub mod pcdl;
+pub mod pedersen;
+mod pp;
+pub mod wrappers;
 
-use group::{PallasPoint, PallasScalar};
+// TODO: Maybe remove this
+// -------------------- Benchmarking Struct --------------------
 
-// Function to generate a random generator for the Pallas Curve.
-// Since the order of the curve is prime, any point that is not the identity point is a generator.
-fn get_generator_hash(i: usize) -> PallasPoint {
-    let genesis_string = "To understand recursion, one must first understand recursion".as_bytes();
-
-    // Hash `genesis_string` concatinated with `i`
-    let mut hasher = Sha3_256::new();
-    hasher.update(genesis_string);
-    hasher.update(i.to_le_bytes());
-    let hash_result = hasher.finalize();
-
-    // Interpret the hash as a scalar field element
-    let scalar = PallasScalar::from_le_bytes_mod_order(&hash_result);
-
-    // Generate a uniformly sampled point from the uniformly sampled field element
-    PallasPoint::generator() * scalar
+struct Benchmark {
+    time: Duration,
+    n: usize,
 }
 
-/// Get public parameters
-fn get_pp(n: usize) -> (PallasPoint, PallasPoint, Vec<PallasPoint>) {
-    let S = get_generator_hash(0);
-    let H = get_generator_hash(1);
-    let mut Gs = Vec::with_capacity(n);
-
-    for i in 2..(n + 2) {
-        Gs.push(get_generator_hash(i))
+impl Display for Benchmark {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let secs = self.time.as_secs();
+        let millis = self.time.as_millis() % 1000;
+        write!(f, "[n={}] Ran in {}:{} s", self.n, secs, millis)
     }
-
-    (S, H, Gs)
 }
 
-fn format_affine(P: Affine) -> String {
-    format!("mk_aff!({:?}, {:?}),\n", P.x.0 .0, P.y.0 .0)
+impl Benchmark {
+    fn new(time: Duration, n: usize) -> Self {
+        Self { time, n }
+    }
 }
 
-fn format_projective(name: &str, P: PallasPoint) -> String {
-    format!("{name}: ({:?}, {:?}, {:?})\n", P.x.0 .0, P.y.0 .0, P.z.0 .0)
+// -------------------- Benchmarking Functions --------------------
+
+async fn gen(
+    pp: Arc<PublicParams>,
+    n: usize,
+) -> Result<(usize, WrappedInstance, WrappedAccumulator)> {
+    let q = gen_q(pp.clone(), n).await?;
+    let acc = gen_acc(pp, q.clone()).await?;
+
+    let wq: WrappedInstance = q.clone().into();
+    let wacc: WrappedAccumulator = acc.into();
+    Ok((n, wq, wacc))
 }
 
-fn log_pp(filepath: &Path, n: usize) -> Result<()> {
-    let (S, H, Gs) = get_pp(n);
+async fn gen_q(pp: Arc<PublicParams>, n: usize) -> Result<Instance> {
+    let rng = &mut rand::thread_rng();
 
-    let mut output = File::create(filepath)?;
-    write!(output, "{}", format_projective("S", S))?;
-    write!(output, "{}", format_projective("H", H))?;
-    for G in Gs {
-        let s = format_affine(G.into_affine());
-        write!(output, "{}", s)?;
+    let now = SystemTime::now();
+    let q = Instance::rand(rng, &(*pp), n);
+    let elapsed = now.elapsed()?;
+
+    let time = format!("{}:{} s", elapsed.as_secs(), elapsed.as_millis() % 1000);
+    println!("[q {}]: Finished in {}", n, time);
+
+    Ok(q)
+}
+
+async fn gen_acc(pp: Arc<PublicParams>, q: Instance) -> Result<Accumulator> {
+    let rng = &mut rand::thread_rng();
+    let n = q.d + 1;
+
+    let now = SystemTime::now();
+    let acc = acc::prover(rng, &(*pp), &[q])?;
+    let elapsed = now.elapsed()?;
+
+    let time = format!("{}:{} s", elapsed.as_secs(), elapsed.as_millis() % 1000);
+    println!("[acc {}]: Finished acc in {}", n, time);
+
+    Ok(acc)
+}
+
+async fn test_succinct_check(pp: Arc<PublicParams>, q: Instance, n: usize) -> Result<Benchmark> {
+    let now = SystemTime::now();
+    let _ = q.succinct_check(&pp)?;
+    let elapsed = now.elapsed()?;
+
+    let benchmark = Benchmark::new(elapsed, n);
+
+    let time = format!("{}:{} s", elapsed.as_secs(), elapsed.as_millis() % 1000);
+
+    let n_f = n as f64;
+    let t_f = elapsed.as_millis() as f64;
+    let score = t_f.powi(2) / n_f;
+    println!("[sc - {}]: Finished in {} (score: {})", n, time, score);
+
+    Ok(benchmark)
+}
+
+async fn test_acc_ver(pp: Arc<PublicParams>, q: Instance, acc: Accumulator) -> Result<Benchmark> {
+    let n = acc.q.d + 1;
+
+    let now = SystemTime::now();
+    acc.verifier(&pp, &[q])?;
+    let elapsed = now.elapsed()?;
+
+    let benchmark = Benchmark::new(elapsed, n);
+
+    let time = format!("{}:{} s", elapsed.as_secs(), elapsed.as_millis() % 1000);
+
+    let n_f = n as f64;
+    let t_f = elapsed.as_millis() as f64;
+    let score = t_f.powi(2) / n_f;
+    println!("[acc - {}]: Finished in {} (score: {})", n, time, score);
+
+    Ok(benchmark)
+}
+
+// TODO: Benchmark pcdl::open, and acc::prover properly. Idea branch on provers/verifiers otherwise error.
+/// A hacky script to do some rough benchmarks. We parallelize what we can to bring down the time as much as possible, this hurts the benchmarks, but they take so long that it's the only feasible option.
+/// Run `cargo run -- /path/to/gen/dir gen` to generate the benchmarking accumulators and instances
+/// Run `cargo run -- /path/to/gen/dir` to benchmark the cached generated values
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Handle cmd inputs
+    let args: Vec<String> = env::args().collect();
+    let path = args.get(1).expect("No path specified!");
+    let is_gen = match args.get(2) {
+        Some(s) => s == "gen",
+        None => false,
+    };
+    // Handle destination dir
+    // TODO: Create a file for q and acc
+    let dest_path = PathBuf::from(path).join("qs");
+    if !dest_path.exists() {
+        println!("cargo:warning=creating {:?}", dest_path);
+        create_dir(&dest_path)?;
+    }
+    let q_path = dest_path.join("qs.bin");
+
+    let max = 20;
+    let n = 2usize.pow(max);
+    let pp = Arc::new(pp::PublicParams::new(n));
+
+    // Branch on `gen` argument
+    if is_gen {
+        let mut set = JoinSet::new();
+        for i in 5..(max + 1) {
+            let pp_clone = Arc::clone(&pp);
+            set.spawn(gen(pp_clone, 2usize.pow(i)));
+        }
+
+        let res: Result<Vec<(usize, WrappedInstance, WrappedAccumulator)>> =
+            set.join_all().await.into_iter().collect();
+
+        let bytes = bincode::encode_to_vec(res?, std_config())?;
+
+        let mut file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(q_path)?;
+
+        Write::write_all(&mut file, &bytes)?;
+    } else {
+        let bytes = fs::read(q_path)?;
+        let (val, _): (Vec<(usize, WrappedInstance, WrappedAccumulator)>, _) =
+            bincode::decode_from_slice(&bytes, std_config())?;
+
+        let mut set = JoinSet::new();
+        for (n, q, acc) in val.into_iter() {
+            let q: Instance = q.into();
+            set.spawn(test_succinct_check(pp.clone(), q.clone(), n));
+            set.spawn(test_acc_ver(pp.clone(), q, acc.into()));
+        }
+
+        let benches: Result<Vec<Benchmark>> = set.join_all().await.into_iter().collect();
+
+        for bench in benches? {
+            println!("{}", bench);
+        }
     }
 
     Ok(())
-}
-
-fn main() {
-    println!("Hello, world!");
-    let n = 16384;
-    log_pp(Path::new("points.txt"), n).unwrap();
-}
-
-#[cfg(test)]
-mod tests {
-    use ark_ff::BigInt;
-    use ark_pallas::Fq;
-
-    use super::*;
-
-    macro_rules! mk_aff {
-        ($x:tt, $y:tt) => {
-            Affine::new_unchecked(
-                Fq::new_unchecked(BigInt::new($x)),
-                Fq::new_unchecked(BigInt::new($y)),
-            )
-        };
-    }
-
-    #[test]
-    fn test_fq_reconstruction() {
-        let (_, _, Gs) = get_pp(512);
-
-        for G in Gs {
-            let x = G.into_affine().x.0 .0;
-            let y = G.into_affine().y.0 .0;
-            assert_eq!(mk_aff!(x, y), G.into_affine());
-        }
-    }
 }

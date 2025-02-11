@@ -15,7 +15,7 @@ pub(crate) fn scalar_dot(xs: &[PallasScalar], ys: &[PallasScalar]) -> PallasScal
 }
 
 /// Dot product of points
-pub(crate) fn point_dot(xs: &[PallasScalar], Gs: Vec<PallasPoint>) -> PallasPoint {
+pub fn point_dot(xs: &[PallasScalar], Gs: Vec<PallasPoint>) -> PallasPoint {
     let Gs: Vec<PallasAffine> = Gs.into_iter().map(|x| x.into_affine()).collect();
     PallasPoint::msm_unchecked(&Gs, xs)
 }
@@ -36,10 +36,15 @@ pub(crate) fn construct_powers(z: &PallasScalar, n: usize) -> Vec<PallasScalar> 
     zs
 }
 
+use sha3::{Digest, Sha3_256};
+
 // These are ugly, but it really cleans up the implementation
-// They just hash either points or scalars to a single scalar and point respectively
+// They just hash either points or scalars to a single scalar, prepending either 0 or 1
 macro_rules! rho_0 {
     ($($a:expr),+ $(,)?) => {{
+        use ::sha3::{Digest, Sha3_256};
+        use $crate::group::PallasScalar;
+
         let mut size = 0;
         $(
             size += $a.compressed_size();
@@ -65,6 +70,9 @@ macro_rules! rho_0 {
 
 macro_rules! rho_1 {
     ($($a:expr),+ $(,)?) => {{
+        use ::sha3::{Digest, Sha3_256};
+        use $crate::group::PallasScalar;
+
         let mut size = 0;
         $(
             size += $a.compressed_size();

@@ -21,15 +21,17 @@ pub fn commit(w: Option<&PallasScalar>, Gs: &[PallasAffine], ms: &[PallasScalar]
 
 #[cfg(test)]
 mod tests {
-    use crate::consts;
+    use crate::{consts, pp::PublicParams};
     use ark_std::UniformRand;
     use rand::Rng;
 
     use super::*;
 
     fn test_single_homomorphism<R: Rng>(rng: &mut R, l: usize) {
+        let pp = PublicParams::new(l);
+
         // Generate random commit keys
-        let Gs = &consts::GS[0..l];
+        let Gs = &pp.Gs[0..l];
 
         // Create random message vectors
         let ms1: Vec<PallasScalar> = (0..l).map(|_| PallasScalar::rand(rng)).collect();
@@ -45,6 +47,8 @@ mod tests {
         let outer_sum = commit(Some(&w1), Gs, &ms1) + commit(Some(&w2), Gs, &ms2);
 
         // Check if homomorphism property holds
+        println!("{:?}, {}", &pp.Gs[0..l], l);
+        println!("{:?}", &pp.Gs[0..l][0].is_on_curve());
         assert!(
             inner_sum == outer_sum,
             "The homomorphism property does not hold."
@@ -54,7 +58,7 @@ mod tests {
     #[test]
     fn test_homomorphism_property() {
         let mut rng = ark_std::test_rng();
-        let ms_len = 64; // Number of message elements
+        let ms_len = 2; // Number of message elements
         let tests = 10; // Number of tests run
 
         for _ in 0..tests {

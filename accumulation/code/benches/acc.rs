@@ -1,358 +1,66 @@
-use ark_poly::{DenseUVPolynomial, Polynomial};
-use ark_std::{test_rng, UniformRand};
+#![allow(dead_code)]
+
+use ark_std::test_rng;
+use bincode::config::standard;
 use criterion::Criterion;
 
-use anyhow::Result;
 use halo_accumulation::{
-    acc::{self, Accumulator, Instance},
-    group::{PallasPoly, PallasScalar},
-    pcdl::{self},
+    acc::{self, Accumulator},
+    pcdl::Instance,
+    pp::PublicParams,
+    wrappers::*,
 };
-use rand::{distributions::Uniform, Rng};
+use seq_macro::seq;
 
-const N: usize = 1024;
+const PRE: &[u8] = include_bytes!("precompute/qs.bin");
 
-fn random_instance<R: Rng>(rng: &mut R, d: usize) -> acc::Instance {
-    let d_prime = rng.sample(&Uniform::new(d / 2, d));
-
-    // Commit to a random polynomial
-    let w = PallasScalar::rand(rng);
-    let p = PallasPoly::rand(d_prime, rng);
-    let c = pcdl::commit(&p, d, Some(&w));
-
-    // Generate an evaluation proof
-    let z = PallasScalar::rand(rng);
-    let v = p.evaluate(&z);
-    let pi = pcdl::open(rng, p, c, d, &z, Some(&w));
-
-    acc::Instance::new(c, d, z, v, pi)
+/// Helper function: Gets precomputed linear-time computation dummy values.
+fn get_cheap_linears(n: usize) -> ([Instance; 1], Accumulator) {
+    let (val, _): (Vec<(usize, WrappedInstance, WrappedAccumulator)>, _) =
+        bincode::decode_from_slice(&PRE, standard()).unwrap();
+    let q_acc = val.into_iter().find(|x| x.0 == n).unwrap();
+    ([q_acc.1.into()], q_acc.2.into())
 }
 
-pub fn acc_prover(c: &mut Criterion) {
-    let mut rng = test_rng();
-    let d = N - 1;
-
-    let qs = [random_instance(&mut rng, d)];
-
-    c.bench_function("acc_prover", |b| b.iter(|| acc::prover(&mut rng, d, &qs)));
+pub fn public_parameters(c: &mut Criterion) {
+    let n = 2usize.pow(20);
+    c.bench_function("public_parameters", |b| b.iter(|| PublicParams::new(n)));
 }
 
-pub fn acc_verifier(c: &mut Criterion) {
-    let mut rng = test_rng();
-    let d = N - 1;
-
-    let qs = [random_instance(&mut rng, d)];
-    let acc = acc::prover(&mut rng, d, &qs).unwrap();
-
-    c.bench_function("acc_verifier", |b| {
-        b.iter(|| acc::verifier(d, &qs, acc.clone()))
-    });
+macro_rules! define_acc_benches {
+    ($exp:literal) => {
+        paste::paste! {
+            pub fn [<acc_common_subroutine_ $exp>](c: &mut Criterion) {
+                let n = 2usize.pow($exp);
+                let pp = &acc::setup(n);
+                let (qs, acc) = get_cheap_linears(n);
+                c.bench_function(concat!("acc_common_subroutine_", stringify!($exp)), |b| b.iter(|| acc::common_subroutine(&pp, &qs, &acc.pi_V)));
+            }
+            pub fn [<acc_prover_ $exp>](c: &mut Criterion) {
+                let mut rng = test_rng();
+                let n = 2usize.pow($exp);
+                let pp = &acc::setup(n);
+                let (qs, _) = get_cheap_linears(n);
+                c.bench_function(concat!("acc_prover_", stringify!($exp)), |b| b.iter(|| acc::prover(&mut rng, pp, &qs)));
+            }
+            pub fn [<acc_decider_ $exp>](c: &mut Criterion) {
+                let n = 2usize.pow($exp);
+                let pp = &acc::setup(n);
+                let (_, acc) = get_cheap_linears(n);
+                c.bench_function(concat!("acc_decider_", stringify!($exp)), |b| b.iter(|| acc::decider(pp, acc.clone())));
+            }
+            pub fn [<acc_verifier_ $exp>](c: &mut Criterion) {
+                let n = 2usize.pow($exp);
+                let pp = &acc::setup(n);
+                let (qs, acc) = get_cheap_linears(n);
+                c.bench_function(concat!("acc_verifier_", stringify!($exp)), |b| {
+                    b.iter(|| acc::verifier(pp, &qs, acc.clone()))
+                });
+            }
+        }
+    };
 }
 
-pub fn acc_decider(c: &mut Criterion) {
-    let mut rng = test_rng();
-    let d = N - 1;
-
-    let qs = [random_instance(&mut rng, d)];
-    let acc = acc::prover(&mut rng, d, &qs).unwrap();
-
-    c.bench_function("acc_decider", |b| b.iter(|| acc::decider(acc.clone())));
-}
-
-// ----- Comparison Benchmarks ----- //
-
-fn acc_compare_fast_helper(d: usize, qss: &[Vec<Instance>], accs: Vec<Accumulator>) -> Result<()> {
-    let last_acc = accs.last().unwrap().clone();
-
-    for (acc, qs) in accs.into_iter().zip(qss) {
-        acc::verifier(d, qs, acc)?;
-    }
-
-    acc::decider(last_acc)?;
-
-    Ok(())
-}
-
-fn acc_compare(n: usize, k: usize) -> (usize, Vec<Vec<Instance>>, Vec<Accumulator>) {
-    let mut rng = test_rng();
-    let d = n - 1;
-    let mut accs = Vec::with_capacity(k);
-    let mut qss = Vec::with_capacity(k);
-
-    let mut acc: Option<Accumulator> = None;
-    for _ in 0..k {
-        let q = random_instance(&mut rng, d);
-        let qs = if let Some(acc) = acc {
-            vec![acc.into(), q]
-        } else {
-            vec![q]
-        };
-
-        acc = Some(acc::prover(&mut rng, d, &qs).unwrap());
-
-        accs.push(acc.as_ref().unwrap().clone());
-        qss.push(qs);
-    }
-
-    (d, qss, accs)
-}
-
-fn acc_compare_slow_helper(accs: Vec<Accumulator>) -> Result<()> {
-    for acc in accs.into_iter() {
-        acc::decider(acc)?;
-    }
-
-    Ok(())
-}
-
-pub fn acc_cmp_s_512_10(c: &mut Criterion) {
-    let (_, _, accs) = acc_compare(512, 10);
-    c.bench_function("acc_cmp_s_512_10", |b| {
-        b.iter(|| acc_compare_slow_helper(accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_f_512_10(c: &mut Criterion) {
-    let (d, qss, accs) = acc_compare(512, 10);
-    c.bench_function("acc_cmp_f_512_10", |b| {
-        b.iter(|| acc_compare_fast_helper(d, &qss, accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_s_1024_10(c: &mut Criterion) {
-    let (_, _, accs) = acc_compare(1024, 10);
-    c.bench_function("acc_cmp_s_1024_10", |b| {
-        b.iter(|| acc_compare_slow_helper(accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_f_1024_10(c: &mut Criterion) {
-    let (d, qss, accs) = acc_compare(1024, 10);
-    c.bench_function("acc_cmp_f_1024_10", |b| {
-        b.iter(|| acc_compare_fast_helper(d, &qss, accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_s_2048_10(c: &mut Criterion) {
-    let (_, _, accs) = acc_compare(2048, 10);
-    c.bench_function("acc_cmp_s_2048_10", |b| {
-        b.iter(|| acc_compare_slow_helper(accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_f_2048_10(c: &mut Criterion) {
-    let (d, qss, accs) = acc_compare(2048, 10);
-    c.bench_function("acc_cmp_f_2048_10", |b| {
-        b.iter(|| acc_compare_fast_helper(d, &qss, accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_s_4096_10(c: &mut Criterion) {
-    let (_, _, accs) = acc_compare(4096, 10);
-    c.bench_function("acc_cmp_s_4096_10", |b| {
-        b.iter(|| acc_compare_slow_helper(accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_f_4096_10(c: &mut Criterion) {
-    let (d, qss, accs) = acc_compare(4096, 10);
-    c.bench_function("acc_cmp_f_4096_10", |b| {
-        b.iter(|| acc_compare_fast_helper(d, &qss, accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_s_8196_10(c: &mut Criterion) {
-    let (_, _, accs) = acc_compare(8192, 10);
-    c.bench_function("acc_cmp_s_8196_10", |b| {
-        b.iter(|| acc_compare_slow_helper(accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_f_8196_10(c: &mut Criterion) {
-    let (d, qss, accs) = acc_compare(8192, 10);
-    c.bench_function("acc_cmp_f_8196_10", |b| {
-        b.iter(|| acc_compare_fast_helper(d, &qss, accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_s_16384_10(c: &mut Criterion) {
-    let (_, _, accs) = acc_compare(16384, 10);
-    c.bench_function("acc_cmp_s_16384_10", |b| {
-        b.iter(|| acc_compare_slow_helper(accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_f_16384_10(c: &mut Criterion) {
-    let (d, qss, accs) = acc_compare(16384, 10);
-    c.bench_function("acc_cmp_f_16384_10", |b| {
-        b.iter(|| acc_compare_fast_helper(d, &qss, accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_s_512_100(c: &mut Criterion) {
-    let (_, _, accs) = acc_compare(512, 100);
-    c.bench_function("acc_cmp_s_512_100", |b| {
-        b.iter(|| acc_compare_slow_helper(accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_f_512_100(c: &mut Criterion) {
-    let (d, qss, accs) = acc_compare(512, 100);
-    c.bench_function("acc_cmp_f_512_100", |b| {
-        b.iter(|| acc_compare_fast_helper(d, &qss, accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_s_1024_100(c: &mut Criterion) {
-    let (_, _, accs) = acc_compare(1024, 100);
-    c.bench_function("acc_cmp_s_1024_100", |b| {
-        b.iter(|| acc_compare_slow_helper(accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_f_1024_100(c: &mut Criterion) {
-    let (d, qss, accs) = acc_compare(1024, 100);
-    c.bench_function("acc_cmp_f_1024_100", |b| {
-        b.iter(|| acc_compare_fast_helper(d, &qss, accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_s_2048_100(c: &mut Criterion) {
-    let (_, _, accs) = acc_compare(2048, 100);
-    c.bench_function("acc_cmp_s_2048_100", |b| {
-        b.iter(|| acc_compare_slow_helper(accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_f_2048_100(c: &mut Criterion) {
-    let (d, qss, accs) = acc_compare(2048, 100);
-    c.bench_function("acc_cmp_f_2048_100", |b| {
-        b.iter(|| acc_compare_fast_helper(d, &qss, accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_s_4096_100(c: &mut Criterion) {
-    let (_, _, accs) = acc_compare(4096, 100);
-    c.bench_function("acc_cmp_s_4096_100", |b| {
-        b.iter(|| acc_compare_slow_helper(accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_f_4096_100(c: &mut Criterion) {
-    let (d, qss, accs) = acc_compare(4096, 100);
-    c.bench_function("acc_cmp_f_4096_100", |b| {
-        b.iter(|| acc_compare_fast_helper(d, &qss, accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_s_8196_100(c: &mut Criterion) {
-    let (_, _, accs) = acc_compare(8192, 100);
-    c.bench_function("acc_cmp_s_8196_100", |b| {
-        b.iter(|| acc_compare_slow_helper(accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_f_8196_100(c: &mut Criterion) {
-    let (d, qss, accs) = acc_compare(8192, 100);
-    c.bench_function("acc_cmp_f_8196_100", |b| {
-        b.iter(|| acc_compare_fast_helper(d, &qss, accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_s_16384_100(c: &mut Criterion) {
-    let (_, _, accs) = acc_compare(16384, 100);
-    c.bench_function("acc_cmp_s_16384_100", |b| {
-        b.iter(|| acc_compare_slow_helper(accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_f_16384_100(c: &mut Criterion) {
-    let (d, qss, accs) = acc_compare(16384, 100);
-    c.bench_function("acc_cmp_f_16384_100", |b| {
-        b.iter(|| acc_compare_fast_helper(d, &qss, accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_s_512_1000(c: &mut Criterion) {
-    let (_, _, accs) = acc_compare(512, 1000);
-    c.bench_function("acc_cmp_s_512_1000", |b| {
-        b.iter(|| acc_compare_slow_helper(accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_f_512_1000(c: &mut Criterion) {
-    let (d, qss, accs) = acc_compare(512, 1000);
-    c.bench_function("acc_cmp_f_512_1000", |b| {
-        b.iter(|| acc_compare_fast_helper(d, &qss, accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_s_1024_1000(c: &mut Criterion) {
-    let (_, _, accs) = acc_compare(1024, 1000);
-    c.bench_function("acc_cmp_s_1024_1000", |b| {
-        b.iter(|| acc_compare_slow_helper(accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_f_1024_1000(c: &mut Criterion) {
-    let (d, qss, accs) = acc_compare(1024, 1000);
-    c.bench_function("acc_cmp_f_1024_1000", |b| {
-        b.iter(|| acc_compare_fast_helper(d, &qss, accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_s_2048_1000(c: &mut Criterion) {
-    let (_, _, accs) = acc_compare(2048, 1000);
-    c.bench_function("acc_cmp_s_2048_1000", |b| {
-        b.iter(|| acc_compare_slow_helper(accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_f_2048_1000(c: &mut Criterion) {
-    let (d, qss, accs) = acc_compare(2048, 1000);
-    c.bench_function("acc_cmp_f_2048_1000", |b| {
-        b.iter(|| acc_compare_fast_helper(d, &qss, accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_s_4096_1000(c: &mut Criterion) {
-    let (_, _, accs) = acc_compare(4096, 1000);
-    c.bench_function("acc_cmp_s_4096_1000", |b| {
-        b.iter(|| acc_compare_slow_helper(accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_f_4096_1000(c: &mut Criterion) {
-    let (d, qss, accs) = acc_compare(4096, 1000);
-    c.bench_function("acc_cmp_f_4096_1000", |b| {
-        b.iter(|| acc_compare_fast_helper(d, &qss, accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_s_8196_1000(c: &mut Criterion) {
-    let (_, _, accs) = acc_compare(8192, 1000);
-    c.bench_function("acc_cmp_s_8196_1000", |b| {
-        b.iter(|| acc_compare_slow_helper(accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_f_8196_1000(c: &mut Criterion) {
-    let (d, qss, accs) = acc_compare(8192, 1000);
-    c.bench_function("acc_cmp_f_8196_1000", |b| {
-        b.iter(|| acc_compare_fast_helper(d, &qss, accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_s_16384_1000(c: &mut Criterion) {
-    let (_, _, accs) = acc_compare(16384, 1000);
-    c.bench_function("acc_cmp_s_16384_1000", |b| {
-        b.iter(|| acc_compare_slow_helper(accs.clone()).unwrap())
-    });
-}
-
-pub fn acc_cmp_f_16384_1000(c: &mut Criterion) {
-    let (d, qss, accs) = acc_compare(16384, 1000);
-    c.bench_function("acc_cmp_f_16384_1000", |b| {
-        b.iter(|| acc_compare_fast_helper(d, &qss, accs.clone()).unwrap())
-    });
-}
+seq!(K in 5..21 {
+    define_acc_benches!(K);
+});

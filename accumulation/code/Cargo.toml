@@ -7,18 +7,35 @@ edition = "2021"
 
 [dev-dependencies]
 criterion = "0.5"
+paste = "1"
 
 [[bench]]
 name = "bench"
 harness = false
 
 [dependencies]
-ark-pallas = "0.5"
-ark-serialize = "0.5"
-ark-std = "0.5"
+anyhow = "1"
 ark-ec = "0.5"
 ark-ff = "0.5"
+ark-pallas = "0.5"
 ark-poly = "0.5"
-sha3 = "0.10"
+ark-serialize = "0.5"
+ark-std = "0.5"
 rand = "0.8"
-anyhow = "1"
+seq-macro = "0.3"
+tokio = { version = "1", features = ["full"] }
+sha3 = "0.10"
+bincode = "2.0.0-rc.3"
+
+[build-dependencies]
+anyhow = "1.0"
+ark-ec = "0.5"
+ark-ff = "0.5"
+ark-pallas = "0.5"
+ark-poly = "0.5"
+ark-serialize = "0.5"
+ark-std = "0.5"
+seq-macro = "0.3"
+sha3 = "0.10"
+tokio = { version = "1", features = ["full"] }
+bincode = "2.0.0-rc.3"
