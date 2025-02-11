@@ -67,7 +67,7 @@ async fn gen_q(pp: Arc<PublicParams>, n: usize) -> Result<Instance> {
     let rng = &mut rand::thread_rng();
 
     let now = SystemTime::now();
-    let q = Instance::rand(rng, &(*pp), n);
+    let q = Instance::rand(rng, &pp, n);
     let elapsed = now.elapsed()?;
 
     let time = format!("{}:{} s", elapsed.as_secs(), elapsed.as_millis() % 1000);
@@ -81,7 +81,7 @@ async fn gen_acc(pp: Arc<PublicParams>, q: Instance) -> Result<Accumulator> {
     let n = q.d + 1;
 
     let now = SystemTime::now();
-    let acc = acc::prover(rng, &(*pp), &[q])?;
+    let acc = acc::prover(rng, &pp, &[q])?;
     let elapsed = now.elapsed()?;
 
     let time = format!("{}:{} s", elapsed.as_secs(), elapsed.as_millis() % 1000);

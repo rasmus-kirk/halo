@@ -1,8 +1,6 @@
 #![allow(non_snake_case)]
 
-use std::cmp::min;
-
-use crate::archive::{std_config, WrappedPoint, G_BLOCKS_NO, G_BLOCKS_SIZE};
+use crate::archive::{std_config, WrappedPoint};
 use crate::consts::*;
 use crate::group::{PallasAffine, PallasPoint};
 use ark_pallas::Affine;
@@ -36,10 +34,9 @@ impl PublicParams {
 
         let mut gs = Vec::with_capacity(n);
         let mut m = n;
-        for i in 0..G_BLOCKS_NO {
-            let data = G_PATHS[i];
+        for bytes in G_PATHS.iter().take(G_BLOCKS_NO) {
             let (raw_gs, _): (Vec<WrappedPoint>, usize) =
-                bincode::decode_from_slice(&data, std_config()).unwrap();
+                bincode::decode_from_slice(bytes, std_config()).unwrap();
             let mut converted_gs: Vec<Affine> =
                 raw_gs.into_iter().take(m).map(|x| x.into()).collect();
             gs.append(&mut converted_gs);

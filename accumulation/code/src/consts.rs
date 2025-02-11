@@ -19,7 +19,7 @@ macro_rules! get_no_of_blocks {
 }
 macro_rules! define_no_of_blocks {
     ($n:literal) => {
-        pub const G_BLOCKS_NO: usize = $n;
+        pub(crate) const G_BLOCKS_NO: usize = $n;
     };
 }
 
@@ -27,10 +27,14 @@ get_no_of_blocks!(define_no_of_blocks); // G_BLOCKS_NO
 
 pub(crate) use get_no_of_blocks;
 
+// Make clippy shut up!
+#[allow(dead_code)]
 pub const G_BLOCKS_SIZE: usize = N / G_BLOCKS_NO;
 pub const N: usize = 2usize.pow(20);
+#[allow(dead_code)]
 pub const D: usize = N - 1;
 
+#[allow(dead_code)]
 pub const S: Projective = mk_proj!(
     [
         10511358259169183486,
@@ -51,6 +55,7 @@ pub const S: Projective = mk_proj!(
         4611686018427387903
     ]
 );
+#[allow(dead_code)]
 pub const H: Projective = mk_proj!(
     [
         7341486867992484987,

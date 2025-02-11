@@ -1,6 +1,6 @@
 #![allow(non_snake_case, clippy::let_and_return)]
 
-///! Bulletproofs-style polynomial commitments based on the Discrete Log assumption
+//! Bulletproofs-style polynomial commitments based on the Discrete Log assumption
 use anyhow::{ensure, Result};
 use ark_ff::{AdditiveGroup, Field, PrimeField};
 use ark_poly::DenseUVPolynomial;
@@ -65,7 +65,7 @@ impl Instance {
     pub fn succinct_check(&self, pp: &PublicParams) -> Result<(HPoly, PallasPoint)> {
         succinct_check(
             pp,
-            self.C.clone(),
+            self.C,
             self.d,
             &self.z,
             &self.v,

@@ -31,8 +31,6 @@ impl From<WrappedPoly> for DensePolynomial<Fr> {
     }
 }
 
-// TODO: Make this actually safe, it's fine as long as the binary is not distributed though
-// One problem is endianness, maybe that's it actually. Should be solved, there is some stuff about alignment though
 impl From<WrappedPoint> for Affine {
     fn from(value: WrappedPoint) -> Self {
         let affine = Affine::new_unchecked(value.x.into(), value.y.into());
@@ -44,12 +42,7 @@ impl From<WrappedPoint> for Affine {
 impl From<WrappedPoint> for Projective {
     fn from(value: WrappedPoint) -> Self {
         let p_aff: Affine = value.into();
-        let p: Projective = p_aff.into();
-        Projective::new_unchecked(
-            Fq::new_unchecked(p.x.0),
-            Fq::new_unchecked(p.y.0),
-            Fq::new_unchecked(p.z.0),
-        )
+        p_aff.into()
     }
 }
 
@@ -78,21 +71,13 @@ pub struct WrappedScalar([u64; 4]);
 
 impl From<Fr> for WrappedScalar {
     fn from(value: Fr) -> Self {
-        let a = value.0 .0[0].into();
-        let b = value.0 .0[1].into();
-        let c = value.0 .0[2].into();
-        let d = value.0 .0[3].into();
-        WrappedScalar([a, b, c, d])
+        Self(value.0 .0)
     }
 }
 
 impl From<WrappedScalar> for Fr {
     fn from(value: WrappedScalar) -> Self {
-        let a = value.0[0].into();
-        let b = value.0[1].into();
-        let c = value.0[2].into();
-        let d = value.0[3].into();
-        Fr::new_unchecked(BigInt([a, b, c, d]))
+        Self::new_unchecked(BigInt(value.0))
     }
 }
 
@@ -102,20 +87,12 @@ pub struct WrappedFq([u64; 4]);
 
 impl From<Fq> for WrappedFq {
     fn from(value: Fq) -> Self {
-        let a = value.0 .0[0].into();
-        let b = value.0 .0[1].into();
-        let c = value.0 .0[2].into();
-        let d = value.0 .0[3].into();
-        Self([a, b, c, d])
+        Self(value.0 .0)
     }
 }
 
 impl From<WrappedFq> for Fq {
     fn from(value: WrappedFq) -> Self {
-        let a = value.0[0].into();
-        let b = value.0[1].into();
-        let c = value.0[2].into();
-        let d = value.0[3].into();
-        Fq::new_unchecked(BigInt([a, b, c, d]))
+        Self::new_unchecked(BigInt(value.0))
     }
 }

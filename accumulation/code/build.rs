@@ -96,7 +96,6 @@ async fn archive_async(filepath: &Path, chunksize: usize) -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    let now = SystemTime::now();
     assert!(N.is_power_of_two());
     assert!(G_BLOCKS_NO.is_power_of_two());
 
@@ -108,24 +107,21 @@ fn main() -> Result<()> {
         .enable_all()
         .build()?;
 
-    println!("cargo:warning=TIME1 {} ms", now.elapsed()?.as_millis());
-    let now = SystemTime::now();
-
     // Run the async tasks and wait for them to complete
     let chunksize = 4;
-    runtime.block_on(archive_async(&dest_path, chunksize))?;
-
-    println!("cargo:warning=TIME2 {} ms", now.elapsed()?.as_millis());
     let now = SystemTime::now();
+    runtime.block_on(archive_async(&dest_path, chunksize))?;
+    let t = now.elapsed()?;
+    let time = format!("Compiling Public Parameters took {} s", t.as_secs_f32());
+    println!("cargo:warning={}", time);
 
-    let (s, h) = print_sh();
-    println!("cargo:warning={}", s);
-    println!("cargo:warning={}", h);
+    // Uncommenting these will print the S and H constants
+    //let (s, h) = print_sh();
+    //println!("cargo:warning={}", s);
+    //println!("cargo:warning={}", h);
 
     // Trigger rebuilds only if relevant files change
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=src/pp.rs");
-
-    println!("cargo:warning=TIME3 {}", now.elapsed()?.as_millis());
     Ok(())
 }

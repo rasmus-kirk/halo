@@ -73,7 +73,7 @@ impl From<Instance> for WrappedInstance {
     fn from(value: Instance) -> Self {
         WrappedInstance {
             c: value.C.into(),
-            d: (value.d as u64).into(),
+            d: value.d as u64,
             z: value.z.into(),
             v: value.v.into(),
             pi: value.pi.into(),
