@@ -5,7 +5,12 @@ mod errors;
 mod pos;
 mod value;
 
-use super::{arith_wire::ArithWire, cache::ArithWireCache, WireID};
+use super::{
+    arith_wire::ArithWire,
+    cache::ArithWireCache,
+    plonkup::{PlonkupOps, TABLE_REGISTRY},
+    WireID,
+};
 use crate::{
     curve::{Coset, Poly, Scalar},
     protocol::{
@@ -13,7 +18,7 @@ use crate::{
         scheme::{Slots, Terms, MAX_BLIND_TERMS},
     },
 };
-use constraints::Constraints;
+pub use constraints::Constraints;
 pub use errors::TraceError;
 pub use pos::Pos;
 use value::Value;
@@ -62,8 +67,9 @@ impl Trace {
         eval.compute_pos_permutation()?;
         // compute copy constraint values
 
+        let n = TABLE_REGISTRY.len() as u64;
         let m = eval.constraints.len() as u64;
-        eval.h = Coset::new(rng, m + MAX_BLIND_TERMS, Slots::COUNT)
+        eval.h = Coset::new(rng, std::cmp::max(n, m) + MAX_BLIND_TERMS, Slots::COUNT)
             .ok_or(TraceError::FailedToMakeCoset(m))?;
         // compute coset
 
@@ -96,6 +102,13 @@ impl Trace {
                 let rhs = &self.resolve(wires, rhs_)?;
                 let out = &(lhs * rhs).set_id(wire).set_bit_type(wires);
                 (Constraints::mul(lhs, rhs, out), *out)
+            }
+            ArithWire::Lookup(op, lhs_, rhs_) => {
+                let lhs = &self.resolve(wires, lhs_)?;
+                let rhs = &self.resolve(wires, rhs_)?;
+                let out_ = Self::lookup_value(op, lhs, rhs)?;
+                let out = out_.set_id(wire).set_bit_type(wires);
+                (Constraints::lookup(op, &lhs, &rhs, &out), out)
             }
         };
         self.constraints.push(constraint);
@@ -138,6 +151,16 @@ impl Trace {
             self.constraints.push(pub_constraint);
         }
         Ok(())
+    }
+
+    pub fn lookup_value(op: PlonkupOps, a: &Value, b: &Value) -> Result<Value, TraceError> {
+        let a = a.into();
+        let b = b.into();
+        if let Some(c) = TABLE_REGISTRY.lookup(op, &a, &b) {
+            Ok(Value::AnonWire(c))
+        } else {
+            Err(TraceError::LookupFailed(op, a, b))
+        }
     }
 
     /// Look up for the wire's evaluation, otherwise start the evaluating.

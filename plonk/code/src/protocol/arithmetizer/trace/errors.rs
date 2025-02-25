@@ -1,5 +1,9 @@
 use super::constraints::Constraints;
-use crate::{curve::Scalar, protocol::arithmetizer::WireID, util::map_to_alphabet};
+use crate::{
+    curve::Scalar,
+    protocol::arithmetizer::{plonkup::PlonkupOps, WireID},
+    util::map_to_alphabet,
+};
 
 #[derive(Debug)]
 pub enum TraceError {
@@ -8,6 +12,7 @@ pub enum TraceError {
     ConstNotInCache(Scalar),
     FailedToMakeCoset(u64),
     ConstraintNotSatisfied(String),
+    LookupFailed(PlonkupOps, Scalar, Scalar),
 }
 
 impl TraceError {
@@ -36,6 +41,13 @@ impl std::fmt::Display for TraceError {
                     f,
                     "Evaluator: Constraints not satisfied: {}",
                     constraint_str
+                )
+            }
+            TraceError::LookupFailed(op, a, b) => {
+                write!(
+                    f,
+                    "Evaluator: Failed to lookup for op {:?} with a={} and b={}",
+                    op, a, b
                 )
             }
         }

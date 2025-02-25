@@ -5,7 +5,7 @@ mod op_u32;
 mod op_u64;
 mod op_usize;
 
-use ark_ff::{AdditiveGroup, FftField, Field};
+use ark_ff::{AdditiveGroup, BigInteger, FftField, Field, PrimeField};
 use halo_accumulation::group::PallasScalar;
 
 use rand::{
@@ -14,7 +14,7 @@ use rand::{
 };
 use std::{
     fmt,
-    ops::{Add, Div, Mul, Neg, Sub},
+    ops::{Add, BitXor, Div, Mul, Neg, Sub},
 };
 
 /// a ∈ 𝔽ₚ
@@ -25,6 +25,14 @@ pub struct Scalar {
 }
 
 impl Scalar {
+    pub const ONE: Self = Scalar {
+        scalar: PallasScalar::ONE,
+    };
+
+    pub const ZERO: Self = Scalar {
+        scalar: PallasScalar::ZERO,
+    };
+
     pub fn inverse(&self) -> Scalar {
         Scalar {
             scalar: self.scalar.inverse().unwrap(),
@@ -41,16 +49,17 @@ impl Scalar {
         let scalar = PallasScalar::get_root_of_unity(n)?;
         Some(Scalar { scalar })
     }
+
+    pub fn to_bits(&self) -> Vec<bool> {
+        self.scalar.into_bigint().to_bits_be()
+    }
 }
 
-impl Scalar {
-    pub const ONE: Self = Scalar {
-        scalar: PallasScalar::ONE,
-    };
-
-    pub const ZERO: Self = Scalar {
-        scalar: PallasScalar::ZERO,
-    };
+impl From<Vec<bool>> for Scalar {
+    fn from(bits: Vec<bool>) -> Self {
+        let scalar = PallasScalar::from_bigint(BigInteger::from_bits_be(&bits)).unwrap();
+        Scalar { scalar }
+    }
 }
 
 impl fmt::Display for Scalar {
@@ -248,5 +257,67 @@ impl Div<&Scalar> for &Scalar {
         Scalar {
             scalar: self.scalar / other.scalar,
         }
+    }
+}
+
+// BitXor -----------------------------------------------------
+
+impl BitXor for Scalar {
+    type Output = Scalar;
+
+    fn bitxor(self, other: Scalar) -> Scalar {
+        let xs = self.to_bits();
+        let ys = other.to_bits();
+        let mut zs = vec![false; xs.len().max(ys.len())];
+        for i in 0..zs.len() {
+            zs[i] = xs.get(i).unwrap_or(&false) ^ ys.get(i).unwrap_or(&false);
+        }
+        Scalar::from(zs)
+    }
+}
+
+impl BitXor<&Scalar> for Scalar {
+    type Output = Scalar;
+
+    fn bitxor(self, other: &Scalar) -> Scalar {
+        self ^ *other
+    }
+}
+
+impl BitXor<Scalar> for &Scalar {
+    type Output = Scalar;
+
+    fn bitxor(self, other: Scalar) -> Scalar {
+        *self ^ other
+    }
+}
+
+impl BitXor<&Scalar> for &Scalar {
+    type Output = Scalar;
+
+    fn bitxor(self, other: &Scalar) -> Scalar {
+        *self ^ *other
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_scalar() {
+        let a = Scalar::from(3);
+        let b = Scalar::from(5);
+        let c = a + b;
+        assert_eq!(c.to_string(), "8");
+        let d = a - b;
+        assert_eq!(d.to_string(), "-2");
+        let e = a * b;
+        assert_eq!(e.to_string(), "15");
+        let f = a / b;
+        let f2 = b.inverse() * a;
+        assert_eq!(f.to_string(), f2.to_string());
+        let g = a ^ b;
+        assert_eq!(g.to_string(), "6");
     }
 }

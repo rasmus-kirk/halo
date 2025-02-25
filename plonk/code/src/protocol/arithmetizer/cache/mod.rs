@@ -169,7 +169,9 @@ impl ArithWireCache {
                     }
                     Ok(())
                 }
-                ArithWire::AddGate(_, _) | ArithWire::MulGate(_, _) => {
+                ArithWire::AddGate(_, _)
+                | ArithWire::MulGate(_, _)
+                | ArithWire::Lookup(_, _, _) => {
                     for operand in w.inputs() {
                         let _ = self.set_bit_(operand, false);
                     }
@@ -186,11 +188,11 @@ impl ArithWireCache {
             Some(w) => match w {
                 ArithWire::Input(_) => self.bit_wires.contains_key(&id),
                 ArithWire::Constant(b) => b == Scalar::ZERO || b == Scalar::ONE,
-                ArithWire::AddGate(_, _) | ArithWire::MulGate(_, _) => {
-                    !w.inputs().iter().any(|&operand| {
-                        !self.bit_wires.contains_key(&operand) && !self.is_bit(operand)
-                    })
-                }
+                ArithWire::AddGate(_, _)
+                | ArithWire::MulGate(_, _)
+                | ArithWire::Lookup(_, _, _) => !w.inputs().iter().any(|&operand| {
+                    !self.bit_wires.contains_key(&operand) && !self.is_bit(operand)
+                }),
             },
             None => false,
         }
