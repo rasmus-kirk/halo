@@ -1,4 +1,4 @@
-use super::{ArithmetizerError, WireID};
+use super::{plonkup::PlonkupOps, ArithmetizerError, WireID};
 use crate::{curve::Scalar, util::map_to_alphabet};
 
 use std::fmt;
@@ -9,6 +9,7 @@ pub enum ArithWire {
     Constant(Scalar),
     AddGate(WireID, WireID),
     MulGate(WireID, WireID),
+    Lookup(PlonkupOps, WireID, WireID),
 }
 
 impl fmt::Display for ArithWire {
@@ -22,6 +23,15 @@ impl fmt::Display for ArithWire {
             ArithWire::MulGate(lhs, rhs) => {
                 write!(f, "Mul({}, {})", map_to_alphabet(lhs), map_to_alphabet(rhs))
             }
+            ArithWire::Lookup(op, lhs, rhs) => {
+                write!(
+                    f,
+                    "Lookup({}, {}, {})",
+                    op,
+                    map_to_alphabet(lhs),
+                    map_to_alphabet(rhs)
+                )
+            }
         }
     }
 }
@@ -32,6 +42,7 @@ impl ArithWire {
         match self {
             Self::AddGate(lhs, rhs) => vec![*lhs, *rhs],
             Self::MulGate(lhs, rhs) => vec![*lhs, *rhs],
+            Self::Lookup(_, lhs, rhs) => vec![*lhs, *rhs],
             _ => vec![],
         }
     }
@@ -42,6 +53,7 @@ impl ArithWire {
 pub enum CommutativeOps {
     Add,
     Mul,
+    Lookup(PlonkupOps),
 }
 
 impl TryFrom<ArithWire> for CommutativeOps {
@@ -51,6 +63,10 @@ impl TryFrom<ArithWire> for CommutativeOps {
         match val {
             ArithWire::AddGate(_, _) => Ok(CommutativeOps::Add),
             ArithWire::MulGate(_, _) => Ok(CommutativeOps::Mul),
+            ArithWire::Lookup(op, _, _) => match op {
+                PlonkupOps::Xor => Ok(CommutativeOps::Lookup(PlonkupOps::Xor)),
+                PlonkupOps::Or => Ok(CommutativeOps::Lookup(PlonkupOps::Or)),
+            },
             _ => Err(ArithmetizerError::CommutativeSetTypeConversionError(val)),
         }
     }

@@ -2,6 +2,8 @@ use std::fmt;
 
 use crate::curve::Scalar;
 
+use super::arithmetizer::TableRegistry;
+
 /// Used to determine degree of root of unity along with number of constraints.
 pub const MAX_BLIND_TERMS: u64 = 0;
 
@@ -155,9 +157,19 @@ impl Terms {
     pub fn eqn_str(terms: [String; Self::COUNT]) -> String {
         let [a, b, c, ql, qr, qo, qm, qc, _, pi] = terms;
         format!(
-            "{} × {} + {} × {} + {} × {} + {} × {} × {} + {} + {})",
-            a, ql, b, qr, c, qo, a, b, qm, qc, pi
+            "{} × {} + {} × {} + {} × {} + {} × {} × {} + {} + {}",
+            a, ql, b, qr, c, qo, a, b, qm, qc, pi,
         )
+    }
+
+    pub fn plonkup_eqn(
+        terms: [Scalar; Self::COUNT],
+        zeta: &Scalar,
+        j: usize,
+        f: &Scalar,
+    ) -> Scalar {
+        let [a, b, c, _, _, _, _, _, qk, _] = terms;
+        qk * (TableRegistry::eval_compress(zeta, &a, &b, &c, j) - f)
     }
 
     pub fn is_slot(&self) -> bool {

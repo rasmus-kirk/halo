@@ -76,6 +76,12 @@ impl From<Value> for Scalar {
     }
 }
 
+impl From<&Value> for Scalar {
+    fn from(value: &Value) -> Self {
+        Into::<Scalar>::into(*value)
+    }
+}
+
 impl Neg for Value {
     type Output = Value;
 

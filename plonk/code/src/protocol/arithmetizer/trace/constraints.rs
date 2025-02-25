@@ -4,7 +4,7 @@ use super::Value;
 use crate::{
     curve::Scalar,
     protocol::{
-        arithmetizer::WireID,
+        arithmetizer::{plonkup::PlonkupOps, WireID},
         scheme::{Selectors, Slots, Terms},
     },
 };
@@ -15,6 +15,7 @@ use std::{fmt, ops::Index};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Constraints {
     pub vs: [Value; Terms::COUNT],
+    pub lookup: PlonkupOps,
 }
 
 impl Index<Terms> for Constraints {
@@ -41,7 +42,10 @@ impl Default for Constraints {
 
 impl Constraints {
     pub fn new(vs: [Value; Terms::COUNT]) -> Self {
-        Constraints { vs }
+        Constraints {
+            vs,
+            lookup: PlonkupOps::Xor,
+        }
     }
 
     /// Create a constraint that enforces a constant value.
@@ -93,6 +97,16 @@ impl Constraints {
         vs
     }
 
+    pub fn lookup(op: PlonkupOps, lhs: &Value, rhs: &Value, out: &Value) -> Self {
+        let mut vs = Constraints::default();
+        vs.lookup = op;
+        vs[Terms::F(Slots::A)] = *lhs;
+        vs[Terms::F(Slots::B)] = *rhs;
+        vs[Terms::F(Slots::C)] = *out;
+        vs[Terms::Q(Selectors::Qk)] = Value::ONE;
+        vs
+    }
+
     pub fn scalars(&self) -> [Scalar; Terms::COUNT] {
         self.vs
             .iter()
@@ -105,6 +119,12 @@ impl Constraints {
     pub fn is_satisfied(&self) -> bool {
         let scalars = self.scalars();
         Terms::eqn(scalars) == Scalar::ZERO
+    }
+
+    pub fn is_plonkup_satisfied(&self, zeta: &Scalar, op: PlonkupOps, f: &Scalar) -> bool {
+        let scalars = self.scalars();
+        let j = op as usize;
+        Terms::plonkup_eqn(scalars, zeta, j, f) == Scalar::ZERO
     }
 
     /// Check if the constraints are structurally equal.
@@ -146,6 +166,8 @@ impl fmt::Display for Constraints {
 
 #[cfg(test)]
 mod tests {
+    use crate::protocol::arithmetizer::plonkup::TableRegistry;
+
     use super::*;
     use rand::Rng;
 
@@ -233,6 +255,30 @@ mod tests {
             assert_eq!(eqn_values[Terms::F(Slots::A)], Value::new_wire(0, scalar));
             assert_eq!(eqn_values[Terms::PublicInputs], -Value::new_wire(0, scalar));
             assert!(eqn_values.is_satisfied());
+        }
+    }
+
+    #[test]
+    fn lookup() {
+        let rng = &mut rand::thread_rng();
+        for _ in 0..N {
+            let a_ = &Scalar::from(rng.gen_range(0..2));
+            let b_ = &Scalar::from(rng.gen_range(0..2));
+            let c_ = a_ ^ b_;
+            let a = &Value::new_wire(0, *a_);
+            let b = &Value::new_wire(1, *b_);
+            let c = &Value::new_wire(2, c_);
+            let op = PlonkupOps::Xor;
+            let eqn_values = Constraints::lookup(op, a, b, c);
+            assert_eq!(eqn_values[Terms::F(Slots::A)], *a);
+            assert_eq!(eqn_values[Terms::F(Slots::B)], *b);
+            assert_eq!(eqn_values[Terms::F(Slots::C)], *c);
+            assert_eq!(eqn_values[Terms::Q(Selectors::Qk)], Value::ONE);
+            assert!(eqn_values.is_satisfied());
+            let zeta: Scalar = rng.gen();
+            let f = TableRegistry::query(PlonkupOps::Xor, &zeta, a_, b_);
+            assert!(f.is_some());
+            assert!(eqn_values.is_plonkup_satisfied(&zeta, op, &f.unwrap()))
         }
     }
 

@@ -9,6 +9,8 @@ mod wire;
 use crate::{curve::Scalar, protocol::circuit::Circuit, util::map_to_alphabet};
 use arith_wire::ArithWire;
 pub use errors::ArithmetizerError;
+use plonkup::PlonkupOps;
+pub use plonkup::TableRegistry;
 pub use trace::{Pos, Trace};
 pub use wire::Wire;
 
@@ -110,6 +112,11 @@ impl Arithmetizer {
         let right = self.wires.get_const_id(b);
         let gate = ArithWire::MulGate(a, right);
         self.wires.get_id(gate)
+    }
+
+    /// Plonkup operations
+    pub fn lookup(&mut self, op: PlonkupOps, a: WireID, b: WireID) -> WireID {
+        self.wires.get_id(ArithWire::Lookup(op, a, b))
     }
 
     // boolean operators --------------------------------------------------
