@@ -9,7 +9,7 @@ use super::{
     arith_wire::ArithWire,
     cache::ArithWireCache,
     plonkup::{PlonkupOps, TABLE_REGISTRY},
-    WireID,
+    PlonkupVecCompute, WireID,
 };
 use crate::{
     curve::{Coset, Poly, Scalar},
@@ -252,11 +252,12 @@ impl From<Trace> for Circuit {
         let [a, b, c, ql, qr, qo, qm, qc, qk, pi] = eval.gate_polys();
         let [sa, sb, sc, sida, sidb, sidc] = eval.copy_constraints();
         let x = CircuitPublic {
-            h: eval.h,
+            h: eval.h.clone(),
             qs: [ql, qr, qo, qm, qc, qk],
             pi,
             sids: [sida, sidb, sidc],
             ss: [sa, sb, sc],
+            plonkup: PlonkupVecCompute::new(eval.h, eval.constraints.clone()),
         };
         let w = CircuitPrivate { ws: [a, b, c] };
         (x, w)

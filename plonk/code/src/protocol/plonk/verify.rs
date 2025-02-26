@@ -18,6 +18,10 @@ pub struct SNARKProof {
     pub zbar_ev: Scalar,
     pub q_fcc2: Instance,
     pub q_t: Instance,
+    pub fpl_ev: Scalar,
+    pub jpl_ev: Scalar,
+    pub q_zpl: Instance,
+    pub zplbar_ev: Scalar,
 }
 
 pub fn verify(x: &CircuitPublic, pi: SNARKProof) -> bool {
@@ -29,13 +33,19 @@ pub fn verify(x: &CircuitPublic, pi: SNARKProof) -> bool {
     // Round 1 -----------------------------------------------------
     transcript.append_points(b"abc", &Instances::get_comms(&pi.qs_abc));
     // Round 2 -----------------------------------------------------
-    let beta = &transcript.challenge_scalar_augment(0, b"beta");
-    let gamma = &transcript.challenge_scalar_augment(1, b"gamma");
-    transcript.append_point(b"z", &pi.q_z.comm);
+    let zeta = &transcript.challenge_scalar(b"zeta");
     // Round 3 -----------------------------------------------------
+    let beta = &transcript.challenge_scalar_augment(1, b"beta");
+    let gamma = &transcript.challenge_scalar_augment(2, b"gamma");
+    transcript.append_point(b"z", &pi.q_z.comm);
+
+    let epsilon = &transcript.challenge_scalar_augment(3, b"epsilon");
+    let delta = &transcript.challenge_scalar_augment(4, b"delta");
+    transcript.append_point(b"zpl", &pi.q_zpl.comm);
+    // Round 4 -----------------------------------------------------
     let alpha = &transcript.challenge_scalar(b"alpha");
     transcript.append_point(b"t", &pi.q_t.comm);
-    // Round 4 -----------------------------------------------------
+    // Round 5 -----------------------------------------------------
     let ch = &transcript.challenge_scalar(b"xi");
     let zh_ev = &x.h.zh().evaluate(ch);
     // check commits
@@ -45,10 +55,12 @@ pub fn verify(x: &CircuitPublic, pi: SNARKProof) -> bool {
     }
     // get / compute evaluations on challenge
     let [a, b, c] = &Instances::get_evs(&pi.qs_abc).unwrap();
-    let [ql, qr, qo, qm, qc, _] = &Poly::evaluate_many(&x.qs, ch);
+    let [ql, qr, qo, qm, qc, qk] = &Poly::evaluate_many(&x.qs, ch);
     let pi_ev = x.pi.evaluate(ch);
     // F_GC(𝔷) = A(𝔷)Qₗ(𝔷) + B(𝔷)Qᵣ(𝔷) + C(𝔷)Qₒ(𝔷) + A(𝔷)B(𝔷)Qₘ(𝔷) + Q꜀(𝔷)
-    let f_gc_ev = &((a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc + pi_ev);
+    let fplgc_ev =
+        &(qk * (a + zeta * b + zeta * zeta * c + zeta * zeta * zeta * pi.jpl_ev - pi.fpl_ev));
+    let f_gc_ev = &((a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc + pi_ev + fplgc_ev);
     if *f_gc_ev == Scalar::ZERO || !pi.q_fgc.check(ch, Some(f_gc_ev)) {
         println!("FAILED GC");
         return false;

@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use crate::{
-    curve::{Coset, Scalar},
+    curve::{Coset, Poly, Scalar},
     protocol::scheme::{Selectors, Slots, Terms},
 };
 use lazy_static::lazy_static;
@@ -41,14 +41,13 @@ impl Table {
         Self(table)
     }
 
-    pub fn compress(&self, zeta: &Scalar, j: usize, n: u64) -> Vec<Scalar> {
+    pub fn compress(&self, zeta: &Scalar, j: usize) -> Vec<Scalar> {
         let mut res = Vec::new();
         for row in self.0.iter() {
             let [a, b, c] = row;
             let t = a + (zeta * b) + (zeta * zeta * c) + (zeta * zeta * zeta * Scalar::from(j));
             res.push(t);
         }
-        res.extend(vec![res[0]; n as usize - res.len()]);
         res
     }
 
@@ -90,6 +89,7 @@ impl From<PlonkupOps> for Table {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TableRegistry {
     tables: [Table; PlonkupOps::COUNT],
 }
@@ -126,21 +126,25 @@ impl TableRegistry {
         a + (zeta * b) + (zeta * zeta * c) + (zeta * zeta * zeta * Scalar::from(j))
     }
 
-    pub fn compute_vecs(
+    pub fn compute_vecs<'a>(
         &self,
         zeta: &Scalar,
-        coset: Coset,
-        constraints: Vec<Constraints>,
-    ) -> (Vec<Scalar>, Vec<Scalar>, Vec<Scalar>) {
+        coset: &Coset,
+        constraints: &Vec<Constraints>,
+    ) -> [Vec<Scalar>; 5] {
         let mut t = Vec::new();
         for op in PlonkupOps::iter() {
             let j = op as usize;
-            t.extend(self.tables[j].compress(zeta, j, coset.n()));
+            t.extend(self.tables[j].compress(zeta, j));
         }
         t.sort();
+        let extend = coset.n() as usize - t.len() - 1;
+        t.extend(vec![t.last().unwrap().clone(); extend]);
         // table vector
 
         let mut f = Vec::new();
+        let mut js = Vec::new();
+        f.push(t.last().unwrap().clone());
         for constraint in constraints.iter() {
             if Into::<Scalar>::into(constraint[Terms::Q(Selectors::Qk)]) == Scalar::ONE {
                 let a: Scalar = constraint[Terms::F(Slots::A)].into();
@@ -148,23 +152,58 @@ impl TableRegistry {
                 let c: Scalar = constraint[Terms::F(Slots::C)].into();
                 let j = constraint.lookup as usize;
                 f.push(Self::eval_compress(zeta, &a, &b, &c, j));
+                js.push(Scalar::from(j));
             } else {
                 f.push(t.last().unwrap().clone());
+                js.push(Scalar::ZERO);
             }
         }
+        let extend = coset.n() as usize - f.len() - 1;
+        f.extend(vec![f.last().unwrap().clone(); extend]);
         // query vector
 
-        let mut s = Vec::new();
-        s.extend(&t);
-        s.extend(&f);
+        let mut s: Vec<Scalar> = Vec::new();
+        s.extend(t.iter());
+        s.extend(f.iter());
         s.sort();
         // sort vector
 
-        (t, f, s)
+        let mut h1 = Vec::new();
+        let mut h2 = Vec::new();
+        for (i, x) in s.into_iter().enumerate() {
+            if i % 2 == 0 {
+                h1.push(x);
+            } else {
+                h2.push(x);
+            }
+        }
+        [t, f, h1, h2, js]
     }
 
     pub fn len(&self) -> usize {
         self.tables.iter().map(|table| table.len()).sum()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlonkupVecCompute {
+    coset: Coset,
+    constraints: Vec<Constraints>,
+}
+
+impl PlonkupVecCompute {
+    pub fn new(coset: Coset, constraints: Vec<Constraints>) -> Self {
+        Self { coset, constraints }
+    }
+
+    pub fn compute(&self, zeta: &Scalar) -> [Poly; 5] {
+        TABLE_REGISTRY
+            .compute_vecs(zeta, &self.coset, &self.constraints)
+            .into_iter()
+            .map(|evals| self.coset.interpolate_zf(evals))
+            .collect::<Vec<Poly>>()
+            .try_into()
+            .unwrap()
     }
 }
 
@@ -186,10 +225,11 @@ lazy_static! {
 //    - sugar for Xor and Or (temporary)                            X
 //    - add ArithWire to cache                                      X
 //    - make Xor and Or commutative (temporary)                     X
+//    - remove Or circuit / comment it out
 // 4. Prover and Verifier update
-//  - update F_GC
+//  - update F_GC                                                   X
 //  - abstract interface for grand product arguments?
-//  - compute Z_PCC
+//  - compute Z_PCC                                                 X
 //  - compute F_PCC1 and F_PCC2
 //  - update prover and verifier calls
 // 5. multi table Xor and Or test
