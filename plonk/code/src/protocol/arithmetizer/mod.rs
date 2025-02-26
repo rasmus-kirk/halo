@@ -10,7 +10,7 @@ use crate::{curve::Scalar, protocol::circuit::Circuit, util::map_to_alphabet};
 use arith_wire::ArithWire;
 pub use errors::ArithmetizerError;
 use plonkup::PlonkupOps;
-pub use plonkup::TableRegistry;
+pub use plonkup::{PlonkupVecCompute, TableRegistry};
 pub use trace::{Pos, Trace};
 pub use wire::Wire;
 

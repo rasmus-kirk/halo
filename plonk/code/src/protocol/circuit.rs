@@ -1,4 +1,7 @@
-use super::scheme::{Selectors, Slots};
+use super::{
+    arithmetizer::PlonkupVecCompute,
+    scheme::{Selectors, Slots},
+};
 use crate::{
     curve::{Coset, Poly},
     protocol::scheme::Terms,
@@ -16,6 +19,8 @@ pub struct CircuitPublic {
     pub sids: [Poly; Slots::COUNT],
     // permutation polynomial
     pub ss: [Poly; Slots::COUNT],
+
+    pub plonkup: PlonkupVecCompute,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
