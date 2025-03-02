@@ -88,7 +88,7 @@ impl PublicParams {
 
     pub fn get_pp() -> &'static PublicParams {
         match PP.get() {
-            Some(& _) => PP.get().unwrap(),
+            Some(&_) => PP.get().unwrap(),
             // If no public params have been set, set to max.
             // This will degrade performance, but always work.
             None => {

@@ -107,7 +107,7 @@ impl From<Accumulator> for Instance {
 // -------------------- Accumulation Functions --------------------
 
 /// Setup
-pub fn setup(n: usize) -> Result<()>{
+pub fn setup(n: usize) -> Result<()> {
     PublicParams::set_pp(n)
 }
 

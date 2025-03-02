@@ -2,16 +2,13 @@
 
 use ark_std::test_rng;
 use bincode::config::standard;
-use criterion::Criterion;
+use criterion::{BenchmarkId, Criterion};
 
 use halo_accumulation::{
     acc::{self, Accumulator},
     pcdl::Instance,
-    pp::PublicParams,
-    consts::N,
-    wrappers::*,
+    wrappers::{WrappedAccumulator, WrappedInstance},
 };
-use seq_macro::seq;
 
 const PRE: &[u8] = include_bytes!("precompute/qs.bin");
 
@@ -23,45 +20,46 @@ fn get_cheap_linears(n: usize) -> ([Instance; 1], Accumulator) {
     ([q_acc.1.into()], q_acc.2.into())
 }
 
-pub fn public_parameters(c: &mut Criterion) {
-    let n = 2usize.pow(20);
-    c.bench_function("public_parameters", |b| b.iter(|| PublicParams::new(n)));
+const MIN: usize = 1;
+const MAX: usize = 20;
+
+pub fn acc_prover(c: &mut Criterion) {
+    let rng = &mut test_rng();
+
+    let mut group = c.benchmark_group("acc_prover");
+    for size in MIN..MAX + 1 {
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
+            let n = 2usize.pow(size as u32);
+            let (qs, _) = get_cheap_linears(n);
+
+            b.iter(|| acc::prover(rng, &qs));
+        });
+    }
+    group.finish();
 }
 
-macro_rules! define_acc_benches {
-    ($exp:literal) => {
-        paste::paste! {
-            pub fn [<acc_common_subroutine_ $exp>](c: &mut Criterion) {
-                acc::setup(N).unwrap();
-                let n = 2usize.pow($exp);
-                let (qs, acc) = get_cheap_linears(n);
-                c.bench_function(concat!("acc_common_subroutine_", stringify!($exp)), |b| b.iter(|| acc::common_subroutine(&qs, &acc.pi_V)));
-            }
-            pub fn [<acc_prover_ $exp>](c: &mut Criterion) {
-                let mut rng = test_rng();
-                acc::setup(N).unwrap();
-                let n = 2usize.pow($exp);
-                let (qs, _) = get_cheap_linears(n);
-                c.bench_function(concat!("acc_prover_", stringify!($exp)), |b| b.iter(|| acc::prover(&mut rng, &qs)));
-            }
-            pub fn [<acc_decider_ $exp>](c: &mut Criterion) {
-                acc::setup(N).unwrap();
-                let n = 2usize.pow($exp);
-                let (_, acc) = get_cheap_linears(n);
-                c.bench_function(concat!("acc_decider_", stringify!($exp)), |b| b.iter(|| acc::decider(acc.clone())));
-            }
-            pub fn [<acc_verifier_ $exp>](c: &mut Criterion) {
-                acc::setup(N).unwrap();
-                let n = 2usize.pow($exp);
-                let (qs, acc) = get_cheap_linears(n);
-                c.bench_function(concat!("acc_verifier_", stringify!($exp)), |b| {
-                    b.iter(|| acc::verifier(&qs, acc.clone()))
-                });
-            }
-        }
-    };
+pub fn acc_decider(c: &mut Criterion) {
+    let mut group = c.benchmark_group("acc_decider");
+    for size in MIN..MAX + 1 {
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
+            let n = 2usize.pow(size as u32);
+            let (_, acc) = get_cheap_linears(n);
+
+            b.iter(|| acc.clone().decider());
+        });
+    }
+    group.finish();
 }
 
-seq!(K in 1..21 {
-    define_acc_benches!(K);
-});
+pub fn acc_verifier(c: &mut Criterion) {
+    let mut group = c.benchmark_group("acc_decider");
+    for size in MIN..MAX + 1 {
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
+            let n = 2usize.pow(size as u32);
+            let (qs, acc) = get_cheap_linears(n);
+
+            b.iter(|| acc.clone().verifier(&qs));
+        });
+    }
+    group.finish();
+}

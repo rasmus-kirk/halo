@@ -4,15 +4,13 @@ use ark_ff::UniformRand;
 use ark_poly::DenseUVPolynomial;
 use ark_std::test_rng;
 use bincode::config::standard;
-use criterion::Criterion;
+use criterion::{BenchmarkId, Criterion};
 
 use halo_accumulation::{
-    group::*,
-    consts::N,
+    group::{PallasPoly, PallasScalar},
     pcdl::{self, commit, Instance},
-    wrappers::*,
+    wrappers::{WrappedAccumulator, WrappedInstance},
 };
-use seq_macro::seq;
 
 const PRE: &[u8] = include_bytes!("precompute/qs.bin");
 
@@ -24,65 +22,69 @@ fn get_cheap_linears(n: usize) -> [Instance; 1] {
     [q_acc.1.into()]
 }
 
+const MIN: usize = 1;
+const MAX: usize = 20;
+
 pub fn pcdl_open(c: &mut Criterion) {
-    pcdl::setup(N).unwrap();
-    let mut rng = &mut test_rng();
-    let n = 2usize.pow($exp);
-    let d = n - 1;
+    let rng = &mut test_rng();
 
-    let w = Some(PallasScalar::rand(rng));
-    let p = PallasPoly::rand(d, rng);
-    let z = &PallasScalar::rand(rng);
-    let comm = commit(&p, d, w.as_ref());
+    let mut group = c.benchmark_group("pcdl_open");
+    for size in MIN..MAX + 1 {
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
+            let n = 2usize.pow(size as u32);
+            let d = n - 1;
 
-    c.bench_function(concat!("pcdl_open_", stringify!($exp)), |b| b.iter(|| pcdl::open(&mut rng, p.clone(), comm, d, z, w.as_ref())));
+            let w = Some(PallasScalar::rand(rng));
+            let p = PallasPoly::rand(d, rng);
+            let z = &PallasScalar::rand(rng);
+            let comm = commit(&p, d, w.as_ref());
+
+            b.iter(|| pcdl::open(rng, p.clone(), comm, d, z, w.as_ref()));
+        });
+    }
+    group.finish();
 }
 
-macro_rules! define_pcdl_benches {
-    ($exp:literal) => {
-        paste::paste! {
-            pub fn [<pcdl_open_ $exp>](c: &mut Criterion) {
-                pcdl::setup(N).unwrap();
-                let mut rng = &mut test_rng();
-                let n = 2usize.pow($exp);
-                let d = n - 1;
+pub fn pcdl_commit(c: &mut Criterion) {
+    let rng = &mut test_rng();
 
-                let w = Some(PallasScalar::rand(rng));
-                let p = PallasPoly::rand(d, rng);
-                let z = &PallasScalar::rand(rng);
-                let comm = commit(&p, d, w.as_ref());
+    let mut group = c.benchmark_group("pcdl_commit");
+    for size in MIN..MAX + 1 {
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
+            let n = 2usize.pow(size as u32);
+            let d = n - 1;
 
-                c.bench_function(concat!("pcdl_open_", stringify!($exp)), |b| b.iter(|| pcdl::open(&mut rng, p.clone(), comm, d, z, w.as_ref())));
-            }
-            pub fn [<pcdl_commit_ $exp>](c: &mut Criterion) {
-                pcdl::setup(N).unwrap();
-                let rng = &mut test_rng();
-                let n = 2usize.pow($exp);
-                let d = n - 1;
+            let w = Some(PallasScalar::rand(rng));
+            let p = PallasPoly::rand(d, rng);
 
-                let w = Some(PallasScalar::rand(rng));
-                let p = PallasPoly::rand(d, rng);
-
-                c.bench_function(concat!("pcdl_commit_", stringify!($exp)), |b| b.iter(|| commit(&p, d, w.as_ref())));
-            }
-            pub fn [<pcdl_check_ $exp>](c: &mut Criterion) {
-                pcdl::setup(N).unwrap();
-                let n = 2usize.pow($exp);
-                let qs = get_cheap_linears(n);
-
-                c.bench_function(concat!("pcdl_check_", stringify!($exp)), |b| b.iter(|| qs[0].check().unwrap()));
-            }
-            pub fn [<pcdl_succinct_check_ $exp>](c: &mut Criterion) {
-                pcdl::setup(N).unwrap();
-                let n = 2usize.pow($exp);
-                let qs = get_cheap_linears(n);
-
-                c.bench_function(concat!("pcdl_succinct_check_", stringify!($exp)), |b| b.iter(|| qs[0].succinct_check().unwrap()));
-            }
-        }
-    };
+            b.iter(|| pcdl::commit(&p, d, w.as_ref()));
+        });
+    }
+    group.finish();
 }
 
-seq!(K in 1..21 {
-    define_pcdl_benches!(K);
-});
+pub fn pcdl_check(c: &mut Criterion) {
+    let mut group = c.benchmark_group("pcdl_check");
+    for size in MIN..MAX + 1 {
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
+            let n = 2usize.pow(size as u32);
+            let qs = get_cheap_linears(n);
+
+            b.iter(|| qs[0].check().unwrap());
+        });
+    }
+    group.finish();
+}
+
+pub fn pcdl_succinct_check(c: &mut Criterion) {
+    let mut group = c.benchmark_group("pcdl_succinct_check");
+    for size in MIN..MAX + 1 {
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
+            let n = 2usize.pow(size as u32);
+            let qs = get_cheap_linears(n);
+
+            b.iter(|| qs[0].succinct_check().unwrap());
+        });
+    }
+    group.finish();
+}

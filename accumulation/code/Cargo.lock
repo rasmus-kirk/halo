@@ -471,7 +471,6 @@ dependencies = [
  "ark-std",
  "bincode",
  "criterion",
- "paste",
  "rand",
  "rayon",
  "seq-macro",
