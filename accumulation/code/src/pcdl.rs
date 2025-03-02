@@ -1,7 +1,8 @@
 #![allow(non_snake_case, clippy::let_and_return)]
 
-/// Bulletproofs-style polynomial commitments based on the Discrete Log assumption
+//! Bulletproofs-style polynomial commitments based on the Discrete Log assumption
 use anyhow::{ensure, Result};
+use ark_ec::CurveGroup;
 use ark_ff::{AdditiveGroup, Field, PrimeField};
 use ark_poly::DenseUVPolynomial;
 use ark_poly::{univariate::DensePolynomial, Polynomial};
@@ -9,43 +10,93 @@ use ark_serialize::CanonicalSerialize;
 use ark_std::One;
 use ark_std::UniformRand;
 use rand::Rng;
-use sha3::{Digest, Sha3_256};
+#[cfg(feature = "parallel")]
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 
+use crate::group::point_dot_affine;
 use crate::{
-    consts::{D, GS, H, S},
-    group::{
-        construct_powers, point_dot, rho_0, scalar_dot, PallasPoint, PallasPoly, PallasScalar,
-    },
+    group::{construct_powers, rho_0, scalar_dot, PallasPoint, PallasPoly, PallasScalar},
     pedersen,
+    pp::PublicParams,
 };
 
+// -------------------- PCS Data Structures --------------------
+
+/// The instances from the report. These represent polynomial commitment openings.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EvalProof {
-    Ls: Vec<PallasPoint>,
-    Rs: Vec<PallasPoint>,
-    U: PallasPoint,
-    c: PallasScalar,
-    C_bar: Option<PallasPoint>,
-    w_prime: Option<PallasScalar>,
+pub struct Instance {
+    pub(crate) C: PallasPoint, // Commitment to the coefficints of a polynomial p
+    pub(crate) d: usize,       // The degree of p
+    pub(crate) z: PallasScalar, // The point to evaluate p at
+    pub(crate) v: PallasScalar, // The evaluation of p(z) = v
+    pub(crate) pi: EvalProof,  // The proof that p(z) = v
 }
 
-// Helper trait
-pub(crate) trait VecPushOwn<T> {
-    fn push_own(self, value: T) -> Self;
-}
+impl Instance {
+    pub fn new(C: PallasPoint, d: usize, z: PallasScalar, v: PallasScalar, pi: EvalProof) -> Self {
+        Self { C, d, z, v, pi }
+    }
 
-impl<T> VecPushOwn<T> for Vec<T> {
-    fn push_own(mut self, value: T) -> Self {
-        self.push(value);
-        self
+    pub fn open<R: Rng>(
+        rng: &mut R,
+        p: PallasPoly,
+        d: usize,
+        z: &PallasScalar,
+        w: Option<&PallasScalar>,
+    ) -> Self {
+        let C = commit(&p, d, w);
+        let v = p.evaluate(z);
+        let pi = open(rng, p, C, d, z, w);
+        Self { C, d, z: *z, v, pi }
+    }
+
+    pub fn rand<R: Rng>(rng: &mut R, n: usize) -> Self {
+        assert!(n.is_power_of_two(), "n ({n}) is not a power of two");
+        let d = n - 1;
+        let w = Some(PallasScalar::rand(rng));
+        let p = PallasPoly::rand(d, rng);
+        let z = &PallasScalar::rand(rng);
+        Self::open(rng, p, d, z, w.as_ref())
+    }
+
+    pub fn check(&self) -> Result<()> {
+        check(&self.C, self.d, &self.z, &self.v, self.pi.clone())
+    }
+
+    pub fn succinct_check(&self) -> Result<(HPoly, PallasPoint)> {
+        succinct_check(self.C, self.d, &self.z, &self.v, self.pi.clone())
     }
 }
 
+impl PartialOrd for Instance {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.z.cmp(&other.z))
+    }
+}
+
+impl Ord for Instance {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.z.cmp(&other.z)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EvalProof {
+    pub(crate) Ls: Vec<PallasPoint>,
+    pub(crate) Rs: Vec<PallasPoint>,
+    pub(crate) U: PallasPoint,
+    pub(crate) c: PallasScalar,
+    pub(crate) C_bar: Option<PallasPoint>,
+    pub(crate) w_prime: Option<PallasScalar>,
+}
+
+/// Special struct to denote the polynomial h(X). The struct is needed in order to evaluate h(X) in sub-linear time
 #[derive(Clone, CanonicalSerialize)]
 pub struct HPoly {
     pub(crate) xis: Vec<PallasScalar>,
 }
 
+// TODO: Privacy
 impl HPoly {
     pub fn new(xis: Vec<PallasScalar>) -> Self {
         Self { xis }
@@ -89,6 +140,39 @@ impl HPoly {
         }
         v
     }
+
+    pub fn rand<R: Rng>(rng: &mut R, n: usize) -> Self {
+        let lg_n = n.ilog2() as usize;
+        let mut xis = Vec::with_capacity(lg_n + 1);
+        for _ in 0..(lg_n + 1) {
+            xis.push(PallasScalar::rand(rng))
+        }
+
+        HPoly::new(xis)
+    }
+}
+
+// TODO: Maybe move this?
+// -------------------- Helper Traits -------------------- //
+pub(crate) trait VecPushOwn<T> {
+    fn push_own(self, value: T) -> Self;
+}
+
+impl<T> VecPushOwn<T> for Vec<T> {
+    fn push_own(mut self, value: T) -> Self {
+        self.push(value);
+        self
+    }
+}
+
+// -------------------- PCS Functions -------------------- //
+
+/// Setup
+///
+/// Sets the public parameters. If not called, public parameters will be set to max.
+/// This will degrade performance, but never fail.
+pub fn setup(n: usize) -> Result<()> {
+    PublicParams::set_pp(n)
 }
 
 /// Creates a commitment to the coefficients of the polynomial $p$ of degree $d' < d$, with optional hiding $\o$, using pedersen commitments.
@@ -97,16 +181,20 @@ impl HPoly {
 /// d: A degree bound for p, we require that p.degree() <= d,
 /// w: Optional hiding to pass to the underlying Pederson Commitment
 pub fn commit(p: &PallasPoly, d: usize, w: Option<&PallasScalar>) -> PallasPoint {
+    let pp = PublicParams::get_pp();
     let n = d + 1;
 
-    assert!(n.is_power_of_two(), "{:?}, {:?}, {:?}", p.degree(), d, w);
+    assert!(n.is_power_of_two());
     assert!(p.degree() <= d);
-    assert!(d <= D);
+    assert!(
+        d <= pp.D,
+        "d ({}) <= pp.D ({}) (pp.len() = {})",
+        d,
+        pp.D,
+        pp.len()
+    );
 
-    let mut coeffs = p.coeffs.clone();
-    coeffs.resize(n, PallasScalar::ZERO);
-
-    pedersen::commit(w, &GS[0..n], &coeffs)
+    pedersen::commit(w, &pp.Gs[0..n], &p.coeffs)
 }
 
 /// Creates a proof that states: "I know a polynomial p of degree d' less than d, with commitment C s.t. p(z) = v" where p is private and d, z, v are public.
@@ -125,11 +213,13 @@ pub fn open<R: Rng>(
     z: &PallasScalar,
     w: Option<&PallasScalar>,
 ) -> EvalProof {
+    let pp = PublicParams::get_pp();
     let n = d + 1;
     let lg_n = n.ilog2() as usize;
+    assert!(n > 1);
     assert!(n.is_power_of_two());
     assert!(p.degree() <= d);
-    assert!(d <= D);
+    assert!(d <= pp.D);
 
     // 1. Compute the evaluation v := p(z) ∈ Fq.
     let v = p.evaluate(z);
@@ -140,8 +230,6 @@ pub fn open<R: Rng>(
         let z_poly = PallasPoly::from_coefficients_vec(vec![-*z, PallasScalar::ONE]);
         let q = PallasPoly::rand(p.degree() - 1, rng);
         let p_bar = q * z_poly;
-        assert_eq!(p_bar.evaluate(z), PallasScalar::ZERO);
-        assert_eq!(p_bar.degree(), p.degree());
 
         // (3). Sample corresponding commitment randomness ω_bar ∈ Fq.
         let w_bar = PallasScalar::rand(rng);
@@ -159,7 +247,7 @@ pub fn open<R: Rng>(
         let w_prime = w_bar * a + w;
 
         // 8. Compute a non-hiding commitment to p' : C' := C + α ⋅ C_bar - ω' ⋅ S ∈ G.
-        let C_prime = C + C_bar * a - S * w_prime;
+        let C_prime = C + C_bar * a - pp.S * w_prime;
 
         (p_prime, C_prime, Some(w_prime), Some(C_bar))
     } else {
@@ -178,11 +266,11 @@ pub fn open<R: Rng>(
     // z_0 := (1, z, . . . , z^d) ∈ F^(d+1)_q
     // G_0 := (G_0, G_1, . . . , G_d) ∈ G_(d+1)
     let mut xi_i = rho_0![C_prime, z, v];
-    let H_prime = H * xi_i;
+    let H_prime = pp.H * xi_i;
 
     let mut cs = p_prime.coeffs;
     cs.resize(n, PallasScalar::ZERO);
-    let mut gs: Vec<PallasPoint> = GS[0..n].iter().map(|x| PallasPoint::from(*x)).collect();
+    let mut gs = pp.Gs[0..n].to_vec();
     let mut zs = construct_powers(z, n);
 
     let mut Ls = Vec::with_capacity(lg_n);
@@ -196,16 +284,16 @@ pub fn open<R: Rng>(
         // 1&2. Setting Σ_L := l(G_i) || H', Σ_R := r(G i) || H', compute:
         // L_(i+1) := CM.Commit_(Σ_L)(r(c_i) || ⟨r(c_i), l(z_i)⟩)
         // R_(i+1) := CM.Commit_(Σ_R)(l(c_i) || ⟨l(c_i), r(z_i)⟩)
-        let (g_l, g_r) = gs.split_at(m);
-        let (c_l, c_r) = cs.split_at(m);
-        let (z_l, z_r) = zs.split_at(m);
+        let (gs_l, gs_r) = gs.split_at_mut(m);
+        let (cs_l, cs_r) = cs.split_at_mut(m);
+        let (zs_l, zs_r) = zs.split_at_mut(m);
 
-        let dot_l = scalar_dot(c_r, z_l);
-        let L = point_dot(c_r, g_l.to_vec()) + H_prime * dot_l;
+        let dot_l = scalar_dot(cs_r, zs_l);
+        let L = point_dot_affine(cs_r, gs_l) + H_prime * dot_l;
         Ls.push(L);
 
-        let dot_r = scalar_dot(c_l, z_r);
-        let R = point_dot(c_l, g_r.to_vec()) + H_prime * dot_r;
+        let dot_r = scalar_dot(cs_l, zs_r);
+        let R = point_dot_affine(cs_l, gs_r) + H_prime * dot_r;
         Rs.push(R);
 
         // 3. Generate the (i+1)-th challenge ξ_(i+1) := ρ_0(ξ_i, L_(i+1), R_(i+1)) ∈ F_q.
@@ -213,21 +301,30 @@ pub fn open<R: Rng>(
         let xi_next_inv = xi_next.inverse().unwrap();
         xi_i = xi_next;
 
-        for j in 0..m {
-            // 4. Construct the commitment key for the next round: G_(i+1) := l(G_i) + ξ_(i+1) · r(G_i).
-            gs[j] = gs[j] + gs[j + m] * xi_next;
-            // 5. Construct commitment inputs for the next round:
-            // c_(i+1) := l(c_i) + ξ^(−1)_(i+1) · r(c_i)
-            // z_(i+1) := l(z_i) + ξ_(i+1) · r(z_i)
-            cs[j] = cs[j] + cs[j + m] * xi_next_inv;
-            zs[j] = zs[j] + zs[j + m] * xi_next;
-        }
+        #[cfg(not(feature = "parallel"))]
+        let (gs_l_iter, cs_l_iter, zs_l_iter) = (gs_l.iter_mut(), cs_l.iter_mut(), zs_l.iter_mut());
+        #[cfg(feature = "parallel")]
+        let (gs_l_iter, cs_l_iter, zs_l_iter) = (
+            gs_l.par_iter_mut(),
+            cs_l.par_iter_mut(),
+            zs_l.par_iter_mut(),
+        );
+
+        gs_l_iter.take(m).enumerate().for_each(|(j, g)| {
+            *g = (*g + gs_r[j] * xi_next).into_affine();
+        });
+        cs_l_iter.take(m).enumerate().for_each(|(j, c)| {
+            *c = *c + cs_r[j] * xi_next_inv;
+        });
+        zs_l_iter.take(m).enumerate().for_each(|(j, z)| {
+            *z = *z + zs_r[j] * xi_next;
+        });
 
         m /= 2;
     }
 
     // Finally, set U := G_(log_n), c := c_(log_n), and output the evaluation proof π := (L, R, U, c, C_bar, ω').
-    let U = gs[0];
+    let U = gs[0].into();
     let c = cs[0];
     let pi = EvalProof {
         Ls,      // L
@@ -256,10 +353,11 @@ pub fn succinct_check(
     v: &PallasScalar,
     pi: EvalProof,
 ) -> Result<(HPoly, PallasPoint)> {
+    let pp = PublicParams::get_pp();
     let n = d + 1;
     let lg_n = n.ilog2() as usize;
     ensure!(n.is_power_of_two(), "d+1 is not a power of 2!");
-    ensure!(d <= D, "d was larger than D!");
+    ensure!(d <= pp.D, "d was larger than D!");
 
     // 1. Parse rk as (⟨group⟩, S, H, d'), and π as (L, R, U, c, C_bar, ω').
     #[rustfmt::skip]
@@ -273,7 +371,7 @@ pub fn succinct_check(
         // (3). Compute the challenge α := ρ_0(C, z, v, C_bar) ∈ F^∗_q.
         let a = rho_0![C, z, v, C_bar];
 
-        C + C_bar * a - S * w_prime.unwrap()
+        C + C_bar * a - pp.S * w_prime.unwrap()
     } else {
         C
     };
@@ -282,7 +380,7 @@ pub fn succinct_check(
     let xi_0 = rho_0![C_prime, z, v];
     let mut xis = Vec::with_capacity(lg_n + 1).push_own(xi_0);
 
-    let H_prime = H * xi_0;
+    let H_prime = pp.H * xi_0;
 
     // 6. Compute the group element C_0 := C' + v · H' ∈ G.
     let mut C_i = C_prime + H_prime * v;
@@ -327,6 +425,7 @@ pub fn check(
     v: &PallasScalar,
     pi: EvalProof,
 ) -> Result<()> {
+    let pp = PublicParams::get_pp();
     // 1. Parse ck as (⟨group⟩, hk, S).
     // 2. Set d' := |hk| - 1.
     // 3. Set rk := (⟨group⟩, S, H, d').
@@ -335,11 +434,13 @@ pub fn check(
     let (h, U) = succinct_check(*C, d, z, v, pi)?;
 
     // 5. Check that U = CM.Commit(ck, h_vec), where h_vec is the coefficient vector of the polynomial h.
-    let comm = pedersen::commit(None, &GS[0..(d + 1)], &h.get_poly().coeffs);
+    let comm = pedersen::commit(None, &pp.Gs[0..(d + 1)], &h.get_poly().coeffs);
     ensure!(U == comm, "U ≠ CM.Commit(ck, h_vec)");
 
     Ok(())
 }
+
+// -------------------- Tests -------------------- //
 
 #[cfg(test)]
 mod tests {
@@ -349,7 +450,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_test() {
+    fn test_z() {
         let mut rng = rand::thread_rng();
         let n_range = Uniform::new(2, 10);
         let n = (2 as usize).pow(rng.sample(&n_range));
@@ -379,9 +480,11 @@ mod tests {
     }
 
     #[test]
-    fn test_u_check() {
+    fn test_u_check() -> Result<()> {
         let n = (2 as usize).pow(3);
         let lg_n = n.ilog2() as usize;
+
+        let pp = PublicParams::get_pp();
 
         // Generate fake values
         let xis: Vec<PallasScalar> = vec![0, 1, 2, 3]
@@ -389,7 +492,7 @@ mod tests {
             .map(PallasScalar::from)
             .collect();
 
-        let gs_affine = &GS[0..n];
+        let gs_affine = &pp.Gs[0..n];
         let gs: Vec<PallasPoint> = gs_affine.iter().map(|x| PallasPoint::from(*x)).collect();
         let mut gs_mut = gs.clone();
 
@@ -434,28 +537,18 @@ mod tests {
             xs.push(gs[i] * h_coeffs[i])
         }
 
-        assert_eq!(U, U_prime)
+        assert_eq!(U, U_prime);
+
+        Ok(())
     }
 
     #[test]
     fn test_check() -> Result<()> {
-        let mut rng = rand::thread_rng();
+        let rng = &mut rand::thread_rng();
         let n = (2 as usize).pow(rng.sample(&Uniform::new(2, 10)));
-        let d = n - 1;
-        let d_prime = rng.sample(&Uniform::new(1, d));
-
-        // Commit to a random polynomial
-        let w = PallasScalar::rand(&mut rng);
-        let p = PallasPoly::rand(d_prime, &mut rng);
-        let C = commit(&p, d, Some(&w));
-
-        // Generate an evaluation proof
-        let z = PallasScalar::rand(&mut rng);
-        let v = p.evaluate(&z);
-        let pi = open(&mut rng, p, C, d, &z, Some(&w));
 
         // Verify that check works
-        check(&C, d, &z, &v, pi)?;
+        Instance::rand(rng, n).check()?;
 
         Ok(())
     }
