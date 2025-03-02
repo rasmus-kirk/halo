@@ -36,6 +36,11 @@ impl PublicParams {
         self.Gs.len()
     }
 
+    #[allow(dead_code)]
+    pub fn is_empty(&self) -> bool {
+        self.Gs.len() == 0
+    }
+
     pub fn new(n: usize) -> Self {
         assert!(n.is_power_of_two());
         assert!(n <= N);
@@ -66,7 +71,7 @@ impl PublicParams {
 
     pub fn set_pp(n: usize) -> Result<()> {
         match PP.get() {
-            Some(&ref pp) if n > pp.Gs.len() => bail!(
+            Some(pp) if n > pp.Gs.len() => bail!(
                 "Previous public parameters defined to be {}, which is smaller than new public parameters {}",
                 pp.Gs.len(),
                 n

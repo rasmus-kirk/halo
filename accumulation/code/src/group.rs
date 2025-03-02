@@ -37,7 +37,7 @@ pub fn point_dot_affine(xs: &[PallasScalar], Gs: &[PallasAffine]) -> PallasPoint
         let chunks = max(1 << 10, xs.len() / IDEAL_CORES);
         Gs.par_chunks(chunks)
             .zip(xs.par_chunks(chunks))
-            .map(|(gs, xs)| PallasPoint::msm_unchecked(&gs, &xs))
+            .map(|(gs, xs)| PallasPoint::msm_unchecked(gs, xs))
             .sum()
     } else {
         PallasPoint::msm_unchecked(Gs, xs)
@@ -46,7 +46,7 @@ pub fn point_dot_affine(xs: &[PallasScalar], Gs: &[PallasAffine]) -> PallasPoint
 
 /// Dot product of projective points
 pub fn point_dot(xs: &[PallasScalar], Gs: &[PallasPoint]) -> PallasPoint {
-    let gs = PallasPoint::normalize_batch(&Gs);
+    let gs = PallasPoint::normalize_batch(Gs);
     point_dot_affine(xs, &gs)
 }
 
@@ -60,7 +60,7 @@ pub(crate) fn construct_powers(z: &PallasScalar, n: usize) -> Vec<PallasScalar> 
             .enumerate()
             .for_each(|(chunk_idx, chunk)| {
                 let mut power = z.pow([(chunk_idx * chunk_size) as u64]);
-                for (_, x) in chunk.iter_mut().enumerate() {
+                for x in chunk.iter_mut() {
                     *x = power;
                     power *= z; // Sequential multiplications within each chunk
                 }

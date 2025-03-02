@@ -314,10 +314,10 @@ pub fn open<R: Rng>(
             *g = (*g + gs_r[j] * xi_next).into_affine();
         });
         cs_l_iter.take(m).enumerate().for_each(|(j, c)| {
-            *c = *c + cs_r[j] * xi_next_inv;
+            *c += cs_r[j] * xi_next_inv;
         });
         zs_l_iter.take(m).enumerate().for_each(|(j, z)| {
-            *z = *z + zs_r[j] * xi_next;
+            *z += zs_r[j] * xi_next;
         });
 
         m /= 2;

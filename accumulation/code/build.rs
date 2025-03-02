@@ -87,7 +87,7 @@ fn main() -> Result<()> {
         create_dir(&dest_path)?;
     }
     (0..G_BLOCKS_NO / CHUNKSIZE)
-        .into_iter()
+        .into_par_iter()
         .try_for_each(|i| handle_g(i, CHUNKSIZE, dest_path.to_str().unwrap().to_string()))?;
 
     let t = now.elapsed()?;
