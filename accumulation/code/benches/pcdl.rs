@@ -8,6 +8,7 @@ use criterion::Criterion;
 
 use halo_accumulation::{
     group::*,
+    consts::N,
     pcdl::{self, commit, Instance},
     wrappers::*,
 };
@@ -23,51 +24,65 @@ fn get_cheap_linears(n: usize) -> [Instance; 1] {
     [q_acc.1.into()]
 }
 
+pub fn pcdl_open(c: &mut Criterion) {
+    pcdl::setup(N).unwrap();
+    let mut rng = &mut test_rng();
+    let n = 2usize.pow($exp);
+    let d = n - 1;
+
+    let w = Some(PallasScalar::rand(rng));
+    let p = PallasPoly::rand(d, rng);
+    let z = &PallasScalar::rand(rng);
+    let comm = commit(&p, d, w.as_ref());
+
+    c.bench_function(concat!("pcdl_open_", stringify!($exp)), |b| b.iter(|| pcdl::open(&mut rng, p.clone(), comm, d, z, w.as_ref())));
+}
+
 macro_rules! define_pcdl_benches {
     ($exp:literal) => {
         paste::paste! {
             pub fn [<pcdl_open_ $exp>](c: &mut Criterion) {
+                pcdl::setup(N).unwrap();
                 let mut rng = &mut test_rng();
                 let n = 2usize.pow($exp);
                 let d = n - 1;
-                let pp = &pcdl::setup(n);
 
                 let w = Some(PallasScalar::rand(rng));
                 let p = PallasPoly::rand(d, rng);
                 let z = &PallasScalar::rand(rng);
-                let comm = commit(pp, &p, d, w.as_ref());
+                let comm = commit(&p, d, w.as_ref());
 
-                c.bench_function(concat!("pcdl_open_", stringify!($exp)), |b| b.iter(|| pcdl::open(&mut rng, pp, p.clone(), comm, d, z, w.as_ref())));
+                c.bench_function(concat!("pcdl_open_", stringify!($exp)), |b| b.iter(|| pcdl::open(&mut rng, p.clone(), comm, d, z, w.as_ref())));
             }
             pub fn [<pcdl_commit_ $exp>](c: &mut Criterion) {
+                pcdl::setup(N).unwrap();
                 let rng = &mut test_rng();
                 let n = 2usize.pow($exp);
                 let d = n - 1;
-                let pp = &pcdl::setup(n);
 
                 let w = Some(PallasScalar::rand(rng));
                 let p = PallasPoly::rand(d, rng);
 
-                c.bench_function(concat!("pcdl_commit_", stringify!($exp)), |b| b.iter(|| commit(pp, &p, d, w.as_ref())));
+                c.bench_function(concat!("pcdl_commit_", stringify!($exp)), |b| b.iter(|| commit(&p, d, w.as_ref())));
             }
             pub fn [<pcdl_check_ $exp>](c: &mut Criterion) {
+                pcdl::setup(N).unwrap();
                 let n = 2usize.pow($exp);
-                let pp = &pcdl::setup(n);
                 let qs = get_cheap_linears(n);
 
-                c.bench_function(concat!("pcdl_check_", stringify!($exp)), |b| b.iter(|| qs[0].check(pp).unwrap()));
+                c.bench_function(concat!("pcdl_check_", stringify!($exp)), |b| b.iter(|| qs[0].check().unwrap()));
             }
             pub fn [<pcdl_succinct_check_ $exp>](c: &mut Criterion) {
+                pcdl::setup(N).unwrap();
                 let n = 2usize.pow($exp);
-                let pp = &pcdl::setup(n);
                 let qs = get_cheap_linears(n);
 
-                c.bench_function(concat!("pcdl_succinct_check_", stringify!($exp)), |b| b.iter(|| qs[0].succinct_check(pp).unwrap()));
+                c.bench_function(concat!("pcdl_succinct_check_", stringify!($exp)), |b| b.iter(|| qs[0].succinct_check().unwrap()));
             }
         }
     };
 }
 
-seq!(K in 5..21 {
+seq!(K in 1..21 {
     define_pcdl_benches!(K);
 });

@@ -1,39 +1,81 @@
 #![allow(non_snake_case, unused_macros, dead_code, unused_imports)]
 
+use std::{
+    cmp::{max, min},
+    mem::{self, transmute},
+    ops::Deref,
+    thread,
+};
+
 use ark_ec::{CurveGroup, VariableBaseMSM};
+use ark_ff::{AdditiveGroup, Field};
 use ark_poly::univariate::DensePolynomial;
 use ark_std::One;
+use rayon::prelude::*;
 
 pub type PallasPoint = ark_pallas::Projective;
 pub type PallasAffine = ark_pallas::Affine;
 pub type PallasScalar = ark_pallas::Fr;
 pub type PallasPoly = DensePolynomial<PallasScalar>;
 
+/// The ideal number of cores for parallel processing
+pub const IDEAL_CORES: usize = 16;
+
 /// Dot product of scalars
-pub(crate) fn scalar_dot(xs: &[PallasScalar], ys: &[PallasScalar]) -> PallasScalar {
-    xs.iter().zip(ys).map(|(x, y)| x * y).sum()
-}
-
-/// Dot product of points
-pub fn point_dot(xs: &[PallasScalar], Gs: Vec<PallasPoint>) -> PallasPoint {
-    let Gs: Vec<PallasAffine> = Gs.into_iter().map(|x| x.into_affine()).collect();
-    PallasPoint::msm_unchecked(&Gs, xs)
-}
-
-/// Dot product of points
-pub(crate) fn point_dot_affine(xs: &[PallasScalar], Gs: &[PallasAffine]) -> PallasPoint {
-    PallasPoint::msm_unchecked(Gs, xs)
-}
-
-/// Given scalar z and length n, computes vector [1, z^1, ..., z^(n-1)]
-pub(crate) fn construct_powers(z: &PallasScalar, n: usize) -> Vec<PallasScalar> {
-    let mut zs = Vec::with_capacity(n);
-    let mut current = PallasScalar::one();
-    for _ in 0..n {
-        zs.push(current);
-        current *= z;
+pub fn scalar_dot(xs: &[PallasScalar], ys: &[PallasScalar]) -> PallasScalar {
+    if cfg!(feature = "parallel") {
+        xs.par_iter().zip(ys).map(|(x, y)| x * y).sum()
+    } else {
+        xs.iter().zip(ys).map(|(x, y)| x * y).sum()
     }
-    zs
+}
+
+/// Dot product of affine points
+pub fn point_dot_affine(xs: &[PallasScalar], Gs: &[PallasAffine]) -> PallasPoint {
+    if cfg!(feature = "parallel") {
+        const IDEAL_CORES: usize = 16;
+        let chunks = max(1 << 10, xs.len() / IDEAL_CORES);
+        Gs.par_chunks(chunks)
+            .zip(xs.par_chunks(chunks))
+            .map(|(gs, xs)| PallasPoint::msm_unchecked(&gs, &xs))
+            .sum()
+    } else {
+        PallasPoint::msm_unchecked(Gs, xs)
+    }
+}
+
+/// Dot product of projective points
+pub fn point_dot(xs: &[PallasScalar], Gs: &[PallasPoint]) -> PallasPoint {
+    let gs = PallasPoint::normalize_batch(&Gs);
+    point_dot_affine(xs, &gs)
+}
+
+pub(crate) fn construct_powers(z: &PallasScalar, n: usize) -> Vec<PallasScalar> {
+    if cfg!(feature = "parallel") {
+        let mut result = vec![PallasScalar::ZERO; n];
+        let chunk_size = max(1 << 10, n / IDEAL_CORES);
+
+        result
+            .par_chunks_mut(chunk_size)
+            .enumerate()
+            .for_each(|(chunk_idx, chunk)| {
+                let mut power = z.pow([(chunk_idx * chunk_size) as u64]);
+                for (_, x) in chunk.iter_mut().enumerate() {
+                    *x = power;
+                    power *= z; // Sequential multiplications within each chunk
+                }
+            });
+
+        result
+    } else {
+        let mut zs = Vec::with_capacity(n);
+        let mut current = PallasScalar::one();
+        for _ in 0..n {
+            zs.push(current);
+            current *= z;
+        }
+        zs
+    }
 }
 
 use sha3::{Digest, Sha3_256};

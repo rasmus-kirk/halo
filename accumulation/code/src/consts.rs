@@ -1,3 +1,5 @@
+// TODO: Move this to pp
+
 use ark_ff::BigInt;
 use ark_pallas::{Fq, Projective};
 
@@ -31,8 +33,6 @@ pub(crate) use get_no_of_blocks;
 #[allow(dead_code)]
 pub const G_BLOCKS_SIZE: usize = N / G_BLOCKS_NO;
 pub const N: usize = 2usize.pow(20);
-#[allow(dead_code)]
-pub const D: usize = N - 1;
 
 #[allow(dead_code)]
 pub const S: Projective = mk_proj!(

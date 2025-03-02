@@ -8,6 +8,7 @@ use halo_accumulation::{
     acc::{self, Accumulator},
     pcdl::Instance,
     pp::PublicParams,
+    consts::N,
     wrappers::*,
 };
 use seq_macro::seq;
@@ -31,36 +32,36 @@ macro_rules! define_acc_benches {
     ($exp:literal) => {
         paste::paste! {
             pub fn [<acc_common_subroutine_ $exp>](c: &mut Criterion) {
+                acc::setup(N).unwrap();
                 let n = 2usize.pow($exp);
-                let pp = &acc::setup(n);
                 let (qs, acc) = get_cheap_linears(n);
-                c.bench_function(concat!("acc_common_subroutine_", stringify!($exp)), |b| b.iter(|| acc::common_subroutine(&pp, &qs, &acc.pi_V)));
+                c.bench_function(concat!("acc_common_subroutine_", stringify!($exp)), |b| b.iter(|| acc::common_subroutine(&qs, &acc.pi_V)));
             }
             pub fn [<acc_prover_ $exp>](c: &mut Criterion) {
                 let mut rng = test_rng();
+                acc::setup(N).unwrap();
                 let n = 2usize.pow($exp);
-                let pp = &acc::setup(n);
                 let (qs, _) = get_cheap_linears(n);
-                c.bench_function(concat!("acc_prover_", stringify!($exp)), |b| b.iter(|| acc::prover(&mut rng, pp, &qs)));
+                c.bench_function(concat!("acc_prover_", stringify!($exp)), |b| b.iter(|| acc::prover(&mut rng, &qs)));
             }
             pub fn [<acc_decider_ $exp>](c: &mut Criterion) {
+                acc::setup(N).unwrap();
                 let n = 2usize.pow($exp);
-                let pp = &acc::setup(n);
                 let (_, acc) = get_cheap_linears(n);
-                c.bench_function(concat!("acc_decider_", stringify!($exp)), |b| b.iter(|| acc::decider(pp, acc.clone())));
+                c.bench_function(concat!("acc_decider_", stringify!($exp)), |b| b.iter(|| acc::decider(acc.clone())));
             }
             pub fn [<acc_verifier_ $exp>](c: &mut Criterion) {
+                acc::setup(N).unwrap();
                 let n = 2usize.pow($exp);
-                let pp = &acc::setup(n);
                 let (qs, acc) = get_cheap_linears(n);
                 c.bench_function(concat!("acc_verifier_", stringify!($exp)), |b| {
-                    b.iter(|| acc::verifier(pp, &qs, acc.clone()))
+                    b.iter(|| acc::verifier(&qs, acc.clone()))
                 });
             }
         }
     };
 }
 
-seq!(K in 5..21 {
+seq!(K in 1..21 {
     define_acc_benches!(K);
 });

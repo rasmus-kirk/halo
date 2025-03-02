@@ -5,8 +5,8 @@ use crate::group::{point_dot_affine, PallasAffine, PallasPoint, PallasScalar};
 
 pub fn commit(w: Option<&PallasScalar>, Gs: &[PallasAffine], ms: &[PallasScalar]) -> PallasPoint {
     assert!(
-        Gs.len() == ms.len(),
-        "Length did not match for pedersen commitment: {}, {}",
+        Gs.len() >= ms.len(),
+        "ms must be larger than Gs: (Gs: {}), (ms: {})",
         Gs.len(),
         ms.len()
     );
@@ -21,7 +21,7 @@ pub fn commit(w: Option<&PallasScalar>, Gs: &[PallasAffine], ms: &[PallasScalar]
 
 #[cfg(test)]
 mod tests {
-    use crate::{consts, pp::PublicParams};
+    use crate::pp::PublicParams;
     use ark_std::UniformRand;
     use rand::Rng;
 

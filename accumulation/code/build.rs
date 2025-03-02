@@ -5,6 +5,7 @@ include!("src/archive.rs");
 use anyhow::Result;
 use ark_ec::PrimeGroup;
 use ark_ff::PrimeField;
+use rayon::prelude::*;
 use sha3::{Digest, Sha3_256};
 use std::{
     env,
@@ -13,8 +14,6 @@ use std::{
     path::{Path, PathBuf},
     time::SystemTime,
 };
-use tokio::runtime::Builder;
-use tokio::task::JoinSet;
 
 // Function to generate a random generator for the Pallas Curve.
 // Since the order of the curve is prime, any point that is not the identity point is a generator.
@@ -45,7 +44,7 @@ fn print_sh() -> (String, String) {
     (f("S", s), f("H", h))
 }
 
-async fn handle_g(i: usize, chunksize: usize, filepath: String) -> Result<()> {
+fn handle_g(i: usize, chunksize: usize, filepath: String) -> Result<()> {
     let f = Path::new(&filepath);
     for j in 0..chunksize {
         let index = j + i * chunksize;
@@ -53,12 +52,9 @@ async fn handle_g(i: usize, chunksize: usize, filepath: String) -> Result<()> {
         let g_path = f.join(Path::new(&g_file));
 
         // Skip regeneration if the file already exists
-        if g_path.exists() {
-            //println!("cargo:warning=Using cached gs-{}.bin", index);
-        } else {
-            //println!("cargo:warning=Generating new gs-{}.bin", index);
-
+        if !g_path.exists() {
             let gs: Vec<WrappedPoint> = (0..G_BLOCKS_SIZE)
+                .into_par_iter()
                 .map(|k| get_generator_hash(index + k + 2))
                 .collect();
             let bytes = bincode::encode_to_vec(gs, std_config())?;
@@ -76,41 +72,24 @@ async fn handle_g(i: usize, chunksize: usize, filepath: String) -> Result<()> {
     Ok(())
 }
 
-async fn archive_async(filepath: &Path, chunksize: usize) -> Result<()> {
-    assert!(chunksize.is_power_of_two());
-    if !filepath.exists() {
-        println!("cargo:warning=creating {:?}", filepath);
-        create_dir(filepath)?;
-    }
-
-    let mut set = JoinSet::new();
-
-    for i in 0..(G_BLOCKS_NO / chunksize) {
-        let f = filepath.to_str().unwrap().to_owned();
-        set.spawn(handle_g(i, chunksize, f));
-    }
-
-    let res: Result<()> = set.join_all().await.into_iter().collect();
-
-    res
-}
-
 fn main() -> Result<()> {
+    const CHUNKSIZE: usize = 4;
     assert!(N.is_power_of_two());
     assert!(G_BLOCKS_NO.is_power_of_two());
 
     let out_dir = env::var("OUT_DIR")?;
     let dest_path = PathBuf::from(out_dir).join("public-params");
 
-    let runtime = Builder::new_multi_thread()
-        .worker_threads(G_BLOCKS_NO)
-        .enable_all()
-        .build()?;
-
     // Run the async tasks and wait for them to complete
-    let chunksize = 4;
     let now = SystemTime::now();
-    runtime.block_on(archive_async(&dest_path, chunksize))?;
+
+    if !dest_path.exists() {
+        create_dir(&dest_path)?;
+    }
+    (0..G_BLOCKS_NO / CHUNKSIZE)
+        .into_iter()
+        .try_for_each(|i| handle_g(i, CHUNKSIZE, dest_path.to_str().unwrap().to_string()))?;
+
     let t = now.elapsed()?;
     let time = format!("Compiling Public Parameters took {} s", t.as_secs_f32());
     println!("cargo:warning={}", time);
