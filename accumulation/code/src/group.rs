@@ -9,7 +9,7 @@ use std::{
 
 use ark_ec::{CurveGroup, VariableBaseMSM};
 use ark_ff::{AdditiveGroup, Field};
-use ark_poly::univariate::DensePolynomial;
+use ark_poly::{univariate::DensePolynomial, Polynomial};
 use ark_std::One;
 use rayon::prelude::*;
 
@@ -48,6 +48,31 @@ pub fn point_dot_affine(xs: &[PallasScalar], Gs: &[PallasAffine]) -> PallasPoint
 pub fn point_dot(xs: &[PallasScalar], Gs: &[PallasPoint]) -> PallasPoint {
     let gs = PallasPoint::normalize_batch(Gs);
     point_dot_affine(xs, &gs)
+}
+
+// TODO: Remove this, it's a failed experiment
+const FASTER: bool = false;
+pub fn eval(p: &PallasPoly, z: &PallasScalar) -> PallasScalar {
+    if FASTER {
+        let n = p.degree() + 1;
+        let chunk_size = max(1 << 10, n / IDEAL_CORES);
+
+        p.coeffs
+            .par_iter()
+            .chunks(chunk_size)
+            .enumerate()
+            .map(|(chunk_idx, chunk)| {
+                let mut power = z.pow([(chunk_idx * chunk_size) as u64]);
+                let mut acc = PallasScalar::ZERO;
+                for x in chunk.into_iter() {
+                    acc += (*x) * power;
+                    power *= z; // Sequential multiplications within each chunk
+                }
+                acc
+            }).sum()
+    } else {
+        p.evaluate(z)
+    }
 }
 
 pub(crate) fn construct_powers(z: &PallasScalar, n: usize) -> Vec<PallasScalar> {

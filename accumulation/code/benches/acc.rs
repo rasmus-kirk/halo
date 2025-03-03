@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use std::time::Duration;
+
 use ark_std::test_rng;
 use bincode::config::standard;
 use criterion::{BenchmarkId, Criterion};
@@ -10,7 +12,7 @@ use halo_accumulation::{
     wrappers::{WrappedAccumulator, WrappedInstance},
 };
 
-const PRE: &[u8] = include_bytes!("precompute/qs.bin");
+const PRE: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/precompute/qs/qs.bin"));
 
 /// Helper function: Gets precomputed linear-time computation dummy values.
 fn get_cheap_linears(n: usize) -> ([Instance; 1], Accumulator) {
@@ -20,7 +22,8 @@ fn get_cheap_linears(n: usize) -> ([Instance; 1], Accumulator) {
     ([q_acc.1.into()], q_acc.2.into())
 }
 
-const MIN: usize = 1;
+const WARMUP: Duration = Duration::from_millis(500);
+const MIN: usize = 12;
 const MAX: usize = 20;
 
 pub fn acc_prover(c: &mut Criterion) {
@@ -28,7 +31,7 @@ pub fn acc_prover(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("acc_prover");
     for size in MIN..MAX + 1 {
-        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
+        group.warm_up_time(WARMUP).bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
             let n = 2usize.pow(size as u32);
             let (qs, _) = get_cheap_linears(n);
 
@@ -41,7 +44,7 @@ pub fn acc_prover(c: &mut Criterion) {
 pub fn acc_decider(c: &mut Criterion) {
     let mut group = c.benchmark_group("acc_decider");
     for size in MIN..MAX + 1 {
-        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
+        group.warm_up_time(WARMUP).bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
             let n = 2usize.pow(size as u32);
             let (_, acc) = get_cheap_linears(n);
 
@@ -54,7 +57,7 @@ pub fn acc_decider(c: &mut Criterion) {
 pub fn acc_verifier(c: &mut Criterion) {
     let mut group = c.benchmark_group("acc_decider");
     for size in MIN..MAX + 1 {
-        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
+        group.warm_up_time(WARMUP).bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
             let n = 2usize.pow(size as u32);
             let (qs, acc) = get_cheap_linears(n);
 

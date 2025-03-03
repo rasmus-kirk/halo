@@ -24,6 +24,7 @@ criterion_group! {
     name = pcdl;
     config = Criterion::default().sample_size(SAMPLE_SIZE).measurement_time(Duration::from_secs(SECONDS));
     targets =
+        pcdl_eval,
         pcdl_open,
         pcdl_commit,
         pcdl_check,

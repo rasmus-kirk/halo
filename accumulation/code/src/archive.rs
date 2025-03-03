@@ -1,11 +1,10 @@
+use ark_pallas::{Affine, Fr, Fq, Projective};
 use ark_ec::CurveGroup;
-use ark_pallas::{Affine, Fr};
+use ark_ff::BigInt;
 use ark_poly::univariate::DensePolynomial;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 pub use bincode::config::standard as std_config;
 use bincode::{Decode, Encode};
-
-include!("./consts.rs");
 
 #[derive(Debug, Clone, Decode, Encode, PartialEq, Eq)]
 #[repr(C)]

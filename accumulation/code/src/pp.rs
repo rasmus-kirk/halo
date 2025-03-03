@@ -5,23 +5,67 @@ use crate::consts::*;
 use crate::group::{PallasAffine, PallasPoint};
 use anyhow::{bail, Result};
 use ark_pallas::Affine;
-use seq_macro::seq;
 use std::sync::OnceLock;
+use ark_ff::BigInt;
+use ark_pallas::{Fq, Projective};
 
 static PP: OnceLock<PublicParams> = OnceLock::new();
 
-macro_rules! define_g_paths {
-    ($limit:literal) => {
-        seq!(K in 0..$limit {
-            pub const G_PATHS: [&[u8]; $limit] = [
-                #(
-                    include_bytes!(concat!(env!("OUT_DIR"), "/public-params/gs-", K, ".bin")),
-                )*
-            ];
-        });
-    }
+include!(concat!(env!("OUT_DIR"), "/pp_paths.rs"));
+
+macro_rules! mk_proj {
+    ($x:tt, $y:tt, $z:tt) => {
+        Projective::new_unchecked(
+            Fq::new_unchecked(BigInt::new($x)),
+            Fq::new_unchecked(BigInt::new($y)),
+            Fq::new_unchecked(BigInt::new($z)),
+        )
+    };
 }
-get_no_of_blocks!(define_g_paths); //G_PATHS
+
+#[allow(dead_code)]
+pub(crate) const S: Projective = mk_proj!(
+    [
+        10511358259169183486,
+        2074067763166240952,
+        17611644572363664036,
+        341020441001484065
+    ],
+    [
+        12835947837332599666,
+        6255076945129827893,
+        5160699941501430743,
+        674756274627950377
+    ],
+    [
+        3780891978758094845,
+        11037255111966004397,
+        18446744073709551615,
+        4611686018427387903
+    ]
+);
+#[allow(dead_code)]
+pub(crate) const H: Projective = mk_proj!(
+    [
+        7341486867992484987,
+        4586814896141457814,
+        12027446952718021701,
+        3769587512575455815
+    ],
+    [
+        17315885811818124458,
+        13643165659743018808,
+        30407301326549650,
+        915560932831355023
+    ],
+    [
+        3780891978758094845,
+        11037255111966004397,
+        18446744073709551615,
+        4611686018427387903
+    ]
+);
+
 
 #[derive(Debug)]
 pub struct PublicParams {

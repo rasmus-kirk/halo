@@ -1,105 +1,80 @@
 #![allow(non_snake_case, dead_code)]
 
-include!("src/archive.rs");
+include!("src/consts.rs");
 
-use anyhow::Result;
-use ark_ec::PrimeGroup;
-use ark_ff::PrimeField;
-use rayon::prelude::*;
-use sha3::{Digest, Sha3_256};
+use anyhow::{bail, Result};
 use std::{
     env,
-    fs::{create_dir, OpenOptions},
+    fs::{self, create_dir, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
-    time::SystemTime,
 };
 
-// Function to generate a random generator for the Pallas Curve.
-// Since the order of the curve is prime, any point that is not the identity point is a generator.
-fn get_generator_hash(i: usize) -> WrappedPoint {
-    let genesis_string = "To understand recursion, one must first understand recursion".as_bytes();
+fn main() -> Result<()> {
+    if !cfg!(feature = "bootstrap") {
+        assert!(N.is_power_of_two());
+        assert!(G_BLOCKS_NO.is_power_of_two());
 
-    // Hash `genesis_string` concatinated with `i`
-    let mut hasher = Sha3_256::new();
-    hasher.update(i.to_le_bytes());
-    hasher.update(genesis_string);
-    let hash_result = hasher.finalize();
+        let project_root_dir = env::var("CARGO_MANIFEST_DIR")?;
+        let stored_params = PathBuf::from(project_root_dir)
+            .join("precompute")
+            .join("pp");
+        if !stored_params.exists() {
+            bail!("Error the precomputed parameters does not exist!")
+        }
 
-    // Generate a uniformly sampled point from the uniformly sampled field element
-    let point = Projective::generator() * ark_pallas::Fr::from_le_bytes_mod_order(&hash_result);
-    point.into_affine().into()
-}
+        let out_dir = env::var("OUT_DIR")?;
+        let dest_path = PathBuf::from(out_dir).join("public-params");
+        if !dest_path.exists() {
+            create_dir(&dest_path)?;
+        }
 
-fn print_sh() -> (String, String) {
-    let s: Projective = get_generator_hash(0).into();
-    let h: Projective = get_generator_hash(1).into();
-    let f = |s, p: Projective| {
-        format!(
-            "const {}: PallasPoint = mk_proj({:?}, {:?}, {:?})",
-            s, p.x.0 .0, p.y.0 .0, p.z.0 .0
-        )
-    };
+        for i in 0..G_BLOCKS_NO {
+            let index = i;
+            let g_file = format!("gs-{:02}.bin", index);
+            let g_path = stored_params.join(Path::new(&g_file));
+            let g_out_path = dest_path.join(Path::new(&g_file));
 
-    (f("S", s), f("H", h))
-}
+            // Skip regeneration if the file already exists
+            if !g_path.exists() {
+                bail!("{:?} was supposed to exist, but did not!", g_path)
+            } else {
+                let bytes = fs::read(g_path)?;
 
-fn handle_g(i: usize, chunksize: usize, filepath: String) -> Result<()> {
-    let f = Path::new(&filepath);
-    for j in 0..chunksize {
-        let index = j + i * chunksize;
-        let g_file = format!("gs-{}.bin", index);
-        let g_path = f.join(Path::new(&g_file));
+                // Write serialized data to file
+                let mut file = OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .truncate(true)
+                    .open(g_out_path)?;
 
-        // Skip regeneration if the file already exists
-        if !g_path.exists() {
-            let gs: Vec<WrappedPoint> = (0..G_BLOCKS_SIZE)
-                .into_par_iter()
-                .map(|k| get_generator_hash(index + k + 2))
-                .collect();
-            let bytes = bincode::encode_to_vec(gs, std_config())?;
-
-            // Write serialized data to file
-            let mut file = OpenOptions::new()
-                .create(true)
-                .write(true)
-                .truncate(true)
-                .open(g_path.clone())?;
-
-            Write::write_all(&mut file, &bytes)?;
+                Write::write_all(&mut file, &bytes)?;
+            }
         }
     }
-    Ok(())
-}
 
-fn main() -> Result<()> {
-    const CHUNKSIZE: usize = 4;
-    assert!(N.is_power_of_two());
-    assert!(G_BLOCKS_NO.is_power_of_two());
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let dest_path = Path::new(&out_dir).join("pp_paths.rs");
+    println!("cargo:warning={:?}", dest_path);
 
-    let out_dir = env::var("OUT_DIR")?;
-    let dest_path = PathBuf::from(out_dir).join("public-params");
+    let mut content = String::from("pub(crate) const G_PATHS: [&[u8]; 64] = [\n");
 
-    // Run the async tasks and wait for them to complete
-    let now = SystemTime::now();
-
-    if !dest_path.exists() {
-        create_dir(&dest_path)?;
+    for k in 0..64 {
+        if cfg!(feature = "bootstrap") {
+            let line = format!("&[0]");
+            content.push_str(&format!("    {},\n", line));
+        } else {
+            let padded_k = format!("{:02}", k); // Ensures two-digit formatting
+            let line = format!("include_bytes!(concat!(env!(\"OUT_DIR\"), \"/public-params/gs-{}.bin\"))", padded_k);
+            content.push_str(&format!("    {},\n", line));
+        }
     }
-    (0..G_BLOCKS_NO / CHUNKSIZE)
-        .into_par_iter()
-        .try_for_each(|i| handle_g(i, CHUNKSIZE, dest_path.to_str().unwrap().to_string()))?;
 
-    let t = now.elapsed()?;
-    let time = format!("Compiling Public Parameters took {} s", t.as_secs_f32());
-    println!("cargo:warning={}", time);
-
-    // Uncommenting these will print the S and H constants
-    //let (s, h) = print_sh();
-    //println!("cargo:warning={}", s);
-    //println!("cargo:warning={}", h);
+    content.push_str("];\n");
+    fs::write(dest_path, content)?;
 
     // Trigger rebuilds only if relevant files change
+    println!("cargo:rerun-if-changed=precompute/pp");
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=src/pp.rs");
     Ok(())
