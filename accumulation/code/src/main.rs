@@ -212,9 +212,8 @@ fn main() -> Result<()> {
 
     match args.get(2) {
         Some(s) if s == "gen" => {
-            let res: Result<Vec<(usize, WrappedInstance, WrappedAccumulator)>> = (min..max + 1)
-                .map(|i| gen(2usize.pow(i)))
-                .collect();
+            let res: Result<Vec<(usize, WrappedInstance, WrappedAccumulator)>> =
+                (min..max + 1).map(|i| gen(2usize.pow(i))).collect();
             let bytes = bincode::encode_to_vec(res?, std_config())?;
 
             let mut file = OpenOptions::new()

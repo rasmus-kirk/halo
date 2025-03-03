@@ -31,12 +31,16 @@ pub fn acc_prover(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("acc_prover");
     for size in MIN..MAX + 1 {
-        group.warm_up_time(WARMUP).bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            let n = 2usize.pow(size as u32);
-            let (qs, _) = get_cheap_linears(n);
+        group.warm_up_time(WARMUP).bench_with_input(
+            BenchmarkId::from_parameter(size),
+            &size,
+            |b, &size| {
+                let n = 2usize.pow(size as u32);
+                let (qs, _) = get_cheap_linears(n);
 
-            b.iter(|| acc::prover(rng, &qs));
-        });
+                b.iter(|| acc::prover(rng, &qs));
+            },
+        );
     }
     group.finish();
 }
@@ -44,12 +48,16 @@ pub fn acc_prover(c: &mut Criterion) {
 pub fn acc_decider(c: &mut Criterion) {
     let mut group = c.benchmark_group("acc_decider");
     for size in MIN..MAX + 1 {
-        group.warm_up_time(WARMUP).bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            let n = 2usize.pow(size as u32);
-            let (_, acc) = get_cheap_linears(n);
+        group.warm_up_time(WARMUP).bench_with_input(
+            BenchmarkId::from_parameter(size),
+            &size,
+            |b, &size| {
+                let n = 2usize.pow(size as u32);
+                let (_, acc) = get_cheap_linears(n);
 
-            b.iter(|| acc.clone().decider());
-        });
+                b.iter(|| acc.clone().decider());
+            },
+        );
     }
     group.finish();
 }
@@ -57,12 +65,16 @@ pub fn acc_decider(c: &mut Criterion) {
 pub fn acc_verifier(c: &mut Criterion) {
     let mut group = c.benchmark_group("acc_decider");
     for size in MIN..MAX + 1 {
-        group.warm_up_time(WARMUP).bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            let n = 2usize.pow(size as u32);
-            let (qs, acc) = get_cheap_linears(n);
+        group.warm_up_time(WARMUP).bench_with_input(
+            BenchmarkId::from_parameter(size),
+            &size,
+            |b, &size| {
+                let n = 2usize.pow(size as u32);
+                let (qs, acc) = get_cheap_linears(n);
 
-            b.iter(|| acc.clone().verifier(&qs));
-        });
+                b.iter(|| acc.clone().verifier(&qs));
+            },
+        );
     }
     group.finish();
 }

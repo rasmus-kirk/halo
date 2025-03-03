@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
-use crate::pp::S;
 use crate::group::{point_dot_affine, PallasAffine, PallasPoint, PallasScalar};
+use crate::pp::S;
 
 pub fn commit(w: Option<&PallasScalar>, Gs: &[PallasAffine], ms: &[PallasScalar]) -> PallasPoint {
     assert!(

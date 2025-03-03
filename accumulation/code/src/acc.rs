@@ -14,9 +14,9 @@ use rand::Rng;
 use crate::group;
 use crate::pp::PublicParams;
 use crate::{
-    pp::S,
     group::{construct_powers, point_dot, rho_1, PallasPoint, PallasPoly, PallasScalar},
     pcdl::{self, Instance},
+    pp::S,
 };
 
 // -------------------- Accumulation Data Structures --------------------

@@ -65,7 +65,10 @@ fn main() -> Result<()> {
             content.push_str(&format!("    {},\n", line));
         } else {
             let padded_k = format!("{:02}", k); // Ensures two-digit formatting
-            let line = format!("include_bytes!(concat!(env!(\"OUT_DIR\"), \"/public-params/gs-{}.bin\"))", padded_k);
+            let line = format!(
+                "include_bytes!(concat!(env!(\"OUT_DIR\"), \"/public-params/gs-{}.bin\"))",
+                padded_k
+            );
             content.push_str(&format!("    {},\n", line));
         }
     }

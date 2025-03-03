@@ -4,10 +4,10 @@ use crate::archive::{std_config, WrappedPoint};
 use crate::consts::*;
 use crate::group::{PallasAffine, PallasPoint};
 use anyhow::{bail, Result};
-use ark_pallas::Affine;
-use std::sync::OnceLock;
 use ark_ff::BigInt;
+use ark_pallas::Affine;
 use ark_pallas::{Fq, Projective};
+use std::sync::OnceLock;
 
 static PP: OnceLock<PublicParams> = OnceLock::new();
 
@@ -65,7 +65,6 @@ pub(crate) const H: Projective = mk_proj!(
         4611686018427387903
     ]
 );
-
 
 #[derive(Debug)]
 pub struct PublicParams {

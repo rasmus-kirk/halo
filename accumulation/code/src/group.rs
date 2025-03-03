@@ -69,7 +69,8 @@ pub fn eval(p: &PallasPoly, z: &PallasScalar) -> PallasScalar {
                     power *= z; // Sequential multiplications within each chunk
                 }
                 acc
-            }).sum()
+            })
+            .sum()
     } else {
         p.evaluate(z)
     }

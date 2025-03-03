@@ -1,6 +1,6 @@
-use ark_pallas::{Affine, Fr, Fq, Projective};
 use ark_ec::CurveGroup;
 use ark_ff::BigInt;
+use ark_pallas::{Affine, Fq, Fr, Projective};
 use ark_poly::univariate::DensePolynomial;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 pub use bincode::config::standard as std_config;
