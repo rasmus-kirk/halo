@@ -42,7 +42,7 @@ mod tests {
     fn circuit_synthesize() {
         let rng = &mut rand::thread_rng();
         let out = Arithmetizer::synthesize::<2>(rng, 4);
-        let input_values = vec![3,4];
+        let input_values = vec![3, 4];
         let output_wires = &[out];
         println!("{}", Arithmetizer::to_string(&input_values, output_wires));
         let ((x, w), e) = &Arithmetizer::to_circuit(rng, input_values, output_wires).unwrap();

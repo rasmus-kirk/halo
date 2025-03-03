@@ -1,9 +1,9 @@
 mod arith_wire;
 mod cache;
 mod errors;
+mod synthesize;
 mod trace;
 mod wire;
-mod synthesize;
 
 use crate::{curve::Scalar, protocol::circuit::Circuit, util::map_to_alphabet};
 use arith_wire::ArithWire;
