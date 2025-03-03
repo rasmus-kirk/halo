@@ -20,12 +20,16 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
     let pi = plonker::proof(rng, x, w);
 
     let mut group = c.benchmark_group("acc_prover");
-    group.warm_up_time(WARMUP).bench_function("prover", |b| b.iter(|| {
-        plonker::proof(rng, x, w);
-    }));
-    group.warm_up_time(WARMUP).bench_function("verifier", |b| b.iter(|| {
-        plonker::verify(x, pi.clone());
-    }));
+    group.warm_up_time(WARMUP).bench_function("prover", |b| {
+        b.iter(|| {
+            plonker::proof(rng, x, w);
+        })
+    });
+    group.warm_up_time(WARMUP).bench_function("verifier", |b| {
+        b.iter(|| {
+            plonker::verify(x, pi.clone());
+        })
+    });
     group.finish();
 }
 

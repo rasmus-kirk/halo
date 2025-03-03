@@ -10,7 +10,7 @@ pub use errors::ArithmetizerError;
 pub use trace::{Pos, Trace};
 pub use wire::Wire;
 
-use rand::{rngs::ThreadRng, Rng};
+use rand::Rng;
 use std::{cell::RefCell, rc::Rc};
 
 /// A unique identifier for a wire in the circuit.

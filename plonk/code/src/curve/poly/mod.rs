@@ -12,7 +12,7 @@ use halo_accumulation::{
     group::PallasPoly,
     pcdl::{self, EvalProof},
 };
-use rand::{rngs::ThreadRng, Rng};
+use rand::Rng;
 
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
