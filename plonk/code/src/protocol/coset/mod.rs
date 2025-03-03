@@ -4,7 +4,7 @@ mod poly;
 use super::scheme::Slots;
 use crate::curve::Scalar;
 
-use rand::{rngs::ThreadRng, Rng};
+use rand::Rng;
 
 /// Base coset scheme.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,7 +29,7 @@ impl Default for Coset {
 
 impl Coset {
     /// m is the number of elements (excluding 1) the cylic group should have.
-    pub fn new(rng: &mut ThreadRng, m: u64) -> Option<Self> {
+    pub fn new<R: Rng>(rng: &mut R, m: u64) -> Option<Self> {
         let n = (m + 1).next_power_of_two();
         let w = Scalar::get_root_of_unity(n)?;
         let mut nw = Coset {

@@ -9,6 +9,7 @@ use crate::{
 
 use merlin::Transcript;
 
+#[derive(Clone)]
 pub struct SNARKProof {
     pub qs_abc: Instances<{ Slots::COUNT }, true>,
     pub q_fgc: Instance<false>,
