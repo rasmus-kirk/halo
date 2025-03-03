@@ -3,6 +3,7 @@ mod cache;
 mod errors;
 mod trace;
 mod wire;
+mod synthesize;
 
 use crate::{curve::Scalar, protocol::circuit::Circuit, util::map_to_alphabet};
 use arith_wire::ArithWire;
@@ -141,6 +142,10 @@ impl Arithmetizer {
     }
 
     // utils --------------------------------------------------------------
+
+    pub fn cache_len(&self) -> usize {
+        self.wires.len()
+    }
 
     pub fn to_string<T: std::fmt::Display>(input_values: &[T], output_wires: &[Wire]) -> String {
         let mut result = String::new();

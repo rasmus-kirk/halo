@@ -40,6 +40,10 @@ impl ArithWireCache {
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.uuid
+    }
+
     /// Get the next WireID
     fn next_id(&mut self) -> WireID {
         let id = self.uuid;
