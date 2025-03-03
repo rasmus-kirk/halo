@@ -55,19 +55,16 @@ fn main() -> Result<()> {
 
     let out_dir = env::var("OUT_DIR").unwrap();
     let dest_path = Path::new(&out_dir).join("pp_paths.rs");
-    println!("cargo:warning={:?}", dest_path);
 
     let mut content = String::from("pub(crate) const G_PATHS: [&[u8]; 64] = [\n");
 
     for k in 0..64 {
         if cfg!(feature = "bootstrap") {
-            let line = format!("&[0]");
-            content.push_str(&format!("    {},\n", line));
+            content.push_str(&format!("    {},\n", "&[0]"));
         } else {
-            let padded_k = format!("{:02}", k); // Ensures two-digit formatting
             let line = format!(
-                "include_bytes!(concat!(env!(\"OUT_DIR\"), \"/public-params/gs-{}.bin\"))",
-                padded_k
+                "include_bytes!(concat!(env!(\"OUT_DIR\"), \"/public-params/gs-{:02}.bin\"))",
+                k
             );
             content.push_str(&format!("    {},\n", line));
         }

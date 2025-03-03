@@ -10,13 +10,12 @@ use std::{
 
 use acc::Accumulator;
 use anyhow::{bail, Result};
-use archive::std_config;
+use bincode::config::standard;
 use pcdl::Instance;
 use rayon::prelude::*;
 use wrappers::{WrappedAccumulator, WrappedInstance};
 
 pub mod acc;
-mod archive;
 pub mod consts;
 pub mod group;
 pub mod pcdl;
@@ -24,18 +23,20 @@ pub mod pedersen;
 mod pp;
 pub mod wrappers;
 
-// -------------------- Benchmarking Functions --------------------
+// -------------------- Public Parameter Generation --------------------
 
 mod gen_pp {
     use super::*;
 
     use ark_ec::{CurveGroup, PrimeGroup};
     use ark_ff::PrimeField;
+    use bincode::config::standard;
     use consts::{G_BLOCKS_NO, G_BLOCKS_SIZE, N};
     use sha3::{Digest, Sha3_256};
     use std::path::Path;
+    use wrappers::WrappedPoint;
 
-    use crate::{archive::WrappedPoint, group::PallasPoint};
+    use crate::group::PallasPoint;
 
     // Function to generate a random generator for the Pallas Curve.
     // Since the order of the curve is prime, any point that is not the identity point is a generator.
@@ -80,7 +81,7 @@ mod gen_pp {
                     .into_par_iter()
                     .map(|k| get_generator_hash(i + k + 2))
                     .collect();
-                let bytes = bincode::encode_to_vec(gs, std_config())?;
+                let bytes = bincode::encode_to_vec(gs, standard())?;
 
                 // Write serialized data to file
                 let mut file = OpenOptions::new()
@@ -110,6 +111,8 @@ mod gen_pp {
         Ok(())
     }
 }
+
+// -------------------- Benchmarking Functions --------------------
 
 fn gen(n: usize) -> Result<(usize, WrappedInstance, WrappedAccumulator)> {
     let q = gen_q(n)?;
@@ -214,7 +217,7 @@ fn main() -> Result<()> {
         Some(s) if s == "gen" => {
             let res: Result<Vec<(usize, WrappedInstance, WrappedAccumulator)>> =
                 (min..max + 1).map(|i| gen(2usize.pow(i))).collect();
-            let bytes = bincode::encode_to_vec(res?, std_config())?;
+            let bytes = bincode::encode_to_vec(res?, standard())?;
 
             let mut file = OpenOptions::new()
                 .create(true)
@@ -227,7 +230,7 @@ fn main() -> Result<()> {
         Some(s) if s == "bench" => {
             let bytes = fs::read(qs_path)?;
             let (val, _): (Vec<(usize, WrappedInstance, WrappedAccumulator)>, _) =
-                bincode::decode_from_slice(&bytes, std_config())?;
+                bincode::decode_from_slice(&bytes, standard())?;
 
             val.into_par_iter()
                 .try_for_each(|(n, q, acc)| bench(n, q, acc))?;

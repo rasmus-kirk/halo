@@ -13,7 +13,7 @@ use rand::Rng;
 #[cfg(feature = "parallel")]
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 
-use crate::group::{self, point_dot_affine};
+use crate::group::point_dot_affine;
 use crate::{
     group::{construct_powers, rho_0, scalar_dot, PallasPoint, PallasPoly, PallasScalar},
     pedersen,
@@ -45,7 +45,7 @@ impl Instance {
         w: Option<&PallasScalar>,
     ) -> Self {
         let C = commit(&p, d, w);
-        let v = group::eval(&p, z);
+        let v = p.evaluate(z);
         let pi = open(rng, p, C, d, z, w);
         Self { C, d, z: *z, v, pi }
     }
@@ -222,7 +222,7 @@ pub fn open<R: Rng>(
     assert!(d <= pp.D);
 
     // 1. Compute the evaluation v := p(z) ∈ Fq.
-    let v = group::eval(&p, z);
+    let v = p.evaluate(z);
 
     let (p_prime, C_prime, w_prime, C_bar) = if let Some(w) = w {
         // (2). Sample a random polynomial p_bar ∈ F^(≤d)_q[X] such that p_bar(z) = 0.
@@ -566,7 +566,7 @@ mod tests {
 
         // Generate an evaluation proof
         let z = PallasScalar::rand(&mut rng);
-        let v = group::eval(&p, &z);
+        let v = p.evaluate(&z);
         let pi = open(&mut rng, p, C, d, &z, None);
 
         // Verify that check works

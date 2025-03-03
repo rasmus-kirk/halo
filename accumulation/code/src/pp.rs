@@ -1,17 +1,14 @@
 #![allow(non_snake_case)]
 
-use crate::archive::{std_config, WrappedPoint};
 use crate::consts::*;
 use crate::group::{PallasAffine, PallasPoint};
+use crate::wrappers::WrappedPoint;
 use anyhow::{bail, Result};
 use ark_ff::BigInt;
 use ark_pallas::Affine;
 use ark_pallas::{Fq, Projective};
+use bincode::config::standard;
 use std::sync::OnceLock;
-
-static PP: OnceLock<PublicParams> = OnceLock::new();
-
-include!(concat!(env!("OUT_DIR"), "/pp_paths.rs"));
 
 macro_rules! mk_proj {
     ($x:tt, $y:tt, $z:tt) => {
@@ -23,7 +20,6 @@ macro_rules! mk_proj {
     };
 }
 
-#[allow(dead_code)]
 pub(crate) const S: Projective = mk_proj!(
     [
         10511358259169183486,
@@ -44,7 +40,6 @@ pub(crate) const S: Projective = mk_proj!(
         4611686018427387903
     ]
 );
-#[allow(dead_code)]
 pub(crate) const H: Projective = mk_proj!(
     [
         7341486867992484987,
@@ -65,6 +60,9 @@ pub(crate) const H: Projective = mk_proj!(
         4611686018427387903
     ]
 );
+
+static PP: OnceLock<PublicParams> = OnceLock::new();
+include!(concat!(env!("OUT_DIR"), "/pp_paths.rs"));
 
 #[derive(Debug)]
 pub struct PublicParams {
@@ -92,7 +90,7 @@ impl PublicParams {
         let mut m = n;
         for bytes in G_PATHS.iter().take(G_BLOCKS_NO) {
             let (raw_gs, _): (Vec<WrappedPoint>, usize) =
-                bincode::decode_from_slice(bytes, std_config()).unwrap();
+                bincode::decode_from_slice(bytes, standard()).unwrap();
             let mut converted_gs: Vec<Affine> =
                 raw_gs.into_iter().take(m).map(|x| x.into()).collect();
             gs.append(&mut converted_gs);

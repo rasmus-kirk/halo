@@ -7,11 +7,11 @@ use anyhow::Context;
 use anyhow::Result;
 use ark_ff::PrimeField;
 use ark_poly::DenseUVPolynomial;
+use ark_poly::Polynomial;
 use ark_serialize::CanonicalSerialize;
 use ark_std::{UniformRand, Zero};
 use rand::Rng;
 
-use crate::group;
 use crate::pp::PublicParams;
 use crate::{
     group::{construct_powers, point_dot, rho_1, PallasPoint, PallasPoly, PallasScalar},
@@ -89,7 +89,7 @@ impl AccumulatedHPolys {
     pub fn eval(&self, z: &PallasScalar) -> PallasScalar {
         let mut v = PallasScalar::zero();
         if let Some(h_0) = &self.h_0 {
-            v += group::eval(h_0, z);
+            v += h_0.evaluate(z);
         }
         for i in 0..self.hs.len() {
             v += self.hs[i].eval(z) * self.alphas[i + 1];

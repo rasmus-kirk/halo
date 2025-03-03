@@ -22,8 +22,8 @@ fn get_cheap_linears(n: usize) -> ([Instance; 1], Accumulator) {
     ([q_acc.1.into()], q_acc.2.into())
 }
 
-const WARMUP: Duration = Duration::from_millis(500);
-const MIN: usize = 12;
+const WARMUP: Duration = Duration::from_millis(100);
+const MIN: usize = 2;
 const MAX: usize = 20;
 
 pub fn acc_prover(c: &mut Criterion) {
@@ -63,7 +63,7 @@ pub fn acc_decider(c: &mut Criterion) {
 }
 
 pub fn acc_verifier(c: &mut Criterion) {
-    let mut group = c.benchmark_group("acc_decider");
+    let mut group = c.benchmark_group("acc_verifier");
     for size in MIN..MAX + 1 {
         group.warm_up_time(WARMUP).bench_with_input(
             BenchmarkId::from_parameter(size),
