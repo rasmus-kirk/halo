@@ -159,6 +159,7 @@ impl TableRegistry {
             }
         }
         let extend = coset.n() as usize - f.len() - 1;
+        f.sort();
         f.extend(vec![f.last().unwrap().clone(); extend]);
         // query vector
 

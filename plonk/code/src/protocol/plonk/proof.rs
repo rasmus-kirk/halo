@@ -40,6 +40,8 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     // Round 2 -----------------------------------------------------
     let zeta = &transcript.challenge_scalar(b"zeta");
     let [tpl, fpl, h1pl, h2pl, jpl] = &x.plonkup.compute(zeta);
+    let tplbar = &x.h.poly_times_arg(tpl, &x.h.w(1));
+    let h1plbar = &x.h.poly_times_arg(h1pl, &x.h.w(1));
     // Round 3 -----------------------------------------------------
     // β = H(transcript, 1)
     let beta = &transcript.challenge_scalar_augment(1, b"beta");
@@ -77,12 +79,10 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     };
     let zplterm = |a, b| epsilon * (Scalar::ONE + delta) + a + delta * b;
     // f'(X) = (ε(1 + δ) + f(X) + δf(X))(ε(1 + δ) + t(X) + δt(Xω))
-    let zfpl_ev = |i| zplterm_ev(fpl, fpl, i, i) * zplterm_ev(tpl, tpl, i, i + 1);
-    let tplbar = &x.h.poly_times_arg(tpl, &x.h.w(1));
+    let zfpl_ev = |i| zplterm_ev(fpl, fpl, i, i) * zplterm_ev(tpl, tplbar, i, i);
     let zfpl = &(zplterm(fpl, fpl) * zplterm(tpl, tplbar));
     // g'(X) = (ε(1 + δ) + h₁(X) + δh₂(X))(ε(1 + δ) + h₂(X) + δh₁(Xω))
-    let zgpl_ev = |i| zplterm_ev(h1pl, h2pl, i, i) * zplterm_ev(h2pl, h1pl, i, i + 1);
-    let h1plbar = &x.h.poly_times_arg(h1pl, &x.h.w(1));
+    let zgpl_ev = |i| zplterm_ev(h1pl, h2pl, i, i) * zplterm_ev(h2pl, h1plbar, i, i);
     let zgpl = &(zplterm(h1pl, h2pl) * zplterm(h2pl, h1plbar));
     // Z_PL(ω) = 1
     let mut zpl_points = vec![Scalar::ONE; 2];
@@ -107,10 +107,15 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     let f_cc1 = &(x.h.lagrange(1) * (z - Poly::a(&Scalar::ONE)));
     // F_CC2(X) = Z(X)f'(X) - g'(X)Z(ω X)
     let f_cc2 = &((z * zf) - (zg * zbar));
+    // F_PL1(X) = L₁(X) (Z_PL(X) - 1)
+    let f_pl1 = &(x.h.lagrange(1) * (zpl - Poly::a(&Scalar::ONE)));
+    // F_PL2(X) = Z_PL(X)f'(X) - g'(X)Z_PL(ω X)
+    let f_pl2 = &((zpl * zfpl) - (zgpl * zplbar));
+
     // T(X) = (F_GC(X) + α F_CC1(X) + α² F_CC2(X)) / Zₕ(X)
     // let t = &(f_gc / x.h.zh());
     let mut t_ = Poly::a(&Scalar::ZERO);
-    for (i, &f) in [f_gc, f_cc1, f_cc2].iter().enumerate() {
+    for (i, &f) in [f_gc, f_cc1, f_cc2, f_pl1, f_pl2].iter().enumerate() {
         t_ = t_ + (Poly::a_exp(alpha, i as u64) * f);
     }
     let t = &(t_ / x.h.zh());
@@ -130,7 +135,11 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     let fpl_ev = fpl.evaluate(ch);
     let jpl_ev = jpl.evaluate(ch);
     let q_zpl = Instance::new_from_comm(rng, zpl, ch, comm_zpl, true);
+    let tplbar_ev = tplbar.evaluate(ch);
     let zplbar_ev = zplbar.evaluate(ch);
+    let q_h1 = Instance::new(rng, h1pl, ch, true);
+    let q_h2 = Instance::new(rng, h2pl, ch, true);
+    let h1plbar_ev = h1plbar.evaluate(ch);
 
     let hdrs = vec![
         "F_GC(X)".to_string(),
@@ -144,13 +153,15 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
         "h2".to_string(),
         "Z2(X)".to_string(),
         "Z2(ωX)".to_string(),
+        "F_PL1(X)".to_string(),
+        "F_PL2(X)".to_string(),
     ];
     println!(
         "{}",
         x.h.evals_str(
-            &[f_gc, z, zbar, f_cc1, f_cc2, tpl, fpl, h1pl, h2pl, zpl, zplbar],
+            &[f_gc, z, zbar, f_cc1, f_cc2, tpl, fpl, h1pl, h2pl, zpl, zplbar, f_pl1, f_pl2],
             hdrs,
-            vec![false; 11]
+            vec![false; 13]
         )
     );
     let pi = SNARKProof {
@@ -161,10 +172,14 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
         zbar_ev,
         q_fcc2,
         q_t,
+        tplbar_ev,
         fpl_ev,
         jpl_ev,
         q_zpl,
         zplbar_ev,
+        q_h1,
+        q_h2,
+        h1plbar_ev,
     };
 
     pi
