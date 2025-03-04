@@ -1,11 +1,11 @@
-use rand::{rngs::ThreadRng, Rng};
+use rand::Rng;
 
 use crate::curve::Scalar;
 
 use super::{Arithmetizer, Wire};
 
 impl Arithmetizer {
-    pub fn synthesize<const N: usize>(rng: &mut ThreadRng, degree: usize) -> Wire {
+    pub fn synthesize<R: Rng, const N: usize>(rng: &mut R, degree: usize) -> Wire {
         let wires = &Arithmetizer::build::<N>();
 
         let mut cur = wires[rng.gen_range(0..N)].clone();
