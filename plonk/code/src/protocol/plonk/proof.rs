@@ -1,5 +1,5 @@
 use merlin::Transcript;
-use rand::rngs::ThreadRng;
+use rand::Rng;
 
 use super::{
     instance::{many::Instances, Instance},
@@ -14,7 +14,7 @@ use crate::{
     },
 };
 
-pub fn proof(rng: &mut ThreadRng, x: &CircuitPublic, w: &CircuitPrivate) -> SNARKProof {
+pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNARKProof {
     let mut transcript = Transcript::new(b"protocol");
     transcript.domain_sep();
 
@@ -83,17 +83,18 @@ pub fn proof(rng: &mut ThreadRng, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     let q_fcc2 = Instance::<false>::new(rng, f_cc2, ch);
     let q_t = Instance::<true>::new_from_comm(rng, t, ch, comm_t);
 
-    let hdrs = vec![
-        "F_GC(X)".to_string(),
-        "Z(X)".to_string(),
-        "Z(ωX)".to_string(),
-        "F_CC1(X)".to_string(),
-        "F_CC2(X)".to_string(),
-    ];
-    println!(
-        "{}",
-        x.h.evals_str(&[f_gc, z, zbar, f_cc1, f_cc2], hdrs, vec![false; 5])
-    );
+    // let hdrs = vec![
+    //     "F_GC(X)".to_string(),
+    //     "Z(X)".to_string(),
+    //     "Z(ωX)".to_string(),
+    //     "F_CC1(X)".to_string(),
+    //     "F_CC2(X)".to_string(),
+    // ];
+
+    // println!(
+    //     "{}",
+    //     x.h.evals_str(&[f_gc, z, zbar, f_cc1, f_cc2], hdrs, vec![false; 5])
+    // );
     SNARKProof {
         qs_abc,
         q_fgc,

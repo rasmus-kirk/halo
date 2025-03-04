@@ -12,7 +12,7 @@ use halo_accumulation::{
     group::PallasPoly,
     pcdl::{self, EvalProof},
 };
-use rand::rngs::ThreadRng;
+use rand::Rng;
 
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
@@ -110,7 +110,7 @@ impl Poly {
         comms
     }
 
-    pub fn open(&self, rng: &mut ThreadRng, commit: &Point, ch: &Scalar) -> EvalProof {
+    pub fn open<R: Rng>(&self, rng: &mut R, commit: &Point, ch: &Scalar) -> EvalProof {
         pcdl::open(
             rng,
             self.poly.clone(),

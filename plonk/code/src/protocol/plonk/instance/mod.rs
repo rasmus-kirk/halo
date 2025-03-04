@@ -4,7 +4,7 @@ use crate::curve::{Point, Poly, Scalar};
 
 use halo_accumulation::pcdl::{self, EvalProof};
 
-use rand::rngs::ThreadRng;
+use rand::Rng;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Instance<const EV: bool> {
@@ -14,7 +14,7 @@ pub struct Instance<const EV: bool> {
 }
 
 impl<const EV: bool> Instance<EV> {
-    pub fn new(rng: &mut ThreadRng, poly: &Poly, ch: &Scalar) -> Self {
+    pub fn new<R: Rng>(rng: &mut R, poly: &Poly, ch: &Scalar) -> Self {
         let commit = &poly.commit();
         Self {
             comm: *commit,
@@ -23,7 +23,7 @@ impl<const EV: bool> Instance<EV> {
         }
     }
 
-    pub fn new_from_comm(rng: &mut ThreadRng, poly: &Poly, ch: &Scalar, comm: &Point) -> Self {
+    pub fn new_from_comm<R: Rng>(rng: &mut R, poly: &Poly, ch: &Scalar, comm: &Point) -> Self {
         Self {
             comm: *comm,
             pi: poly.open(rng, comm, ch),

@@ -8,6 +8,13 @@ crate-type = ["rlib"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "bench"
+harness = false
+
 [dependencies]
 rand = "0.8.5"
 log = "0.4"
@@ -24,7 +31,7 @@ ark-bw6-761 = "0.5.0"
 field-matrix-utils = "0.1.1"
 ark-bls12-381 = "0.5.0"
 itertools = "0.14.0"
-halo-accumulation = { git = "https://github.com/rasmus-kirk/halo-accumulation" }
+halo-accumulation = { path = "../../accumulation/code" }
 ark-pallas = "0.5.0"
 ark-poly = "0.5.0"
 merlin = "3.0.0"

@@ -4,8 +4,9 @@ use crate::{
     util,
 };
 
-use rand::rngs::ThreadRng;
+use rand::{rngs::ThreadRng, Rng};
 
+#[derive(Clone)]
 pub struct Instances<const N: usize, const EV: bool>([Instance<EV>; N]);
 
 impl<const N: usize, const EV: bool> From<[Instance<EV>; N]> for Instances<N, EV> {
@@ -23,8 +24,8 @@ impl<const N: usize, const EV: bool> Instances<N, EV> {
         &self.0
     }
 
-    pub fn new_from_comm(
-        rng: &mut ThreadRng,
+    pub fn new_from_comm<R: Rng>(
+        rng: &mut R,
         polys: &[Poly; N],
         comm: &[Point; N],
         ch: &Scalar,

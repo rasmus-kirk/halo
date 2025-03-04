@@ -19,7 +19,7 @@ pub use errors::TraceError;
 pub use pos::Pos;
 use value::Value;
 
-use rand::rngs::ThreadRng;
+use rand::Rng;
 use std::collections::HashMap;
 
 /// A unique identifier for a constraint in the circuit.
@@ -36,8 +36,8 @@ pub struct Trace {
 }
 
 impl Trace {
-    pub fn new(
-        rng: &mut ThreadRng,
+    pub fn new<R: Rng>(
+        rng: &mut R,
         wires: &ArithWireCache,
         input_values: Vec<Scalar>,
         output_wires: Vec<WireID>,

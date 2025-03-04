@@ -11,7 +11,7 @@ pub use errors::ArithmetizerError;
 pub use trace::{Pos, Trace};
 pub use wire::Wire;
 
-use rand::rngs::ThreadRng;
+use rand::Rng;
 use std::{cell::RefCell, rc::Rc};
 
 /// A unique identifier for a wire in the circuit.
@@ -50,8 +50,8 @@ impl Arithmetizer {
     }
 
     /// Compute the circuit R where R(x,w) = ⊤.
-    pub fn to_circuit<T>(
-        rng: &mut ThreadRng,
+    pub fn to_circuit<T, R: Rng>(
+        rng: &mut R,
         input_values: Vec<T>,
         output_wires: &[Wire],
     ) -> Result<(Circuit, Trace), ArithmetizerError>
