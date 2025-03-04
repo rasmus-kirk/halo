@@ -1,6 +1,7 @@
 mod arith_wire;
 mod cache;
 mod errors;
+mod synthesize;
 mod trace;
 mod wire;
 
@@ -141,6 +142,10 @@ impl Arithmetizer {
     }
 
     // utils --------------------------------------------------------------
+
+    pub fn cache_len(&self) -> usize {
+        self.wires.len()
+    }
 
     pub fn to_string<T: std::fmt::Display>(input_values: &[T], output_wires: &[Wire]) -> String {
         let mut result = String::new();
