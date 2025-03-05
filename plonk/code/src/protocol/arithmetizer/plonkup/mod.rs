@@ -200,15 +200,19 @@ impl TableRegistry {
         [t, f, h1, h2]
     }
 
+    /// Total number of entries in all tables
     pub fn len(&self) -> usize {
         self.tables.iter().map(|table| table.len()).sum()
     }
 
+    /// Check if the table registry is empty
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 }
 
+/// A struct that acts as a thunk where `compute` takes in zeta
+/// from transcript to compute the polynomials for Plonkup protocol
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlonkupVecCompute {
     coset: Coset,

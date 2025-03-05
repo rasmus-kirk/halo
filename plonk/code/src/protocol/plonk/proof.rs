@@ -40,7 +40,7 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     // Round 2 -----------------------------------------------------
     let zeta = &transcript.challenge_scalar(b"zeta");
     let [ql, qr, qo, qm, qc, qk, jpl] = &x.qs;
-    let [tpl, fpl, h1pl, h2pl] = &x.plonkup.compute(zeta);
+    let [tpl, fpl, h1pl, h2pl] = &w.plonkup.compute(zeta);
     let tplbar = &x.h.poly_times_arg(tpl, &x.h.w(1));
     let h1plbar = &x.h.poly_times_arg(h1pl, &x.h.w(1));
     // Round 3 -----------------------------------------------------
