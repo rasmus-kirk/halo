@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::curve::Scalar;
 
-use super::arithmetizer::TableRegistry;
+use super::arithmetizer::Table;
 
 /// Used to determine degree of root of unity along with number of constraints.
 pub const MAX_BLIND_TERMS: u64 = 0;
@@ -72,6 +72,7 @@ pub enum Selectors {
     Qm,
     Qc,
     Qk,
+    J,
 }
 
 impl fmt::Display for Selectors {
@@ -83,13 +84,14 @@ impl fmt::Display for Selectors {
             Selectors::Qm => "Qₘ",
             Selectors::Qc => "Q꜀",
             Selectors::Qk => "Qₖ",
+            Selectors::J => "J",
         };
         write!(f, "{}", s)
     }
 }
 
 impl Selectors {
-    pub const COUNT: usize = 6;
+    pub const COUNT: usize = 7;
 
     pub fn iter() -> impl Iterator<Item = Self> {
         [
@@ -99,6 +101,7 @@ impl Selectors {
             Selectors::Qm,
             Selectors::Qc,
             Selectors::Qk,
+            Selectors::J,
         ]
         .iter()
         .copied()
@@ -120,6 +123,7 @@ impl From<usize> for Selectors {
             3 => Selectors::Qm,
             4 => Selectors::Qc,
             5 => Selectors::Qk,
+            6 => Selectors::J,
             _ => panic!("Invalid index for Selectors"),
         }
     }
@@ -150,26 +154,21 @@ impl Terms {
     }
 
     pub fn eqn(terms: [Scalar; Self::COUNT]) -> Scalar {
-        let [a, b, c, ql, qr, qo, qm, qc, _, pi] = terms;
+        let [a, b, c, ql, qr, qo, qm, qc, _, _, pi] = terms;
         (a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc + pi
     }
 
     pub fn eqn_str(terms: [String; Self::COUNT]) -> String {
-        let [a, b, c, ql, qr, qo, qm, qc, _, pi] = terms;
+        let [a, b, c, ql, qr, qo, qm, qc, _, _, pi] = terms;
         format!(
             "{} × {} + {} × {} + {} × {} + {} × {} × {} + {} + {}",
             a, ql, b, qr, c, qo, a, b, qm, qc, pi,
         )
     }
 
-    pub fn plonkup_eqn(
-        terms: [Scalar; Self::COUNT],
-        zeta: &Scalar,
-        j: usize,
-        f: &Scalar,
-    ) -> Scalar {
-        let [a, b, c, _, _, _, _, _, qk, _] = terms;
-        qk * (TableRegistry::eval_compress(zeta, &a, &b, &c, j) - f)
+    pub fn plonkup_eqn(terms: [Scalar; Self::COUNT], zeta: &Scalar, f: &Scalar) -> Scalar {
+        let [a, b, c, _, _, _, _, _, qk, j, _] = terms;
+        qk * (Table::eval_compress(zeta, &a, &b, &c, &j) - f)
     }
 
     pub fn is_slot(&self) -> bool {

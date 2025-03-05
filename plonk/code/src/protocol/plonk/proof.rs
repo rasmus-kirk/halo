@@ -39,7 +39,8 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     transcript.append_points(b"abc", comms_abc);
     // Round 2 -----------------------------------------------------
     let zeta = &transcript.challenge_scalar(b"zeta");
-    let [tpl, fpl, h1pl, h2pl, jpl] = &x.plonkup.compute(zeta);
+    let [ql, qr, qo, qm, qc, qk, jpl] = &x.qs;
+    let [tpl, fpl, h1pl, h2pl] = &x.plonkup.compute(zeta);
     let tplbar = &x.h.poly_times_arg(tpl, &x.h.w(1));
     let h1plbar = &x.h.poly_times_arg(h1pl, &x.h.w(1));
     // Round 3 -----------------------------------------------------
@@ -99,7 +100,6 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     // Round 4 -----------------------------------------------------
     // α = H(transcript)
     let alpha = &transcript.challenge_scalar(b"alpha");
-    let [ql, qr, qo, qm, qc, qk] = &x.qs;
     // F_GC(X) = A(X)Qₗ(X) + B(X)Qᵣ(X) + C(X)Qₒ(X) + A(X)B(X)Qₘ(X) + Q꜀(X)
     let f_plgc = &(qk * (a + zeta * b + zeta * zeta * c + zeta * zeta * zeta + jpl - fpl));
     let f_gc = &((a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc + &x.pi + f_plgc);

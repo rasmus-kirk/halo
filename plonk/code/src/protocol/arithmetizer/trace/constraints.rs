@@ -15,7 +15,6 @@ use std::{fmt, ops::Index};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Constraints {
     pub vs: [Value; Terms::COUNT],
-    pub lookup: PlonkupOps,
 }
 
 impl Index<Terms> for Constraints {
@@ -42,10 +41,7 @@ impl Default for Constraints {
 
 impl Constraints {
     pub fn new(vs: [Value; Terms::COUNT]) -> Self {
-        Constraints {
-            vs,
-            lookup: PlonkupOps::Xor,
-        }
+        Constraints { vs }
     }
 
     /// Create a constraint that enforces a constant value.
@@ -98,14 +94,12 @@ impl Constraints {
     }
 
     pub fn lookup(op: PlonkupOps, lhs: &Value, rhs: &Value, out: &Value) -> Self {
-        let mut vs = Constraints {
-            lookup: op,
-            ..Default::default()
-        };
+        let mut vs = Constraints::default();
         vs[Terms::F(Slots::A)] = *lhs;
         vs[Terms::F(Slots::B)] = *rhs;
         vs[Terms::F(Slots::C)] = *out;
         vs[Terms::Q(Selectors::Qk)] = Value::ONE;
+        vs[Terms::Q(Selectors::J)] = Value::AnonWire(Into::<Scalar>::into(op));
         vs
     }
 
@@ -123,10 +117,9 @@ impl Constraints {
         Terms::eqn(scalars) == Scalar::ZERO
     }
 
-    pub fn is_plonkup_satisfied(&self, zeta: &Scalar, op: PlonkupOps, f: &Scalar) -> bool {
+    pub fn is_plonkup_satisfied(&self, zeta: &Scalar, f: &Scalar) -> bool {
         let scalars = self.scalars();
-        let j = op as usize;
-        Terms::plonkup_eqn(scalars, zeta, j, f) == Scalar::ZERO
+        Terms::plonkup_eqn(scalars, zeta, f) == Scalar::ZERO
     }
 
     /// Check if the constraints are structurally equal.
@@ -281,7 +274,7 @@ mod tests {
             let zeta: Scalar = rng.gen();
             let f = table.query(PlonkupOps::Xor, &zeta, a_, b_);
             assert!(f.is_some());
-            assert!(eqn_values.is_plonkup_satisfied(&zeta, op, &f.unwrap()))
+            assert!(eqn_values.is_plonkup_satisfied(&zeta, &f.unwrap()))
         }
     }
 

@@ -60,7 +60,7 @@ pub fn verify(x: &CircuitPublic, pi: SNARKProof) -> bool {
     }
     // get / compute evaluations on challenge
     let [a, b, c] = &Instances::get_evs(&pi.qs_abc).unwrap();
-    let [ql, qr, qo, qm, qc, qk] = &Poly::evaluate_many(&x.qs, ch);
+    let [ql, qr, qo, qm, qc, qk, _] = &Poly::evaluate_many(&x.qs, ch);
     let pi_ev = x.pi.evaluate(ch);
     // F_GC(𝔷) = A(𝔷)Qₗ(𝔷) + B(𝔷)Qᵣ(𝔷) + C(𝔷)Qₒ(𝔷) + A(𝔷)B(𝔷)Qₘ(𝔷) + Q꜀(𝔷)
     let fplgc_ev =

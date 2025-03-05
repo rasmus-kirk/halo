@@ -24,7 +24,7 @@ pub use pos::Pos;
 use value::Value;
 
 use rand::Rng;
-use std::{collections::HashMap, rc::Rc};
+use std::collections::HashMap;
 
 /// A unique identifier for a constraint in the circuit.
 type ConstraintID = u64;
@@ -37,7 +37,7 @@ pub struct Trace {
     evals: HashMap<WireID, Value>,
     permutation: HashMap<Pos, Pos>,
     constraints: Vec<Constraints>,
-    table: Rc<TableRegistry>,
+    table: TableRegistry,
 }
 
 impl Trace {
@@ -46,14 +46,13 @@ impl Trace {
         wires: &ArithWireCache,
         input_values: Vec<Scalar>,
         output_wires: Vec<WireID>,
-        table: &Rc<TableRegistry>,
     ) -> Result<Self, TraceError> {
         let mut eval = Self {
             h: Default::default(),
             evals: HashMap::new(),
             permutation: HashMap::new(),
             constraints: vec![],
-            table: Rc::clone(table),
+            table: TableRegistry::new(),
         };
         for (wire, value) in input_values.into_iter().enumerate() {
             let value = Value::new_wire(wire, value).set_bit_type(wires);
@@ -231,18 +230,12 @@ impl Trace {
     }
 }
 
-impl
-    From<(
-        Vec<Constraints>,
-        [Vec<Pos>; Slots::COUNT],
-        Rc<TableRegistry>,
-    )> for Trace
-{
+impl From<(Vec<Constraints>, [Vec<Pos>; Slots::COUNT], TableRegistry)> for Trace {
     fn from(
         (constraints, permutation_vals, table): (
             Vec<Constraints>,
             [Vec<Pos>; Slots::COUNT],
-            Rc<TableRegistry>,
+            TableRegistry,
         ),
     ) -> Self {
         let mut permutation = HashMap::new();
@@ -265,15 +258,15 @@ impl
 
 impl From<Trace> for Circuit {
     fn from(eval: Trace) -> Self {
-        let [a, b, c, ql, qr, qo, qm, qc, qk, pi] = eval.gate_polys();
+        let [a, b, c, ql, qr, qo, qm, qc, qk, j, pi] = eval.gate_polys();
         let [sa, sb, sc, sida, sidb, sidc] = eval.copy_constraints();
         let x = CircuitPublic {
             h: eval.h.clone(),
-            qs: [ql, qr, qo, qm, qc, qk],
+            qs: [ql, qr, qo, qm, qc, qk, j],
             pi,
             sids: [sida, sidb, sidc],
             ss: [sa, sb, sc],
-            plonkup: PlonkupVecCompute::new(eval.h, eval.constraints.clone(), &eval.table),
+            plonkup: PlonkupVecCompute::new(eval.h, eval.constraints, eval.table),
         };
         let w = CircuitPrivate { ws: [a, b, c] };
         (x, w)
@@ -318,7 +311,7 @@ impl From<Circuit> for Trace {
             // if not exceeded then the permutation evaluations are valid
         }
 
-        let table = Rc::new(TableRegistry::new());
+        let table = TableRegistry::new();
         (expected_constraints, expected_permutation, table).into()
     }
 }
@@ -346,8 +339,7 @@ mod tests {
         let circuit = output_wires[0].arith().borrow();
         let input_scalars = input_values.iter().map(|&v| v.into()).collect();
         let output_ids = output_wires.iter().map(Wire::id).collect();
-        let table = Rc::new(TableRegistry::new());
-        let eval_res = Trace::new(rng, &circuit.wires, input_scalars, output_ids, &table);
+        let eval_res = Trace::new(rng, &circuit.wires, input_scalars, output_ids);
         assert!(eval_res.is_ok());
         // construct evaluator
 
@@ -418,7 +410,7 @@ mod tests {
             eval == (
                 expected_constraints.clone(),
                 expected_permutation.clone(),
-                table.clone()
+                TableRegistry::new(),
             )
                 .into()
         );
@@ -426,7 +418,15 @@ mod tests {
 
         let c: Circuit = eval.into();
         let eval2: Trace = c.into();
-        assert!(eval2 == (expected_constraints, expected_permutation, table).into());
+        assert!(
+            eval2
+                == (
+                    expected_constraints,
+                    expected_permutation,
+                    TableRegistry::new()
+                )
+                    .into()
+        );
         // plonk structural equality
     }
 }
