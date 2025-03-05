@@ -26,9 +26,6 @@ pub struct Arithmetizer {
     inputs: usize,
     wires: cache::ArithWireCache,
 }
-// TODO standard library package
-// TODO primitive ops for std::public(x) and std::bit(x)
-// TODO primitive ops includes plonkup operations std::xor(x,y)
 
 impl Arithmetizer {
     // constructors -------------------------------------------------------
@@ -65,7 +62,8 @@ impl Arithmetizer {
         let wires = &output_wires[0].arith().borrow().wires;
         let input_scalars = input_values.iter().map(|&v| v.into()).collect();
         let output_ids = output_wires.iter().map(Wire::id).collect();
-        Trace::new(rng, wires, input_scalars, output_ids)
+        let table = Rc::new(TableRegistry::new());
+        Trace::new(rng, wires, input_scalars, output_ids, &table)
             .map_err(ArithmetizerError::EvaluatorError)
             .map(Into::<(Circuit, Trace)>::into)
     }

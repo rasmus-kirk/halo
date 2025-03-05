@@ -269,8 +269,8 @@ impl BitXor for Scalar {
         let xs = self.to_bits();
         let ys = other.to_bits();
         let mut zs = vec![false; xs.len().max(ys.len())];
-        for i in 0..zs.len() {
-            zs[i] = xs.get(i).unwrap_or(&false) ^ ys.get(i).unwrap_or(&false);
+        for (i, z) in zs.iter_mut().enumerate() {
+            *z = xs.get(i).unwrap_or(&false) ^ ys.get(i).unwrap_or(&false);
         }
         Scalar::from(zs)
     }

@@ -18,6 +18,7 @@ pub struct SNARKProof {
     pub zbar_ev: Scalar,
     pub q_fcc2: Instance,
     pub q_t: Instance,
+    pub q_tpl: Instance,
     pub tplbar_ev: Scalar,
     pub fpl_ev: Scalar,
     pub jpl_ev: Scalar,
@@ -43,8 +44,8 @@ pub fn verify(x: &CircuitPublic, pi: SNARKProof) -> bool {
     let gamma = &transcript.challenge_scalar_augment(2, b"gamma");
     transcript.append_point(b"z", &pi.q_z.comm);
 
-    let epsilon = &transcript.challenge_scalar_augment(3, b"epsilon");
-    let delta = &transcript.challenge_scalar_augment(4, b"delta");
+    let delta = &transcript.challenge_scalar_augment(3, b"delta");
+    let epsilon = &transcript.challenge_scalar_augment(4, b"epsilon");
     transcript.append_point(b"zpl", &pi.q_zpl.comm);
     // Round 4 -----------------------------------------------------
     let alpha = &transcript.challenge_scalar(b"alpha");
@@ -93,19 +94,22 @@ pub fn verify(x: &CircuitPublic, pi: SNARKProof) -> bool {
     // F_PL1(𝔷) = L₁(𝔷) (Z_PL(𝔷) - 1)
     let f_pl1_ev = &(x.h.lagrange(1).evaluate(ch) * (pi.q_zpl.ev.unwrap() - Scalar::ONE));
     // f'(𝔷) = (ε(1 + δ) + f(𝔷) + δf(𝔷))(ε(1 + δ) + t(𝔷) + δt(𝔷ω))
-    let zplf_ev = &((epsilon * (Scalar::ONE + delta) + pi.fpl_ev + (delta * pi.fpl_ev)) * (epsilon * (Scalar::ONE + delta) + pi.q_t.ev.unwrap() + (delta * pi.tplbar_ev)));
+    let zplf_ev = &((epsilon * (Scalar::ONE + delta) + pi.fpl_ev + (delta * pi.fpl_ev))
+        * (epsilon * (Scalar::ONE + delta) + pi.q_tpl.ev.unwrap() + (delta * pi.tplbar_ev)));
     // g'(𝔷) = (ε(1 + δ) + h₁(𝔷) + δh₂(𝔷))(ε(1 + δ) + h₂(𝔷) + δh₁(𝔷ω))
-    let zplg_ev = &((epsilon * (Scalar::ONE + delta) + pi.q_h1.ev.unwrap() + (delta * pi.q_h2.ev.unwrap())) * (epsilon * (Scalar::ONE + delta) + pi.q_h2.ev.unwrap() + delta * pi.h1plbar_ev));
+    let zplg_ev =
+        &((epsilon * (Scalar::ONE + delta) + pi.q_h1.ev.unwrap() + (delta * pi.q_h2.ev.unwrap()))
+            * (epsilon * (Scalar::ONE + delta) + pi.q_h2.ev.unwrap() + delta * pi.h1plbar_ev));
     // F_PL2(𝔷) = Z_PL(𝔷)f'(𝔷) - g'(𝔷)Z_PL(ω 𝔷)
     let f_pl2_ev = &((pi.q_zpl.ev.unwrap() * zplf_ev) - (zplg_ev * pi.zplbar_ev));
-    
+
     // T(𝔷) = (F_GC(𝔷) + α F_CC1(𝔷) + α² F_CC2(𝔷)) / Zₕ(𝔷)
-    (f_gc_ev +
-    (alpha * f_cc1_ev) +
-    (alpha.pow(2) * f_cc2_ev) +
-    (alpha.pow(3) * f_pl1_ev) +
-    (alpha.pow(4) * f_pl2_ev)) -
-    (pi.q_t.ev.unwrap() * zh_ev)
+    (f_gc_ev
+        + (alpha * f_cc1_ev)
+        + (alpha.pow(2) * f_cc2_ev)
+        + (alpha.pow(3) * f_pl1_ev)
+        + (alpha.pow(4) * f_pl2_ev))
+        - (pi.q_t.ev.unwrap() * zh_ev)
         == Scalar::ZERO
 }
 
