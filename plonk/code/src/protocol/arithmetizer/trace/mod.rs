@@ -266,9 +266,11 @@ impl From<Trace> for Circuit {
             pi,
             sids: [sida, sidb, sidc],
             ss: [sa, sb, sc],
+        };
+        let w = CircuitPrivate {
+            ws: [a, b, c],
             plonkup: PlonkupVecCompute::new(eval.h, eval.constraints, eval.table),
         };
-        let w = CircuitPrivate { ws: [a, b, c] };
         (x, w)
     }
 }

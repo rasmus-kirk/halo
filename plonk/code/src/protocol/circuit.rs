@@ -19,14 +19,14 @@ pub struct CircuitPublic {
     pub sids: [Poly; Slots::COUNT],
     // permutation polynomial
     pub ss: [Poly; Slots::COUNT],
-
-    pub plonkup: PlonkupVecCompute,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CircuitPrivate {
     // slot polynomials
     pub ws: [Poly; Slots::COUNT],
+    // thunk to compute Plonkup polys
+    pub plonkup: PlonkupVecCompute,
 }
 
 pub type Circuit = (CircuitPublic, CircuitPrivate);
