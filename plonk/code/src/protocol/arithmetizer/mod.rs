@@ -10,7 +10,7 @@ use crate::{curve::Scalar, protocol::circuit::Circuit, util::map_to_alphabet};
 use arith_wire::ArithWire;
 pub use errors::ArithmetizerError;
 use plonkup::PlonkupOps;
-pub use plonkup::{PlonkupVecCompute, TableRegistry};
+pub use plonkup::{PlonkupVecCompute, Table};
 pub use trace::{Pos, Trace};
 pub use wire::Wire;
 
@@ -62,8 +62,7 @@ impl Arithmetizer {
         let wires = &output_wires[0].arith().borrow().wires;
         let input_scalars = input_values.iter().map(|&v| v.into()).collect();
         let output_ids = output_wires.iter().map(Wire::id).collect();
-        let table = Rc::new(TableRegistry::new());
-        Trace::new(rng, wires, input_scalars, output_ids, &table)
+        Trace::new(rng, wires, input_scalars, output_ids)
             .map_err(ArithmetizerError::EvaluatorError)
             .map(Into::<(Circuit, Trace)>::into)
     }
