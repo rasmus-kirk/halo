@@ -1,10 +1,9 @@
-use std::fmt::Display;
+use std::{fmt::Display, rc::Rc};
 
 use crate::{
     curve::{Coset, Poly, Scalar},
     protocol::scheme::{Selectors, Slots, Terms},
 };
-use lazy_static::lazy_static;
 
 use super::trace::Constraints;
 
@@ -94,8 +93,14 @@ pub struct TableRegistry {
     tables: [Table; PlonkupOps::COUNT],
 }
 
+impl Default for TableRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TableRegistry {
-    fn new() -> Self {
+    pub fn new() -> Self {
         let mut tables = Vec::new();
         for op in PlonkupOps::iter() {
             let table = Table::from(op);
@@ -116,8 +121,8 @@ impl TableRegistry {
         None
     }
 
-    pub fn query(op: PlonkupOps, zeta: &Scalar, a: &Scalar, b: &Scalar) -> Option<Scalar> {
-        let c = &TABLE_REGISTRY.lookup(op, a, b)?;
+    pub fn query(&self, op: PlonkupOps, zeta: &Scalar, a: &Scalar, b: &Scalar) -> Option<Scalar> {
+        let c = &self.lookup(op, a, b)?;
         let j = op as usize;
         Some(Self::eval_compress(zeta, a, b, c, j))
     }
@@ -126,11 +131,11 @@ impl TableRegistry {
         a + (zeta * b) + (zeta * zeta * c) + (zeta * zeta * zeta * Scalar::from(j))
     }
 
-    pub fn compute_vecs<'a>(
+    pub fn compute_vecs(
         &self,
         zeta: &Scalar,
         coset: &Coset,
-        constraints: &Vec<Constraints>,
+        constraints: &[Constraints],
     ) -> [Vec<Scalar>; 5] {
         let mut t = Vec::new();
         for op in PlonkupOps::iter() {
@@ -139,12 +144,12 @@ impl TableRegistry {
         }
         t.sort();
         let extend = coset.n() as usize - t.len() - 1;
-        t.extend(vec![t.last().unwrap().clone(); extend]);
+        t.extend(vec![*t.last().unwrap(); extend]);
         // table vector
 
         let mut f = Vec::new();
         let mut js = Vec::new();
-        f.push(t.last().unwrap().clone());
+        f.push(*t.last().unwrap());
         for constraint in constraints.iter() {
             if Into::<Scalar>::into(constraint[Terms::Q(Selectors::Qk)]) == Scalar::ONE {
                 let a: Scalar = constraint[Terms::F(Slots::A)].into();
@@ -154,13 +159,13 @@ impl TableRegistry {
                 f.push(Self::eval_compress(zeta, &a, &b, &c, j));
                 js.push(Scalar::from(j));
             } else {
-                f.push(t.last().unwrap().clone());
+                f.push(*t.last().unwrap());
                 js.push(Scalar::ZERO);
             }
         }
         let extend = coset.n() as usize - f.len() - 1;
         f.sort();
-        f.extend(vec![f.last().unwrap().clone(); extend]);
+        f.extend(vec![*f.last().unwrap(); extend]);
         // query vector
 
         let mut s: Vec<Scalar> = Vec::new();
@@ -184,21 +189,30 @@ impl TableRegistry {
     pub fn len(&self) -> usize {
         self.tables.iter().map(|table| table.len()).sum()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlonkupVecCompute {
     coset: Coset,
     constraints: Vec<Constraints>,
+    table: Rc<TableRegistry>,
 }
 
 impl PlonkupVecCompute {
-    pub fn new(coset: Coset, constraints: Vec<Constraints>) -> Self {
-        Self { coset, constraints }
+    pub fn new(coset: Coset, constraints: Vec<Constraints>, table: &Rc<TableRegistry>) -> Self {
+        Self {
+            coset,
+            constraints,
+            table: Rc::clone(table),
+        }
     }
 
     pub fn compute(&self, zeta: &Scalar) -> [Poly; 5] {
-        TABLE_REGISTRY
+        self.table
             .compute_vecs(zeta, &self.coset, &self.constraints)
             .into_iter()
             .map(|evals| self.coset.interpolate_zf(evals))
@@ -207,30 +221,3 @@ impl PlonkupVecCompute {
             .unwrap()
     }
 }
-
-lazy_static! {
-    pub static ref TABLE_REGISTRY: TableRegistry = TableRegistry::new();
-}
-
-// 1. Gate Constraints update - Q_k, f, zeta                        X
-// 2. Trace update                                                  X
-//  - determine n from table length as well                         X
-//  - compute polynomials                                           X
-//    - qk                                                          X
-//    - f                                                           X
-//    - h1, h2 / s                                                  X
-// 3. Arithmetizer update                                           X
-//  - add plonkup ops as constructors in arithwire                  X
-//  - add plonkup ops calls to construct arithmetized circuit       X
-//    - general lookup with PlonkupOps argument                     X
-//    - sugar for Xor and Or (temporary)                            X
-//    - add ArithWire to cache                                      X
-//    - make Xor and Or commutative (temporary)                     X
-//    - remove Or circuit / comment it out
-// 4. Prover and Verifier update
-//  - update F_GC                                                   X
-//  - abstract interface for grand product arguments?
-//  - compute Z_PCC                                                 X
-//  - compute F_PCC1 and F_PCC2
-//  - update prover and verifier calls
-// 5. multi table Xor and Or test

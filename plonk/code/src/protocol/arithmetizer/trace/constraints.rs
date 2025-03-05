@@ -98,8 +98,10 @@ impl Constraints {
     }
 
     pub fn lookup(op: PlonkupOps, lhs: &Value, rhs: &Value, out: &Value) -> Self {
-        let mut vs = Constraints::default();
-        vs.lookup = op;
+        let mut vs = Constraints {
+            lookup: op,
+            ..Default::default()
+        };
         vs[Terms::F(Slots::A)] = *lhs;
         vs[Terms::F(Slots::B)] = *rhs;
         vs[Terms::F(Slots::C)] = *out;
@@ -260,6 +262,7 @@ mod tests {
 
     #[test]
     fn lookup() {
+        let table = TableRegistry::new();
         let rng = &mut rand::thread_rng();
         for _ in 0..N {
             let a_ = &Scalar::from(rng.gen_range(0..2));
@@ -276,7 +279,7 @@ mod tests {
             assert_eq!(eqn_values[Terms::Q(Selectors::Qk)], Value::ONE);
             assert!(eqn_values.is_satisfied());
             let zeta: Scalar = rng.gen();
-            let f = TableRegistry::query(PlonkupOps::Xor, &zeta, a_, b_);
+            let f = table.query(PlonkupOps::Xor, &zeta, a_, b_);
             assert!(f.is_some());
             assert!(eqn_values.is_plonkup_satisfied(&zeta, op, &f.unwrap()))
         }

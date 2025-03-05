@@ -114,11 +114,13 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
 
     // T(X) = (F_GC(X) + α F_CC1(X) + α² F_CC2(X)) / Zₕ(X)
     // let t = &(f_gc / x.h.zh());
-    let mut t_ = Poly::a(&Scalar::ZERO);
-    for (i, &f) in [f_gc, f_cc1, f_cc2, f_pl1, f_pl2].iter().enumerate() {
-        t_ = t_ + (Poly::a_exp(alpha, i as u64) * f);
-    }
-    let t = &(t_ / x.h.zh());
+    let t = &((f_gc
+        + alpha * f_cc1
+        + alpha.pow(2) * f_cc2
+        + alpha.pow(3) * f_pl1
+        + alpha.pow(4) * f_pl2)
+        / x.h.zh());
+    // let t = &(f_pl2 / x.h.zh());
     let comm_t = &t.commit();
     transcript.append_point(b"t", comm_t);
     // Round 5 -----------------------------------------------------
@@ -135,6 +137,7 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     let fpl_ev = fpl.evaluate(ch);
     let jpl_ev = jpl.evaluate(ch);
     let q_zpl = Instance::new_from_comm(rng, zpl, ch, comm_zpl, true);
+    let q_tpl = Instance::new(rng, tpl, ch, true);
     let tplbar_ev = tplbar.evaluate(ch);
     let zplbar_ev = zplbar.evaluate(ch);
     let q_h1 = Instance::new(rng, h1pl, ch, true);
@@ -172,6 +175,7 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
         zbar_ev,
         q_fcc2,
         q_t,
+        q_tpl,
         tplbar_ev,
         fpl_ev,
         jpl_ev,
