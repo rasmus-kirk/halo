@@ -1,20 +1,19 @@
 mod display;
 mod poly;
 
-use super::scheme::Slots;
 use crate::curve::Scalar;
 
 use rand::Rng;
 
 /// Base coset scheme.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Coset {
     /// n:ℕ <=> ωⁿ = 1
     n: u64,
     /// ω:𝔽
     w: Scalar,
     /// k:𝔽
-    ks: [Scalar; Slots::COUNT],
+    ks: Vec<Scalar>,
 }
 
 impl Default for Coset {
@@ -22,24 +21,26 @@ impl Default for Coset {
         Coset {
             n: 0,
             w: Scalar::ZERO,
-            ks: [Scalar::ZERO; Slots::COUNT],
+            ks: Vec::new(),
         }
     }
 }
 
 impl Coset {
     /// m is the number of elements (excluding 1) the cylic group should have.
-    pub fn new<R: Rng>(rng: &mut R, m: u64) -> Option<Self> {
+    /// l is the number cosets in the group. (minimum 1)
+    pub fn new<R: Rng>(rng: &mut R, m: u64, l: usize) -> Option<Self> {
+        assert!(l > 0);
         let n = (m + 1).next_power_of_two();
         let w = Scalar::get_root_of_unity(n)?;
         let mut nw = Coset {
             n,
             w,
-            ks: Default::default(),
+            ks: Vec::new(),
         };
-        let mut ks = [Scalar::ZERO; Slots::COUNT];
+        let mut ks = vec![Scalar::ZERO; l];
         ks[0] = Scalar::ONE;
-        for i in 1..Slots::COUNT {
+        for i in 1..l {
             ks[i] = loop {
                 let k_ = rng.gen();
                 if k_ != Scalar::ZERO
@@ -64,8 +65,8 @@ impl Coset {
     }
 
     // Hₛ = { kₛ ωⁱ | 1 ≤ i < n }
-    pub fn h(&self, slot: Slots, i: u64) -> Scalar {
-        self.ks[slot as usize] * self.w(i)
+    pub fn h<T: Into<usize>>(&self, slot: T, i: u64) -> Scalar {
+        self.ks[slot.into()] * self.w(i)
     }
 
     /// [1, n)
@@ -83,8 +84,8 @@ impl Coset {
         self.vec().iter().map(|h| k * h).collect()
     }
 
-    pub fn vec_k(&self, slot: Slots) -> Vec<Scalar> {
-        self.vec_mul(&self.ks[slot as usize])
+    pub fn vec_k<T: Into<usize>>(&self, slot: T) -> Vec<Scalar> {
+        self.vec_mul(&self.ks[slot.into()])
     }
 }
 
@@ -92,12 +93,14 @@ impl Coset {
 mod tests {
     use std::collections::HashSet;
 
+    use crate::protocol::scheme::Slots;
+
     use super::*;
 
     #[test]
     fn coset() {
         let rng = &mut rand::thread_rng();
-        let h_opt = Coset::new(rng, 5);
+        let h_opt = Coset::new(rng, 5, Slots::COUNT);
         assert!(h_opt.is_some());
         let h = h_opt.unwrap();
         assert_eq!(h.n, 8);
@@ -116,7 +119,7 @@ mod tests {
     #[test]
     fn coset_with_k() {
         let rng = &mut rand::thread_rng();
-        let h = Coset::new(rng, 3).unwrap();
+        let h = Coset::new(rng, 3, Slots::COUNT).unwrap();
         let mut set = HashSet::new();
         for i in h.iter() {
             set.insert(h.h(Slots::A, i));

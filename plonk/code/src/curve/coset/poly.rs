@@ -66,12 +66,14 @@ impl Coset {
 
 #[cfg(test)]
 mod tests {
+    use crate::protocol::scheme::Slots;
+
     use super::*;
 
     #[test]
     fn interpolate() {
         let rng = &mut rand::thread_rng();
-        let h_opt = Coset::new(rng, 5);
+        let h_opt = Coset::new(rng, 5, Slots::COUNT);
         assert!(h_opt.is_some());
         let h = h_opt.unwrap();
         let evals = &vec![1.into(), 2.into(), 3.into(), 4.into()];
@@ -94,7 +96,7 @@ mod tests {
     #[test]
     fn interpolate_zf() {
         let rng = &mut rand::thread_rng();
-        let h_opt = Coset::new(rng, 5);
+        let h_opt = Coset::new(rng, 5, Slots::COUNT);
         assert!(h_opt.is_some());
         let h = h_opt.unwrap();
         let evals = &vec![1.into(), 2.into(), 3.into(), 4.into()];
@@ -108,7 +110,7 @@ mod tests {
     #[test]
     fn zh() {
         let rng = &mut rand::thread_rng();
-        let h_opt = Coset::new(rng, 5);
+        let h_opt = Coset::new(rng, 5, Slots::COUNT);
         assert!(h_opt.is_some());
         let h = h_opt.unwrap();
         let zh = h.zh();
@@ -120,7 +122,7 @@ mod tests {
     #[test]
     fn lagrange() {
         let rng = &mut rand::thread_rng();
-        let h_opt = Coset::new(rng, 5);
+        let h_opt = Coset::new(rng, 5, Slots::COUNT);
         assert!(h_opt.is_some());
         let h = h_opt.unwrap();
         for i in h.iter() {

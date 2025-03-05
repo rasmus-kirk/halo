@@ -1,7 +1,7 @@
-use super::{Coset, Slots};
+use super::Coset;
 use crate::{
     curve::{Poly, Scalar},
-    protocol::arithmetizer::Pos,
+    util::{to_subscript, to_superscript},
 };
 
 use ascii_table::{Align, AsciiTable};
@@ -9,19 +9,26 @@ use std::fmt;
 
 impl Coset {
     fn w_str(i: u64) -> String {
-        Pos::new(Slots::A, i).to_string()
+        format!("ω{}", to_superscript(i))
     }
 
-    /// util to print Scalars formatted as elements in H otherwise just print the scalar.
+    /// Util to print Scalars formatted as elements in H otherwise just print the scalar.
     fn v_str(&self, x: &Scalar) -> String {
-        for slot in Slots::iter() {
-            if x == &self.ks[slot as usize] {
-                return Pos::new(slot, 0).to_string();
+        if *x == Scalar::ONE {
+            return Scalar::ONE.to_string();
+        }
+        for slot in 0..self.ks.len() {
+            if x == &self.ks[slot] {
+                return format!("k{}", to_subscript(slot as u64));
             }
             for (i_, w) in self.vec_k(slot).iter().enumerate() {
                 let i = (i_ + 1) as u64;
                 if x == w {
-                    return Pos::new(slot, i).to_string();
+                    return if slot == 0 {
+                        format!("ω{}", to_superscript(i))
+                    } else {
+                        format!("k{} ω{}", to_subscript(slot as u64), to_superscript(i))
+                    };
                 }
             }
         }
@@ -64,6 +71,6 @@ impl Coset {
 
 impl fmt::Display for Coset {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} = 1", Pos::new(Slots::A, self.n()))
+        write!(f, "ω{} = 1", to_superscript(self.n()))
     }
 }

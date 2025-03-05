@@ -7,27 +7,43 @@ use halo_accumulation::pcdl::{self, EvalProof};
 use rand::Rng;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Instance<const EV: bool> {
+pub struct Instance {
     pub comm: Point,
     pub pi: EvalProof,
     pub ev: Option<Scalar>,
 }
 
-impl<const EV: bool> Instance<EV> {
-    pub fn new<R: Rng>(rng: &mut R, poly: &Poly, ch: &Scalar) -> Self {
+impl Instance {
+    pub fn new<R: Rng>(rng: &mut R, poly: &Poly, ch: &Scalar, has_ev: bool) -> Self {
         let commit = &poly.commit();
+        let ev = if has_ev {
+            Some(poly.evaluate(ch))
+        } else {
+            None
+        };
         Self {
             comm: *commit,
             pi: poly.open(rng, commit, ch),
-            ev: if EV { Some(poly.evaluate(ch)) } else { None },
+            ev,
         }
     }
 
-    pub fn new_from_comm<R: Rng>(rng: &mut R, poly: &Poly, ch: &Scalar, comm: &Point) -> Self {
+    pub fn new_from_comm<R: Rng>(
+        rng: &mut R,
+        poly: &Poly,
+        ch: &Scalar,
+        comm: &Point,
+        has_ev: bool,
+    ) -> Self {
+        let ev = if has_ev {
+            Some(poly.evaluate(ch))
+        } else {
+            None
+        };
         Self {
             comm: *comm,
             pi: poly.open(rng, comm, ch),
-            ev: if EV { Some(poly.evaluate(ch)) } else { None },
+            ev,
         }
     }
 
@@ -48,7 +64,7 @@ impl<const EV: bool> Instance<EV> {
         .is_ok()
     }
 
-    pub fn set_ev(&self, ev: &Scalar) -> Instance<true> {
+    pub fn set_ev(&self, ev: &Scalar) -> Instance {
         Instance {
             comm: self.comm,
             pi: self.pi.clone(),

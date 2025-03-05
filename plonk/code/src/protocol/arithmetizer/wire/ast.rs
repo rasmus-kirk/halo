@@ -1,5 +1,5 @@
 use super::{Wire, WireID};
-use crate::{curve::Scalar, util::map_to_alphabet};
+use crate::{curve::Scalar, protocol::arithmetizer::plonkup::PlonkupOps, util::map_to_alphabet};
 
 use std::fmt;
 
@@ -10,6 +10,7 @@ pub enum WireAST {
     Constant(Scalar),
     Add(Box<WireAST>, Box<WireAST>),
     Mul(Box<WireAST>, Box<WireAST>),
+    Lookup(PlonkupOps, Box<WireAST>, Box<WireAST>),
 }
 
 impl fmt::Display for WireAST {
@@ -19,6 +20,7 @@ impl fmt::Display for WireAST {
             WireAST::Constant(c) => write!(f, "{}", c),
             WireAST::Add(lhs, rhs) => write!(f, "(+ {} {})", lhs, rhs),
             WireAST::Mul(lhs, rhs) => write!(f, "(* {} {})", lhs, rhs),
+            WireAST::Lookup(op, lhs, rhs) => write!(f, "({} {} {})", op, lhs, rhs),
         }
     }
 }
@@ -50,6 +52,10 @@ impl Wire {
 
     pub fn mul_ast_const(&self, other: Scalar) -> WireAST {
         WireAST::Mul(Box::new(self.ast()), Box::new(WireAST::Constant(other)))
+    }
+
+    pub fn lookup_ast(&self, op: PlonkupOps, other: &Wire) -> WireAST {
+        WireAST::Lookup(op, Box::new(self.ast()), Box::new(other.ast()))
     }
 
     pub fn not_ast_(ast: WireAST) -> WireAST {
