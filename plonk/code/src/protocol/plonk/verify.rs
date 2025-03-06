@@ -52,7 +52,8 @@ pub fn verify(x: &CircuitPublic, pi: SNARKProof) -> bool {
     transcript.append_point(b"t", &pi.q_t.comm);
     // Round 5 -----------------------------------------------------
     let ch = &transcript.challenge_scalar(b"xi");
-    let zh_ev = &x.h.zh().evaluate(ch);
+    let zh_ev = ch.pow(x.h.n()) - Scalar::ONE;
+    let l1_ev_ch = x.h.l1_ev(ch);
     // check commits
     if !Instances::check(&pi.qs_abc, ch) || !pi.q_z.check(ch, None) || !pi.q_t.check(ch, None) {
         println!("FAILED COMMITS");
@@ -71,7 +72,7 @@ pub fn verify(x: &CircuitPublic, pi: SNARKProof) -> bool {
         return false;
     }
     // F_CC1(𝔷) = L₁(𝔷) (Z(𝔷) - 1)
-    let f_cc1_ev = &(x.h.lagrange(1).evaluate(ch) * (pi.q_z.ev.unwrap() - Scalar::ONE));
+    let f_cc1_ev = &(l1_ev_ch * (pi.q_z.ev.unwrap() - Scalar::ONE));
     if !pi.q_fcc1.check(ch, Some(f_cc1_ev)) {
         println!("FAILED CC1");
         return false;
@@ -92,7 +93,7 @@ pub fn verify(x: &CircuitPublic, pi: SNARKProof) -> bool {
     }
 
     // F_PL1(𝔷) = L₁(𝔷) (Z_PL(𝔷) - 1)
-    let f_pl1_ev = &(x.h.lagrange(1).evaluate(ch) * (pi.q_zpl.ev.unwrap() - Scalar::ONE));
+    let f_pl1_ev = &(l1_ev_ch * (pi.q_zpl.ev.unwrap() - Scalar::ONE));
     // f'(𝔷) = (ε(1 + δ) + f(𝔷) + δf(𝔷))(ε(1 + δ) + t(𝔷) + δt(𝔷ω))
     let zplf_ev = &((epsilon * (Scalar::ONE + delta) + pi.fpl_ev + (delta * pi.fpl_ev))
         * (epsilon * (Scalar::ONE + delta) + pi.q_tpl.ev.unwrap() + (delta * pi.tplbar_ev)));

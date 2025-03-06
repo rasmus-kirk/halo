@@ -55,6 +55,11 @@ impl Coset {
         numerator / denominator
     }
 
+    /// L₁(X) = (Xⁿ - 1) / (n (X - 1))
+    pub fn l1_ev(&self, x: &Scalar) -> Scalar {
+        self.w * (x.pow(self.n) - Scalar::ONE) / (self.n * (x - self.w))
+    }
+
     pub fn evaluate(&self, p: &Poly, i: u64) -> Scalar {
         if let Some(y) = p.cache(i) {
             y
@@ -67,6 +72,7 @@ impl Coset {
 #[cfg(test)]
 mod tests {
     use crate::protocol::scheme::Slots;
+    use rand::Rng;
 
     use super::*;
 
@@ -134,6 +140,19 @@ mod tests {
                     assert_eq!(l.evaluate(&h.w(j)), Scalar::ZERO);
                 }
             }
+        }
+    }
+
+    #[test]
+    fn l1_ev() {
+        let rng = &mut rand::thread_rng();
+        let h_opt = Coset::new(rng, 5, Slots::COUNT);
+        assert!(h_opt.is_some());
+        let h = h_opt.unwrap();
+        let l1 = h.lagrange(1);
+        for _ in 0..100 {
+            let x = rng.gen();
+            assert_eq!(h.l1_ev(&x), l1.evaluate(&x));
         }
     }
 }
