@@ -29,7 +29,7 @@
                   -V linkcolor=black \
                   -V urlcolor=GbBlueDk \
                   -V toccolor=gray \
-                  --metadata date -d @$(git show -s --format=%ct) -u "+%Y-%m-%d - %H:%M:%S %Z" \
+                  --metadata date="$(date -d "@${toString self.lastModified}" -u "+%Y-%m-%d - %H:%M:%S %Z")" \
                   --highlight-style gruvbox.theme \
                   -o "$1/''${filename%.md}.pdf"
             done
@@ -50,7 +50,7 @@
           '';
         };
         report = pkgs.stdenv.mkDerivation {
-          name = "LatexReport";
+          name = "thesis";
           src = ./.;
           buildInputs = latexPkgs;
           phases = ["unpackPhase" "buildPhase"];

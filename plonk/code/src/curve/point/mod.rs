@@ -15,8 +15,8 @@ use std::ops::{Add, Neg, Sub};
 /// with optional degree bound d ∈ ℕ if its a commitment
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Point {
-    d: u64,
-    point: PallasPoint,
+    pub(crate) d: u64,
+    pub(crate) point: PallasPoint,
 }
 
 impl Point {
