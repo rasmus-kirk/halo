@@ -33,7 +33,7 @@
               pandoc "$filename" \
                 -H header.tex \
                 --citeproc \
-                --metadata date="$(date -u '+%Y-%m-%d - %H:%M:%S %Z')" \
+                --metadata date -d @$(git show -s --format=%ct) -u "+%Y-%m-%d - %H:%M:%S %Z" \
                 --highlight-style gruvbox.theme \
                 -o "$1/''${filename%.md}.pdf"
           done
@@ -48,7 +48,7 @@
               pandoc "$filename" \
                 -H header.tex \
                 --citeproc \
-                --metadata date="$(date -u '+%Y-%m-%d - %H:%M:%S %Z')" \
+                --metadata date -d @$(git show -s --format=%ct) -u "+%Y-%m-%d - %H:%M:%S %Z" \
                 --highlight-style gruvbox.theme \
                 -o "$1/''${filename%.md}.tex"
           done

@@ -21,7 +21,7 @@ use std::{
 /// Scalar a, an element of the field 𝔽ₚ
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Scalar {
-    scalar: PallasScalar,
+    pub(crate) scalar: PallasScalar,
 }
 
 impl Scalar {

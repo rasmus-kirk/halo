@@ -22,7 +22,7 @@ use crate::curve::{Point, Scalar};
 /// Polynomial f of degree d over the field 𝔽ₚ
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct Poly {
-    poly: PallasPoly,
+    pub(crate) poly: PallasPoly,
     eval_cache: Option<Vec<Scalar>>,
 }
 

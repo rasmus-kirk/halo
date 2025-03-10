@@ -66,6 +66,34 @@ impl Instance {
     pub fn succinct_check(&self) -> Result<(HPoly, PallasPoint)> {
         succinct_check(self.C, self.d, &self.z, &self.v, self.pi.clone())
     }
+
+    pub fn tuple(&self) -> (&PallasPoint, &usize, &PallasScalar, &PallasScalar, &EvalProof) {
+        (&self.C, &self.d, &self.z, &self.v, &self.pi)
+    }
+
+    pub fn C(&self) -> &PallasPoint {
+        &self.C
+    }
+
+    pub fn d(&self) -> &usize {
+        &self.d
+    }
+
+    pub fn z(&self) -> &PallasScalar {
+        &self.z
+    }
+
+    pub fn v(&self) -> &PallasScalar {
+        &self.v
+    }
+
+    pub fn pi(&self) -> &EvalProof {
+        &self.pi
+    }
+
+    pub fn into_tuple(self) -> (PallasPoint, usize, PallasScalar, PallasScalar, EvalProof) {
+        (self.C, self.d, self.z, self.v, self.pi)
+    }
 }
 
 impl PartialOrd for Instance {
