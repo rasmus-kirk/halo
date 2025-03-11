@@ -48,20 +48,41 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     let beta = &transcript.challenge_scalar_augment(1, b"beta");
     // γ = H(transcript, 2)
     let gamma = &transcript.challenge_scalar_augment(2, b"gamma");
+    // δ = H(transcript, 3)
+    let delta = &transcript.challenge_scalar_augment(3, b"delta");
+    // ε = H(transcript, 4)
+    let epsilon = &transcript.challenge_scalar_augment(4, b"epsilon");
+
+    // copy constraints
     // w(X) + β s(X) + γ
     let zterm_ev = |w, s, i| x.h.evaluate(w, i) + beta * x.h.evaluate(s, i) + gamma;
     let zterm = |w, s| w + beta * s + gamma;
-    // f'(X) = (A(X) + β Sᵢ₁(X) + γ) (B(X) + β Sᵢ₂(X) + γ) (C(X) + β Sᵢ₃(X) + γ)
+    // f_cc'(X) = (A(X) + β Sᵢ₁(X) + γ) (B(X) + β Sᵢ₂(X) + γ) (C(X) + β Sᵢ₃(X) + γ)
     let zf_ev = |i| (zterm_ev(a, sida, i) * zterm_ev(b, sidb, i) * zterm_ev(c, sidc, i));
     let zf = &(zterm(a, sida) * zterm(b, sidb) * zterm(c, sidc));
-    // g'(X) = (A(X) + β S₁(X) + γ) (B(X) + β S₂(X) + γ) (C(X) + β S₃(X) + γ)
+    // g_cc'(X) = (A(X) + β S₁(X) + γ) (B(X) + β S₂(X) + γ) (C(X) + β S₃(X) + γ)
     let zg_ev = |i| (zterm_ev(a, sa, i) * zterm_ev(b, sb, i) * zterm_ev(c, sc, i));
     let zg = &(zterm(a, sa) * zterm(b, sb) * zterm(c, sc));
+
+    // plookup constraints
+    // ε(1 + δ) + a + δb
+    let zplterm_ev = |a, b, i, j| {
+        epsilon * (Scalar::ONE + delta) + x.h.evaluate(a, i) + delta * x.h.evaluate(b, j)
+    };
+    let zplterm = |a, b| epsilon * (Scalar::ONE + delta) + a + delta * b;
+    // f_pl'(X) = (ε(1 + δ) + f(X) + δf(X))(ε(1 + δ) + t(X) + δt(Xω))
+    let zfpl_ev = |i| zplterm_ev(fpl, fpl, i, i) * zplterm_ev(tpl, tplbar, i, i);
+    let zfpl = &(zplterm(fpl, fpl) * zplterm(tpl, tplbar));
+    // g_pl'(X) = (ε(1 + δ) + h₁(X) + δh₂(X))(ε(1 + δ) + h₂(X) + δh₁(Xω))
+    let zgpl_ev = |i| zplterm_ev(h1pl, h2pl, i, i) * zplterm_ev(h2pl, h1plbar, i, i);
+    let zgpl = &(zplterm(h1pl, h2pl) * zplterm(h2pl, h1plbar));
+
+    // grand product argument
     // Z(ω) = 1
     let mut z_points = vec![Scalar::ONE; 2];
-    // Z(ωⁱ) = Z(ωᶦ⁻¹) f'(ωᶦ⁻¹) / g'(ωᶦ⁻¹)
+    // Z(ωⁱ) = Z(ωᶦ⁻¹) f_cc'(ωᶦ⁻¹) f_pl'(ωᶦ⁻¹) / g_cc'(ωᶦ⁻¹) g_pl'(ωᶦ⁻¹)
     for i in 1..x.h.n() - 1 {
-        z_points.push(z_points[i as usize] * zf_ev(i) / zg_ev(i));
+        z_points.push(z_points[i as usize] * zf_ev(i) * zfpl_ev(i) / (zg_ev(i) * zgpl_ev(i)));
     }
     let z = &x.h.interpolate(z_points);
     // Z(ω X)
@@ -69,57 +90,20 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     let comm_z = &z.commit();
     transcript.append_point(b"z", comm_z);
 
-    // δ = H(transcript, 3)
-    let delta = &transcript.challenge_scalar_augment(3, b"delta");
-    // ε = H(transcript, 4)
-    let epsilon = &transcript.challenge_scalar_augment(4, b"epsilon");
-
-    // ε(1 + δ) + a + δb
-    let zplterm_ev = |a, b, i, j| {
-        epsilon * (Scalar::ONE + delta) + x.h.evaluate(a, i) + delta * x.h.evaluate(b, j)
-    };
-    let zplterm = |a, b| epsilon * (Scalar::ONE + delta) + a + delta * b;
-    // f'(X) = (ε(1 + δ) + f(X) + δf(X))(ε(1 + δ) + t(X) + δt(Xω))
-    let zfpl_ev = |i| zplterm_ev(fpl, fpl, i, i) * zplterm_ev(tpl, tplbar, i, i);
-    let zfpl = &(zplterm(fpl, fpl) * zplterm(tpl, tplbar));
-    // g'(X) = (ε(1 + δ) + h₁(X) + δh₂(X))(ε(1 + δ) + h₂(X) + δh₁(Xω))
-    let zgpl_ev = |i| zplterm_ev(h1pl, h2pl, i, i) * zplterm_ev(h2pl, h1plbar, i, i);
-    let zgpl = &(zplterm(h1pl, h2pl) * zplterm(h2pl, h1plbar));
-    // Z_PL(ω) = 1
-    let mut zpl_points = vec![Scalar::ONE; 2];
-    // Z_PL(ωⁱ) = Z_PL(ωᶦ⁻¹) f'(ωᶦ⁻¹) / g'(ωᶦ⁻¹)
-    for i in 1..x.h.n() - 1 {
-        zpl_points.push(zpl_points[i as usize] * zfpl_ev(i) / zgpl_ev(i));
-    }
-    let zpl = &x.h.interpolate(zpl_points);
-    // Z_PL(ω X)
-    let zplbar = &x.h.poly_times_arg(zpl, &x.h.w(1));
-    let comm_zpl = &zpl.commit();
-    transcript.append_point(b"zpl", comm_zpl);
-
     // Round 4 -----------------------------------------------------
     // α = H(transcript)
     let alpha = &transcript.challenge_scalar(b"alpha");
     // F_GC(X) = A(X)Qₗ(X) + B(X)Qᵣ(X) + C(X)Qₒ(X) + A(X)B(X)Qₘ(X) + Q꜀(X)
     let f_plgc = &(qk * (a + zeta * b + zeta * zeta * c + zeta * zeta * zeta + jpl - fpl));
     let f_gc = &((a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc + &x.pi + f_plgc);
-    // F_CC1(X) = L₁(X) (Z(X) - 1)
-    let f_cc1 = &(x.h.lagrange(1) * (z - Poly::a(&Scalar::ONE)));
-    // F_CC2(X) = Z(X)f'(X) - g'(X)Z(ω X)
-    let f_cc2 = &((z * zf) - (zg * zbar));
-    // F_PL1(X) = L₁(X) (Z_PL(X) - 1)
-    let f_pl1 = &(x.h.lagrange(1) * (zpl - Poly::a(&Scalar::ONE)));
-    // F_PL2(X) = Z_PL(X)f'(X) - g'(X)Z_PL(ω X)
-    let f_pl2 = &((zpl * zfpl) - (zgpl * zplbar));
+    // F_C1(X) = L₁(X) (Z(X) - 1)
+    let f_c1 = &(x.h.lagrange(1) * (z - Poly::a(&Scalar::ONE)));
+    // F_C2(X) = Z(X)f'(X) - g'(X)Z(ω X)
+    let f_c2 = &((z * zf * zfpl) - (zg * zgpl * zbar));
 
-    // T(X) = (F_GC(X) + α F_CC1(X) + α² F_CC2(X)) / Zₕ(X)
+    // T(X) = (F_GC(X) + α F_C1(X) + α² F_C2(X)) / Zₕ(X)
     // let t = &(f_gc / x.h.zh());
-    let t = &((f_gc
-        + alpha * f_cc1
-        + alpha.pow(2) * f_cc2
-        + alpha.pow(3) * f_pl1
-        + alpha.pow(4) * f_pl2)
-        / x.h.zh());
+    let t = &((f_gc + alpha * f_c1 + alpha.pow(2) * f_c2) / x.h.zh());
     // let t = &(f_pl2 / x.h.zh());
     let comm_t = &t.commit();
     transcript.append_point(b"t", comm_t);
@@ -130,39 +114,33 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     let qs_abc = Instances::<{ Slots::COUNT }>::new_from_comm(rng, &w.ws, comms_abc, ch, true);
     let q_fgc = Instance::new(rng, f_gc, ch, false);
     let q_z = Instance::new_from_comm(rng, z, ch, comm_z, true);
-    let q_fcc1 = Instance::new(rng, f_cc1, ch, false);
+    let q_fcc1 = Instance::new(rng, f_c1, ch, false);
     let zbar_ev = zbar.evaluate(ch);
-    let q_fcc2 = Instance::new(rng, f_cc2, ch, false);
+    let q_fcc2 = Instance::new(rng, f_c2, ch, false);
     let q_t = Instance::new_from_comm(rng, t, ch, comm_t, true);
     let fpl_ev = fpl.evaluate(ch);
     let jpl_ev = jpl.evaluate(ch);
-    let q_zpl = Instance::new_from_comm(rng, zpl, ch, comm_zpl, true);
     let q_tpl = Instance::new(rng, tpl, ch, true);
     let tplbar_ev = tplbar.evaluate(ch);
-    let zplbar_ev = zplbar.evaluate(ch);
     let q_h1 = Instance::new(rng, h1pl, ch, true);
     let q_h2 = Instance::new(rng, h2pl, ch, true);
     let h1plbar_ev = h1plbar.evaluate(ch);
 
     let hdrs = vec![
-        "F_GC(X)".to_string(),
-        "Z1(X)".to_string(),
-        "Z1(ωX)".to_string(),
-        "F_CC1(X)".to_string(),
-        "F_CC2(X)".to_string(),
         "t".to_string(),
         "f".to_string(),
         "h1".to_string(),
         "h2".to_string(),
-        "Z2(X)".to_string(),
-        "Z2(ωX)".to_string(),
-        "F_PL1(X)".to_string(),
-        "F_PL2(X)".to_string(),
+        "F_GC(X)".to_string(),
+        "Z(X)".to_string(),
+        "Z(ωX)".to_string(),
+        "F_C1(X)".to_string(),
+        "F_C2(X)".to_string(),
     ];
     println!(
         "{}",
         x.h.evals_str(
-            &[f_gc, z, zbar, f_cc1, f_cc2, tpl, fpl, h1pl, h2pl, zpl, zplbar, f_pl1, f_pl2],
+            &[tpl, fpl, h1pl, h2pl, f_gc, z, zbar, f_c1, f_c2],
             hdrs,
             vec![false; 13]
         )
@@ -179,8 +157,6 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
         tplbar_ev,
         fpl_ev,
         jpl_ev,
-        q_zpl,
-        zplbar_ev,
         q_h1,
         q_h2,
         h1plbar_ev,
