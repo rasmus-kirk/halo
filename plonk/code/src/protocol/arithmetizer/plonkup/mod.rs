@@ -62,7 +62,7 @@ impl Table {
 
     /// Evaluate a compressed value; Plonkup schema
     pub fn eval_compress(zeta: &Scalar, a: &Scalar, b: &Scalar, c: &Scalar, j: &Scalar) -> Scalar {
-        a + (zeta * b) + (zeta * zeta * c) + (zeta * zeta * zeta * j)
+        a + (zeta * b) + (zeta.pow(2) * c) + (zeta.pow(3) * j)
     }
 
     /// Number of entries in the table
@@ -165,7 +165,6 @@ impl TableRegistry {
         // table vector
 
         let mut f = Vec::new();
-        f.push(*t.last().unwrap());
         for constraint in constraints.iter() {
             if Into::<Scalar>::into(constraint[Terms::Q(Selectors::Qk)]) == Scalar::ONE {
                 let a: Scalar = constraint[Terms::F(Slots::A)].into();
@@ -178,8 +177,7 @@ impl TableRegistry {
             }
         }
         let extend = coset.n() as usize - f.len() - 1;
-        f.sort();
-        f.extend(vec![*f.last().unwrap(); extend]);
+        f.extend(vec![*t.last().unwrap(); extend]);
         // query vector
 
         let mut s: Vec<Scalar> = Vec::new();

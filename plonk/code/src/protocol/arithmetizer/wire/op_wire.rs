@@ -194,9 +194,9 @@ impl BitOr for Wire {
     fn bitor(self, other: Wire) -> Self::Output {
         let mut circuit = self.arith.borrow_mut();
         Wire {
-            id: circuit.or(self.id, other.id),
+            id: circuit.lookup(PlonkupOps::Or, self.id, other.id),
             arith: Rc::clone(&self.arith),
-            ast: self.or_ast(&other),
+            ast: self.lookup_ast(PlonkupOps::Xor, &other),
         }
     }
 }
