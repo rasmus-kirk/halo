@@ -1,7 +1,6 @@
 #![allow(non_snake_case)]
 
 use anyhow::{ensure, Result};
-use ark_ff::AdditiveGroup;
 use halo_accumulation::{
     group::{PallasPoint, PallasScalar},
     pcdl::{EvalProof, Instance as HaloInstance},
@@ -134,7 +133,7 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
             vec![false; 9]
         )
     );
-    let pi = SNARKProof {
+    SNARKProof {
         qs_abc,
         q_fgc,
         q_z,
@@ -149,9 +148,7 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
         q_h1,
         q_h2,
         h1plbar_ev,
-    };
-
-    pi
+    }
 }
 
 pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proof {
@@ -201,7 +198,7 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
 
     // α = H(transcript)
     let alpha = &transcript.challenge_scalar(b"alpha");
-    let [ql, qr, qo, qm, qc, _] = &x.qs;
+    let [ql, qr, qo, qm, qc, _, _] = &x.qs;
     // F_GC(X) = A(X)Qₗ(X) + B(X)Qᵣ(X) + C(X)Qₒ(X) + A(X)B(X)Qₘ(X) + Q꜀(X)
     let f_gc = &((a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc);
     // F_CC1(X) = L₁(X) (Z(X) - 1)
@@ -281,7 +278,7 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
         HaloInstance::open(rng, W.poly.clone(), d as usize, &ch.scalar, None).into_tuple();
     let z_bar_q = HaloInstance::open(rng, z.poly.clone(), d as usize, &ch_w.scalar, None);
 
-    let pi = Proof {
+    Proof {
         ev: ProofEvaluations {
             a: a_ev.into(),
             b: b_ev.into(),
@@ -306,13 +303,11 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
         },
         W_pi,
         z_bar_q,
-    };
-
-    pi
+    }
 }
 
 pub fn verify(x: &CircuitPublic, pi: &Proof) -> Result<()> {
-    let [ql, qr, qo, qm, qc, _] = &x.qs;
+    let [ql, qr, qo, qm, qc, _, _] = &x.qs;
     let [sa, sb, sc] = &x.ss;
     let [sida, sidb, sidc] = &x.sids;
     let d = *pi.z_bar_q.d();
@@ -352,7 +347,7 @@ pub fn verify(x: &CircuitPublic, pi: &Proof) -> Result<()> {
     transcript.domain_sep();
 
     // Round 1 -----------------------------------------------------
-    transcript.append_points(b"abc", &[a_com.clone(), b_com.clone(), c_com.clone()]);
+    transcript.append_points(b"abc", &[a_com, b_com, c_com]);
     // Round 2 -----------------------------------------------------
     let beta = &transcript.challenge_scalar_augment(0, b"beta");
     let gamma = &transcript.challenge_scalar_augment(1, b"gamma");
@@ -391,7 +386,8 @@ pub fn verify(x: &CircuitPublic, pi: &Proof) -> Result<()> {
         &((a_ev * ql_ev) + (b_ev * qr_ev) + (c_ev * qo_ev) + (a_ev * b_ev * qm_ev) + qc_ev);
     ensure!(
         *f_gc_ev != Scalar::ZERO,
-        "F_GC(𝔷) ≠ A(𝔷)Qₗ(𝔷) + B(𝔷)Qᵣ(𝔷) + C(𝔷)Qₒ(𝔷) + A(𝔷)B(𝔷)Qₘ(𝔷) + Q꜀(𝔷), F_GC = {}", *f_gc_ev
+        "F_GC(𝔷) ≠ A(𝔷)Qₗ(𝔷) + B(𝔷)Qᵣ(𝔷) + C(𝔷)Qₒ(𝔷) + A(𝔷)B(𝔷)Qₘ(𝔷) + Q꜀(𝔷), F_GC = {}",
+        *f_gc_ev
     );
     // F_CC1(𝔷) = L₁(𝔷) (Z(𝔷) - 1)
     let f_cc1_ev = &(x.h.lagrange(1).evaluate(ch) * (z_ev - Scalar::ONE));
@@ -438,14 +434,7 @@ pub fn verify(x: &CircuitPublic, pi: &Proof) -> Result<()> {
         + v.pow(10) * sc_ev
         + v.pow(11) * z_ev;
 
-    HaloInstance::new(
-        W_com.point,
-        d as usize,
-        ch.scalar,
-        W_ev.scalar.clone(),
-        pi.W_pi.clone(),
-    )
-    .check()?;
+    HaloInstance::new(W_com.point, d, ch.scalar, W_ev.scalar, pi.W_pi.clone()).check()?;
     pi.z_bar_q.check()?;
 
     Ok(())
