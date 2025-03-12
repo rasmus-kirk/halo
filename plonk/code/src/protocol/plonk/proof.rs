@@ -8,38 +8,25 @@ use halo_accumulation::{
 use merlin::Transcript;
 use rand::Rng;
 
-use super::{
-    instance::{many::Instances, Instance},
-    transcript::TranscriptProtocol,
-    SNARKProof,
-};
+use super::{instance::Instance, transcript::TranscriptProtocol, SNARKProof};
 use crate::{
     curve::{Point, Poly, Scalar},
-    protocol::{
-        circuit::{CircuitPrivate, CircuitPublic},
-        scheme::Slots,
-    },
+    protocol::circuit::{CircuitPrivate, CircuitPublic},
 };
 
 pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNARKProof {
     let mut transcript = Transcript::new(b"protocol");
     transcript.domain_sep();
 
-    // A(X), B(X), C(X)
-    let [a, b, c] = &w.ws;
-    // S₁(X), S₂(X), S₃(X)
-    let [sa, sb, sc] = &x.ss;
-    // Sᵢ₁(X), Sᵢ₂(X), Sᵢ₃(X)
-    let [sida, sidb, sidc] = &x.sids;
-
     // -------------------- Round 1 --------------------
 
-    let comms_abc = &Poly::commit_many(&w.ws);
-    transcript.append_points(b"abc", comms_abc);
+    let com_a = &w.a.commit();
+    let com_b = &w.b.commit();
+    let com_c = &w.c.commit();
+    transcript.append_points(b"abc", &[*com_a, *com_b, *com_c]);
     // Round 2 -----------------------------------------------------
     // ζ = H(transcript)
     let zeta = &transcript.challenge_scalar(b"zeta");
-    let [ql, qr, qo, qm, qc, qk, jpl] = &x.qs;
     let [tpl, fpl, h1pl, h2pl] = &w.plonkup.compute(zeta);
     let tplbar = &x.h.poly_times_arg(tpl, &x.h.w(1));
     let h1plbar = &x.h.poly_times_arg(h1pl, &x.h.w(1));
@@ -61,14 +48,23 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     let zpl = |a, b| zpl_sc + a + delta * b;
     // f'(X) = (A(X) + β Sᵢ₁(X) + γ) (B(X) + β Sᵢ₂(X) + γ) (C(X) + β Sᵢ₃(X) + γ)
     //         (ε(1 + δ) + f(X) + δf(X)) (ε(1 + δ) + t(X) + δt(Xω))
-    let zfcc_ev = |i| zcc_ev(a, sida, i) * zcc_ev(b, sidb, i) * zcc_ev(c, sidc, i);
+    let zfcc_ev =
+        |i| zcc_ev(&w.a, &x.sida, i) * zcc_ev(&w.b, &x.sidb, i) * zcc_ev(&w.c, &x.sidc, i);
     let zfpl_ev = |i| zpl_ev(fpl, fpl, i) * zpl_ev(tpl, tplbar, i);
-    let zf = &(zcc(a, sida) * zcc(b, sidb) * zcc(c, sidc) * zpl(fpl, fpl) * zpl(tpl, tplbar));
+    let zf = &(zcc(&w.a, &x.sida)
+        * zcc(&w.b, &x.sidb)
+        * zcc(&w.c, &x.sidc)
+        * zpl(fpl, fpl)
+        * zpl(tpl, tplbar));
     // g'(X) = (A(X) + β S₁(X) + γ) (B(X) + β S₂(X) + γ) (C(X) + β S₃(X) + γ)
     //         (ε(1 + δ) + h₁(X) + δh₂(X)) (ε(1 + δ) + h₂(X) + δh₁(Xω))
-    let zgcc_ev = |i| zcc_ev(a, sa, i) * zcc_ev(b, sb, i) * zcc_ev(c, sc, i);
+    let zgcc_ev = |i| zcc_ev(&w.a, &x.sa, i) * zcc_ev(&w.b, &x.sb, i) * zcc_ev(&w.c, &x.sc, i);
     let zgpl_ev = |i| zpl_ev(h1pl, h2pl, i) * zpl_ev(h2pl, h1plbar, i);
-    let zg = &(zcc(a, sa) * zcc(b, sb) * zcc(c, sc) * zpl(h1pl, h2pl) * zpl(h2pl, h1plbar));
+    let zg = &(zcc(&w.a, &x.sa)
+        * zcc(&w.b, &x.sb)
+        * zcc(&w.c, &x.sc)
+        * zpl(h1pl, h2pl)
+        * zpl(h2pl, h1plbar));
     // Z(ω) = 1
     // Z(ωⁱ) = Z(ωᶦ⁻¹) f'(ωᶦ⁻¹) / g'(ωᶦ⁻¹)
     let z_points = (1..x.h.n() - 1).fold(vec![Scalar::ONE; 2], |mut acc, i| {
@@ -85,10 +81,17 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     let alpha = &transcript.challenge_scalar(b"alpha");
     // F_GC(X) = A(X)Qₗ(X) + B(X)Qᵣ(X) + C(X)Qₒ(X) + A(X)B(X)Qₘ(X) + Q꜀(X) + PI(X)
     //         + Qₖ(X)(A(X) + ζB(X) + ζ²C(X) + ζ³J(X) - f(X))
-    let f_plgc = &(qk * (a + (zeta * b) + (zeta.pow(2) * c) + (zeta.pow(3) * jpl) - fpl));
-    let f_gc = &((a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc + &x.pi + f_plgc);
+    let f_plgc =
+        &(&x.pl_qk * (&w.a + (zeta * &w.b) + (zeta.pow(2) * &w.c) + (zeta.pow(3) * &x.pl_j) - fpl));
+    let f_gc = &((&w.a * &x.ql)
+        + (&w.b * &x.qr)
+        + (&w.c * &x.qo)
+        + (&w.a * &w.b * &x.qm)
+        + &x.qc
+        + &x.pip
+        + f_plgc);
     // F_Z1(X) = L₁(X) (Z(X) - 1)
-    let f_z1 = &(x.h.lagrange(1) * (z - Poly::a(&Scalar::ONE)));
+    let f_z1 = &(x.h.lagrange(1) * (z - Scalar::ONE));
     // F_Z2(X) = Z(X)f'(X) - g'(X)Z(ω X)
     let f_z2 = &((z * zf) - (zg * zbar));
     // T(X) = (F_GC(X) + α F_C1(X) + α² F_C2(X)) / Zₕ(X)
@@ -99,14 +102,15 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     // 𝔷 = H(transcript)
     let ch = &transcript.challenge_scalar(b"xi");
 
-    let qs_abc = Instances::<{ Slots::COUNT }>::new_from_comm(rng, &w.ws, comms_abc, ch, true);
+    let q_a = Instance::new(rng, &w.a, ch, true);
+    let q_b = Instance::new(rng, &w.b, ch, true);
+    let q_c = Instance::new(rng, &w.c, ch, true);
     let q_fgc = Instance::new(rng, f_gc, ch, false);
     let q_z = Instance::new_from_comm(rng, z, ch, comm_z, true);
     let zbar_ev = zbar.evaluate(ch);
     let q_fz1 = Instance::new(rng, f_z1, ch, false);
     let q_fz2 = Instance::new(rng, f_z2, ch, false);
     let fpl_ev = fpl.evaluate(ch);
-    let jpl_ev = jpl.evaluate(ch);
     let q_tpl = Instance::new(rng, tpl, ch, true);
     let tplbar_ev = tplbar.evaluate(ch);
     let q_h1 = Instance::new(rng, h1pl, ch, true);
@@ -128,13 +132,15 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     println!(
         "{}",
         x.h.evals_str(
-            &[tpl, fpl, h1pl, h2pl, z, zbar, f_gc, f_z1, f_z2],
+            vec![tpl, fpl, h1pl, h2pl, z, zbar, f_gc, f_z1, f_z2],
             hdrs,
             vec![false; 9]
         )
     );
     SNARKProof {
-        qs_abc,
+        q_a,
+        q_b,
+        q_c,
         q_fgc,
         q_z,
         zbar_ev,
@@ -144,7 +150,6 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
         q_tpl,
         tplbar_ev,
         fpl_ev,
-        jpl_ev,
         q_h1,
         q_h2,
         h1plbar_ev,
@@ -155,17 +160,12 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     let mut transcript = Transcript::new(b"protocol");
     transcript.domain_sep();
 
-    // A(X), B(X), C(X)
-    let [a, b, c] = &w.ws;
-    // S₁(X), S₂(X), S₃(X)
-    let [sa, sb, sc] = &x.ss;
-    // Sᵢ₁(X), Sᵢ₂(X), Sᵢ₃(X)
-    let [sida, sidb, sidc] = &x.sids;
-
     // -------------------- Round 1 --------------------
 
-    let comms_abc = &Poly::commit_many(&w.ws);
-    transcript.append_points(b"abc", comms_abc);
+    let a_com = &w.a.commit();
+    let b_com = &w.b.commit();
+    let c_com = &w.c.commit();
+    transcript.append_points(b"abc", &[*a_com, *b_com, *c_com]);
 
     // -------------------- Round 2 --------------------
 
@@ -177,11 +177,13 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     let zterm_ev = |w, s, i| x.h.evaluate(w, i) + beta * x.h.evaluate(s, i) + gamma;
     let zterm = |w, s| w + beta * s + gamma;
     // f'(X) = (A(X) + β Sᵢ₁(X) + γ) (B(X) + β Sᵢ₂(X) + γ) (C(X) + β Sᵢ₃(X) + γ)
-    let zf_ev = |i| (zterm_ev(a, sida, i) * zterm_ev(b, sidb, i) * zterm_ev(c, sidc, i));
-    let zf = &(zterm(a, sida) * zterm(b, sidb) * zterm(c, sidc));
+    let zf_ev =
+        |i| (zterm_ev(&w.a, &x.sida, i) * zterm_ev(&w.b, &x.sidb, i) * zterm_ev(&w.c, &x.sidc, i));
+    let zf = &(zterm(&w.a, &x.sida) * zterm(&w.b, &x.sidb) * zterm(&w.c, &x.sidc));
     // g'(X) = (A(X) + β S₁(X) + γ) (B(X) + β S₂(X) + γ) (C(X) + β S₃(X) + γ)
-    let zg_ev = |i| (zterm_ev(a, sa, i) * zterm_ev(b, sb, i) * zterm_ev(c, sc, i));
-    let zg = &(zterm(a, sa) * zterm(b, sb) * zterm(c, sc));
+    let zg_ev =
+        |i| (zterm_ev(&w.a, &x.sa, i) * zterm_ev(&w.b, &x.sb, i) * zterm_ev(&w.c, &x.sc, i));
+    let zg = &(zterm(&w.a, &x.sa) * zterm(&w.b, &x.sb) * zterm(&w.c, &x.sc));
     // Z(ω) = 1
     let mut z_points = vec![Scalar::ONE; 2];
     // Z(ωⁱ) = Z(ωᶦ⁻¹) f'(ωᶦ⁻¹) / g'(ωᶦ⁻¹)
@@ -191,16 +193,15 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     let z = &x.h.interpolate(z_points);
     // Z(ω X)
     let zbar = &x.h.poly_times_arg(z, &x.h.w(1));
-    let comm_z = &z.commit();
-    transcript.append_point(b"z", comm_z);
+    let z_com = &z.commit();
+    transcript.append_point(b"z", z_com);
 
     // -------------------- Round 3 --------------------
 
     // α = H(transcript)
     let alpha = &transcript.challenge_scalar(b"alpha");
-    let [ql, qr, qo, qm, qc, _, _] = &x.qs;
     // F_GC(X) = A(X)Qₗ(X) + B(X)Qᵣ(X) + C(X)Qₒ(X) + A(X)B(X)Qₘ(X) + Q꜀(X)
-    let f_gc = &((a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc);
+    let f_gc = &((&w.a * &x.ql) + (&w.b * &x.qr) + (&w.c * &x.qo) + (&w.a * &w.b * &x.qm) + &x.qc);
     // F_CC1(X) = L₁(X) (Z(X) - 1)
     let f_cc1 = &(x.h.lagrange(1) * (z - Poly::a(&Scalar::ONE)));
     // F_CC2(X) = Z(X)f'(X) - g'(X)Z(ω X)
@@ -212,8 +213,8 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
         t_ = t_ + (Poly::a_exp(alpha, i as u64) * f);
     }
     let t = &(t_ / x.h.zh());
-    let comm_t = &t.commit();
-    transcript.append_point(b"t", comm_t);
+    let t_com = &t.commit();
+    transcript.append_point(b"t", t_com);
 
     // -------------------- Round 4 --------------------
 
@@ -224,21 +225,17 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
 
     let ch_w = ch * x.h.w(1);
 
-    let [a_com, b_com, c_com] = comms_abc;
-    let t_com = comm_t;
-    let z_com = comm_z;
-
-    let a_ev = a.evaluate(ch);
-    let b_ev = b.evaluate(ch);
-    let c_ev = c.evaluate(ch);
-    let qc_ev = qc.evaluate(ch);
-    let ql_ev = ql.evaluate(ch);
-    let qm_ev = qm.evaluate(ch);
-    let qo_ev = qo.evaluate(ch);
-    let qr_ev = qr.evaluate(ch);
-    let sa_ev = sa.evaluate(ch);
-    let sb_ev = sb.evaluate(ch);
-    let sc_ev = sc.evaluate(ch);
+    let a_ev = &w.a.evaluate(ch);
+    let b_ev = &w.b.evaluate(ch);
+    let c_ev = &w.c.evaluate(ch);
+    let qc_ev = &x.qc.evaluate(ch);
+    let ql_ev = &x.ql.evaluate(ch);
+    let qm_ev = &x.qm.evaluate(ch);
+    let qo_ev = &x.qo.evaluate(ch);
+    let qr_ev = &x.qr.evaluate(ch);
+    let sa_ev = &x.sa.evaluate(ch);
+    let sb_ev = &x.sb.evaluate(ch);
+    let sc_ev = &x.sc.evaluate(ch);
     let zbar_ev = zbar.evaluate(ch);
     let t_ev = t.evaluate(ch);
     let z_ev = z.evaluate(ch);
@@ -261,17 +258,17 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     let d = a_com.d;
     let v = &transcript.challenge_scalar(b"v");
 
-    let W: Poly = ql
-        + v.pow(1) * qr
-        + v.pow(2) * qo
-        + v.pow(3) * qc
-        + v.pow(4) * qm
-        + v.pow(5) * a
-        + v.pow(6) * b
-        + v.pow(7) * c
-        + v.pow(8) * sa
-        + v.pow(9) * sb
-        + v.pow(10) * sc
+    let W: Poly = &x.ql
+        + v.pow(1) * &x.qr
+        + v.pow(2) * &x.qo
+        + v.pow(3) * &x.qc
+        + v.pow(4) * &x.qm
+        + v.pow(5) * &w.a
+        + v.pow(6) * &w.b
+        + v.pow(7) * &w.c
+        + v.pow(8) * &x.sa
+        + v.pow(9) * &x.sb
+        + v.pow(10) * &x.sc
         + v.pow(11) * z;
 
     let (_, _, _, _, W_pi) =
@@ -307,19 +304,16 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
 }
 
 pub fn verify(x: &CircuitPublic, pi: &Proof) -> Result<()> {
-    let [ql, qr, qo, qm, qc, _, _] = &x.qs;
-    let [sa, sb, sc] = &x.ss;
-    let [sida, sidb, sidc] = &x.sids;
     let d = *pi.z_bar_q.d();
 
-    let qc_com = qc.commit();
-    let ql_com = ql.commit();
-    let qm_com = qm.commit();
-    let qo_com = qo.commit();
-    let qr_com = qr.commit();
-    let sa_com = sa.commit();
-    let sb_com = sb.commit();
-    let sc_com = sc.commit();
+    let qc_com = &x.qc.commit();
+    let ql_com = &x.ql.commit();
+    let qm_com = &x.qm.commit();
+    let qo_com = &x.qo.commit();
+    let qr_com = &x.qr.commit();
+    let sa_com = &x.sa.commit();
+    let sb_com = &x.sb.commit();
+    let sc_com = &x.sc.commit();
 
     let a_com: Point = pi.com.a.into();
     let b_com: Point = pi.com.b.into();
@@ -393,9 +387,9 @@ pub fn verify(x: &CircuitPublic, pi: &Proof) -> Result<()> {
     let f_cc1_ev = &(x.h.lagrange(1).evaluate(ch) * (z_ev - Scalar::ONE));
 
     // f'(𝔷) = (A(𝔷) + β Sᵢ₁(𝔷) + γ) (B(𝔷) + β Sᵢ₂(𝔷) + γ) (C(𝔷) + β Sᵢ₃(𝔷) + γ)
-    let zf_ev = &((a_ev + beta * sida.evaluate(ch) + gamma)
-        * (b_ev + beta * sidb.evaluate(ch) + gamma)
-        * (c_ev + beta * sidc.evaluate(ch) + gamma));
+    let zf_ev = &((a_ev + beta * &x.sida.evaluate(ch) + gamma)
+        * (b_ev + beta * &x.sidb.evaluate(ch) + gamma)
+        * (c_ev + beta * &x.sidc.evaluate(ch) + gamma));
     // g'(𝔷) = (A(𝔷)) + β S₁(𝔷)) + γ) (B(𝔷)) + β S₂(𝔷)) + γ) (C(𝔷)) + β S₃(𝔷)) + γ)
     let zg_ev = &((a_ev + beta * sa_ev + gamma)
         * (b_ev + beta * sb_ev + gamma)

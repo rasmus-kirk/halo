@@ -260,15 +260,28 @@ impl From<Trace> for Circuit {
     fn from(eval: Trace) -> Self {
         let [a, b, c, ql, qr, qo, qm, qc, qk, j, pi] = eval.gate_polys();
         let [sa, sb, sc, sida, sidb, sidc] = eval.copy_constraints();
+        // TODO: check d
         let x = CircuitPublic {
             h: eval.h.clone(),
-            qs: [ql, qr, qo, qm, qc, qk, j],
-            pi,
-            sids: [sida, sidb, sidc],
-            ss: [sa, sb, sc],
+            ql,
+            qr,
+            qo,
+            qm,
+            qc,
+            pl_qk: qk,
+            pl_j: j,
+            pip: pi,
+            sida,
+            sidb,
+            sidc,
+            sa,
+            sb,
+            sc,
         };
         let w = CircuitPrivate {
-            ws: [a, b, c],
+            a,
+            b,
+            c,
             plonkup: PlonkupVecCompute::new(eval.h, eval.constraints, eval.table),
         };
         (x, w)
@@ -288,10 +301,15 @@ impl From<Circuit> for Trace {
         let mut expected_constraints: Vec<Constraints> = vec![];
         for i in 1..m {
             let wi = &h.w(i);
-            let mut vs: [Value; Terms::COUNT] = [Value::ZERO; Terms::COUNT];
-            for (i, p) in w.ws.iter().chain(x.qs.iter()).enumerate() {
-                vs[i] = Value::AnonWire(p.evaluate(wi));
-            }
+            let polys = vec![
+                &w.a, &w.b, &w.c, &x.ql, &x.qr, &x.qo, &x.qm, &x.qc, &x.pl_qk, &x.pl_j,
+            ];
+            let vs = polys
+                .into_iter()
+                .map(|p| Value::AnonWire(p.evaluate(wi)))
+                .collect::<Vec<Value>>()
+                .try_into()
+                .unwrap();
             let c = Constraints::new(vs);
             if c == Constraints::default() {
                 m = i;
@@ -303,9 +321,10 @@ impl From<Circuit> for Trace {
 
         let mut expected_permutation: [Vec<Pos>; Slots::COUNT] = [vec![], vec![], vec![]];
         for i in 1..m {
+            let wi = &h.w(i);
+            let p = vec![&x.sa, &x.sb, &x.sc];
             for slot in Slots::iter() {
-                let wi = &h.w(i);
-                let y = x.ss[slot as usize].evaluate(wi);
+                let y = p[slot as usize].evaluate(wi);
                 if let Some(pos) = Pos::from_scalar(y, h) {
                     expected_permutation[slot as usize].push(pos);
                 }

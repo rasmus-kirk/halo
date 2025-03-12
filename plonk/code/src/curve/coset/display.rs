@@ -36,7 +36,7 @@ impl Coset {
     }
 
     /// Print the evaluations of a vector of polynomials for all elements in the coset.
-    pub fn evals_str(&self, fs: &[&Poly], hs: Vec<String>, is_pos: Vec<bool>) -> String {
+    pub fn evals_str(&self, fs: Vec<&Poly>, hs: Vec<String>, is_pos: Vec<bool>) -> String {
         let data: Vec<Vec<String>> = (0..self.n() + 1)
             .map(|i| {
                 let mut row = vec![Self::w_str(i).to_string()];
@@ -65,7 +65,7 @@ impl Coset {
 
     /// Print the evaluation of a polynomial for all elements in the coset.
     pub fn poly_str(&self, p: &Poly, pos: bool, header: String) -> String {
-        self.evals_str(&[p], vec![header], vec![pos])
+        self.evals_str(vec![p], vec![header], vec![pos])
     }
 }
 

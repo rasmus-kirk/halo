@@ -1,17 +1,13 @@
-use super::{
-    instance::{many::Instances, Instance},
-    transcript::TranscriptProtocol,
-};
-use crate::{
-    curve::{Poly, Scalar},
-    protocol::{circuit::CircuitPublic, scheme::Slots},
-};
+use super::{instance::Instance, transcript::TranscriptProtocol};
+use crate::{curve::Scalar, protocol::circuit::CircuitPublic};
 
 use merlin::Transcript;
 
 #[derive(Clone)]
 pub struct SNARKProof {
-    pub qs_abc: Instances<{ Slots::COUNT }>,
+    pub q_a: Instance,
+    pub q_b: Instance,
+    pub q_c: Instance,
     pub q_fgc: Instance,
     pub q_z: Instance,
     pub q_fz1: Instance,
@@ -21,7 +17,6 @@ pub struct SNARKProof {
     pub q_tpl: Instance,
     pub tplbar_ev: Scalar,
     pub fpl_ev: Scalar,
-    pub jpl_ev: Scalar,
     pub q_h1: Instance,
     pub q_h2: Instance,
     pub h1plbar_ev: Scalar,
@@ -32,7 +27,8 @@ pub fn verify(x: &CircuitPublic, pi: SNARKProof) -> bool {
     transcript.domain_sep();
 
     // Round 1 -----------------------------------------------------
-    transcript.append_points(b"abc", &Instances::get_comms(&pi.qs_abc));
+
+    transcript.append_points(b"abc", &[pi.q_a.comm, pi.q_b.comm, pi.q_c.comm]);
     // Round 2 -----------------------------------------------------
     let zeta = &transcript.challenge_scalar(b"zeta");
     // Round 3 -----------------------------------------------------
@@ -46,22 +42,29 @@ pub fn verify(x: &CircuitPublic, pi: SNARKProof) -> bool {
     transcript.append_point(b"t", &pi.q_t.comm);
     // Round 5 -----------------------------------------------------
     let ch = &transcript.challenge_scalar(b"xi");
-    let [sida_ev, sidb_ev, sidc_ev] = Poly::evaluate_many(&x.sids, ch);
-    let [sa_ev, sb_ev, sc_ev] = Poly::evaluate_many(&x.ss, ch);
+    let sida_ev = &x.sida.evaluate(ch);
+    let sidb_ev = &x.sidb.evaluate(ch);
+    let sidc_ev = &x.sidc.evaluate(ch);
+    let sa_ev = &x.sa.evaluate(ch);
+    let sb_ev = &x.sb.evaluate(ch);
+    let sc_ev = &x.sc.evaluate(ch);
     let zh_ev = ch.pow(x.h.n()) - Scalar::ONE;
     let l1_ev_ch = x.h.l1_ev(ch);
-    // check commits
-    if !Instances::check(&pi.qs_abc, ch) || !pi.q_z.check(ch, None) || !pi.q_t.check(ch, None) {
-        println!("FAILED COMMITS");
-        return false;
-    }
     // get / compute evaluations on challenge
-    let [a, b, c] = &Instances::get_evs(&pi.qs_abc).unwrap();
-    let [ql, qr, qo, qm, qc, qk, _] = &Poly::evaluate_many(&x.qs, ch);
-    let pi_ev = x.pi.evaluate(ch);
+    let a = &pi.q_a.ev.unwrap();
+    let b = &pi.q_b.ev.unwrap();
+    let c = &pi.q_c.ev.unwrap();
+    let ql = &x.ql.evaluate(ch);
+    let qr = &x.qr.evaluate(ch);
+    let qo = &x.qo.evaluate(ch);
+    let qm = &x.qm.evaluate(ch);
+    let qc = &x.qc.evaluate(ch);
+    let qk = &x.pl_qk.evaluate(ch);
+    let j_ev = &x.pl_j.evaluate(ch);
+    let pi_ev = x.pip.evaluate(ch);
     // F_GC(𝔷) = A(𝔷)Qₗ(𝔷) + B(𝔷)Qᵣ(𝔷) + C(𝔷)Qₒ(𝔷) + A(𝔷)B(𝔷)Qₘ(𝔷) + Q꜀(𝔷)
     //         + Qₖ(𝔷)(A(𝔷) + ζB(𝔷) + ζ²C(𝔷) + ζ³J(𝔷) - f(𝔷))
-    let f_gcpl_ev = &(qk * (a + zeta * b + zeta.pow(2) * c + zeta.pow(3) * pi.jpl_ev - pi.fpl_ev));
+    let f_gcpl_ev = &(qk * (a + zeta * b + zeta.pow(2) * c + zeta.pow(3) * j_ev - pi.fpl_ev));
     let f_gc_ev = &((a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc + pi_ev + f_gcpl_ev);
     if *f_gc_ev == Scalar::ZERO || !pi.q_fgc.check(ch, Some(f_gc_ev)) {
         println!("FAILED GC");

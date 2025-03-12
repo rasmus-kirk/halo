@@ -25,21 +25,23 @@ type WireID = usize;
 pub struct Arithmetizer {
     inputs: usize,
     wires: cache::ArithWireCache,
+    d: usize,
 }
 
 impl Arithmetizer {
     // constructors -------------------------------------------------------
 
-    fn new(inputs: usize) -> Self {
+    fn new(inputs: usize, d: usize) -> Self {
         Self {
+            d,
             inputs,
             wires: cache::ArithWireCache::new(),
         }
     }
 
     /// Returns `N` input wires to build a circuit.
-    pub fn build<const N: usize>() -> [Wire; N] {
-        let cell = Rc::new(RefCell::new(Self::new(N)));
+    pub fn build<const N: usize>(d: usize) -> [Wire; N] {
+        let cell = Rc::new(RefCell::new(Self::new(N, d)));
         let mut circuit = cell.borrow_mut();
         let mut wires = Vec::new();
         for i in 0..N {
