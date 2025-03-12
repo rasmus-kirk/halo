@@ -1,6 +1,7 @@
 mod arith_wire;
 mod cache;
 mod errors;
+mod plonkup;
 mod synthesize;
 mod trace;
 mod wire;
@@ -8,6 +9,8 @@ mod wire;
 use crate::{curve::Scalar, protocol::circuit::Circuit, util::map_to_alphabet};
 use arith_wire::ArithWire;
 pub use errors::ArithmetizerError;
+use plonkup::PlonkupOps;
+pub use plonkup::{PlonkupVecCompute, Table};
 pub use trace::{Pos, Trace};
 pub use wire::Wire;
 
@@ -23,9 +26,6 @@ pub struct Arithmetizer {
     inputs: usize,
     wires: cache::ArithWireCache,
 }
-// TODO standard library package
-// TODO primitive ops for std::public(x) and std::bit(x)
-// TODO primitive ops includes plonkup operations std::xor(x,y)
 
 impl Arithmetizer {
     // constructors -------------------------------------------------------
@@ -109,6 +109,11 @@ impl Arithmetizer {
         let right = self.wires.get_const_id(b);
         let gate = ArithWire::MulGate(a, right);
         self.wires.get_id(gate)
+    }
+
+    /// Plonkup operations
+    pub fn lookup(&mut self, op: PlonkupOps, a: WireID, b: WireID) -> WireID {
+        self.wires.get_id(ArithWire::Lookup(op, a, b))
     }
 
     // boolean operators --------------------------------------------------

@@ -57,7 +57,10 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
         let new_v_time = start_time.elapsed().as_secs_f32();
         println!("E");
 
-        println!("| {:02} | {:>12.8} | {:>12.8} | {:>12.8} | {:>12.8} | {:>12.8} |", size, circuit_time, new_p_time, old_p_time, new_v_time, old_v_time);
+        println!(
+            "| {:02} | {:>12.8} | {:>12.8} | {:>12.8} | {:>12.8} | {:>12.8} |",
+            size, circuit_time, new_p_time, old_p_time, new_v_time, old_v_time
+        );
     }
     println!("|____|______________|______________|______________|______________|______________|");
 
@@ -85,22 +88,26 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
     // }
 
     for (i, x, w) in circuits.iter() {
-        group
-            .warm_up_time(WARMUP)
-            .bench_with_input(BenchmarkId::new("new_prover", i), &i, |b, _| {
+        group.warm_up_time(WARMUP).bench_with_input(
+            BenchmarkId::new("new_prover", i),
+            &i,
+            |b, _| {
                 b.iter(|| {
                     plonker::prove(rng, &x, &w);
                 })
-            });
+            },
+        );
     }
     for ((i, x, _), pi) in circuits.iter().zip(new_pis) {
-        group
-            .warm_up_time(WARMUP)
-            .bench_with_input(BenchmarkId::new("new_verifier", i), &i, |b, _| {
+        group.warm_up_time(WARMUP).bench_with_input(
+            BenchmarkId::new("new_verifier", i),
+            &i,
+            |b, _| {
                 b.iter(|| {
                     plonker::verifier(&x, &pi).unwrap();
                 })
-            });
+            },
+        );
     }
     group.finish();
 }

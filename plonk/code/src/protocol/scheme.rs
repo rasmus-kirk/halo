@@ -2,6 +2,8 @@ use std::fmt;
 
 use crate::curve::Scalar;
 
+use super::arithmetizer::Table;
+
 /// Used to determine degree of root of unity along with number of constraints.
 pub const MAX_BLIND_TERMS: u64 = 0;
 
@@ -42,6 +44,12 @@ impl Slots {
     }
 }
 
+impl From<Slots> for usize {
+    fn from(slot: Slots) -> Self {
+        slot as usize
+    }
+}
+
 impl From<usize> for Slots {
     fn from(index: usize) -> Self {
         match index {
@@ -63,6 +71,8 @@ pub enum Selectors {
     Qo,
     Qm,
     Qc,
+    Qk,
+    J,
 }
 
 impl fmt::Display for Selectors {
@@ -73,13 +83,15 @@ impl fmt::Display for Selectors {
             Selectors::Qo => "Qₒ",
             Selectors::Qm => "Qₘ",
             Selectors::Qc => "Q꜀",
+            Selectors::Qk => "Qₖ",
+            Selectors::J => "J",
         };
         write!(f, "{}", s)
     }
 }
 
 impl Selectors {
-    pub const COUNT: usize = 5;
+    pub const COUNT: usize = 7;
 
     pub fn iter() -> impl Iterator<Item = Self> {
         [
@@ -88,9 +100,17 @@ impl Selectors {
             Selectors::Qo,
             Selectors::Qm,
             Selectors::Qc,
+            Selectors::Qk,
+            Selectors::J,
         ]
         .iter()
         .copied()
+    }
+}
+
+impl From<Selectors> for usize {
+    fn from(selector: Selectors) -> Self {
+        selector as usize
     }
 }
 
@@ -102,6 +122,8 @@ impl From<usize> for Selectors {
             2 => Selectors::Qo,
             3 => Selectors::Qm,
             4 => Selectors::Qc,
+            5 => Selectors::Qk,
+            6 => Selectors::J,
             _ => panic!("Invalid index for Selectors"),
         }
     }
@@ -112,6 +134,7 @@ impl From<usize> for Selectors {
 pub enum Terms {
     F(Slots),
     Q(Selectors),
+    PublicInputs,
 }
 
 impl Default for Terms {
@@ -121,25 +144,31 @@ impl Default for Terms {
 }
 
 impl Terms {
-    pub const COUNT: usize = Slots::COUNT + Selectors::COUNT;
+    pub const COUNT: usize = Slots::COUNT + Selectors::COUNT + 1;
 
     pub fn iter() -> impl Iterator<Item = Self> {
         Slots::iter()
             .map(Terms::F)
             .chain(Selectors::iter().map(Terms::Q))
+            .chain(std::iter::once(Terms::PublicInputs))
     }
 
     pub fn eqn(terms: [Scalar; Self::COUNT]) -> Scalar {
-        let [a, b, c, ql, qr, qo, qm, qc] = terms;
-        (a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc
+        let [a, b, c, ql, qr, qo, qm, qc, _, _, pi] = terms;
+        (a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc + pi
     }
 
     pub fn eqn_str(terms: [String; Self::COUNT]) -> String {
-        let [a, b, c, ql, qr, qo, qm, qc] = terms;
+        let [a, b, c, ql, qr, qo, qm, qc, _, _, pi] = terms;
         format!(
-            "{} × {} + {} × {} + {} × {} + {} × {} × {} + {})",
-            a, ql, b, qr, c, qo, a, b, qm, qc
+            "{} × {} + {} × {} + {} × {} + {} × {} × {} + {} + {}",
+            a, ql, b, qr, c, qo, a, b, qm, qc, pi,
         )
+    }
+
+    pub fn plonkup_eqn(terms: [Scalar; Self::COUNT], zeta: &Scalar, f: &Scalar) -> Scalar {
+        let [a, b, c, _, _, _, _, _, qk, j, _] = terms;
+        qk * (Table::eval_compress(zeta, &a, &b, &c, &j) - f)
     }
 
     pub fn is_slot(&self) -> bool {
@@ -156,6 +185,7 @@ impl From<Terms> for usize {
         match term {
             Terms::F(slot) => slot as usize,
             Terms::Q(selector) => Slots::COUNT + selector as usize,
+            Terms::PublicInputs => Slots::COUNT + Selectors::COUNT,
         }
     }
 }
@@ -177,6 +207,7 @@ impl fmt::Display for Terms {
         match self {
             Terms::F(slot) => write!(f, "{}", slot),
             Terms::Q(selector) => write!(f, "{}", selector),
+            Terms::PublicInputs => write!(f, "PI"),
         }
     }
 }

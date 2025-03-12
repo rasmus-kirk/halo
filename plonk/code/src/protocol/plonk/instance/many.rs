@@ -6,21 +6,21 @@ use crate::{
 
 use rand::{rngs::ThreadRng, Rng};
 
-#[derive(Clone)]
-pub struct Instances<const N: usize, const EV: bool>([Instance<EV>; N]);
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Instances<const N: usize>([Instance; N]);
 
-impl<const N: usize, const EV: bool> From<[Instance<EV>; N]> for Instances<N, EV> {
-    fn from(proofs: [Instance<EV>; N]) -> Self {
+impl<const N: usize> From<[Instance; N]> for Instances<N> {
+    fn from(proofs: [Instance; N]) -> Self {
         Instances(proofs)
     }
 }
 
-impl<const N: usize, const EV: bool> Instances<N, EV> {
-    pub fn new(rng: &mut ThreadRng, polys: &[Poly; N], ch: &Scalar) -> Self {
-        util::map_fix(polys, |poly| Instance::new(rng, poly, ch)).into()
+impl<const N: usize> Instances<N> {
+    pub fn new(rng: &mut ThreadRng, polys: &[Poly; N], ch: &Scalar, has_ev: bool) -> Self {
+        util::map_fix(polys, |poly| Instance::new(rng, poly, ch, has_ev)).into()
     }
 
-    pub fn unwrap(&self) -> &[Instance<EV>; N] {
+    pub fn unwrap(&self) -> &[Instance; N] {
         &self.0
     }
 
@@ -29,10 +29,11 @@ impl<const N: usize, const EV: bool> Instances<N, EV> {
         polys: &[Poly; N],
         comm: &[Point; N],
         ch: &Scalar,
+        has_ev: bool,
     ) -> Self {
         let xs = &util::zip_fix(polys, comm);
         util::map_fix(xs, |(poly, comm)| {
-            Instance::new_from_comm(rng, poly, ch, comm)
+            Instance::new_from_comm(rng, poly, ch, comm, has_ev)
         })
         .into()
     }
@@ -41,7 +42,7 @@ impl<const N: usize, const EV: bool> Instances<N, EV> {
         self.0.iter().all(|p| p.check(ch, None))
     }
 
-    pub fn set_ev_many(&self, ev: &Scalar) -> Instances<N, true> {
+    pub fn set_ev_many(&self, ev: &Scalar) -> Self {
         util::map_fix(&self.0, |f| f.set_ev(ev)).into()
     }
 

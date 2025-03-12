@@ -5,16 +5,20 @@ mod errors;
 mod pos;
 mod value;
 
-use super::{arith_wire::ArithWire, cache::ArithWireCache, WireID};
+use super::{
+    arith_wire::ArithWire,
+    cache::ArithWireCache,
+    plonkup::{PlonkupOps, TableRegistry},
+    PlonkupVecCompute, WireID,
+};
 use crate::{
-    curve::{Poly, Scalar},
+    curve::{Coset, Poly, Scalar},
     protocol::{
         circuit::{Circuit, CircuitPrivate, CircuitPublic},
-        coset::Coset,
         scheme::{Slots, Terms, MAX_BLIND_TERMS},
     },
 };
-use constraints::Constraints;
+pub use constraints::Constraints;
 pub use errors::TraceError;
 pub use pos::Pos;
 use value::Value;
@@ -33,6 +37,7 @@ pub struct Trace {
     evals: HashMap<WireID, Value>,
     permutation: HashMap<Pos, Pos>,
     constraints: Vec<Constraints>,
+    table: TableRegistry,
 }
 
 impl Trace {
@@ -47,6 +52,7 @@ impl Trace {
             evals: HashMap::new(),
             permutation: HashMap::new(),
             constraints: vec![],
+            table: TableRegistry::new(),
         };
         for (wire, value) in input_values.into_iter().enumerate() {
             let value = Value::new_wire(wire, value).set_bit_type(wires);
@@ -63,8 +69,10 @@ impl Trace {
         eval.compute_pos_permutation()?;
         // compute copy constraint values
 
+        let n = eval.table.len() as u64;
         let m = eval.constraints.len() as u64;
-        eval.h = Coset::new(rng, m + MAX_BLIND_TERMS).ok_or(TraceError::FailedToMakeCoset(m))?;
+        eval.h = Coset::new(rng, std::cmp::max(n, m) + MAX_BLIND_TERMS, Slots::COUNT)
+            .ok_or(TraceError::FailedToMakeCoset(m))?;
         // compute coset
 
         Ok(eval)
@@ -96,6 +104,13 @@ impl Trace {
                 let rhs = &self.resolve(wires, rhs_)?;
                 let out = &(lhs * rhs).set_id(wire).set_bit_type(wires);
                 (Constraints::mul(lhs, rhs, out), *out)
+            }
+            ArithWire::Lookup(op, lhs_, rhs_) => {
+                let lhs = &self.resolve(wires, lhs_)?;
+                let rhs = &self.resolve(wires, rhs_)?;
+                let out_ = self.lookup_value(op, lhs, rhs)?;
+                let out = out_.set_id(wire).set_bit_type(wires);
+                (Constraints::lookup(op, lhs, rhs, &out), out)
             }
         };
         self.constraints.push(constraint);
@@ -131,13 +146,23 @@ impl Trace {
         value: Value,
     ) -> Result<(), TraceError> {
         if wires.is_public(wire) {
-            let pub_constraint = Constraints::constant(&value);
+            let pub_constraint = Constraints::public_input(&value);
             if !pub_constraint.is_satisfied() {
                 return Err(TraceError::constraint_not_satisfied(&pub_constraint));
             }
             self.constraints.push(pub_constraint);
         }
         Ok(())
+    }
+
+    pub fn lookup_value(&self, op: PlonkupOps, a: &Value, b: &Value) -> Result<Value, TraceError> {
+        let a = a.into();
+        let b = b.into();
+        if let Some(c) = self.table.lookup(op, &a, &b) {
+            Ok(Value::AnonWire(c))
+        } else {
+            Err(TraceError::LookupFailed(op, a, b))
+        }
     }
 
     /// Look up for the wire's evaluation, otherwise start the evaluating.
@@ -205,8 +230,14 @@ impl Trace {
     }
 }
 
-impl From<(Vec<Constraints>, [Vec<Pos>; Slots::COUNT])> for Trace {
-    fn from((constraints, permutation_vals): (Vec<Constraints>, [Vec<Pos>; Slots::COUNT])) -> Self {
+impl From<(Vec<Constraints>, [Vec<Pos>; Slots::COUNT], TableRegistry)> for Trace {
+    fn from(
+        (constraints, permutation_vals, table): (
+            Vec<Constraints>,
+            [Vec<Pos>; Slots::COUNT],
+            TableRegistry,
+        ),
+    ) -> Self {
         let mut permutation = HashMap::new();
         for (slot_i, perms) in permutation_vals.iter().enumerate() {
             let slot = Slots::from(slot_i);
@@ -220,21 +251,26 @@ impl From<(Vec<Constraints>, [Vec<Pos>; Slots::COUNT])> for Trace {
             evals: Default::default(),
             constraints,
             permutation,
+            table,
         }
     }
 }
 
 impl From<Trace> for Circuit {
     fn from(eval: Trace) -> Self {
-        let [a, b, c, ql, qr, qo, qm, qc] = eval.gate_polys();
+        let [a, b, c, ql, qr, qo, qm, qc, qk, j, pi] = eval.gate_polys();
         let [sa, sb, sc, sida, sidb, sidc] = eval.copy_constraints();
         let x = CircuitPublic {
-            h: eval.h,
-            qs: [ql, qr, qo, qm, qc],
+            h: eval.h.clone(),
+            qs: [ql, qr, qo, qm, qc, qk, j],
+            pi,
             sids: [sida, sidb, sidc],
             ss: [sa, sb, sc],
         };
-        let w = CircuitPrivate { ws: [a, b, c] };
+        let w = CircuitPrivate {
+            ws: [a, b, c],
+            plonkup: PlonkupVecCompute::new(eval.h, eval.constraints, eval.table),
+        };
         (x, w)
     }
 }
@@ -276,7 +312,9 @@ impl From<Circuit> for Trace {
             }
             // if not exceeded then the permutation evaluations are valid
         }
-        (expected_constraints, expected_permutation).into()
+
+        let table = TableRegistry::new();
+        (expected_constraints, expected_permutation, table).into()
     }
 }
 
@@ -370,12 +408,27 @@ mod tests {
                 Pos::new(Slots::C, 8),
             ],
         ];
-        assert!(eval == (expected_constraints.clone(), expected_permutation.clone()).into());
+        assert!(
+            eval == (
+                expected_constraints.clone(),
+                expected_permutation.clone(),
+                TableRegistry::new(),
+            )
+                .into()
+        );
         // structural equality
 
         let c: Circuit = eval.into();
         let eval2: Trace = c.into();
-        assert!(eval2 == (expected_constraints, expected_permutation).into());
+        assert!(
+            eval2
+                == (
+                    expected_constraints,
+                    expected_permutation,
+                    TableRegistry::new()
+                )
+                    .into()
+        );
         // plonk structural equality
     }
 }
