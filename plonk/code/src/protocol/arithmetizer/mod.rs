@@ -25,23 +25,21 @@ type WireID = usize;
 pub struct Arithmetizer {
     inputs: usize,
     wires: cache::ArithWireCache,
-    d: usize,
 }
 
 impl Arithmetizer {
     // constructors -------------------------------------------------------
 
-    fn new(inputs: usize, d: usize) -> Self {
+    fn new(inputs: usize) -> Self {
         Self {
-            d,
             inputs,
             wires: cache::ArithWireCache::new(),
         }
     }
 
     /// Returns `N` input wires to build a circuit.
-    pub fn build<const N: usize>(d: usize) -> [Wire; N] {
-        let cell = Rc::new(RefCell::new(Self::new(N, d)));
+    pub fn build<const N: usize>() -> [Wire; N] {
+        let cell = Rc::new(RefCell::new(Self::new(N)));
         let mut circuit = cell.borrow_mut();
         let mut wires = Vec::new();
         for i in 0..N {
@@ -54,6 +52,7 @@ impl Arithmetizer {
     /// Compute the circuit R where R(x,w) = ⊤.
     pub fn to_circuit<T, R: Rng>(
         rng: &mut R,
+        d: usize,
         input_values: Vec<T>,
         output_wires: &[Wire],
     ) -> Result<(Circuit, Trace), ArithmetizerError>
@@ -64,7 +63,7 @@ impl Arithmetizer {
         let wires = &output_wires[0].arith().borrow().wires;
         let input_scalars = input_values.iter().map(|&v| v.into()).collect();
         let output_ids = output_wires.iter().map(Wire::id).collect();
-        Trace::new(rng, wires, input_scalars, output_ids)
+        Trace::new(rng, d, wires, input_scalars, output_ids)
             .map_err(ArithmetizerError::EvaluatorError)
             .map(Into::<(Circuit, Trace)>::into)
     }

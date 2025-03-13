@@ -14,7 +14,8 @@ mod tests {
         let input_values = vec![1, 2];
         let output_wires = &[3 * (x * x) + (y * 5) - 47];
         println!("{}", Arithmetizer::to_string(&input_values, output_wires));
-        let ((x, w), e) = &Arithmetizer::to_circuit(rng, input_values, output_wires).unwrap();
+        let ((x, w), e) =
+            &Arithmetizer::to_circuit(rng, 1 << 15, input_values, output_wires).unwrap();
         println!("{}", e);
         assert_eq!(e.clone(), (x, w).into());
         print_poly_evaluations(x, w);
@@ -30,7 +31,8 @@ mod tests {
         let input_values = vec![1, 2];
         let output_wires = &[3 * (x * x) + (y * 5) - 47];
         println!("{}", Arithmetizer::to_string(&input_values, output_wires));
-        let ((x, w), e) = &Arithmetizer::to_circuit(rng, input_values, output_wires).unwrap();
+        let ((x, w), e) =
+            &Arithmetizer::to_circuit(rng, 1 << 15, input_values, output_wires).unwrap();
         println!("{}", e);
         assert_eq!(e.clone(), (x, w).into());
         print_poly_evaluations(x, w);
@@ -46,7 +48,8 @@ mod tests {
         let input_values = vec![1, 0];
         let output_wires = &[(x ^ (y | x).is_bit()).is_public()];
         println!("{}", Arithmetizer::to_string(&input_values, output_wires));
-        let ((x, w), e) = &Arithmetizer::to_circuit(rng, input_values, output_wires).unwrap();
+        let ((x, w), e) =
+            &Arithmetizer::to_circuit(rng, 1 << 15, input_values, output_wires).unwrap();
         println!("{}", e);
         print_poly_evaluations(x, w);
         let pi = plonk::proof(rng, x, w);
@@ -61,7 +64,8 @@ mod tests {
         let input_values = vec![3, 4];
         let output_wires = &[out];
         println!("{}", Arithmetizer::to_string(&input_values, output_wires));
-        let ((x, w), e) = &Arithmetizer::to_circuit(rng, input_values, output_wires).unwrap();
+        let ((x, w), e) =
+            &Arithmetizer::to_circuit(rng, 1 << 15, input_values, output_wires).unwrap();
         println!("{}", e);
         print_poly_evaluations(x, w);
         let pi = plonk::proof(rng, x, w);

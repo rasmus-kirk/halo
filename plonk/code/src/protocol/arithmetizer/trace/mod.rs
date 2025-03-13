@@ -34,6 +34,7 @@ type ConstraintID = u64;
 #[derive(Debug, Clone)]
 pub struct Trace {
     h: Coset,
+    d: usize,
     evals: HashMap<WireID, Value>,
     permutation: HashMap<Pos, Pos>,
     constraints: Vec<Constraints>,
@@ -43,6 +44,7 @@ pub struct Trace {
 impl Trace {
     pub fn new<R: Rng>(
         rng: &mut R,
+        d: usize,
         wires: &ArithWireCache,
         input_values: Vec<Scalar>,
         output_wires: Vec<WireID>,
@@ -53,6 +55,7 @@ impl Trace {
             permutation: HashMap::new(),
             constraints: vec![],
             table: TableRegistry::new(),
+            d,
         };
         for (wire, value) in input_values.into_iter().enumerate() {
             let value = Value::new_wire(wire, value).set_bit_type(wires);
@@ -230,9 +233,17 @@ impl Trace {
     }
 }
 
-impl From<(Vec<Constraints>, [Vec<Pos>; Slots::COUNT], TableRegistry)> for Trace {
+impl
+    From<(
+        usize,
+        Vec<Constraints>,
+        [Vec<Pos>; Slots::COUNT],
+        TableRegistry,
+    )> for Trace
+{
     fn from(
-        (constraints, permutation_vals, table): (
+        (d, constraints, permutation_vals, table): (
+            usize,
             Vec<Constraints>,
             [Vec<Pos>; Slots::COUNT],
             TableRegistry,
@@ -247,6 +258,7 @@ impl From<(Vec<Constraints>, [Vec<Pos>; Slots::COUNT], TableRegistry)> for Trace
             }
         }
         Trace {
+            d,
             h: Default::default(),
             evals: Default::default(),
             constraints,
@@ -262,6 +274,7 @@ impl From<Trace> for Circuit {
         let [sa, sb, sc, sida, sidb, sidc] = eval.copy_constraints();
         // TODO: check d
         let x = CircuitPublic {
+            d: eval.d,
             h: eval.h.clone(),
             ql,
             qr,
@@ -302,7 +315,7 @@ impl From<Circuit> for Trace {
         for i in 1..m {
             let wi = &h.w(i);
             let polys = vec![
-                &w.a, &w.b, &w.c, &x.ql, &x.qr, &x.qo, &x.qm, &x.qc, &x.pl_qk, &x.pl_j,
+                &w.a, &w.b, &w.c, &x.ql, &x.qr, &x.qo, &x.qm, &x.qc, &x.pl_qk, &x.pl_j, &x.pip,
             ];
             let vs = polys
                 .into_iter()
@@ -333,7 +346,7 @@ impl From<Circuit> for Trace {
         }
 
         let table = TableRegistry::new();
-        (expected_constraints, expected_permutation, table).into()
+        (x.d, expected_constraints, expected_permutation, table).into()
     }
 }
 
@@ -360,7 +373,7 @@ mod tests {
         let circuit = output_wires[0].arith().borrow();
         let input_scalars = input_values.iter().map(|&v| v.into()).collect();
         let output_ids = output_wires.iter().map(Wire::id).collect();
-        let eval_res = Trace::new(rng, &circuit.wires, input_scalars, output_ids);
+        let eval_res = Trace::new(rng, 1 << 10, &circuit.wires, input_scalars, output_ids);
         assert!(eval_res.is_ok());
         // construct evaluator
 
@@ -429,6 +442,7 @@ mod tests {
         ];
         assert!(
             eval == (
+                1 << 10,
                 expected_constraints.clone(),
                 expected_permutation.clone(),
                 TableRegistry::new(),
@@ -442,6 +456,7 @@ mod tests {
         assert!(
             eval2
                 == (
+                    1 << 10,
                     expected_constraints,
                     expected_permutation,
                     TableRegistry::new()
