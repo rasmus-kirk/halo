@@ -15,7 +15,7 @@ use crate::{
     curve::{Coset, Poly, Scalar},
     protocol::{
         circuit::{Circuit, CircuitPrivate, CircuitPublic},
-        scheme::{Slots, Terms, MAX_BLIND_TERMS},
+        scheme::{Selectors, Slots, Terms, MAX_BLIND_TERMS},
     },
 };
 pub use constraints::Constraints;
@@ -201,19 +201,22 @@ impl Trace {
     }
 
     /// Compute the circuit polynomials.
-    fn gate_polys(&self) -> [Poly; Terms::COUNT] {
-        let mut points: [Vec<Scalar>; Terms::COUNT] = Default::default();
+    fn gate_polys(&self) -> Vec<Poly> {
+        let mut points: Vec<Vec<Scalar>> = vec![vec![]; Terms::COUNT];
         for eqn in self.constraints.iter() {
             for term in Terms::iter() {
                 points[Into::<usize>::into(term)].push(eqn[term].into());
             }
         }
-        points.map(|ps| self.h.interpolate_zf(ps))
+        points
+            .into_iter()
+            .map(|ps| self.h.interpolate_zf(ps))
+            .collect()
     }
 
     /// Compute the permutation and identity permutation polynomials.
-    fn copy_constraints(&self) -> [Poly; Slots::COUNT * 2] {
-        let mut points: [Vec<Scalar>; Slots::COUNT * 2] = Default::default();
+    fn copy_constraints(&self) -> Vec<Poly> {
+        let mut points: Vec<Vec<Scalar>> = vec![vec![]; Slots::COUNT * 2];
         for ps in points.iter_mut() {
             ps.push(Scalar::ONE);
         }
@@ -229,7 +232,10 @@ impl Trace {
                 });
             }
         }
-        points.map(|ps| self.h.interpolate(ps))
+        points
+            .into_iter()
+            .map(|ps| self.h.interpolate(ps))
+            .collect()
     }
 }
 
@@ -270,31 +276,31 @@ impl
 
 impl From<Trace> for Circuit {
     fn from(eval: Trace) -> Self {
-        let [a, b, c, ql, qr, qo, qm, qc, qk, j, pi] = eval.gate_polys();
-        let [sa, sb, sc, sida, sidb, sidc] = eval.copy_constraints();
+        let gc = eval.gate_polys();
+        let ss = eval.copy_constraints();
         // TODO: check d
         let x = CircuitPublic {
             d: eval.d,
             h: eval.h.clone(),
-            ql,
-            qr,
-            qo,
-            qm,
-            qc,
-            pl_qk: qk,
-            pl_j: j,
-            pip: pi,
-            sida,
-            sidb,
-            sidc,
-            sa,
-            sb,
-            sc,
+            ql: gc[Slots::COUNT + Selectors::Ql as usize].clone(),
+            qr: gc[Slots::COUNT + Selectors::Qr as usize].clone(),
+            qo: gc[Slots::COUNT + Selectors::Qo as usize].clone(),
+            qm: gc[Slots::COUNT + Selectors::Qm as usize].clone(),
+            qc: gc[Slots::COUNT + Selectors::Qc as usize].clone(),
+            pl_qk: gc[Slots::COUNT + Selectors::Qk as usize].clone(),
+            pl_j: gc[Slots::COUNT + Selectors::J as usize].clone(),
+            pip: gc[Slots::COUNT + Selectors::COUNT].clone(),
+            sida: ss[3].clone(),
+            sidb: ss[4].clone(),
+            sidc: ss[5].clone(),
+            sa: ss[0].clone(),
+            sb: ss[1].clone(),
+            sc: ss[2].clone(),
         };
         let w = CircuitPrivate {
-            a,
-            b,
-            c,
+            a: gc[Slots::A as usize].clone(),
+            b: gc[Slots::B as usize].clone(),
+            c: gc[Slots::C as usize].clone(),
             plonkup: PlonkupVecCompute::new(eval.h, eval.constraints, eval.table),
         };
         (x, w)

@@ -30,7 +30,11 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     // Round 2 -----------------------------------------------------
     // ζ = H(transcript)
     let zeta = &transcript.challenge_scalar(b"zeta");
-    let [tpl, fpl, h1pl, h2pl] = &w.plonkup.compute(zeta);
+    let plp = &w.plonkup.compute(zeta);
+    let tpl = &plp[0];
+    let fpl = &plp[1];
+    let h1pl = &plp[2];
+    let h2pl = &plp[3];
     let tplbar = &x.h.poly_times_arg(tpl, &x.h.w(1));
     let h1plbar = &x.h.poly_times_arg(h1pl, &x.h.w(1));
     // Round 3 -----------------------------------------------------
@@ -121,25 +125,25 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     let h1plbar_ev = h1plbar.evaluate(ch);
     let q_t = Instance::new_from_comm(rng, t, ch, comm_t, true);
 
-    let hdrs = vec![
-        "t".to_string(),
-        "f".to_string(),
-        "h1".to_string(),
-        "h2".to_string(),
-        "Z(X)".to_string(),
-        "Z(ωX)".to_string(),
-        "F_GC(X)".to_string(),
-        "F_Z1(X)".to_string(),
-        "F_Z2(X)".to_string(),
-    ];
-    println!(
-        "{}",
-        x.h.evals_str(
-            vec![tpl, fpl, h1pl, h2pl, z, zbar, f_gc, f_z1, f_z2],
-            hdrs,
-            vec![false; 9]
-        )
-    );
+    // let hdrs = vec![
+    //     "t".to_string(),
+    //     "f".to_string(),
+    //     "h1".to_string(),
+    //     "h2".to_string(),
+    //     "Z(X)".to_string(),
+    //     "Z(ωX)".to_string(),
+    //     "F_GC(X)".to_string(),
+    //     "F_Z1(X)".to_string(),
+    //     "F_Z2(X)".to_string(),
+    // ];
+    // println!(
+    //     "{}",
+    //     x.h.evals_str(
+    //         vec![tpl, fpl, h1pl, h2pl, z, zbar, f_gc, f_z1, f_z2],
+    //         hdrs,
+    //         vec![false; 9]
+    //     )
+    // );
     SNARKProof {
         q_a,
         q_b,
