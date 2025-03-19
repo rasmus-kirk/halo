@@ -9,7 +9,57 @@ geometry: margin=2cm
 \tableofcontents
 \newpage
 
-<!-- TODO: Talk about ZK in implementation -->
+# New
+
+## SECURITY PROOFS
+
+## Utils
+
+### Vanishing
+
+- Rasmus
+
+### Batched Evaluation Proofs
+
+- Rasmus
+
+### Grand Product argument(s)
+
+- Haliq
+
+## Copy Constraint Rewrite
+
+- Haliq
+
+## Plonkup
+
+- Haliq
+
+## How do we write a circuit
+
+- Haliq
+
+## Gadgets
+
+### XOR
+
+### Poseidon
+
+### Range Check
+
+### Foreign Field stuff
+
+## Signatures
+
+## IVC Verifier from Gadgets
+
+### NARK (PLONK)
+
+### Accumulation Verifier
+
+### SuccinctCheck
+
+### Signatures
 
 # Introduction
 

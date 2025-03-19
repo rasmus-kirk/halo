@@ -5,7 +5,7 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
 
     # Thesis
-    thesis.url = "./thesis/report";
+    thesis.url = "./thesis";
     thesis.inputs.nixpkgs.follows = "nixpkgs";
 
     # contract
