@@ -36,9 +36,9 @@ mod tests {
         println!("{}", e);
         assert_eq!(e.clone(), (x, w).into());
         print_poly_evaluations(x, w);
-        let pi_x = plonk::proof(rng, x, w);
-        let pi = plonk::prove(rng, x, w);
-        plonk::verifier(x, &pi).unwrap();
+        let _ = plonk::proof(rng, x, w);
+        let pi = plonk::prove_w_lu(rng, x, w);
+        plonk::verify_lu_with_w(x, pi).unwrap();
     }
 
     #[test]

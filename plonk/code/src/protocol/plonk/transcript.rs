@@ -8,10 +8,14 @@ use merlin::Transcript;
 pub trait TranscriptProtocol {
     fn domain_sep(&mut self);
     fn append_point(&mut self, label: &'static [u8], point: &Point);
+    fn append_point_new(&mut self, label: &'static [u8], point: &PallasPoint);
     fn append_points(&mut self, label: &'static [u8], comms: &[Point]);
+    fn append_points_new(&mut self, label: &'static [u8], comms: &[PallasPoint]);
     #[allow(dead_code)]
     fn append_scalar(&mut self, label: &'static [u8], scalar: &Scalar);
+    fn append_scalar_new(&mut self, label: &'static [u8], scalar: &PallasScalar);
     fn challenge_scalar(&mut self, label: &'static [u8]) -> Scalar;
+    fn challenge_scalar_new(&mut self, label: &'static [u8]) -> PallasScalar;
     fn challenge_scalar_augment(&mut self, val: u64, label: &'static [u8]) -> Scalar;
 }
 
@@ -26,6 +30,20 @@ impl TranscriptProtocol for Transcript {
         let mut buf = Vec::new();
         let pallas_point: PallasPoint = point.into();
         pallas_point.serialize_compressed(&mut buf).unwrap();
+        self.append_message(label, &buf);
+    }
+
+    fn append_point_new(&mut self, label: &'static [u8], point: &PallasPoint) {
+        let mut buf = Vec::new();
+        point.serialize_compressed(&mut buf).unwrap();
+        self.append_message(label, &buf);
+    }
+
+    fn append_points_new(&mut self, label: &'static [u8], points: &[PallasPoint]) {
+        let mut buf = Vec::new();
+        for point in points {
+            point.serialize_compressed(&mut buf).unwrap();
+        }
         self.append_message(label, &buf);
     }
 
@@ -44,11 +62,24 @@ impl TranscriptProtocol for Transcript {
         self.append_message(label, &buf);
     }
 
+    fn append_scalar_new(&mut self, label: &'static [u8], scalar: &PallasScalar) {
+        let mut buf = [0; 64];
+        scalar.serialize_compressed(buf.as_mut()).unwrap();
+        self.append_message(label, &buf);
+    }
+
     fn challenge_scalar(&mut self, label: &'static [u8]) -> Scalar {
         // Reduce a double-width scalar to ensure a uniform distribution
         let mut buf = [0; 64];
         self.challenge_bytes(label, &mut buf);
         PallasScalar::from_le_bytes_mod_order(&buf).into()
+    }
+
+    fn challenge_scalar_new(&mut self, label: &'static [u8]) -> PallasScalar {
+        // Reduce a double-width scalar to ensure a uniform distribution
+        let mut buf = [0; 64];
+        self.challenge_bytes(label, &mut buf);
+        PallasScalar::from_le_bytes_mod_order(&buf)
     }
 
     fn challenge_scalar_augment(&mut self, val: u64, label: &'static [u8]) -> Scalar {
