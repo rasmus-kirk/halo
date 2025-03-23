@@ -9,7 +9,7 @@ use ark_std::test_rng;
 use plonk::protocol::{arithmetizer::Arithmetizer, plonk as plonker};
 
 const WARMUP: Duration = Duration::from_millis(100);
-const MIN: usize = 5;
+const MIN: usize = 17; //5;
 const MAX: usize = 20;
 
 pub fn plonk_proof_verify(c: &mut Criterion) {
@@ -25,33 +25,31 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
     println!("|====|==============|==============|==============|==============|==============|");
     for size in MIN..MAX + 1 {
         let start_time = Instant::now();
-        let out = Arithmetizer::synthesize::<_, 4>(rng, 2usize.pow(size as u32));
+        let output_wires = &Arithmetizer::synthesize::<_, 4>(rng, 2usize.pow(size as u32));
+        let d = 2usize.pow(size as u32) - 1;
         let input_values = vec![3, 4, 5, 6];
-        let output_wires = &[out];
         let circuit_time = start_time.elapsed().as_secs_f32();
-        // println!("A1");
-        let ((x, w), _) =
-            &Arithmetizer::to_circuit(rng, 2usize.pow(size as u32) - 1, input_values, output_wires)
-                .unwrap();
-        // println!("A2");
+        println!("A1");
+        let ((x, w), _) = &Arithmetizer::to_circuit(rng, d, input_values, output_wires).unwrap();
+        println!("A2");
 
         circuits.push((size, x.clone(), w.clone()));
 
         let start_time = Instant::now();
         let old_pi = plonker::proof(rng, &x, &w);
         let old_p_time = start_time.elapsed().as_secs_f32();
-        // println!("B");
+        println!("B");
         old_pis.push(old_pi.clone());
 
         let start_time = Instant::now();
         let _ = plonker::verify(&x, old_pi.clone());
         let old_v_time = start_time.elapsed().as_secs_f32();
-        // println!("C");
+        println!("C");
 
         let start_time = Instant::now();
         let new_pi = plonker::prove(rng, &x, &w);
         let new_p_time = start_time.elapsed().as_secs_f32();
-        // println!("D");
+        println!("D");
         new_pis.push(new_pi.clone());
 
         let start_time = Instant::now();
