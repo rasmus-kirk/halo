@@ -67,7 +67,15 @@ impl Instance {
         succinct_check(self.C, self.d, &self.z, &self.v, self.pi.clone())
     }
 
-    pub fn tuple(&self) -> (&PallasPoint, &usize, &PallasScalar, &PallasScalar, &EvalProof) {
+    pub fn tuple(
+        &self,
+    ) -> (
+        &PallasPoint,
+        &usize,
+        &PallasScalar,
+        &PallasScalar,
+        &EvalProof,
+    ) {
         (&self.C, &self.d, &self.z, &self.v, &self.pi)
     }
 
