@@ -25,6 +25,10 @@ pub struct Scalar {
 }
 
 impl Scalar {
+    pub fn new(scalar: PallasScalar) -> Self {
+        Scalar { scalar }
+    }
+
     pub const ONE: Self = Scalar {
         scalar: PallasScalar::ONE,
     };
