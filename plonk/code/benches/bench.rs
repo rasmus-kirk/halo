@@ -47,13 +47,13 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
         println!("C");
 
         let start_time = Instant::now();
-        let new_pi = plonker::prove(rng, &x, &w);
+        let new_pi = plonker::prove_w_lu(rng, &x, &w);
         let new_p_time = start_time.elapsed().as_secs_f32();
         println!("D");
         new_pis.push(new_pi.clone());
 
         let start_time = Instant::now();
-        let _ = plonker::verifier(&x, &new_pi);
+        let _ = plonker::verify_lu_with_w(&x, new_pi);
         let new_v_time = start_time.elapsed().as_secs_f32();
         // println!("E");
 
@@ -93,7 +93,7 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
             &i,
             |b, _| {
                 b.iter(|| {
-                    plonker::prove(rng, &x, &w);
+                    plonker::prove_w_lu(rng, &x, &w);
                 })
             },
         );
@@ -104,7 +104,7 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
             &i,
             |b, _| {
                 b.iter(|| {
-                    plonker::verifier(&x, &pi).unwrap();
+                    plonker::verify_lu_with_w(&x, pi.clone()).unwrap();
                 })
             },
         );

@@ -1,5 +1,3 @@
-pub mod many;
-
 use crate::curve::{Point, Poly, Scalar};
 
 use halo_accumulation::pcdl::{self, EvalProof};

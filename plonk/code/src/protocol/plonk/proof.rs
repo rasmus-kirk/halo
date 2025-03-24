@@ -12,7 +12,7 @@ use rand::Rng;
 
 use super::{instance::Instance, transcript::TranscriptProtocol, SNARKProof};
 use crate::{
-    curve::{Poly, Scalar},
+    curve::Scalar,
     protocol::circuit::{CircuitPrivate, CircuitPublic},
 };
 use ark_ff::Zero;
@@ -198,7 +198,11 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
 
     // ζ = H(transcript)
     let zeta = &transcript.challenge_scalar_new(b"zeta");
-    let [pl_t, pl_f, pl_h1, pl_h2] = &w.plonkup.compute(&Scalar::new(*zeta));
+    let plp = &w.plonkup.compute(&Scalar::new(*zeta));
+    let pl_t = &plp[0];
+    let pl_f = &plp[1];
+    let pl_h1 = &plp[2];
+    let pl_h2 = &plp[3];
     let pl_t_bar = &x.h.poly_times_arg(pl_t, &x.h.w(1)).poly;
     let pl_h1_bar = &x.h.poly_times_arg(pl_h1, &x.h.w(1)).poly;
     let pl_t = &pl_t.poly;
