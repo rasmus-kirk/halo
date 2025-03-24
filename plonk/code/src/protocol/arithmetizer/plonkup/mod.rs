@@ -227,13 +227,11 @@ impl PlonkupVecCompute {
         }
     }
 
-    pub fn compute(&self, zeta: &Scalar) -> [Poly; 4] {
+    pub fn compute(&self, zeta: &Scalar) -> Vec<Poly> {
         self.table
             .compute_vecs(zeta, &self.coset, &self.constraints)
             .into_iter()
             .map(|evals| self.coset.interpolate_zf(evals))
             .collect::<Vec<Poly>>()
-            .try_into()
-            .unwrap()
     }
 }

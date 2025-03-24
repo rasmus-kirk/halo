@@ -15,7 +15,7 @@ use crate::{
     curve::{Coset, Poly, Scalar},
     protocol::{
         circuit::{Circuit, CircuitPrivate, CircuitPublic},
-        scheme::{Slots, Terms, MAX_BLIND_TERMS},
+        scheme::{Selectors, Slots, Terms, MAX_BLIND_TERMS},
     },
 };
 pub use constraints::Constraints;
@@ -49,6 +49,7 @@ impl Trace {
         input_values: Vec<Scalar>,
         output_wires: Vec<WireID>,
     ) -> Result<Self, TraceError> {
+        println!("Trace 1");
         let mut eval = Self {
             h: Default::default(),
             evals: HashMap::new(),
@@ -57,21 +58,25 @@ impl Trace {
             table: TableRegistry::new(),
             d,
         };
+        println!("Trace 2");
         for (wire, value) in input_values.into_iter().enumerate() {
             let value = Value::new_wire(wire, value).set_bit_type(wires);
             eval.evals.insert(wire, value);
             eval.bool_constraint(wires, wire, value)?;
             eval.public_constraint(wires, wire, value)?;
         }
+        println!("Trace 3");
         // fix input wire values
         for w in output_wires {
             eval.resolve(wires, w)?;
         }
         // compute wire values
 
+        println!("Trace 4");
         eval.compute_pos_permutation()?;
         // compute copy constraint values
 
+        println!("Trace 5");
         let n = eval.table.len() as u64;
         let m = eval.constraints.len() as u64;
         eval.h = Coset::new(rng, std::cmp::max(n, m) + MAX_BLIND_TERMS, Slots::COUNT)
@@ -83,47 +88,74 @@ impl Trace {
 
     /// Compute the values and constraints for the wire and all its dependencies.
     fn eval(&mut self, wires: &ArithWireCache, wire: WireID) -> Result<Value, TraceError> {
-        let arith_wire = match wires.to_arith(wire) {
-            Some(wire) => wire,
-            None => return Err(TraceError::WireNotInCache(wire)),
-        };
-        let (constraint, value) = match arith_wire {
-            ArithWire::Input(id) => return Err(TraceError::InputNotSet(id)),
-            ArithWire::Constant(scalar) => match wires.lookup_const_id(scalar) {
-                Some(id) => {
-                    let val = Value::new_wire(id, scalar);
-                    (Constraints::constant(&val), val)
+        let mut res: Option<Value> = None;
+        let mut stack = vec![wire];
+        while stack.len() > 0 {
+            let wire = stack.last().unwrap().clone();
+            let arith_wire = match wires.to_arith(wire) {
+                Some(wire) => Ok(wire),
+                None => Err(TraceError::WireNotInCache(wire)),
+            }?;
+            // println!("Eval: {:?} {:?}", wire, arith_wire);
+            let (constraint, value) = match arith_wire {
+                ArithWire::Input(id) => return Err(TraceError::InputNotSet(id)),
+                ArithWire::Constant(scalar) => match wires.lookup_const_id(scalar) {
+                    Some(id) => {
+                        let val = Value::new_wire(id, scalar);
+                        (Constraints::constant(&val), val)
+                    }
+                    None => return Err(TraceError::ConstNotInCache(scalar)),
+                },
+                ArithWire::AddGate(lhs_, rhs_)
+                | ArithWire::MulGate(lhs_, rhs_)
+                | ArithWire::Lookup(_, lhs_, rhs_) => {
+                    let lhs = match self.evals.get(&lhs_) {
+                        Some(val) => val,
+                        None => {
+                            stack.push(lhs_);
+                            continue;
+                        }
+                    };
+                    let rhs = match self.evals.get(&rhs_) {
+                        Some(val) => val,
+                        None => {
+                            stack.push(rhs_);
+                            continue;
+                        }
+                    };
+                    let out_ = match arith_wire {
+                        ArithWire::AddGate(_, _) => lhs + rhs,
+                        ArithWire::MulGate(_, _) => lhs * rhs,
+                        ArithWire::Lookup(op, _, _) => self.lookup_value(op, lhs, rhs)?,
+                        _ => unreachable!(),
+                    };
+                    let out = out_.set_id(wire).set_bit_type(wires);
+                    match arith_wire {
+                        ArithWire::AddGate(_, _) => (Constraints::add(lhs, rhs, &out), out),
+                        ArithWire::MulGate(_, _) => (Constraints::mul(lhs, rhs, &out), out),
+                        ArithWire::Lookup(op, _, _) => {
+                            (Constraints::lookup(op, lhs, rhs, &out), out)
+                        }
+                        _ => unreachable!(),
+                    }
                 }
-                None => return Err(TraceError::ConstNotInCache(scalar)),
-            },
-            ArithWire::AddGate(lhs_, rhs_) => {
-                let lhs = &self.resolve(wires, lhs_)?;
-                let rhs = &self.resolve(wires, rhs_)?;
-                let out = &(lhs + rhs).set_id(wire).set_bit_type(wires);
-                (Constraints::add(lhs, rhs, out), *out)
+            };
+            self.constraints.push(constraint);
+            if !constraint.is_satisfied() {
+                return Err(TraceError::constraint_not_satisfied(&constraint));
             }
-            ArithWire::MulGate(lhs_, rhs_) => {
-                let lhs = &self.resolve(wires, lhs_)?;
-                let rhs = &self.resolve(wires, rhs_)?;
-                let out = &(lhs * rhs).set_id(wire).set_bit_type(wires);
-                (Constraints::mul(lhs, rhs, out), *out)
+            self.bool_constraint(wires, wire, value)?;
+            self.public_constraint(wires, wire, value)?;
+            self.evals.insert(wire, value);
+            stack.pop();
+            if stack.len() == 0 {
+                res = Some(value);
             }
-            ArithWire::Lookup(op, lhs_, rhs_) => {
-                let lhs = &self.resolve(wires, lhs_)?;
-                let rhs = &self.resolve(wires, rhs_)?;
-                let out_ = self.lookup_value(op, lhs, rhs)?;
-                let out = out_.set_id(wire).set_bit_type(wires);
-                (Constraints::lookup(op, lhs, rhs, &out), out)
-            }
-        };
-        self.constraints.push(constraint);
-        if !constraint.is_satisfied() {
-            return Err(TraceError::constraint_not_satisfied(&constraint));
         }
-        self.bool_constraint(wires, wire, value)?;
-        self.public_constraint(wires, wire, value)?;
-        self.evals.insert(wire, value);
-        Ok(value)
+        match res {
+            Some(val) => Ok(val),
+            None => Err(TraceError::WireNotInCache(wire)),
+        }
     }
 
     fn bool_constraint(
@@ -201,19 +233,22 @@ impl Trace {
     }
 
     /// Compute the circuit polynomials.
-    fn gate_polys(&self) -> [Poly; Terms::COUNT] {
-        let mut points: [Vec<Scalar>; Terms::COUNT] = Default::default();
+    fn gate_polys(&self) -> Vec<Poly> {
+        let mut points: Vec<Vec<Scalar>> = vec![vec![]; Terms::COUNT];
         for eqn in self.constraints.iter() {
             for term in Terms::iter() {
                 points[Into::<usize>::into(term)].push(eqn[term].into());
             }
         }
-        points.map(|ps| self.h.interpolate_zf(ps))
+        points
+            .into_iter()
+            .map(|ps| self.h.interpolate_zf(ps))
+            .collect()
     }
 
     /// Compute the permutation and identity permutation polynomials.
-    fn copy_constraints(&self) -> [Poly; Slots::COUNT * 2] {
-        let mut points: [Vec<Scalar>; Slots::COUNT * 2] = Default::default();
+    fn copy_constraints(&self) -> Vec<Poly> {
+        let mut points: Vec<Vec<Scalar>> = vec![vec![]; Slots::COUNT * 2];
         for ps in points.iter_mut() {
             ps.push(Scalar::ONE);
         }
@@ -229,7 +264,10 @@ impl Trace {
                 });
             }
         }
-        points.map(|ps| self.h.interpolate(ps))
+        points
+            .into_iter()
+            .map(|ps| self.h.interpolate(ps))
+            .collect()
     }
 }
 
@@ -270,31 +308,31 @@ impl
 
 impl From<Trace> for Circuit {
     fn from(eval: Trace) -> Self {
-        let [a, b, c, ql, qr, qo, qm, qc, qk, j, pi] = eval.gate_polys();
-        let [sa, sb, sc, sida, sidb, sidc] = eval.copy_constraints();
+        let gc = eval.gate_polys();
+        let ss = eval.copy_constraints();
         // TODO: check d
         let x = CircuitPublic {
             d: eval.d,
             h: eval.h.clone(),
-            ql,
-            qr,
-            qo,
-            qm,
-            qc,
-            pl_qk: qk,
-            pl_j: j,
-            pip: pi,
-            sida,
-            sidb,
-            sidc,
-            sa,
-            sb,
-            sc,
+            ql: gc[Slots::COUNT + Selectors::Ql as usize].clone(),
+            qr: gc[Slots::COUNT + Selectors::Qr as usize].clone(),
+            qo: gc[Slots::COUNT + Selectors::Qo as usize].clone(),
+            qm: gc[Slots::COUNT + Selectors::Qm as usize].clone(),
+            qc: gc[Slots::COUNT + Selectors::Qc as usize].clone(),
+            pl_qk: gc[Slots::COUNT + Selectors::Qk as usize].clone(),
+            pl_j: gc[Slots::COUNT + Selectors::J as usize].clone(),
+            pip: gc[Slots::COUNT + Selectors::COUNT].clone(),
+            sida: ss[3].clone(),
+            sidb: ss[4].clone(),
+            sidc: ss[5].clone(),
+            sa: ss[0].clone(),
+            sb: ss[1].clone(),
+            sc: ss[2].clone(),
         };
         let w = CircuitPrivate {
-            a,
-            b,
-            c,
+            a: gc[Slots::A as usize].clone(),
+            b: gc[Slots::B as usize].clone(),
+            c: gc[Slots::C as usize].clone(),
             plonkup: PlonkupVecCompute::new(eval.h, eval.constraints, eval.table),
         };
         (x, w)

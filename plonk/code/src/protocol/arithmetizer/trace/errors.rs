@@ -10,6 +10,7 @@ pub enum TraceError {
     InputNotSet(WireID),
     WireNotInCache(WireID),
     ConstNotInCache(Scalar),
+    FailedToEval(WireID),
     FailedToMakeCoset(u64),
     ConstraintNotSatisfied(String),
     LookupFailed(PlonkupOps, Scalar, Scalar),
@@ -32,6 +33,13 @@ impl std::fmt::Display for TraceError {
             }
             TraceError::ConstNotInCache(c) => {
                 write!(f, "Evaluator: Constant `{}` not in cache", c)
+            }
+            TraceError::FailedToEval(id) => {
+                write!(
+                    f,
+                    "Evaluator: Failed to evaluate wire `{}`",
+                    map_to_alphabet(*id)
+                )
             }
             TraceError::FailedToMakeCoset(m) => {
                 write!(f, "Evaluator: Failed to make coset for `m={}`", m)
