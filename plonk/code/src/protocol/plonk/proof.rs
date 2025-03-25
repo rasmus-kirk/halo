@@ -17,6 +17,55 @@ use crate::{
 };
 use ark_ff::Zero;
 
+
+#[derive(Clone)]
+pub struct ProofEvaluations {
+    a: PallasScalar,
+    b: PallasScalar,
+    c: PallasScalar,
+    qc: PallasScalar,
+    ql: PallasScalar,
+    qm: PallasScalar,
+    qo: PallasScalar,
+    qr: PallasScalar,
+    sa: PallasScalar,
+    sb: PallasScalar,
+    sc: PallasScalar,
+    z: PallasScalar,
+    t: PallasScalar,
+    pl_j: PallasScalar,
+    pl_qk: PallasScalar,
+    pl_f: PallasScalar,
+    pl_t: PallasScalar,
+    pl_h1: PallasScalar,
+    pl_h2: PallasScalar,
+    z_bar: PallasScalar,
+    pl_t_bar: PallasScalar,
+    pl_h1_bar: PallasScalar,
+}
+
+#[derive(Clone)]
+pub struct ProofCommitments {
+    a: PallasPoint,
+    b: PallasPoint,
+    c: PallasPoint,
+    z: PallasPoint,
+    t: PallasPoint,
+}
+
+#[derive(Clone)]
+pub struct EvalProofs {
+    W: EvalProof,
+    W_bar: EvalProof,
+}
+
+#[derive(Clone)]
+pub struct Proof {
+    ev: ProofEvaluations,
+    com: ProofCommitments,
+    pis: EvalProofs,
+}
+
 pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNARKProof {
     let mut transcript = Transcript::new(b"protocol");
     transcript.domain_sep();
@@ -166,7 +215,7 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
 pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proof {
     let mut transcript = Transcript::new(b"protocol");
     transcript.domain_sep();
-    let d = ((w.a.commit().d as usize + 1) << 4) - 1;
+    let d = x.d;
 
     let w_a = &w.a.poly;
     let w_b = &w.b.poly;
@@ -298,11 +347,6 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
     let t = &((f_gc + deg0(alpha) * f_z1 + deg0(&alpha.pow([2])) * f_z2) / x_zh);
     let t_com = pcdl::commit(&t, d, None);
     transcript.append_point_new(b"t", &t_com);
-    assert!(
-        (f_gc + (deg0(alpha) * f_z1) + (deg0(&alpha.pow([2])) * f_z2)) - (t * x_zh)
-            == PallasPoly::zero(),
-        "T(𝔷) ≠ (F_GC(𝔷) + α F_CC1(𝔷) + α² F_CC2(𝔷)) / Zₕ(𝔷)"
-    );
 
     // -------------------- Round 5 --------------------
 
@@ -352,7 +396,7 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
 
     let v = &transcript.challenge_scalar_new(b"v");
 
-    let W = &x.ql
+    let W = x_ql
         + x_qr * deg0(&v.pow([1]))
         + x_qo * deg0(&v.pow([2]))
         + x_qc * deg0(&v.pow([3]))
@@ -372,15 +416,14 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
     // + v.pow(16) * pl_h2
     // + v.pow(17) * pl_t;
     let (_, _, _, _, W_pi) =
-        HaloInstance::open(rng, W.poly.clone(), d as usize, &ch, None).into_tuple();
+        HaloInstance::open(rng, W, d as usize, &ch, None).into_tuple();
 
     //let W_bar: Poly = z_bar + v.pow(1) * pl_h1_bar + v.pow(2) * pl_t_bar;
-    let W_bar = z;
+    let W_bar = z.clone();
     let (_, _, _, _, W_bar_pi) =
-        HaloInstance::open(rng, W_bar.clone(), d as usize, &ch_bar, None).into_tuple();
+        HaloInstance::open(rng, W_bar, d as usize, &ch_bar, None).into_tuple();
 
     let pi = Proof {
-        d: d as usize,
         ev: ProofEvaluations {
             a: *a_ev,
             b: *b_ev,
@@ -424,7 +467,7 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
 pub fn verify_lu_with_w(x: &CircuitPublic, pi: Proof) -> Result<()> {
     let mut transcript = Transcript::new(b"protocol");
     transcript.domain_sep();
-    let d = pi.d;
+    let d = x.d;
 
     // -------------------- Round 1 --------------------
 
@@ -533,17 +576,16 @@ pub fn verify_lu_with_w(x: &CircuitPublic, pi: Proof) -> Result<()> {
         "T(𝔷) ≠ (F_GC(𝔷) + α F_CC1(𝔷) + α² F_CC2(𝔷)) / Zₕ(𝔷)"
     );
 
-    // TODO: These need to be moved to public parameters
-    let qc_com = x.qc.commit().point;
-    let ql_com = x.ql.commit().point;
-    let qm_com = x.qm.commit().point;
-    let qo_com = x.qo.commit().point;
-    let qr_com = x.qr.commit().point;
-    let sa_com = x.sa.commit().point;
-    let sb_com = x.sb.commit().point;
-    let sc_com = x.sc.commit().point;
-    let pl_j_com = x.pl_j.commit().point;
-    let pl_qk_com = x.pl_qk.commit().point;
+    let qc_com = x.qc_com;
+    let ql_com = x.ql_com;
+    let qm_com = x.qm_com;
+    let qo_com = x.qo_com;
+    let qr_com = x.qr_com;
+    let sa_com = x.sa_com;
+    let sb_com = x.sb_com;
+    let sc_com = x.sc_com;
+    let pl_j_com = x.pl_j_com;
+    let pl_qk_com = x.pl_qk_com;
 
     let v = &transcript.challenge_scalar_new(b"v");
 
@@ -581,333 +623,4 @@ pub fn verify_lu_with_w(x: &CircuitPublic, pi: Proof) -> Result<()> {
     pcdl::check(&pi.com.z, d, &ch_w, &pi.ev.z_bar, pi.pis.W_bar)?;
 
     Ok(())
-}
-
-// pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proof {
-//     let mut transcript = Transcript::new(b"protocol");
-//     transcript.domain_sep();
-
-//     // -------------------- Round 1 --------------------
-
-//     let a_com = &w.a.commit();
-//     let b_com = &w.b.commit();
-//     let c_com = &w.c.commit();
-//     transcript.append_points(b"abc", &[*a_com, *b_com, *c_com]);
-
-//     // -------------------- Round 2 --------------------
-
-//     // β = H(transcript, 0)
-//     let beta = &transcript.challenge_scalar_augment(0, b"beta");
-//     // γ = H(transcript, 1)
-//     let gamma = &transcript.challenge_scalar_augment(1, b"gamma");
-//     // w(X) + β s(X) + γ
-//     let zterm_ev = |w, s, i| x.h.evaluate(w, i) + beta * x.h.evaluate(s, i) + gamma;
-//     let zterm = |w, s| w + beta * s + gamma;
-//     // f'(X) = (A(X) + β Sᵢ₁(X) + γ) (B(X) + β Sᵢ₂(X) + γ) (C(X) + β Sᵢ₃(X) + γ)
-//     let zf_ev =
-//         |i| (zterm_ev(&w.a, &x.sida, i) * zterm_ev(&w.b, &x.sidb, i) * zterm_ev(&w.c, &x.sidc, i));
-//     let zf = &(zterm(&w.a, &x.sida) * zterm(&w.b, &x.sidb) * zterm(&w.c, &x.sidc));
-//     // g'(X) = (A(X) + β S₁(X) + γ) (B(X) + β S₂(X) + γ) (C(X) + β S₃(X) + γ)
-//     let zg_ev =
-//         |i| (zterm_ev(&w.a, &x.sa, i) * zterm_ev(&w.b, &x.sb, i) * zterm_ev(&w.c, &x.sc, i));
-//     let zg = &(zterm(&w.a, &x.sa) * zterm(&w.b, &x.sb) * zterm(&w.c, &x.sc));
-//     // Z(ω) = 1
-//     let mut z_points = vec![Scalar::ONE; 2];
-//     // Z(ωⁱ) = Z(ωᶦ⁻¹) f'(ωᶦ⁻¹) / g'(ωᶦ⁻¹)
-//     for i in 1..x.h.n() - 1 {
-//         z_points.push(z_points[i as usize] * zf_ev(i) / zg_ev(i));
-//     }
-//     let z = &x.h.interpolate(z_points);
-//     // Z(ω X)
-//     let zbar = &x.h.poly_times_arg(z, &x.h.w(1));
-//     let z_com = &z.commit();
-//     transcript.append_point(b"z", z_com);
-
-//     // -------------------- Round 3 --------------------
-
-//     // α = H(transcript)
-//     let alpha = &transcript.challenge_scalar(b"alpha");
-//     // F_GC(X) = A(X)Qₗ(X) + B(X)Qᵣ(X) + C(X)Qₒ(X) + A(X)B(X)Qₘ(X) + Q꜀(X)
-//     let f_gc = &((&w.a * &x.ql) + (&w.b * &x.qr) + (&w.c * &x.qo) + (&w.a * &w.b * &x.qm) + &x.qc);
-//     // F_CC1(X) = L₁(X) (Z(X) - 1)
-//     let f_cc1 = &(x.h.lagrange(1) * (z - Poly::a(&Scalar::ONE)));
-//     // F_CC2(X) = Z(X)f'(X) - g'(X)Z(ω X)
-//     let f_cc2 = &((z * zf) - (zg * zbar));
-//     // T(X) = (F_GC(X) + α F_CC1(X) + α² F_CC2(X)) / Zₕ(X)
-//     // let t = &(f_gc / x.h.zh());
-//     let mut t_ = Poly::a(&Scalar::ZERO);
-//     for (i, &f) in [f_gc, f_cc1, f_cc2].iter().enumerate() {
-//         t_ = t_ + (Poly::a_exp(alpha, i as u64) * f);
-//     }
-//     let t = &(t_ / x.h.zh());
-//     let t_com = &t.commit();
-//     transcript.append_point(b"t", t_com);
-
-//     // -------------------- Round 4 --------------------
-
-//     // 𝔷 = H(transcript)
-//     let ch = &transcript.challenge_scalar(b"xi");
-
-//     // -------------------- Round 5 --------------------
-
-//     let ch_w = ch * x.h.w(1);
-
-//     let a_ev = &w.a.evaluate(ch);
-//     let b_ev = &w.b.evaluate(ch);
-//     let c_ev = &w.c.evaluate(ch);
-//     let qc_ev = &x.qc.evaluate(ch);
-//     let ql_ev = &x.ql.evaluate(ch);
-//     let qm_ev = &x.qm.evaluate(ch);
-//     let qo_ev = &x.qo.evaluate(ch);
-//     let qr_ev = &x.qr.evaluate(ch);
-//     let sa_ev = &x.sa.evaluate(ch);
-//     let sb_ev = &x.sb.evaluate(ch);
-//     let sc_ev = &x.sc.evaluate(ch);
-//     let zbar_ev = zbar.evaluate(ch);
-//     let t_ev = t.evaluate(ch);
-//     let z_ev = z.evaluate(ch);
-
-//     transcript.append_scalar(b"a_ev", &a_ev);
-//     transcript.append_scalar(b"b_ev", &b_ev);
-//     transcript.append_scalar(b"c_ev", &c_ev);
-//     transcript.append_scalar(b"qc_ev", &qc_ev);
-//     transcript.append_scalar(b"ql_ev", &ql_ev);
-//     transcript.append_scalar(b"qm_ev", &qm_ev);
-//     transcript.append_scalar(b"qo_ev", &qo_ev);
-//     transcript.append_scalar(b"qr_ev", &qr_ev);
-//     transcript.append_scalar(b"sa_ev", &sa_ev);
-//     transcript.append_scalar(b"sb_ev", &sb_ev);
-//     transcript.append_scalar(b"sc_ev", &sc_ev);
-//     transcript.append_scalar(b"zbar_ev", &zbar_ev);
-//     transcript.append_scalar(b"t_ev", &t_ev);
-//     transcript.append_scalar(b"z_ev", &z_ev);
-
-//     let d = a_com.d;
-//     let v = &transcript.challenge_scalar(b"v");
-
-//     let W: Poly = &x.ql
-//         + v.pow(1) * &x.qr
-//         + v.pow(2) * &x.qo
-//         + v.pow(3) * &x.qc
-//         + v.pow(4) * &x.qm
-//         + v.pow(5) * &w.a
-//         + v.pow(6) * &w.b
-//         + v.pow(7) * &w.c
-//         + v.pow(8) * &x.sa
-//         + v.pow(9) * &x.sb
-//         + v.pow(10) * &x.sc
-//         + v.pow(11) * z;
-
-//     let (_, _, _, _, W_pi) =
-//         HaloInstance::open(rng, W.poly.clone(), d as usize, &ch.scalar, None).into_tuple();
-//     let z_bar_q = HaloInstance::open(rng, z.poly.clone(), d as usize, &ch_w.scalar, None);
-
-//     todo!();
-//     // Proof {
-//     //     ev: ProofEvaluations {
-//     //         a: a_ev.into(),
-//     //         b: b_ev.into(),
-//     //         c: c_ev.into(),
-//     //         qc: qc_ev.into(),
-//     //         ql: ql_ev.into(),
-//     //         qm: qm_ev.into(),
-//     //         qo: qo_ev.into(),
-//     //         qr: qr_ev.into(),
-//     //         sa: sa_ev.into(),
-//     //         sb: sb_ev.into(),
-//     //         sc: sc_ev.into(),
-//     //         z: z_ev.into(),
-//     //         t: t_ev.into(),
-//     //     },
-//     //     com: ProofCommitments {
-//     //         a: a_com.into(),
-//     //         b: b_com.into(),
-//     //         c: c_com.into(),
-//     //         z: z_com.into(),
-//     //         t: t_com.into(),
-//     //     },
-//     //     W_pi,
-//     //     z_bar_q,
-//     // }
-// }
-
-// pub fn verify(x: &CircuitPublic, pi: &Proof) -> Result<()> {
-//     let d = *pi.z_bar_q.d();
-
-//     let qc_com = &x.qc.commit();
-//     let ql_com = &x.ql.commit();
-//     let qm_com = &x.qm.commit();
-//     let qo_com = &x.qo.commit();
-//     let qr_com = &x.qr.commit();
-//     let sa_com = &x.sa.commit();
-//     let sb_com = &x.sb.commit();
-//     let sc_com = &x.sc.commit();
-
-//     let a_com: Point = pi.com.a.into();
-//     let b_com: Point = pi.com.b.into();
-//     let c_com: Point = pi.com.c.into();
-//     let z_com = pi.com.z.into();
-//     let t_com = pi.com.t.into();
-
-//     let a_ev = pi.ev.a.into();
-//     let b_ev = pi.ev.b.into();
-//     let c_ev = pi.ev.c.into();
-//     //let ch_w = ch * x.h.w(1);
-//     let qc_ev = pi.ev.qc.into();
-//     let ql_ev = pi.ev.ql.into();
-//     let qm_ev = pi.ev.qm.into();
-//     let qo_ev = pi.ev.qo.into();
-//     let qr_ev = pi.ev.qr.into();
-//     let sa_ev = pi.ev.sa.into();
-//     let sb_ev = pi.ev.sb.into();
-//     let sc_ev = pi.ev.sc.into();
-//     let zbar_ev = pi.z_bar_q.v().into();
-//     let t_ev = pi.ev.t.into();
-//     let z_ev = pi.ev.z.into();
-
-//     let mut transcript = Transcript::new(b"protocol");
-//     transcript.domain_sep();
-
-//     // Round 1 -----------------------------------------------------
-//     transcript.append_points(b"abc", &[a_com, b_com, c_com]);
-//     // Round 2 -----------------------------------------------------
-//     let beta = &transcript.challenge_scalar_augment(0, b"beta");
-//     let gamma = &transcript.challenge_scalar_augment(1, b"gamma");
-//     transcript.append_point(b"z", &z_com);
-//     // Round 3 -----------------------------------------------------
-//     let alpha = &transcript.challenge_scalar(b"alpha");
-//     transcript.append_point(b"t", &t_com);
-//     // Round 4 -----------------------------------------------------
-//     let ch = &transcript.challenge_scalar(b"xi");
-
-//     // round 5
-
-//     transcript.append_scalar(b"a_ev", &a_ev);
-//     transcript.append_scalar(b"b_ev", &b_ev);
-//     transcript.append_scalar(b"c_ev", &c_ev);
-//     transcript.append_scalar(b"qc_ev", &qc_ev);
-//     transcript.append_scalar(b"ql_ev", &ql_ev);
-//     transcript.append_scalar(b"qm_ev", &qm_ev);
-//     transcript.append_scalar(b"qo_ev", &qo_ev);
-//     transcript.append_scalar(b"qr_ev", &qr_ev);
-//     transcript.append_scalar(b"sa_ev", &sa_ev);
-//     transcript.append_scalar(b"sb_ev", &sb_ev);
-//     transcript.append_scalar(b"sc_ev", &sc_ev);
-//     transcript.append_scalar(b"zbar_ev", &zbar_ev);
-//     transcript.append_scalar(b"t_ev", &t_ev);
-//     transcript.append_scalar(b"z_ev", &z_ev);
-
-//     let v = transcript.challenge_scalar(b"v");
-
-//     // Verification
-
-//     let zh_ev = &x.h.zh().evaluate(ch);
-
-//     // F_GC(𝔷) = A(𝔷)Qₗ(𝔷) + B(𝔷)Qᵣ(𝔷) + C(𝔷)Qₒ(𝔷) + A(𝔷)B(𝔷)Qₘ(𝔷) + Q꜀(𝔷)
-//     let f_gc_ev =
-//         &((a_ev * ql_ev) + (b_ev * qr_ev) + (c_ev * qo_ev) + (a_ev * b_ev * qm_ev) + qc_ev);
-//     ensure!(
-//         *f_gc_ev != Scalar::ZERO,
-//         "F_GC(𝔷) ≠ A(𝔷)Qₗ(𝔷) + B(𝔷)Qᵣ(𝔷) + C(𝔷)Qₒ(𝔷) + A(𝔷)B(𝔷)Qₘ(𝔷) + Q꜀(𝔷), F_GC = {}",
-//         *f_gc_ev
-//     );
-//     // F_CC1(𝔷) = L₁(𝔷) (Z(𝔷) - 1)
-//     let f_cc1_ev = &(x.h.lagrange(1).evaluate(ch) * (z_ev - Scalar::ONE));
-
-//     // f'(𝔷) = (A(𝔷) + β Sᵢ₁(𝔷) + γ) (B(𝔷) + β Sᵢ₂(𝔷) + γ) (C(𝔷) + β Sᵢ₃(𝔷) + γ)
-//     let zf_ev = &((a_ev + beta * &x.sida.evaluate(ch) + gamma)
-//         * (b_ev + beta * &x.sidb.evaluate(ch) + gamma)
-//         * (c_ev + beta * &x.sidc.evaluate(ch) + gamma));
-//     // g'(𝔷) = (A(𝔷)) + β S₁(𝔷)) + γ) (B(𝔷)) + β S₂(𝔷)) + γ) (C(𝔷)) + β S₃(𝔷)) + γ)
-//     let zg_ev = &((a_ev + beta * sa_ev + gamma)
-//         * (b_ev + beta * sb_ev + gamma)
-//         * (c_ev + beta * sc_ev + gamma));
-//     // F_CC2(𝔷) = Z(𝔷)f'(𝔷) - g'(𝔷)Z(ω 𝔷)
-//     let f_cc2_ev = &((z_ev * zf_ev) - (zg_ev * zbar_ev));
-//     // T(𝔷) = (F_GC(𝔷) + α F_CC1(𝔷) + α² F_CC2(𝔷)) / Zₕ(𝔷)
-//     ensure!(
-//         f_gc_ev + alpha * f_cc1_ev + alpha.pow(2) * f_cc2_ev - (t_ev * zh_ev) == Scalar::ZERO,
-//         "T(𝔷) ≠ (F_GC(𝔷) + α F_CC1(𝔷) + α² F_CC2(𝔷)) / Zₕ(𝔷)"
-//     );
-
-//     let W_com = ql_com
-//         + v.pow(1) * qr_com
-//         + v.pow(2) * qo_com
-//         + v.pow(3) * qc_com
-//         + v.pow(4) * qm_com
-//         + v.pow(5) * a_com
-//         + v.pow(6) * b_com
-//         + v.pow(7) * c_com
-//         + v.pow(8) * sa_com
-//         + v.pow(9) * sb_com
-//         + v.pow(10) * sc_com
-//         + v.pow(11) * z_com;
-
-//     let W_ev = ql_ev
-//         + v.pow(1) * qr_ev
-//         + v.pow(2) * qo_ev
-//         + v.pow(3) * qc_ev
-//         + v.pow(4) * qm_ev
-//         + v.pow(5) * a_ev
-//         + v.pow(6) * b_ev
-//         + v.pow(7) * c_ev
-//         + v.pow(8) * sa_ev
-//         + v.pow(9) * sb_ev
-//         + v.pow(10) * sc_ev
-//         + v.pow(11) * z_ev;
-
-//     HaloInstance::new(W_com.point, d, ch.scalar, W_ev.scalar, pi.W_pi.clone()).check()?;
-//     pi.z_bar_q.check()?;
-
-//     Ok(())
-// }
-
-#[derive(Clone)]
-pub struct ProofEvaluations {
-    a: PallasScalar,
-    b: PallasScalar,
-    c: PallasScalar,
-    qc: PallasScalar,
-    ql: PallasScalar,
-    qm: PallasScalar,
-    qo: PallasScalar,
-    qr: PallasScalar,
-    sa: PallasScalar,
-    sb: PallasScalar,
-    sc: PallasScalar,
-    z: PallasScalar,
-    t: PallasScalar,
-    pl_j: PallasScalar,
-    pl_qk: PallasScalar,
-    pl_f: PallasScalar,
-    pl_t: PallasScalar,
-    pl_h1: PallasScalar,
-    pl_h2: PallasScalar,
-    z_bar: PallasScalar,
-    pl_t_bar: PallasScalar,
-    pl_h1_bar: PallasScalar,
-}
-
-#[derive(Clone)]
-pub struct ProofCommitments {
-    a: PallasPoint,
-    b: PallasPoint,
-    c: PallasPoint,
-    z: PallasPoint,
-    t: PallasPoint,
-}
-
-#[derive(Clone)]
-pub struct EvalProofs {
-    W: EvalProof,
-    W_bar: EvalProof,
-}
-
-#[derive(Clone)]
-pub struct Proof {
-    // TODO: Remove from here, should be in public!
-    d: usize,
-    ev: ProofEvaluations,
-    com: ProofCommitments,
-    pis: EvalProofs,
 }

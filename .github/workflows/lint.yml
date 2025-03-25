@@ -66,3 +66,21 @@ jobs:
       - name: Lint plonk code
         run: nix develop -c check-lint
         working-directory: ./plonk/code
+
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Test accumulation code
+        run: nix develop -c cargo test
+        working-directory: ./accumulation/code
+
+      - name: Lint plonk code
+        run: nix develop -c cargo test
+        working-directory: ./plonk/code

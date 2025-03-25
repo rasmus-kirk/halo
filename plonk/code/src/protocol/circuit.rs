@@ -1,3 +1,5 @@
+use halo_accumulation::group::PallasPoint;
+
 use super::{arithmetizer::PlonkupVecCompute, scheme::Slots};
 use crate::{
     curve::{Coset, Poly},
@@ -27,6 +29,17 @@ pub struct CircuitPublic {
     pub sa: Poly,
     pub sb: Poly,
     pub sc: Poly,
+
+    pub qc_com: PallasPoint,
+    pub ql_com: PallasPoint,
+    pub qm_com: PallasPoint,
+    pub qo_com: PallasPoint,
+    pub qr_com: PallasPoint,
+    pub sa_com: PallasPoint,
+    pub sb_com: PallasPoint,
+    pub sc_com: PallasPoint,
+    pub pl_j_com: PallasPoint,
+    pub pl_qk_com: PallasPoint,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

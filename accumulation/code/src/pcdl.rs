@@ -219,16 +219,13 @@ pub fn setup(n: usize) -> Result<()> {
 pub fn commit(p: &PallasPoly, d: usize, w: Option<&PallasScalar>) -> PallasPoint {
     let pp = PublicParams::get_pp();
     let n = d + 1;
+    let p_deg = p.degree();
+    let pp_len = pp.len();
+    let D = pp.D;
 
-    assert!(n.is_power_of_two());
-    assert!(p.degree() <= d);
-    assert!(
-        d <= pp.D,
-        "d ({}) <= pp.D ({}) (pp.len() = {})",
-        d,
-        pp.D,
-        pp.len()
-    );
+    assert!(n.is_power_of_two(), "n ({n}) is not a power of two");
+    assert!(p_deg <= d, "p_deg ({p_deg}) <= d ({d})");
+    assert!(d <= D, "d ({d}) <= D ({D}) (pp_len = {pp_len})",);
 
     pedersen::commit(w, &pp.Gs[0..n], &p.coeffs)
 }
@@ -253,7 +250,7 @@ pub fn open<R: Rng>(
     let n = d + 1;
     let lg_n = n.ilog2() as usize;
     assert!(n > 1);
-    assert!(n.is_power_of_two());
+    assert!(n.is_power_of_two(), "n ({n}) is not a power of two");
     assert!(p.degree() <= d);
     assert!(d <= pp.D);
 
@@ -392,7 +389,7 @@ pub fn succinct_check(
     let pp = PublicParams::get_pp();
     let n = d + 1;
     let lg_n = n.ilog2() as usize;
-    ensure!(n.is_power_of_two(), "d+1 is not a power of 2!");
+    assert!(n.is_power_of_two(), "n ({n}) is not a power of two");
     ensure!(d <= pp.D, "d was larger than D!");
 
     // 1. Parse rk as (⟨group⟩, S, H, d'), and π as (L, R, U, c, C_bar, ω').

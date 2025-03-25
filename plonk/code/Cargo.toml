@@ -37,6 +37,7 @@ ark-pallas = "0.5.0"
 ark-poly = "0.5.0"
 merlin = "3.0.0"
 ark-serialize = "0.5.0"
+stacker = "0.1.20"
 
 [lints.clippy]
 suspicious_arithmetic_impl = "allow"

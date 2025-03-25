@@ -5,6 +5,7 @@ mod errors;
 mod pos;
 mod value;
 
+use log::trace;
 use super::{
     arith_wire::ArithWire,
     cache::ArithWireCache,
@@ -20,6 +21,7 @@ use crate::{
 };
 pub use constraints::Constraints;
 pub use errors::TraceError;
+use halo_accumulation::pcdl;
 pub use pos::Pos;
 use value::Value;
 
@@ -49,7 +51,6 @@ impl Trace {
         input_values: Vec<Scalar>,
         output_wires: Vec<WireID>,
     ) -> Result<Self, TraceError> {
-        println!("Trace 1");
         let mut eval = Self {
             h: Default::default(),
             evals: HashMap::new(),
@@ -58,25 +59,25 @@ impl Trace {
             table: TableRegistry::new(),
             d,
         };
-        println!("Trace 2");
+        trace!("[A]: Remaining stack - {:?}", stacker::remaining_stack());
         for (wire, value) in input_values.into_iter().enumerate() {
             let value = Value::new_wire(wire, value).set_bit_type(wires);
             eval.evals.insert(wire, value);
             eval.bool_constraint(wires, wire, value)?;
             eval.public_constraint(wires, wire, value)?;
         }
-        println!("Trace 3");
+        trace!("[B]: Remaining stack - {:?}", stacker::remaining_stack());
         // fix input wire values
         for w in output_wires {
             eval.resolve(wires, w)?;
         }
         // compute wire values
 
-        println!("Trace 4");
+        trace!("[C]: Remaining stack - {:?}", stacker::remaining_stack());
         eval.compute_pos_permutation()?;
         // compute copy constraint values
 
-        println!("Trace 5");
+        trace!("[D]: Remaining stack - {:?}", stacker::remaining_stack());
         let n = eval.table.len() as u64;
         let m = eval.constraints.len() as u64;
         eval.h = Coset::new(rng, std::cmp::max(n, m) + MAX_BLIND_TERMS, Slots::COUNT)
@@ -309,25 +310,53 @@ impl
 impl From<Trace> for Circuit {
     fn from(eval: Trace) -> Self {
         let gc = eval.gate_polys();
-        let ss = eval.copy_constraints();
+        let mut ss = eval.copy_constraints();
+
+        let d = eval.d;
+        let ql = gc[Slots::COUNT + Selectors::Ql as usize].clone();
+        let qr = gc[Slots::COUNT + Selectors::Qr as usize].clone();
+        let qo = gc[Slots::COUNT + Selectors::Qo as usize].clone();
+        let qm = gc[Slots::COUNT + Selectors::Qm as usize].clone();
+        let qc = gc[Slots::COUNT + Selectors::Qc as usize].clone();
+        let pl_qk = gc[Slots::COUNT + Selectors::Qk as usize].clone();
+        let pl_j = gc[Slots::COUNT + Selectors::J as usize].clone();
+
+        // Avoid cloning
+        let sidc = ss.remove(5);
+        let sidb = ss.remove(4);
+        let sida = ss.remove(3);
+        let sc = ss.remove(2);
+        let sb = ss.remove(1);
+        let sa = ss.remove(0);
+
         // TODO: check d
         let x = CircuitPublic {
-            d: eval.d,
+            d,
             h: eval.h.clone(),
-            ql: gc[Slots::COUNT + Selectors::Ql as usize].clone(),
-            qr: gc[Slots::COUNT + Selectors::Qr as usize].clone(),
-            qo: gc[Slots::COUNT + Selectors::Qo as usize].clone(),
-            qm: gc[Slots::COUNT + Selectors::Qm as usize].clone(),
-            qc: gc[Slots::COUNT + Selectors::Qc as usize].clone(),
-            pl_qk: gc[Slots::COUNT + Selectors::Qk as usize].clone(),
-            pl_j: gc[Slots::COUNT + Selectors::J as usize].clone(),
+            qc_com: pcdl::commit(&qc.poly, d, None),
+            ql_com: pcdl::commit(&ql.poly, d, None),
+            qm_com: pcdl::commit(&qm.poly, d, None),
+            qo_com: pcdl::commit(&qo.poly, d, None),
+            qr_com: pcdl::commit(&qr.poly, d, None),
+            sa_com: pcdl::commit(&sa.poly, d, None),
+            sb_com: pcdl::commit(&sb.poly, d, None),
+            sc_com: pcdl::commit(&sc.poly, d, None),
+            pl_j_com: pcdl::commit(&pl_j.poly, d, None),
+            pl_qk_com: pcdl::commit(&pl_qk.poly, d, None),
+            ql,
+            qr,
+            qo,
+            qm,
+            qc,
+            pl_qk,
+            pl_j,
             pip: gc[Slots::COUNT + Selectors::COUNT].clone(),
-            sida: ss[3].clone(),
-            sidb: ss[4].clone(),
-            sidc: ss[5].clone(),
-            sa: ss[0].clone(),
-            sb: ss[1].clone(),
-            sc: ss[2].clone(),
+            sida,
+            sidb,
+            sidc,
+            sa,
+            sb,
+            sc,
         };
         let w = CircuitPrivate {
             a: gc[Slots::A as usize].clone(),

@@ -15,7 +15,7 @@ mod tests {
         let output_wires = &vec![3 * (x * x) + (y * 5) - 47];
         println!("{}", Arithmetizer::to_string(&input_values, output_wires));
         let ((x, w), e) =
-            &Arithmetizer::to_circuit(rng, 1 << 15, input_values, output_wires).unwrap();
+            &Arithmetizer::to_circuit(rng, 2usize.pow(7) - 1, input_values, output_wires).unwrap();
         println!("{}", e);
         assert_eq!(e.clone(), (x, w).into());
         print_poly_evaluations(x, w);
@@ -32,7 +32,7 @@ mod tests {
         let output_wires = &vec![3 * (x * x) + (y * 5) - 47];
         println!("{}", Arithmetizer::to_string(&input_values, output_wires));
         let ((x, w), e) =
-            &Arithmetizer::to_circuit(rng, 1 << 15, input_values, output_wires).unwrap();
+            &Arithmetizer::to_circuit(rng, 2usize.pow(7) - 1, input_values, output_wires).unwrap();
         println!("{}", e);
         assert_eq!(e.clone(), (x, w).into());
         print_poly_evaluations(x, w);
