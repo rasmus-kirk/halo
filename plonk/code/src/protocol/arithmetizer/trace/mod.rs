@@ -543,7 +543,7 @@ mod tests {
         ];
         assert!(
             eval == (
-                1 << 10,
+                (1 << 10) - 1,
                 expected_constraints.clone(),
                 expected_permutation.clone(),
                 TableRegistry::new(),
@@ -557,7 +557,7 @@ mod tests {
         assert!(
             eval2
                 == (
-                    1 << 10,
+                    (1 << 10) - 1,
                     expected_constraints,
                     expected_permutation,
                     TableRegistry::new()

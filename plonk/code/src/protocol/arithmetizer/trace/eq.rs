@@ -41,7 +41,9 @@ impl Trace {
 impl PartialEq for Trace {
     fn eq(&self, other: &Self) -> bool {
         let enforced_map = &mut BiMap::new();
-        self.eq_constraints(other, enforced_map) && self.eq_permutation(other, enforced_map)
+        self.eq_constraints(other, enforced_map)
+            && self.eq_permutation(other, enforced_map)
+            && self.d == other.d
     }
 }
 
