@@ -42,6 +42,14 @@
 
       devShells = forAllSystems ({ pkgs } : {
         default = pkgs.mkShell {
+          shellHook = ''
+              echo "Hello shell"
+              # 8192 * 4
+              ulimit -s 32768
+
+              RUST_BACKTRACE=1
+              RUST_LOG=trace
+            '';
           buildInputs = [
             # rustfmt must be kept above rustToolchain in this list!
             pkgs.rust-bin.nightly."${rustFmtVersion}".rustfmt
