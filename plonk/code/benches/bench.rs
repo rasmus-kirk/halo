@@ -10,7 +10,7 @@ use log::trace;
 use plonk::protocol::{arithmetizer::Arithmetizer, plonk as plonker};
 
 const WARMUP: Duration = Duration::from_millis(100);
-const MIN: usize = 5;
+const MIN: usize = 19;
 const MAX: usize = 20;
 
 pub fn plonk_proof_verify(c: &mut Criterion) {
