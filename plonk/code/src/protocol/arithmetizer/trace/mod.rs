@@ -96,7 +96,7 @@ impl Trace {
         arith_wire: ArithWire,
     ) -> Result<Option<(Constraints, Value)>, TraceError> {
         match arith_wire {
-            ArithWire::Input(id) => return Err(TraceError::InputNotSet(id)),
+            ArithWire::Input(id) => Err(TraceError::InputNotSet(id)),
             ArithWire::Constant(scalar) => {
                 let id = wires
                     .lookup_const_id(scalar)
@@ -126,16 +126,16 @@ impl Trace {
                 let out_val = match arith_wire {
                     ArithWire::AddGate(_, _) => lhs_val + rhs_val,
                     ArithWire::MulGate(_, _) => lhs_val * rhs_val,
-                    ArithWire::Lookup(op, _, _) => self.lookup_value(op, &lhs_val, &rhs_val)?,
+                    ArithWire::Lookup(op, _, _) => self.lookup_value(op, lhs_val, rhs_val)?,
                     _ => unreachable!(),
                 }
                 .set_id(wire)
                 .set_bit_type(wires);
                 let constraint = match arith_wire {
-                    ArithWire::AddGate(_, _) => Constraints::add(&lhs_val, &rhs_val, &out_val),
-                    ArithWire::MulGate(_, _) => Constraints::mul(&lhs_val, &rhs_val, &out_val),
+                    ArithWire::AddGate(_, _) => Constraints::add(lhs_val, rhs_val, &out_val),
+                    ArithWire::MulGate(_, _) => Constraints::mul(lhs_val, rhs_val, &out_val),
                     ArithWire::Lookup(op, _, _) => {
-                        Constraints::lookup(op, &lhs_val, &rhs_val, &out_val)
+                        Constraints::lookup(op, lhs_val, rhs_val, &out_val)
                     }
                     _ => unreachable!(),
                 };
@@ -157,7 +157,7 @@ impl Trace {
             if let Some((constraint, value)) =
                 self.eval_helper(&mut stack, wires, wire, arith_wire)?
             {
-                self.constraints.push(constraint.clone());
+                self.constraints.push(constraint);
                 if !constraint.is_satisfied() {
                     return Err(TraceError::constraint_not_satisfied(&constraint));
                 }
@@ -327,29 +327,21 @@ impl
 
 impl From<Trace> for Circuit {
     fn from(eval: Trace) -> Self {
-        assert!((eval.d+1).is_power_of_two());
-
-        let gc = eval.gate_polys();
+        let mut gc = eval.gate_polys();
         let mut ss = eval.copy_constraints();
 
         let d = eval.d;
-        let ql = gc[Slots::COUNT + Selectors::Ql as usize].clone();
-        let qr = gc[Slots::COUNT + Selectors::Qr as usize].clone();
-        let qo = gc[Slots::COUNT + Selectors::Qo as usize].clone();
-        let qm = gc[Slots::COUNT + Selectors::Qm as usize].clone();
-        let qc = gc[Slots::COUNT + Selectors::Qc as usize].clone();
-        let pl_qk = gc[Slots::COUNT + Selectors::Qk as usize].clone();
-        let pl_j = gc[Slots::COUNT + Selectors::J as usize].clone();
-
-        assert!(ql.degree() as usize <= d);
-        assert!(qr.degree() as usize <= d);
-        assert!(qo.degree() as usize <= d);
-        assert!(qm.degree() as usize <= d);
-        assert!(qc.degree() as usize <= d);
-        assert!(pl_qk.degree() as usize <= d);
-        assert!(pl_j.degree() as usize <= d);
-
-        // Avoid cloning
+        let pip = gc.remove(Slots::COUNT + Selectors::COUNT);
+        let pl_j = gc.remove(Slots::COUNT + Selectors::J as usize);
+        let pl_qk = gc.remove(Slots::COUNT + Selectors::Qk as usize);
+        let qc = gc.remove(Slots::COUNT + Selectors::Qc as usize);
+        let qm = gc.remove(Slots::COUNT + Selectors::Qm as usize);
+        let qo = gc.remove(Slots::COUNT + Selectors::Qo as usize);
+        let qr = gc.remove(Slots::COUNT + Selectors::Qr as usize);
+        let ql = gc.remove(Slots::COUNT + Selectors::Ql as usize);
+        let c = gc.remove(Slots::C as usize);
+        let b = gc.remove(Slots::B as usize);
+        let a = gc.remove(Slots::A as usize);
         let sidc = ss.remove(5);
         let sidb = ss.remove(4);
         let sida = ss.remove(3);
@@ -384,7 +376,7 @@ impl From<Trace> for Circuit {
             qc,
             pl_qk,
             pl_j,
-            pip: gc[Slots::COUNT + Selectors::COUNT].clone(),
+            pip,
             sida,
             sidb,
             sidc,
@@ -393,9 +385,9 @@ impl From<Trace> for Circuit {
             sc,
         };
         let w = CircuitPrivate {
-            a: gc[Slots::A as usize].clone(),
-            b: gc[Slots::B as usize].clone(),
-            c: gc[Slots::C as usize].clone(),
+            a,
+            b,
+            c,
             plonkup: PlonkupVecCompute::new(eval.h, eval.constraints, eval.table),
         };
         (x, w)
@@ -436,7 +428,7 @@ impl From<Circuit> for Trace {
         let mut expected_permutation: [Vec<Pos>; Slots::COUNT] = [vec![], vec![], vec![]];
         for i in 1..m {
             let wi = &h.w(i);
-            let p = vec![&x.sa, &x.sb, &x.sc];
+            let p = [&x.sa, &x.sb, &x.sc];
             for slot in Slots::iter() {
                 let y = p[slot as usize].evaluate(wi);
                 if let Some(pos) = Pos::from_scalar(y, h) {
@@ -474,7 +466,13 @@ mod tests {
         let circuit = output_wires[0].arith().borrow();
         let input_scalars = input_values.iter().map(|&v| v.into()).collect();
         let output_ids = output_wires.iter().map(Wire::id).collect();
-        let eval_res = Trace::new(rng, (1 << 10) - 1, &circuit.wires, input_scalars, output_ids);
+        let eval_res = Trace::new(
+            rng,
+            (1 << 10) - 1,
+            &circuit.wires,
+            input_scalars,
+            output_ids,
+        );
         assert!(eval_res.is_ok());
         // construct evaluator
 

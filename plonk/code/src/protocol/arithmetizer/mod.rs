@@ -153,7 +153,7 @@ impl Arithmetizer {
         self.wires.len()
     }
 
-    pub fn to_string<T: std::fmt::Display>(input_values: &[T], output_wires: &Vec<Wire>) -> String {
+    pub fn to_string<T: std::fmt::Display>(input_values: &[T], output_wires: &[Wire]) -> String {
         let mut result = String::new();
         result.push_str("Arithmetizer {\n");
         input_values
