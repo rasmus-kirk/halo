@@ -13,9 +13,8 @@ impl Add for Wire {
     type Output = Wire;
 
     fn add(self, other: Wire) -> Self::Output {
-        let mut circuit = self.arith.borrow_mut();
         Wire {
-            id: circuit.add(self.id, other.id),
+            id: self.arith.borrow_mut().add(self.id, other.id),
             arith: Rc::clone(&self.arith),
             ast: self.ast + other.ast,
         }
@@ -52,9 +51,8 @@ impl Sub for Wire {
     type Output = Wire;
 
     fn sub(self, other: Wire) -> Self::Output {
-        let mut circuit = self.arith.borrow_mut();
         Wire {
-            id: circuit.sub(self.id, other.id),
+            id: self.arith.borrow_mut().sub(self.id, other.id),
             arith: Rc::clone(&self.arith),
             ast: self.sub_ast(&other),
         }
@@ -91,9 +89,8 @@ impl Mul for Wire {
     type Output = Wire;
 
     fn mul(self, other: Wire) -> Self::Output {
-        let mut circuit = self.arith.borrow_mut();
         Wire {
-            id: circuit.mul(self.id, other.id),
+            id: self.arith.borrow_mut().mul(self.id, other.id),
             arith: Rc::clone(&self.arith),
             ast: self.ast * other.ast,
         }
@@ -130,9 +127,8 @@ impl Not for Wire {
     type Output = Wire;
 
     fn not(self) -> Self::Output {
-        let mut circuit = self.arith.borrow_mut();
         Wire {
-            id: circuit.not(self.id),
+            id: self.arith.borrow_mut().not(self.id),
             arith: Rc::clone(&self.arith),
             ast: self.not_ast(),
         }
@@ -153,9 +149,8 @@ impl BitAnd for Wire {
     type Output = Wire;
 
     fn bitand(self, other: Wire) -> Self::Output {
-        let mut circuit = self.arith.borrow_mut();
         Wire {
-            id: circuit.and(self.id, other.id),
+            id: self.arith.borrow_mut().and(self.id, other.id),
             arith: Rc::clone(&self.arith),
             ast: self.and_ast(&other),
         }
@@ -192,9 +187,8 @@ impl BitOr for Wire {
     type Output = Wire;
 
     fn bitor(self, other: Wire) -> Self::Output {
-        let mut circuit = self.arith.borrow_mut();
         Wire {
-            id: circuit.lookup(PlonkupOps::Or, self.id, other.id),
+            id: self.arith.borrow_mut().lookup(PlonkupOps::Or, self.id, other.id),
             arith: Rc::clone(&self.arith),
             ast: self.lookup_ast(PlonkupOps::Or, &other),
         }
@@ -231,9 +225,8 @@ impl BitXor for Wire {
     type Output = Wire;
 
     fn bitxor(self, other: Self) -> Self::Output {
-        let mut circuit = self.arith.borrow_mut();
         Wire {
-            id: circuit.lookup(PlonkupOps::Xor, self.id, other.id),
+            id: self.arith.borrow_mut().lookup(PlonkupOps::Xor, self.id, other.id),
             arith: Rc::clone(&self.arith),
             ast: self.lookup_ast(PlonkupOps::Xor, &other),
         }
