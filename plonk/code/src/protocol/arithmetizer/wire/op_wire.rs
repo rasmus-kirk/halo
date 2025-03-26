@@ -4,7 +4,7 @@ use super::Wire;
 
 use std::{
     ops::{Add, BitAnd, BitOr, BitXor, Mul, Not, Sub},
-    rc::Rc
+    rc::Rc,
 };
 
 // Add -----------------------------------------------------
@@ -188,7 +188,10 @@ impl BitOr for Wire {
 
     fn bitor(self, other: Wire) -> Self::Output {
         Wire {
-            id: self.arith.borrow_mut().lookup(PlonkupOps::Or, self.id, other.id),
+            id: self
+                .arith
+                .borrow_mut()
+                .lookup(PlonkupOps::Or, self.id, other.id),
             arith: Rc::clone(&self.arith),
             ast: self.lookup_ast(PlonkupOps::Or, &other),
         }
@@ -226,7 +229,10 @@ impl BitXor for Wire {
 
     fn bitxor(self, other: Self) -> Self::Output {
         Wire {
-            id: self.arith.borrow_mut().lookup(PlonkupOps::Xor, self.id, other.id),
+            id: self
+                .arith
+                .borrow_mut()
+                .lookup(PlonkupOps::Xor, self.id, other.id),
             arith: Rc::clone(&self.arith),
             ast: self.lookup_ast(PlonkupOps::Xor, &other),
         }

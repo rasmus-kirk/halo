@@ -1,7 +1,10 @@
 use super::{Wire, WireID};
 use crate::{curve::Scalar, protocol::arithmetizer::plonkup::PlonkupOps, util::map_to_alphabet};
 
-use std::{fmt, ops::{Add, Mul}};
+use std::{
+    fmt,
+    ops::{Add, Mul},
+};
 
 /// An abstract syntax tree representing a wire.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -73,11 +76,17 @@ impl Wire {
     }
 
     pub fn add_ast_const(&self, other: Scalar) -> WireAST {
-        WireAST::Add(Box::new(self.ast.clone()), Box::new(WireAST::Constant(other)))
+        WireAST::Add(
+            Box::new(self.ast.clone()),
+            Box::new(WireAST::Constant(other)),
+        )
     }
 
     pub fn sub_ast_const(&self, other: Scalar) -> WireAST {
-        WireAST::Add(Box::new(self.ast.clone()), Box::new(WireAST::Constant(-other)))
+        WireAST::Add(
+            Box::new(self.ast.clone()),
+            Box::new(WireAST::Constant(-other)),
+        )
     }
 
     pub fn mul_ast(&self, other: &Wire) -> WireAST {
@@ -85,7 +94,10 @@ impl Wire {
     }
 
     pub fn mul_ast_const(&self, other: Scalar) -> WireAST {
-        WireAST::Mul(Box::new(self.ast.clone()), Box::new(WireAST::Constant(other)))
+        WireAST::Mul(
+            Box::new(self.ast.clone()),
+            Box::new(WireAST::Constant(other)),
+        )
     }
 
     pub fn lookup_ast(&self, op: PlonkupOps, other: &Wire) -> WireAST {

@@ -17,7 +17,6 @@ use crate::{
 };
 use ark_ff::Zero;
 
-
 #[derive(Clone)]
 pub struct ProofEvaluations {
     a: PallasScalar,
@@ -415,8 +414,7 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
     // + v.pow(15) * pl_h1
     // + v.pow(16) * pl_h2
     // + v.pow(17) * pl_t;
-    let (_, _, _, _, W_pi) =
-        HaloInstance::open(rng, W, d as usize, &ch, None).into_tuple();
+    let (_, _, _, _, W_pi) = HaloInstance::open(rng, W, d as usize, &ch, None).into_tuple();
 
     //let W_bar: Poly = z_bar + v.pow(1) * pl_h1_bar + v.pow(2) * pl_t_bar;
     let W_bar = z.clone();

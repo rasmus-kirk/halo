@@ -5,7 +5,6 @@ mod errors;
 mod pos;
 mod value;
 
-use log::trace;
 use super::{
     arith_wire::ArithWire,
     cache::ArithWireCache,
@@ -22,6 +21,7 @@ use crate::{
 pub use constraints::Constraints;
 pub use errors::TraceError;
 use halo_accumulation::pcdl;
+use log::trace;
 pub use pos::Pos;
 use value::Value;
 
