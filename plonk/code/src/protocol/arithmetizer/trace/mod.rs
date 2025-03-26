@@ -5,7 +5,6 @@ mod errors;
 mod pos;
 mod value;
 
-use log::trace;
 use super::{
     arith_wire::ArithWire,
     cache::ArithWireCache,
@@ -22,6 +21,7 @@ use crate::{
 pub use constraints::Constraints;
 pub use errors::TraceError;
 use halo_accumulation::pcdl;
+use log::trace;
 pub use pos::Pos;
 use value::Value;
 
@@ -87,78 +87,94 @@ impl Trace {
         Ok(eval)
     }
 
-    /// Compute the values and constraints for the wire and all its dependencies.
-    fn eval(&mut self, wires: &ArithWireCache, wire: WireID) -> Result<Value, TraceError> {
-        let mut res: Option<Value> = None;
-        let mut stack = vec![wire];
-        while stack.len() > 0 {
-            let wire = stack.last().unwrap().clone();
-            let arith_wire = match wires.to_arith(wire) {
-                Some(wire) => Ok(wire),
-                None => Err(TraceError::WireNotInCache(wire)),
-            }?;
-            // println!("Eval: {:?} {:?}", wire, arith_wire);
-            let (constraint, value) = match arith_wire {
-                ArithWire::Input(id) => return Err(TraceError::InputNotSet(id)),
-                ArithWire::Constant(scalar) => match wires.lookup_const_id(scalar) {
-                    Some(id) => {
-                        let val = Value::new_wire(id, scalar);
-                        (Constraints::constant(&val), val)
+    // Compute constraint and value for a wire, and update the stack used in eval.
+    fn eval_helper(
+        &self,
+        stack: &mut Vec<WireID>,
+        wires: &ArithWireCache,
+        wire: WireID,
+        arith_wire: ArithWire,
+    ) -> Result<Option<(Constraints, Value)>, TraceError> {
+        match arith_wire {
+            ArithWire::Input(id) => return Err(TraceError::InputNotSet(id)),
+            ArithWire::Constant(scalar) => {
+                let id = wires
+                    .lookup_const_id(scalar)
+                    .ok_or(TraceError::ConstNotInCache(scalar))?;
+                let val = Value::new_wire(id, scalar);
+                Ok(Some((Constraints::constant(&val), val)))
+            }
+            ArithWire::AddGate(lhs, rhs)
+            | ArithWire::MulGate(lhs, rhs)
+            | ArithWire::Lookup(_, lhs, rhs) => {
+                let lhs_val = match self.evals.get(&lhs) {
+                    Some(val) => val,
+                    None => {
+                        stack.push(wire);
+                        stack.push(lhs);
+                        return Ok(None);
                     }
-                    None => return Err(TraceError::ConstNotInCache(scalar)),
-                },
-                ArithWire::AddGate(lhs_, rhs_)
-                | ArithWire::MulGate(lhs_, rhs_)
-                | ArithWire::Lookup(_, lhs_, rhs_) => {
-                    let lhs = match self.evals.get(&lhs_) {
-                        Some(val) => val,
-                        None => {
-                            stack.push(lhs_);
-                            continue;
-                        }
-                    };
-                    let rhs = match self.evals.get(&rhs_) {
-                        Some(val) => val,
-                        None => {
-                            stack.push(rhs_);
-                            continue;
-                        }
-                    };
-                    let out_ = match arith_wire {
-                        ArithWire::AddGate(_, _) => lhs + rhs,
-                        ArithWire::MulGate(_, _) => lhs * rhs,
-                        ArithWire::Lookup(op, _, _) => self.lookup_value(op, lhs, rhs)?,
-                        _ => unreachable!(),
-                    };
-                    let out = out_.set_id(wire).set_bit_type(wires);
-                    match arith_wire {
-                        ArithWire::AddGate(_, _) => (Constraints::add(lhs, rhs, &out), out),
-                        ArithWire::MulGate(_, _) => (Constraints::mul(lhs, rhs, &out), out),
-                        ArithWire::Lookup(op, _, _) => {
-                            (Constraints::lookup(op, lhs, rhs, &out), out)
-                        }
-                        _ => unreachable!(),
+                };
+                let rhs_val = match self.evals.get(&rhs) {
+                    Some(val) => val,
+                    None => {
+                        stack.push(wire);
+                        stack.push(rhs);
+                        return Ok(None);
                     }
+                };
+                let out_val = match arith_wire {
+                    ArithWire::AddGate(_, _) => lhs_val + rhs_val,
+                    ArithWire::MulGate(_, _) => lhs_val * rhs_val,
+                    ArithWire::Lookup(op, _, _) => self.lookup_value(op, &lhs_val, &rhs_val)?,
+                    _ => unreachable!(),
                 }
-            };
-            self.constraints.push(constraint);
-            if !constraint.is_satisfied() {
-                return Err(TraceError::constraint_not_satisfied(&constraint));
+                .set_id(wire)
+                .set_bit_type(wires);
+                let constraint = match arith_wire {
+                    ArithWire::AddGate(_, _) => Constraints::add(&lhs_val, &rhs_val, &out_val),
+                    ArithWire::MulGate(_, _) => Constraints::mul(&lhs_val, &rhs_val, &out_val),
+                    ArithWire::Lookup(op, _, _) => {
+                        Constraints::lookup(op, &lhs_val, &rhs_val, &out_val)
+                    }
+                    _ => unreachable!(),
+                };
+                Ok(Some((constraint, out_val)))
             }
-            self.bool_constraint(wires, wire, value)?;
-            self.public_constraint(wires, wire, value)?;
-            self.evals.insert(wire, value);
-            stack.pop();
-            if stack.len() == 0 {
-                res = Some(value);
-            }
-        }
-        match res {
-            Some(val) => Ok(val),
-            None => Err(TraceError::WireNotInCache(wire)),
         }
     }
 
+    /// Compute the values and constraints for the wire and all its dependencies.
+    fn eval(&mut self, wires: &ArithWireCache, wire: WireID) -> Result<Value, TraceError> {
+        let mut stack = vec![wire];
+        while let Some(wire) = stack.pop() {
+            if self.evals.contains_key(&wire) {
+                continue;
+            }
+            let arith_wire = wires
+                .to_arith(wire)
+                .ok_or(TraceError::WireNotInCache(wire))?;
+            if let Some((constraint, value)) =
+                self.eval_helper(&mut stack, wires, wire, arith_wire)?
+            {
+                self.constraints.push(constraint.clone());
+                if !constraint.is_satisfied() {
+                    return Err(TraceError::constraint_not_satisfied(&constraint));
+                }
+                self.bool_constraint(wires, wire, value)?;
+                self.public_constraint(wires, wire, value)?;
+                self.evals.insert(wire, value);
+            } else {
+                continue;
+            }
+        }
+        self.evals
+            .get(&wire)
+            .cloned()
+            .ok_or(TraceError::WireNotInCache(wire))
+    }
+
+    /// Check and construct if the wire has a boolean constraint.
     fn bool_constraint(
         &mut self,
         wires: &ArithWireCache,
@@ -175,6 +191,7 @@ impl Trace {
         Ok(())
     }
 
+    /// Check and construct if the wire has a public input constraint.
     fn public_constraint(
         &mut self,
         wires: &ArithWireCache,
@@ -191,6 +208,7 @@ impl Trace {
         Ok(())
     }
 
+    /// Look up the output value of the gate in the table.
     pub fn lookup_value(&self, op: PlonkupOps, a: &Value, b: &Value) -> Result<Value, TraceError> {
         let a = a.into();
         let b = b.into();

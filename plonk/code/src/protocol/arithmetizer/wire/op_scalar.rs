@@ -16,7 +16,7 @@ impl Add<Scalar> for Wire {
         Wire {
             id: circuit.add_const(self.id, other),
             arith: Rc::clone(&self.arith),
-            ast: self.add_ast_const(other),
+            ast: self.ast + other,
         }
     }
 }
@@ -216,7 +216,7 @@ impl Mul<Scalar> for Wire {
         Wire {
             id: circuit.mul_const(self.id, other),
             arith: Rc::clone(&self.arith),
-            ast: self.mul_ast_const(other),
+            ast: self.ast * other,
         }
     }
 }
