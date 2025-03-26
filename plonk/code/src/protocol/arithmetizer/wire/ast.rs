@@ -1,7 +1,7 @@
 use super::{Wire, WireID};
 use crate::{curve::Scalar, protocol::arithmetizer::plonkup::PlonkupOps, util::map_to_alphabet};
 
-use std::fmt;
+use std::{fmt, ops::{Add, Mul}};
 
 /// An abstract syntax tree representing a wire.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -25,9 +25,43 @@ impl fmt::Display for WireAST {
     }
 }
 
+impl Mul for WireAST {
+    type Output = WireAST;
+
+    fn mul(self, other: WireAST) -> Self::Output {
+        WireAST::Mul(Box::new(self), Box::new(other))
+    }
+}
+
+impl Mul<Scalar> for WireAST {
+    type Output = WireAST;
+
+    fn mul(self, other: Scalar) -> Self::Output {
+        WireAST::Mul(Box::new(self), Box::new(WireAST::Constant(other)))
+    }
+}
+
+impl Add for WireAST {
+    type Output = WireAST;
+
+    fn add(self, other: WireAST) -> Self::Output {
+        WireAST::Add(Box::new(self), Box::new(other))
+    }
+}
+
+impl Add<Scalar> for WireAST {
+    type Output = WireAST;
+
+    fn add(self, other: Scalar) -> Self::Output {
+        WireAST::Add(Box::new(self), Box::new(WireAST::Constant(other)))
+    }
+}
+
+// TODO: These clones are bad, and these functions are traps, that will suck up time
+// The above are okay, since they don't clone.
 impl Wire {
     pub fn add_ast(&self, other: &Wire) -> WireAST {
-        WireAST::Add(Box::new(self.ast()), Box::new(other.ast()))
+        WireAST::Add(Box::new(self.ast.clone()), Box::new(other.ast.clone()))
     }
 
     pub fn neg_ast(&self) -> WireAST {
@@ -35,27 +69,27 @@ impl Wire {
     }
 
     pub fn sub_ast(&self, other: &Wire) -> WireAST {
-        WireAST::Add(Box::new(self.ast()), Box::new(other.neg_ast()))
+        WireAST::Add(Box::new(self.ast.clone()), Box::new(other.neg_ast()))
     }
 
     pub fn add_ast_const(&self, other: Scalar) -> WireAST {
-        WireAST::Add(Box::new(self.ast()), Box::new(WireAST::Constant(other)))
+        WireAST::Add(Box::new(self.ast.clone()), Box::new(WireAST::Constant(other)))
     }
 
     pub fn sub_ast_const(&self, other: Scalar) -> WireAST {
-        WireAST::Add(Box::new(self.ast()), Box::new(WireAST::Constant(-other)))
+        WireAST::Add(Box::new(self.ast.clone()), Box::new(WireAST::Constant(-other)))
     }
 
     pub fn mul_ast(&self, other: &Wire) -> WireAST {
-        WireAST::Mul(Box::new(self.ast()), Box::new(other.ast()))
+        WireAST::Mul(Box::new(self.ast.clone()), Box::new(other.ast.clone()))
     }
 
     pub fn mul_ast_const(&self, other: Scalar) -> WireAST {
-        WireAST::Mul(Box::new(self.ast()), Box::new(WireAST::Constant(other)))
+        WireAST::Mul(Box::new(self.ast.clone()), Box::new(WireAST::Constant(other)))
     }
 
     pub fn lookup_ast(&self, op: PlonkupOps, other: &Wire) -> WireAST {
-        WireAST::Lookup(op, Box::new(self.ast()), Box::new(other.ast()))
+        WireAST::Lookup(op, Box::new(self.ast.clone()), Box::new(other.ast.clone()))
     }
 
     pub fn not_ast_(ast: WireAST) -> WireAST {
@@ -69,7 +103,7 @@ impl Wire {
     }
 
     pub fn not_ast(&self) -> WireAST {
-        Wire::not_ast_(self.ast())
+        Wire::not_ast_(self.ast.clone())
     }
 
     pub fn and_ast(&self, other: &Wire) -> WireAST {

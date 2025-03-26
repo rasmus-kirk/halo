@@ -43,11 +43,6 @@ impl Wire {
         &self.arith
     }
 
-    /// Returns the AST of the wire.
-    pub fn ast(&self) -> WireAST {
-        self.ast.clone()
-    }
-
     // operations ----------------------------------------------------------
 
     /// Requires that the wire is a bit
@@ -85,7 +80,7 @@ mod tests {
         let [wire_, _] = &Arithmetizer::build::<2>();
         let arithmetizer = wire_.arith().clone();
         let wire = Wire::new_input(0, arithmetizer);
-        assert_eq!(wire.id(), 0);
+        assert_eq!(wire.id, 0);
         assert_eq!(format!("{}", wire), map_to_alphabet(0));
     }
 
@@ -93,9 +88,9 @@ mod tests {
     fn add() {
         let [a, b] = &Arithmetizer::build::<2>();
         let c = a + b;
-        assert_eq!(a.id(), 0);
-        assert_eq!(b.id(), 1);
-        assert_eq!(c.id(), 2);
+        assert_eq!(a.id, 0);
+        assert_eq!(b.id, 1);
+        assert_eq!(c.id, 2);
         assert_eq!(format!("{}", a), map_to_alphabet(0));
         assert_eq!(format!("{}", b), map_to_alphabet(1));
         assert_eq!(
@@ -108,9 +103,9 @@ mod tests {
     fn sub() {
         let [a, b] = &Arithmetizer::build::<2>();
         let c = a - b;
-        assert_eq!(a.id(), 0);
-        assert_eq!(b.id(), 1);
-        assert_eq!(c.id(), 4);
+        assert_eq!(a.id, 0);
+        assert_eq!(b.id, 1);
+        assert_eq!(c.id, 4);
         assert_eq!(format!("{}", a), map_to_alphabet(0));
         assert_eq!(format!("{}", b), map_to_alphabet(1));
         assert_eq!(
@@ -123,9 +118,9 @@ mod tests {
     fn mul() {
         let [a, b] = &Arithmetizer::build::<2>();
         let c = a * b;
-        assert_eq!(a.id(), 0);
-        assert_eq!(b.id(), 1);
-        assert_eq!(c.id(), 2);
+        assert_eq!(a.id, 0);
+        assert_eq!(b.id, 1);
+        assert_eq!(c.id, 2);
         assert_eq!(format!("{}", a), map_to_alphabet(0));
         assert_eq!(format!("{}", b), map_to_alphabet(1));
         assert_eq!(
@@ -138,8 +133,8 @@ mod tests {
     fn add_const() {
         let [a] = &Arithmetizer::build::<1>();
         let b: Wire = a + 1;
-        assert_eq!(a.id(), 0);
-        assert_eq!(b.id(), 2);
+        assert_eq!(a.id, 0);
+        assert_eq!(b.id, 2);
         assert_eq!(format!("{}", a), map_to_alphabet(0));
         assert_eq!(format!("{}", b), format!("(+ {} 1)", map_to_alphabet(0)));
     }
@@ -148,8 +143,8 @@ mod tests {
     fn sub_const() {
         let [a] = &Arithmetizer::build::<1>();
         let b: Wire = a - 1;
-        assert_eq!(a.id(), 0);
-        assert_eq!(b.id(), 2);
+        assert_eq!(a.id, 0);
+        assert_eq!(b.id, 2);
         assert_eq!(format!("{}", a), map_to_alphabet(0));
         assert_eq!(format!("{}", b), format!("(+ {} -1)", map_to_alphabet(0)));
     }
@@ -158,8 +153,8 @@ mod tests {
     fn mul_const() {
         let [a] = &Arithmetizer::build::<1>();
         let b: Wire = a * 1;
-        assert_eq!(a.id(), 0);
-        assert_eq!(b.id(), 2);
+        assert_eq!(a.id, 0);
+        assert_eq!(b.id, 2);
         assert_eq!(format!("{}", a), map_to_alphabet(0));
         assert_eq!(format!("{}", b), format!("(* {} 1)", map_to_alphabet(0)));
     }

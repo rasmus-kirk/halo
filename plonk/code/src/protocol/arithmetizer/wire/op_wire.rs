@@ -4,7 +4,7 @@ use super::Wire;
 
 use std::{
     ops::{Add, BitAnd, BitOr, BitXor, Mul, Not, Sub},
-    rc::Rc,
+    rc::Rc
 };
 
 // Add -----------------------------------------------------
@@ -17,7 +17,7 @@ impl Add for Wire {
         Wire {
             id: circuit.add(self.id, other.id),
             arith: Rc::clone(&self.arith),
-            ast: self.add_ast(&other),
+            ast: self.ast + other.ast,
         }
     }
 }
@@ -95,7 +95,7 @@ impl Mul for Wire {
         Wire {
             id: circuit.mul(self.id, other.id),
             arith: Rc::clone(&self.arith),
-            ast: self.mul_ast(&other),
+            ast: self.ast * other.ast,
         }
     }
 }
