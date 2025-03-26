@@ -474,7 +474,7 @@ mod tests {
         let circuit = output_wires[0].arith().borrow();
         let input_scalars = input_values.iter().map(|&v| v.into()).collect();
         let output_ids = output_wires.iter().map(Wire::id).collect();
-        let eval_res = Trace::new(rng, 1 << 10, &circuit.wires, input_scalars, output_ids);
+        let eval_res = Trace::new(rng, (1 << 10) - 1, &circuit.wires, input_scalars, output_ids);
         assert!(eval_res.is_ok());
         // construct evaluator
 
