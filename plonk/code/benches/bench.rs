@@ -32,7 +32,7 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
 
         trace!("A1");
         let start_time = Instant::now();
-        let output_wires = &Arithmetizer::synthesize::<_, 4>(rng, 2usize.pow(1));
+        let output_wires = &Arithmetizer::synthesize::<_, 4>(rng, 2usize.pow(size as u32));
         let rand_circuit_time = start_time.elapsed().as_secs_f32();
         trace!("lens: {:?}, {:?}", output_wires.len(), output_wires[0].id());
 

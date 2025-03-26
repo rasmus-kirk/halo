@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use log::trace;
 use rand::Rng;
 
@@ -15,14 +13,7 @@ impl Arithmetizer {
         let mut cur = vec![wires[rng.gen_range(0..N)].clone()];
         let mut cur0 = cur[0].clone();
 
-        let mut start_time = Instant::now();
         while cur0.arith().borrow().cache_len() < degree + N {
-            println!("{:?}", cur0.arith().borrow().cache_len());
-            if start_time.elapsed().as_secs() > 1 {
-                start_time = Instant::now();
-                trace!("[{:?}/{:?} ({:?}%)]: Remaining stack - {:?}", cur[0].arith().borrow().cache_len(), degree + N, (cur[0].arith().borrow().cache_len() as i128 * 100) / ((degree + N * 100) as i128), stacker::remaining_stack());
-            }
-
             let branch = rng.gen_range(0..8);
             cur0 = if branch < 4 {
                 let rng_input = wires[rng.gen_range(0..N)].clone();
