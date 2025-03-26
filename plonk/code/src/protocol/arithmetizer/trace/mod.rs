@@ -20,7 +20,7 @@ use crate::{
 };
 pub use constraints::Constraints;
 pub use errors::TraceError;
-use halo_accumulation::pcdl;
+use halo_accumulation::{group::PallasPoint, pcdl};
 use log::trace;
 pub use pos::Pos;
 use value::Value;
@@ -157,10 +157,10 @@ impl Trace {
             if let Some((constraint, value)) =
                 self.eval_helper(&mut stack, wires, wire, arith_wire)?
             {
-                self.constraints.push(constraint);
                 if !constraint.is_satisfied() {
                     return Err(TraceError::constraint_not_satisfied(&constraint));
                 }
+                self.constraints.push(constraint);
                 self.bool_constraint(wires, wire, value)?;
                 self.public_constraint(wires, wire, value)?;
                 self.evals.insert(wire, value);
@@ -252,17 +252,28 @@ impl Trace {
     }
 
     /// Compute the circuit polynomials.
-    fn gate_polys(&self) -> Vec<Poly> {
-        let mut points: Vec<Vec<Scalar>> = vec![vec![]; Terms::COUNT];
+    fn gate_polys(&self) -> (Vec<Poly>, Vec<Poly>) {
+        let mut points_slots: Vec<Vec<Scalar>> = vec![vec![]; Slots::COUNT];
+        let mut points_selectors: Vec<Vec<Scalar>> = vec![vec![]; Selectors::COUNT + 1];
         for eqn in self.constraints.iter() {
-            for term in Terms::iter() {
-                points[Into::<usize>::into(term)].push(eqn[term].into());
+            for slot in Slots::iter() {
+                points_slots[slot as usize].push(eqn[Terms::F(slot)].into());
             }
+            for selector in Selectors::iter() {
+                points_selectors[selector as usize].push(eqn[Terms::Q(selector)].into());
+            }
+            points_selectors[Selectors::COUNT].push(eqn[Terms::PublicInputs].into());
         }
-        points
-            .into_iter()
-            .map(|ps| self.h.interpolate_zf(ps))
-            .collect()
+        (
+            points_slots
+                .into_iter()
+                .map(|ps| self.h.interpolate_zf(ps))
+                .collect(),
+            points_selectors
+                .into_iter()
+                .map(|ps| self.h.interpolate_zf(ps))
+                .collect(),
+        )
     }
 
     /// Compute the permutation and identity permutation polynomials.
@@ -327,27 +338,17 @@ impl
 
 impl From<Trace> for Circuit {
     fn from(eval: Trace) -> Self {
-        let mut gc = eval.gate_polys();
+        let (mut gs, mut qs) = eval.gate_polys();
         let mut ss = eval.copy_constraints();
 
+        let mut qs_comms: Vec<PallasPoint> = qs
+            .iter()
+            .map(|q| pcdl::commit(&q.poly, eval.d, None))
+            .collect();
+        let mut ss_comms: Vec<PallasPoint> = (0..Slots::COUNT)
+            .map(|i| pcdl::commit(&ss[i].poly, eval.d, None))
+            .collect();
         let d = eval.d;
-        let pip = gc.remove(Slots::COUNT + Selectors::COUNT);
-        let pl_j = gc.remove(Slots::COUNT + Selectors::J as usize);
-        let pl_qk = gc.remove(Slots::COUNT + Selectors::Qk as usize);
-        let qc = gc.remove(Slots::COUNT + Selectors::Qc as usize);
-        let qm = gc.remove(Slots::COUNT + Selectors::Qm as usize);
-        let qo = gc.remove(Slots::COUNT + Selectors::Qo as usize);
-        let qr = gc.remove(Slots::COUNT + Selectors::Qr as usize);
-        let ql = gc.remove(Slots::COUNT + Selectors::Ql as usize);
-        let c = gc.remove(Slots::C as usize);
-        let b = gc.remove(Slots::B as usize);
-        let a = gc.remove(Slots::A as usize);
-        let sidc = ss.remove(5);
-        let sidb = ss.remove(4);
-        let sida = ss.remove(3);
-        let sc = ss.remove(2);
-        let sb = ss.remove(1);
-        let sa = ss.remove(0);
 
         assert!(sa.degree() as usize <= d);
         assert!(sb.degree() as usize <= d);
@@ -359,35 +360,36 @@ impl From<Trace> for Circuit {
         let x = CircuitPublic {
             d,
             h: eval.h.clone(),
-            qc_com: pcdl::commit(&qc.poly, d, None),
-            ql_com: pcdl::commit(&ql.poly, d, None),
-            qm_com: pcdl::commit(&qm.poly, d, None),
-            qo_com: pcdl::commit(&qo.poly, d, None),
-            qr_com: pcdl::commit(&qr.poly, d, None),
-            sa_com: pcdl::commit(&sa.poly, d, None),
-            sb_com: pcdl::commit(&sb.poly, d, None),
-            sc_com: pcdl::commit(&sc.poly, d, None),
-            pl_j_com: pcdl::commit(&pl_j.poly, d, None),
-            pl_qk_com: pcdl::commit(&pl_qk.poly, d, None),
-            ql,
-            qr,
-            qo,
-            qm,
-            qc,
-            pl_qk,
-            pl_j,
-            pip,
-            sida,
-            sidb,
-            sidc,
-            sa,
-            sb,
-            sc,
+            pip_com: qs_comms.pop().unwrap(),
+            pl_j_com: qs_comms.pop().unwrap(),
+            pl_qk_com: qs_comms.pop().unwrap(),
+            qc_com: qs_comms.pop().unwrap(),
+            qm_com: qs_comms.pop().unwrap(),
+            qo_com: qs_comms.pop().unwrap(),
+            qr_com: qs_comms.pop().unwrap(),
+            ql_com: qs_comms.pop().unwrap(),
+            sc_com: ss_comms.pop().unwrap(),
+            sb_com: ss_comms.pop().unwrap(),
+            sa_com: ss_comms.pop().unwrap(),
+            pip: qs.pop().unwrap(),
+            pl_j: qs.pop().unwrap(),
+            pl_qk: qs.pop().unwrap(),
+            qc: qs.pop().unwrap(),
+            qm: qs.pop().unwrap(),
+            qo: qs.pop().unwrap(),
+            qr: qs.pop().unwrap(),
+            ql: qs.pop().unwrap(),
+            sidc: ss.pop().unwrap(),
+            sidb: ss.pop().unwrap(),
+            sida: ss.pop().unwrap(),
+            sc: ss.pop().unwrap(),
+            sb: ss.pop().unwrap(),
+            sa: ss.pop().unwrap(),
         };
         let w = CircuitPrivate {
-            a,
-            b,
-            c,
+            c: gs.pop().unwrap(),
+            b: gs.pop().unwrap(),
+            a: gs.pop().unwrap(),
             plonkup: PlonkupVecCompute::new(eval.h, eval.constraints, eval.table),
         };
         (x, w)
