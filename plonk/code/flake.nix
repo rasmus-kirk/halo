@@ -51,6 +51,7 @@
               export RUST_LOG=trace
             '';
           buildInputs = [
+            pkgs.git
             # rustfmt must be kept above rustToolchain in this list!
             pkgs.rust-bin.nightly."${rustFmtVersion}".rustfmt
             pkgs.rustToolchain
