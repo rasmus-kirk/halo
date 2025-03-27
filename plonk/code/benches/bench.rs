@@ -67,7 +67,13 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
 
         println!(
             "| {:02} | {:>12.8} | {:>12.8} | {:>12.8} | {:>12.8} | {:>12.8} | {:>12.8} |",
-            size, rand_circuit_time, to_circuit_time, old_p_time, old_v_time, new_p_time, new_v_time
+            size,
+            rand_circuit_time,
+            to_circuit_time,
+            old_p_time,
+            old_v_time,
+            new_p_time,
+            new_v_time
         );
     }
     println!("|____|______________|______________|______________|______________|______________|");

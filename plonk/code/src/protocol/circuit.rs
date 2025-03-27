@@ -30,6 +30,7 @@ pub struct CircuitPublic {
     pub sb: Poly,
     pub sc: Poly,
 
+    pub pip_com: PallasPoint,
     pub qc_com: PallasPoint,
     pub ql_com: PallasPoint,
     pub qm_com: PallasPoint,

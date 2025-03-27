@@ -78,7 +78,7 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     // Round 2 -----------------------------------------------------
     // ζ = H(transcript)
     let zeta = &transcript.challenge_scalar(b"zeta");
-    let plp = &w.plonkup.compute(zeta);
+    let plp = w.plonkup.compute(zeta);
     let tpl = &plp[0];
     let fpl = &plp[1];
     let h1pl = &plp[2];
@@ -321,8 +321,8 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
     // Z(ω X)
     let z_bar = &x.h.poly_times_arg(z, &x.h.w(1));
     let z = &z.into();
-    let z_com = &pcdl::commit(&z, d, None);
-    transcript.append_point_new(b"z", &z_com);
+    let z_com = &pcdl::commit(z, d, None);
+    transcript.append_point_new(b"z", z_com);
 
     // -------------------- Round 4 --------------------
 
@@ -344,8 +344,7 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
     let f_z2 = &((z * zf) - (zg * z_bar));
     // T(X) = (F_GC(X) + α F_C1(X) + α² F_C2(X)) / Zₕ(X)
     let t = &((f_gc + deg0(alpha) * f_z1 + deg0(&alpha.pow([2])) * f_z2) / x_zh);
-    trace!("t1");
-    let t_com = pcdl::commit(&t, d, None);
+    let t_com = pcdl::commit(t, d, None);
     transcript.append_point_new(b"t", &t_com);
     trace!("t1");
 
@@ -380,20 +379,20 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
     let pl_t_bar_ev = pl_t_bar.evaluate(ch);
     //let pl_t_bar_ev = pl_h1.evaluate(ch_bar);
 
-    transcript.append_scalar_new(b"a_ev", &a_ev);
-    transcript.append_scalar_new(b"b_ev", &b_ev);
-    transcript.append_scalar_new(b"c_ev", &c_ev);
-    transcript.append_scalar_new(b"qc_ev", &qc_ev);
-    transcript.append_scalar_new(b"ql_ev", &ql_ev);
-    transcript.append_scalar_new(b"qm_ev", &qm_ev);
-    transcript.append_scalar_new(b"qo_ev", &qo_ev);
-    transcript.append_scalar_new(b"qr_ev", &qr_ev);
-    transcript.append_scalar_new(b"sa_ev", &sa_ev);
-    transcript.append_scalar_new(b"sb_ev", &sb_ev);
-    transcript.append_scalar_new(b"sc_ev", &sc_ev);
-    transcript.append_scalar_new(b"z_bar_ev", &z_bar_ev.into());
-    transcript.append_scalar_new(b"t_ev", &t_ev.into());
-    transcript.append_scalar_new(b"z_ev", &z_ev.into());
+    transcript.append_scalar_new(b"a_ev", a_ev);
+    transcript.append_scalar_new(b"b_ev", b_ev);
+    transcript.append_scalar_new(b"c_ev", c_ev);
+    transcript.append_scalar_new(b"qc_ev", qc_ev);
+    transcript.append_scalar_new(b"ql_ev", ql_ev);
+    transcript.append_scalar_new(b"qm_ev", qm_ev);
+    transcript.append_scalar_new(b"qo_ev", qo_ev);
+    transcript.append_scalar_new(b"qr_ev", qr_ev);
+    transcript.append_scalar_new(b"sa_ev", sa_ev);
+    transcript.append_scalar_new(b"sb_ev", sb_ev);
+    transcript.append_scalar_new(b"sc_ev", sc_ev);
+    transcript.append_scalar_new(b"z_bar_ev", &z_bar_ev);
+    transcript.append_scalar_new(b"t_ev", &t_ev);
+    transcript.append_scalar_new(b"z_ev", &z_ev);
 
     let v = &transcript.challenge_scalar_new(b"v");
 
@@ -416,14 +415,13 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
     // + v.pow(15) * pl_h1
     // + v.pow(16) * pl_h2
     // + v.pow(17) * pl_t;
-    let (_, _, _, _, W_pi) = HaloInstance::open(rng, W, d as usize, &ch, None).into_tuple();
+    let (_, _, _, _, W_pi) = HaloInstance::open(rng, W, d, ch, None).into_tuple();
 
     //let W_bar: Poly = z_bar + v.pow(1) * pl_h1_bar + v.pow(2) * pl_t_bar;
     let W_bar = z.clone();
-    let (_, _, _, _, W_bar_pi) =
-        HaloInstance::open(rng, W_bar, d as usize, &ch_bar, None).into_tuple();
+    let (_, _, _, _, W_bar_pi) = HaloInstance::open(rng, W_bar, d, ch_bar, None).into_tuple();
 
-    let pi = Proof {
+    Proof {
         ev: ProofEvaluations {
             a: *a_ev,
             b: *b_ev,
@@ -459,9 +457,7 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
             W: W_pi,
             W_bar: W_bar_pi,
         },
-    };
-
-    pi
+    }
 }
 
 pub fn verify_lu_with_w(x: &CircuitPublic, pi: Proof) -> Result<()> {
@@ -487,7 +483,7 @@ pub fn verify_lu_with_w(x: &CircuitPublic, pi: Proof) -> Result<()> {
     let delta = &transcript.challenge_scalar_new(b"delta");
     // ε = H(transcript, 4)
     let epsilon = &transcript.challenge_scalar_new(b"epsilon");
-    transcript.append_point_new(b"z", &pi.com.z.into());
+    transcript.append_point_new(b"z", &pi.com.z);
 
     // -------------------- Round 4 --------------------
 
