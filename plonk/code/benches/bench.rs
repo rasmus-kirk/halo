@@ -10,7 +10,7 @@ use log::trace;
 use plonk::protocol::{arithmetizer::Arithmetizer, plonk as plonker};
 
 const WARMUP: Duration = Duration::from_millis(100);
-const MIN: usize = 5;
+const MIN: usize = 20;
 const MAX: usize = 20;
 
 pub fn plonk_proof_verify(c: &mut Criterion) {
@@ -19,13 +19,14 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
     let mut group = c.benchmark_group("plonk_proof_verify");
     let rng = &mut test_rng();
 
-    let mut old_pis = Vec::new();
+    // let mut old_pis = Vec::new();
     let mut new_pis = Vec::new();
 
     let mut circuits = Vec::new();
     println!("|‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|");
     println!("| n  | gen_circ (s) | to_circ (s)  | old_P (s)    | old_V (s)    | new_P (s)    | new_V (s)    |");
     println!("|====|==============|==============|==============|==============|==============|==============|");
+    let mut lp = || {
     for size in MIN..MAX + 1 {
         let d = 2usize.pow(size as u32) - 1;
         let input_values = vec![3, 4, 5, 6];
@@ -45,13 +46,13 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
         circuits.push((size, x.clone(), w.clone()));
 
         let start_time = Instant::now();
-        let old_pi = plonker::proof(rng, &x, &w);
+        // let old_pi = plonker::proof(rng, &x, &w);
         let old_p_time = start_time.elapsed().as_secs_f32();
         trace!("B");
-        old_pis.push(old_pi.clone());
+        // old_pis.push(old_pi.clone());
 
         let start_time = Instant::now();
-        let _ = plonker::verify(&x, old_pi.clone());
+        // let _ = plonker::verify(&x, old_pi.clone());
         let old_v_time = start_time.elapsed().as_secs_f32();
         trace!("C");
 
@@ -76,8 +77,10 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
             new_v_time
         );
     }
+    };
+    // lp();
+    stacker::grow(2usize.pow(15), lp);
     println!("|____|______________|______________|______________|______________|______________|");
-
     // for (i, x, w) in &circuits {
     //     group.warm_up_time(WARMUP).bench_with_input(
     //         BenchmarkId::new("prover", i),

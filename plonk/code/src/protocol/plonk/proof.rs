@@ -7,13 +7,12 @@ use halo_accumulation::{
     group::{PallasPoint, PallasPoly, PallasScalar},
     pcdl::{self, EvalProof, Instance as HaloInstance},
 };
-use log::trace;
 use merlin::Transcript;
 use rand::Rng;
 
 use super::{instance::Instance, transcript::TranscriptProtocol, SNARKProof};
 use crate::{
-    curve::Scalar,
+    curve::{Poly, Scalar},
     protocol::circuit::{CircuitPrivate, CircuitPublic},
 };
 
@@ -251,8 +250,10 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
     let pl_f = &plp[1];
     let pl_h1 = &plp[2];
     let pl_h2 = &plp[3];
-    let pl_t_bar = &x.h.poly_times_arg(pl_t, &x.h.w(1)).poly;
-    let pl_h1_bar = &x.h.poly_times_arg(pl_h1, &x.h.w(1)).poly;
+    let pl_t_bar_old = &x.h.poly_times_arg(pl_t, &x.h.w(1));
+    let pl_t_bar = &pl_t_bar_old.poly;
+    let pl_h1_bar_old = &x.h.poly_times_arg(pl_h1, &x.h.w(1));
+    let pl_h1_bar = &pl_h1_bar_old.poly;
     let pl_t = &pl_t.poly;
     let pl_f = &pl_f.poly;
     let pl_h1 = &pl_h1.poly;
@@ -276,24 +277,32 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
 
     // plookup constraints: ε(1 + δ) + a(X) + δb(X)
     let zpl_sc = &(epsilon * (PallasScalar::ONE + delta));
-    let zpl_ev = |a: &PallasPoly, b: &PallasPoly, i| {
-        *zpl_sc + a.evaluate(&x.h.w(i).into()) + delta * b.evaluate(&x.h.w(i).into())
+    // let zpl_ev = |a: &PallasPoly, b: &PallasPoly, i| {
+    //     *zpl_sc + a.evaluate(&x.h.w(i).into()) + delta * b.evaluate(&x.h.w(i).into())
+    // };
+    let zpl_ev = |a: &Poly, b: &Poly, i| {
+        *zpl_sc + x.h.evaluate(a, i) + delta * x.h.evaluate(b, i)
     };
     let zpl = |a: &PallasPoly, b: &PallasPoly| deg0(zpl_sc) + a + deg0(&delta) * b;
 
     // copy constraints: w(X) + β s(X) + γ
-    let zcc_ev = |w: &PallasPoly, s: &PallasPoly, i| {
-        w.evaluate(&x.h.w(i).into()) + beta * s.evaluate(&x.h.w(i).into()) + gamma
+    // let zcc_ev = |w: &PallasPoly, s: &PallasPoly, i| {
+    //     w.evaluate(&x.h.w(i).into()) + beta * s.evaluate(&x.h.w(i).into()) + gamma
+    // };
+    let zcc_ev = |w: &Poly, s: &Poly, i| {
+        x.h.evaluate(w, i) + beta * x.h.evaluate(s, i) + gamma
     };
     // w + s * beta + gamma
     let zcc = |w: &PallasPoly, s: &PallasPoly| w + s * beta + deg0(&gamma);
 
-    let cc_zf_ev = |i| zcc_ev(w_a, x_sida, i) * zcc_ev(w_b, x_sidb, i) * zcc_ev(w_c, x_sidc, i);
+    // let cc_zf_ev = |i| zcc_ev(w_a, x_sida, i) * zcc_ev(w_b, x_sidb, i) * zcc_ev(w_c, x_sidc, i);
+    let cc_zf_ev = |i| zcc_ev(&w.a, &x.sida, i) * zcc_ev(&w.b, &x.sidb, i) * zcc_ev(&w.c, &x.sidc, i);
 
     // plookup constraints: ε(1 + δ) + a(X) + δb(X)
     // f'(X) = (A(X) + β Sᵢ₁(X) + γ) (B(X) + β Sᵢ₂(X) + γ) (C(X) + β Sᵢ₃(X) + γ)
     //         (ε(1 + δ) + f(X) + δf(X)) (ε(1 + δ) + t(X) + δt(Xω))
-    let pl_zf_ev = |i| zpl_ev(pl_f, pl_f, i) * zpl_ev(pl_t, pl_t_bar, i);
+    // let pl_zf_ev = |i| zpl_ev(pl_f, pl_f, i) * zpl_ev(pl_t, pl_t_bar, i);
+    let pl_zf_ev = |i| zpl_ev(&plp[1], &plp[1], i) * zpl_ev(&plp[0], &pl_t_bar_old, i);
     let zf = &(zcc(w_a, x_sida)
         * zcc(w_b, x_sidb)
         * zcc(w_c, x_sidc)
@@ -301,8 +310,8 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
         * zpl(pl_t, pl_t_bar));
     // g'(X) = (A(X) + β S₁(X) + γ) (B(X) + β S₂(X) + γ) (C(X) + β S₃(X) + γ)
     //         (ε(1 + δ) + h₁(X) + δh₂(X)) (ε(1 + δ) + h₂(X) + δh₁(Xω))
-    let cc_zg_ev = |i| zcc_ev(w_a, x_sa, i) * zcc_ev(w_b, x_sb, i) * zcc_ev(w_c, x_sc, i);
-    let pl_zg_ev = |i| zpl_ev(pl_h1, pl_h2, i) * zpl_ev(pl_h2, pl_h1_bar, i);
+    let cc_zg_ev = |i| zcc_ev(&w.a, &x.sa, i) * zcc_ev(&w.b, &x.sb, i) * zcc_ev(&w.c, &x.sc, i);
+    let pl_zg_ev = |i| zpl_ev(&plp[2], &plp[3], i) * zpl_ev(&plp[3], pl_h1_bar_old, i);
 
     // ----- Calculate z ----- //
 
