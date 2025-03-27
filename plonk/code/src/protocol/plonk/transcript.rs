@@ -14,6 +14,7 @@ pub trait TranscriptProtocol {
     #[allow(dead_code)]
     fn append_scalar(&mut self, label: &'static [u8], scalar: &Scalar);
     fn append_scalar_new(&mut self, label: &'static [u8], scalar: &PallasScalar);
+    fn append_scalars_new(&mut self, label: &'static [u8], scalars: &[PallasScalar]);
     fn challenge_scalar(&mut self, label: &'static [u8]) -> Scalar;
     fn challenge_scalar_new(&mut self, label: &'static [u8]) -> PallasScalar;
     fn challenge_scalar_augment(&mut self, val: u64, label: &'static [u8]) -> Scalar;
@@ -65,6 +66,16 @@ impl TranscriptProtocol for Transcript {
     fn append_scalar_new(&mut self, label: &'static [u8], scalar: &PallasScalar) {
         let mut buf = [0; 64];
         scalar.serialize_compressed(buf.as_mut()).unwrap();
+        self.append_message(label, &buf);
+    }
+
+    fn append_scalars_new(&mut self, label: &'static [u8], scalars: &[PallasScalar]) {
+        let mut buf = Vec::new();
+        for scalar in scalars {
+            let mut tmp = [0; 64];
+            scalar.serialize_compressed(&mut tmp[..]).unwrap();
+            buf.extend_from_slice(&tmp);
+        }
         self.append_message(label, &buf);
     }
 

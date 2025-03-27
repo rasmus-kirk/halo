@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
 use anyhow::{ensure, Result};
-use ark_ff::Field;
+use ark_ff::{Field, Zero};
 use ark_poly::{DenseUVPolynomial, Polynomial};
 use halo_accumulation::{
     group::{PallasPoint, PallasPoly, PallasScalar},
@@ -31,7 +31,7 @@ pub struct ProofEvaluations {
     sb: PallasScalar,
     sc: PallasScalar,
     z: PallasScalar,
-    t: PallasScalar,
+    t_parts: Vec<PallasScalar>,
     pl_j: PallasScalar,
     pl_qk: PallasScalar,
     pl_f: PallasScalar,
@@ -49,7 +49,7 @@ pub struct ProofCommitments {
     b: PallasPoint,
     c: PallasPoint,
     z: PallasPoint,
-    t: PallasPoint,
+    t_coms: Vec<PallasPoint>,
 }
 
 #[derive(Clone)]
@@ -344,9 +344,25 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
     let f_z2 = &((z * zf) - (zg * z_bar));
     // T(X) = (F_GC(X) + α F_C1(X) + α² F_C2(X)) / Zₕ(X)
     let t = &((f_gc + deg0(alpha) * f_z1 + deg0(&alpha.pow([2])) * f_z2) / x_zh);
-    let t_com = pcdl::commit(t, d, None);
-    transcript.append_point_new(b"t", &t_com);
-    trace!("t1");
+    // let t_com = pcdl::commit(t, d, None);
+
+    let n = x.h.n() as usize;
+    let n = x.h.n() as usize;
+    let t1 = PallasPoly::from_coefficients_slice(&t.coeffs[0..n]);
+    let t2 = PallasPoly::from_coefficients_slice(&t.coeffs[n..2 * n]);
+    let t3 = PallasPoly::from_coefficients_slice(&t.coeffs[2 * n..3 * n]);
+    let t4 = PallasPoly::from_coefficients_slice(&t.coeffs[3 * n..4 * n]);
+    let t5 = PallasPoly::from_coefficients_slice(&t.coeffs[4 * n..]);
+
+    let t1_com = pcdl::commit(&t1, d, None);
+    let t2_com = pcdl::commit(&t2, d, None);
+    let t3_com = pcdl::commit(&t3, d, None);
+    let t4_com = pcdl::commit(&t4, d, None);
+    let t5_com = pcdl::commit(&t5, d, None);
+
+    let t_coms = vec![t1_com, t2_com, t3_com, t4_com, t5_com];
+    transcript.append_points_new(b"t", &t_coms);
+    // transcript.append_point_new(b"t", &t_com);
 
     // -------------------- Round 5 --------------------
 
@@ -363,7 +379,7 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
     let sa_ev = &x.sa.poly.evaluate(ch);
     let sb_ev = &x.sb.poly.evaluate(ch);
     let sc_ev = &x.sc.poly.evaluate(ch);
-    let t_ev = t.evaluate(ch);
+    let t_parts_ev = [t1,t2,t3,t4,t5].iter().map(|p| p.evaluate(ch)).collect::<Vec<_>>();
     let z_ev = z.evaluate(ch);
     let pl_j_ev = x.pl_j.poly.evaluate(ch);
     let pl_f_ev = pl_f.evaluate(ch);
@@ -391,7 +407,7 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
     transcript.append_scalar_new(b"sb_ev", sb_ev);
     transcript.append_scalar_new(b"sc_ev", sc_ev);
     transcript.append_scalar_new(b"z_bar_ev", &z_bar_ev);
-    transcript.append_scalar_new(b"t_ev", &t_ev);
+    transcript.append_scalars_new(b"t_ev", &t_parts_ev.as_slice());
     transcript.append_scalar_new(b"z_ev", &z_ev);
 
     let v = &transcript.challenge_scalar_new(b"v");
@@ -435,7 +451,7 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
             sb: *sb_ev,
             sc: *sc_ev,
             z: z_ev,
-            t: t_ev,
+            t_parts: t_parts_ev,
             pl_j: pl_j_ev,
             pl_f: pl_f_ev,
             pl_qk: pl_qk_ev,
@@ -451,7 +467,7 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
             b: *b_com,
             c: *c_com,
             z: *z_com,
-            t: t_com,
+            t_coms: t_coms,
         },
         pis: EvalProofs {
             W: W_pi,
@@ -488,7 +504,7 @@ pub fn verify_lu_with_w(x: &CircuitPublic, pi: Proof) -> Result<()> {
     // -------------------- Round 4 --------------------
 
     let alpha = &transcript.challenge_scalar_new(b"alpha");
-    transcript.append_point_new(b"t", &pi.com.t);
+    transcript.append_points_new(b"t", &pi.com.t_coms);
 
     // -------------------- Round 5 --------------------
 
@@ -513,7 +529,7 @@ pub fn verify_lu_with_w(x: &CircuitPublic, pi: Proof) -> Result<()> {
     let qc = &pi.ev.qc;
     let qk = &pi.ev.pl_qk;
     let z_bar = &pi.ev.z_bar;
-    let t = &pi.ev.t;
+    let t_evs = &pi.ev.t_parts;
     let z = &pi.ev.z;
     let j = &pi.ev.pl_j;
     let pip = PallasPoly::from(x.pip.clone()).evaluate(ch);
@@ -530,7 +546,7 @@ pub fn verify_lu_with_w(x: &CircuitPublic, pi: Proof) -> Result<()> {
     transcript.append_scalar(b"sb_ev", &sb_ev.into());
     transcript.append_scalar(b"sc_ev", &sc_ev.into());
     transcript.append_scalar(b"z_bar_ev", &z_bar.into());
-    transcript.append_scalar(b"t_ev", &t.into());
+    transcript.append_scalars_new(b"t_ev", &t_evs);
     transcript.append_scalar(b"z_ev", &z.into());
 
     // F_GC(𝔷) = A(𝔷)Qₗ(𝔷) + B(𝔷)Qᵣ(𝔷) + C(𝔷)Qₒ(𝔷) + A(𝔷)B(𝔷)Qₘ(𝔷) + Q꜀(𝔷)
@@ -566,8 +582,10 @@ pub fn verify_lu_with_w(x: &CircuitPublic, pi: Proof) -> Result<()> {
     // }
 
     // T(𝔷) = (F_GC(𝔷) + α F_CC1(𝔷) + α² F_CC2(𝔷)) / Zₕ(𝔷)
+    let n = x.h.n();
+    let t_ev = t_evs.iter().enumerate().fold(PallasScalar::zero(), |acc, (i,t)| acc + (*t * ch.pow([n * i as u64])));
     ensure!(
-        (f_gc_ev + (alpha * f_z1_ev) + (alpha.pow([2]) * f_z2_ev)) - (pi.ev.t * zh_ev)
+        (f_gc_ev + (alpha * f_z1_ev) + (alpha.pow([2]) * f_z2_ev)) - (t_ev * zh_ev)
             == Scalar::ZERO,
         "T(𝔷) ≠ (F_GC(𝔷) + α F_CC1(𝔷) + α² F_CC2(𝔷)) / Zₕ(𝔷)"
     );
