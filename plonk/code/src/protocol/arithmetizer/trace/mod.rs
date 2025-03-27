@@ -87,6 +87,46 @@ impl Trace {
         Ok(eval)
     }
 
+    // Evaluation computation -------------------------------------------------
+
+    /// Look up for the wire's evaluation, otherwise start the evaluating.
+    fn resolve(&mut self, wires: &ArithWireCache, wire: WireID) -> Result<Value, TraceError> {
+        match self.evals.get(&wire) {
+            Some(val) => Ok(*val),
+            None => self.eval(wires, wire),
+        }
+    }
+
+    /// Compute the values and constraints for the wire and all its dependencies.
+    fn eval(&mut self, wires: &ArithWireCache, wire: WireID) -> Result<Value, TraceError> {
+        let mut stack = vec![wire];
+        while let Some(wire) = stack.pop() {
+            if self.evals.contains_key(&wire) {
+                continue;
+            }
+            let arith_wire = wires
+                .to_arith(wire)
+                .ok_or(TraceError::WireNotInCache(wire))?;
+            if let Some((constraint, value)) =
+                self.eval_helper(&mut stack, wires, wire, arith_wire)?
+            {
+                if !constraint.is_satisfied() {
+                    return Err(TraceError::constraint_not_satisfied(&constraint));
+                }
+                self.constraints.push(constraint);
+                self.bool_constraint(wires, wire, value)?;
+                self.public_constraint(wires, wire, value)?;
+                self.evals.insert(wire, value);
+            } else {
+                continue;
+            }
+        }
+        self.evals
+            .get(&wire)
+            .cloned()
+            .ok_or(TraceError::WireNotInCache(wire))
+    }
+
     // Compute constraint and value for a wire, and update the stack used in eval.
     fn eval_helper(
         &self,
@@ -144,36 +184,6 @@ impl Trace {
         }
     }
 
-    /// Compute the values and constraints for the wire and all its dependencies.
-    fn eval(&mut self, wires: &ArithWireCache, wire: WireID) -> Result<Value, TraceError> {
-        let mut stack = vec![wire];
-        while let Some(wire) = stack.pop() {
-            if self.evals.contains_key(&wire) {
-                continue;
-            }
-            let arith_wire = wires
-                .to_arith(wire)
-                .ok_or(TraceError::WireNotInCache(wire))?;
-            if let Some((constraint, value)) =
-                self.eval_helper(&mut stack, wires, wire, arith_wire)?
-            {
-                if !constraint.is_satisfied() {
-                    return Err(TraceError::constraint_not_satisfied(&constraint));
-                }
-                self.constraints.push(constraint);
-                self.bool_constraint(wires, wire, value)?;
-                self.public_constraint(wires, wire, value)?;
-                self.evals.insert(wire, value);
-            } else {
-                continue;
-            }
-        }
-        self.evals
-            .get(&wire)
-            .cloned()
-            .ok_or(TraceError::WireNotInCache(wire))
-    }
-
     /// Check and construct if the wire has a boolean constraint.
     fn bool_constraint(
         &mut self,
@@ -219,14 +229,6 @@ impl Trace {
         }
     }
 
-    /// Look up for the wire's evaluation, otherwise start the evaluating.
-    fn resolve(&mut self, wires: &ArithWireCache, wire: WireID) -> Result<Value, TraceError> {
-        match self.evals.get(&wire) {
-            Some(val) => Ok(*val),
-            None => self.eval(wires, wire),
-        }
-    }
-
     /// Compute the permutation of slot positions as per copy constraints.
     fn compute_pos_permutation(&mut self) -> Result<(), TraceError> {
         let mut pos_sets: HashMap<WireID, Vec<Pos>> = HashMap::new();
@@ -250,6 +252,8 @@ impl Trace {
         }
         Ok(())
     }
+
+    // Poly construction -------------------------------------------------------
 
     /// Compute the circuit polynomials.
     fn gate_polys(&self) -> (Vec<Poly>, Vec<Poly>) {
@@ -348,7 +352,6 @@ impl From<Trace> for Circuit {
         let mut ss_comms: Vec<PallasPoint> = (0..Slots::COUNT)
             .map(|i| pcdl::commit(&ss[i].poly, eval.d, None))
             .collect();
-        let d = eval.d;
 
         assert!(sa.degree() as usize <= d);
         assert!(sb.degree() as usize <= d);
@@ -358,7 +361,7 @@ impl From<Trace> for Circuit {
         assert!(sidc.degree() as usize <= d);
 
         let x = CircuitPublic {
-            d,
+            d: eval.d,
             h: eval.h.clone(),
             pip_com: qs_comms.pop().unwrap(),
             pl_j_com: qs_comms.pop().unwrap(),

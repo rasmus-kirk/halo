@@ -78,7 +78,7 @@ pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNAR
     // Round 2 -----------------------------------------------------
     // ζ = H(transcript)
     let zeta = &transcript.challenge_scalar(b"zeta");
-    let plp = &w.plonkup.compute(zeta);
+    let plp = w.plonkup.compute(zeta);
     let tpl = &plp[0];
     let fpl = &plp[1];
     let h1pl = &plp[2];
