@@ -327,6 +327,8 @@ impl
 
 impl From<Trace> for Circuit {
     fn from(eval: Trace) -> Self {
+        assert!((eval.d+1).is_power_of_two());
+
         let gc = eval.gate_polys();
         let mut ss = eval.copy_constraints();
 
@@ -339,6 +341,14 @@ impl From<Trace> for Circuit {
         let pl_qk = gc[Slots::COUNT + Selectors::Qk as usize].clone();
         let pl_j = gc[Slots::COUNT + Selectors::J as usize].clone();
 
+        assert!(ql.degree() as usize <= d);
+        assert!(qr.degree() as usize <= d);
+        assert!(qo.degree() as usize <= d);
+        assert!(qm.degree() as usize <= d);
+        assert!(qc.degree() as usize <= d);
+        assert!(pl_qk.degree() as usize <= d);
+        assert!(pl_j.degree() as usize <= d);
+
         // Avoid cloning
         let sidc = ss.remove(5);
         let sidb = ss.remove(4);
@@ -347,7 +357,13 @@ impl From<Trace> for Circuit {
         let sb = ss.remove(1);
         let sa = ss.remove(0);
 
-        // TODO: check d
+        assert!(sa.degree() as usize <= d);
+        assert!(sb.degree() as usize <= d);
+        assert!(sc.degree() as usize <= d);
+        assert!(sida.degree() as usize <= d);
+        assert!(sidb.degree() as usize <= d);
+        assert!(sidc.degree() as usize <= d);
+
         let x = CircuitPublic {
             d,
             h: eval.h.clone(),

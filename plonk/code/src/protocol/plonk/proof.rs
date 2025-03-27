@@ -7,6 +7,7 @@ use halo_accumulation::{
     group::{PallasPoint, PallasPoly, PallasScalar},
     pcdl::{self, EvalProof, Instance as HaloInstance},
 };
+use log::trace;
 use merlin::Transcript;
 use rand::Rng;
 
@@ -15,7 +16,6 @@ use crate::{
     curve::Scalar,
     protocol::circuit::{CircuitPrivate, CircuitPublic},
 };
-use ark_ff::Zero;
 
 #[derive(Clone)]
 pub struct ProofEvaluations {
@@ -344,8 +344,10 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
     let f_z2 = &((z * zf) - (zg * z_bar));
     // T(X) = (F_GC(X) + α F_C1(X) + α² F_C2(X)) / Zₕ(X)
     let t = &((f_gc + deg0(alpha) * f_z1 + deg0(&alpha.pow([2])) * f_z2) / x_zh);
+    trace!("t1");
     let t_com = pcdl::commit(&t, d, None);
     transcript.append_point_new(b"t", &t_com);
+    trace!("t1");
 
     // -------------------- Round 5 --------------------
 

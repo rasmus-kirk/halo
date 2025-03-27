@@ -10,7 +10,7 @@ use log::trace;
 use plonk::protocol::{arithmetizer::Arithmetizer, plonk as plonker};
 
 const WARMUP: Duration = Duration::from_millis(100);
-const MIN: usize = 19;
+const MIN: usize = 5;
 const MAX: usize = 20;
 
 pub fn plonk_proof_verify(c: &mut Criterion) {
@@ -19,8 +19,8 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
     let mut group = c.benchmark_group("plonk_proof_verify");
     let rng = &mut test_rng();
 
-    // let mut old_pis = Vec::new();
-    // let mut new_pis = Vec::new();
+    let mut old_pis = Vec::new();
+    let mut new_pis = Vec::new();
 
     let mut circuits = Vec::new();
     println!("|‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|");
@@ -44,34 +44,30 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
         trace!("A3");
         circuits.push((size, x.clone(), w.clone()));
 
-        // let start_time = Instant::now();
-        // let old_pi = plonker::proof(rng, &x, &w);
-        // let old_p_time = start_time.elapsed().as_secs_f32();
-        // trace!("B");
-        // old_pis.push(old_pi.clone());
+        let start_time = Instant::now();
+        let old_pi = plonker::proof(rng, &x, &w);
+        let old_p_time = start_time.elapsed().as_secs_f32();
+        trace!("B");
+        old_pis.push(old_pi.clone());
 
-        // let start_time = Instant::now();
-        // let _ = plonker::verify(&x, old_pi.clone());
-        // let old_v_time = start_time.elapsed().as_secs_f32();
-        // trace!("C");
+        let start_time = Instant::now();
+        let _ = plonker::verify(&x, old_pi.clone());
+        let old_v_time = start_time.elapsed().as_secs_f32();
+        trace!("C");
 
-        // let start_time = Instant::now();
-        // let new_pi = plonker::prove_w_lu(rng, &x, &w);
-        // let new_p_time = start_time.elapsed().as_secs_f32();
-        // trace!("D");
-        // new_pis.push(new_pi.clone());
+        let start_time = Instant::now();
+        let new_pi = plonker::prove_w_lu(rng, &x, &w);
+        let new_p_time = start_time.elapsed().as_secs_f32();
+        trace!("D");
+        new_pis.push(new_pi.clone());
 
-        // let start_time = Instant::now();
-        // let _ = plonker::verify_lu_with_w(&x, new_pi);
-        // let new_v_time = start_time.elapsed().as_secs_f32();
+        let start_time = Instant::now();
+        let _ = plonker::verify_lu_with_w(&x, new_pi);
+        let new_v_time = start_time.elapsed().as_secs_f32();
 
-        // println!(
-        //     "| {:02} | {:>12.8} | {:>12.8} | {:>12.8} | {:>12.8} | {:>12.8} |",
-        //     size, circuit_time, old_p_time, old_v_time, new_p_time, new_v_time
-        // );
         println!(
-            "| {:02} | {:>12.8} | {:>12.8} | {:>12.8} | {:>12.8} | {:>12.8} |",
-            size, rand_circuit_time, to_circuit_time, 0, 0, 0
+            "| {:02} | {:>12.8} | {:>12.8} | {:>12.8} | {:>12.8} | {:>12.8} | {:>12.8} |",
+            size, rand_circuit_time, to_circuit_time, old_p_time, old_v_time, new_p_time, new_v_time
         );
     }
     println!("|____|______________|______________|______________|______________|______________|");

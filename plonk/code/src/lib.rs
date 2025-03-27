@@ -49,7 +49,7 @@ mod tests {
         let output_wires = &vec![(x ^ (y | x).is_bit()).is_public()];
         println!("{}", Arithmetizer::to_string(&input_values, output_wires));
         let ((x, w), e) =
-            &Arithmetizer::to_circuit(rng, 1 << 15, input_values, output_wires).unwrap();
+            &Arithmetizer::to_circuit(rng, 2usize.pow(7) - 1, input_values, output_wires).unwrap();
         println!("{}", e);
         print_poly_evaluations(x, w);
         let pi = plonk::proof(rng, x, w);
@@ -64,7 +64,7 @@ mod tests {
         let input_values = vec![3, 4];
         println!("{}", Arithmetizer::to_string(&input_values, output_wires));
         let ((x, w), e) =
-            &Arithmetizer::to_circuit(rng, 1 << 15, input_values, output_wires).unwrap();
+            &Arithmetizer::to_circuit(rng, 2usize.pow(7) - 1, input_values, output_wires).unwrap();
         println!("{}", e);
         print_poly_evaluations(x, w);
         let pi = plonk::proof(rng, x, w);
