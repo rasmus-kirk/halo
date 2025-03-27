@@ -112,6 +112,13 @@ impl Arithmetizer {
         self.wires.get_id(gate)
     }
 
+    /// a / b : 𝔽
+    pub fn div_const(&mut self, a: WireID, b: Scalar) -> WireID {
+        let right = self.wires.get_const_id(1 / b);
+        let gate = ArithWire::MulGate(a, right);
+        self.wires.get_id(gate)
+    }
+
     /// Plonkup operations
     pub fn lookup(&mut self, op: PlonkupOps, a: WireID, b: WireID) -> WireID {
         self.wires.get_id(ArithWire::Lookup(op, a, b))
@@ -188,14 +195,14 @@ mod tests {
 
     #[test]
     fn get_wire_commutative() {
-        let [a, b] = &Arithmetizer::build::<2>();
+        let [a, b] = Arithmetizer::build::<2>();
         assert_eq!(a.id(), 0);
         assert_eq!(b.id(), 1);
-        let c = &(a + b);
+        let c = &(a.clone() + b.clone());
         assert_eq!(c.id(), 2);
-        let d = &(b + a);
+        let d = &(b.clone() + a.clone());
         assert_eq!(d.id(), 2);
-        let e = &(a * b);
+        let e = &(a.clone() * b.clone());
         assert_eq!(e.id(), 3);
         let f = &(b * a);
         assert_eq!(f.id(), 3);
@@ -203,18 +210,18 @@ mod tests {
 
     #[test]
     fn commutative_2() {
-        let [a, b, c] = &Arithmetizer::build::<3>();
-        let f = a * b * c;
+        let [a, b, c] = Arithmetizer::build::<3>();
+        let f = a.clone() * b.clone() * c.clone();
         let g = c * a * b;
         assert_eq!(f.id(), g.id())
     }
 
     #[test]
     fn add() {
-        let [a, b] = &Arithmetizer::build::<2>();
+        let [a, b] = Arithmetizer::build::<2>();
         assert_eq!(a.id(), 0);
         assert_eq!(b.id(), 1);
-        let c = a + b;
+        let c = a.clone() + b.clone();
         assert_eq!(c.id(), 2);
         let wires = &c.arith().borrow().wires;
         assert_eq!(wires.to_arith_(a.id()), ArithWire::Input(0));
@@ -224,10 +231,10 @@ mod tests {
 
     #[test]
     fn mul() {
-        let [a, b] = &Arithmetizer::build::<2>();
+        let [a, b] = Arithmetizer::build::<2>();
         assert_eq!(a.id(), 0);
         assert_eq!(b.id(), 1);
-        let c = a * b;
+        let c = a.clone() * b.clone();
         assert_eq!(c.id(), 2);
         let wires = &c.arith().borrow().wires;
         assert_eq!(wires.to_arith_(0), ArithWire::Input(0));
@@ -237,10 +244,10 @@ mod tests {
 
     #[test]
     fn sub() {
-        let [a, b] = &Arithmetizer::build::<2>();
+        let [a, b] = Arithmetizer::build::<2>();
         assert_eq!(a.id(), 0);
         assert_eq!(b.id(), 1);
-        let c = &(a - b);
+        let c = &(a.clone() - b.clone());
         assert_eq!(c.id(), 4);
         let wires = &c.arith().borrow().wires;
         assert_eq!(wires.to_arith_(a.id()), ArithWire::Input(0));
@@ -252,7 +259,7 @@ mod tests {
 
     #[test]
     fn add_const() {
-        let [a] = &Arithmetizer::build::<1>();
+        let [a] = Arithmetizer::build::<1>();
         assert_eq!(a.id(), 0);
         let c: &Wire = &(a + 1);
         assert_eq!(c.id(), 2);
@@ -263,9 +270,9 @@ mod tests {
 
     #[test]
     fn sub_const() {
-        let [a] = &Arithmetizer::build::<1>();
+        let [a] = Arithmetizer::build::<1>();
         assert_eq!(a.id(), 0);
-        let c: &Wire = &(a - 1);
+        let c: &Wire = &(a.clone() - 1);
         assert_eq!(c.id(), 2);
         let wires = &c.arith().borrow().wires;
         assert_eq!(wires.to_arith_(a.id()), ArithWire::Input(0));
@@ -275,9 +282,9 @@ mod tests {
 
     #[test]
     fn mul_const() {
-        let [a] = &Arithmetizer::build::<1>();
+        let [a] = Arithmetizer::build::<1>();
         assert_eq!(a.id(), 0);
-        let c: &Wire = &(a * 1);
+        let c: &Wire = &(a.clone() * 1);
         assert_eq!(c.id(), 2);
         let wires = &c.arith().borrow().wires;
         assert_eq!(wires.to_arith_(a.id()), ArithWire::Input(0));

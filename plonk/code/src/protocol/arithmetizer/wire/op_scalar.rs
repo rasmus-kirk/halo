@@ -1,4 +1,4 @@
-use super::Wire;
+use super::{ast::WireAST, Wire};
 use crate::curve::Scalar;
 
 use std::{
@@ -6,61 +6,19 @@ use std::{
     rc::Rc,
 };
 
-// Add (Wire, Constant) -------------------------------------------------
+// Add ------------------------------------------------------------------------
 
 impl Add<Scalar> for Wire {
     type Output = Wire;
 
     fn add(self, other: Scalar) -> Self::Output {
-        let mut circuit = self.arith.borrow_mut();
         Wire {
-            id: circuit.add_const(self.id, other),
+            id: self.arith.borrow_mut().add_const(self.id, other.into()),
             arith: Rc::clone(&self.arith),
-            ast: self.ast + other,
+            ast: WireAST::add_const(self.ast, other.into()),
         }
     }
 }
-
-impl Add<&Scalar> for Wire {
-    type Output = Wire;
-
-    fn add(self, other: &Scalar) -> Self::Output {
-        let mut circuit = self.arith.borrow_mut();
-        Wire {
-            id: circuit.add_const(self.id, *other),
-            arith: Rc::clone(&self.arith),
-            ast: self.add_ast_const(*other),
-        }
-    }
-}
-
-impl Add<Scalar> for &Wire {
-    type Output = Wire;
-
-    fn add(self, other: Scalar) -> Self::Output {
-        let mut circuit = self.arith.borrow_mut();
-        Wire {
-            id: circuit.add_const(self.id, other),
-            arith: Rc::clone(&self.arith),
-            ast: self.add_ast_const(other),
-        }
-    }
-}
-
-impl Add<&Scalar> for &Wire {
-    type Output = Wire;
-
-    fn add(self, other: &Scalar) -> Self::Output {
-        let mut circuit = self.arith.borrow_mut();
-        Wire {
-            id: circuit.add_const(self.id, *other),
-            arith: Rc::clone(&self.arith),
-            ast: self.add_ast_const(*other),
-        }
-    }
-}
-
-// Add (Constant, Wire) -------------------------------------------------
 
 impl Add<Wire> for Scalar {
     type Output = Wire;
@@ -70,197 +28,58 @@ impl Add<Wire> for Scalar {
     }
 }
 
-impl Add<&Wire> for Scalar {
-    type Output = Wire;
-
-    fn add(self, other: &Wire) -> Self::Output {
-        other + self
-    }
-}
-
-impl Add<Wire> for &Scalar {
-    type Output = Wire;
-
-    fn add(self, other: Wire) -> Self::Output {
-        other + self
-    }
-}
-
-impl Add<&Wire> for &Scalar {
-    type Output = Wire;
-
-    fn add(self, other: &Wire) -> Self::Output {
-        other + self
-    }
-}
-
-// Sub (Wire, Constant) -------------------------------------------------
+// Sub ------------------------------------------------------------------------
 
 impl Sub<Scalar> for Wire {
     type Output = Wire;
 
     fn sub(self, other: Scalar) -> Self::Output {
-        let mut circuit = self.arith.borrow_mut();
         Wire {
-            id: circuit.add_const(self.id, -other),
-            arith: Rc::clone(&self.arith),
-            ast: self.add_ast_const(-other),
+            id: self
+                .arith
+                .clone()
+                .borrow_mut()
+                .sub_const(self.id, other.into()),
+            arith: self.arith,
+            ast: WireAST::sub_const(self.ast, other.into()),
         }
     }
 }
-
-impl Sub<&Scalar> for Wire {
-    type Output = Wire;
-
-    fn sub(self, other: &Scalar) -> Self::Output {
-        let mut circuit = self.arith.borrow_mut();
-        Wire {
-            id: circuit.add_const(self.id, -*other),
-            arith: Rc::clone(&self.arith),
-            ast: self.add_ast_const(-*other),
-        }
-    }
-}
-
-impl Sub<Scalar> for &Wire {
-    type Output = Wire;
-
-    fn sub(self, other: Scalar) -> Self::Output {
-        let mut circuit = self.arith.borrow_mut();
-        Wire {
-            id: circuit.add_const(self.id, -other),
-            arith: Rc::clone(&self.arith),
-            ast: self.add_ast_const(-other),
-        }
-    }
-}
-
-impl Sub<&Scalar> for &Wire {
-    type Output = Wire;
-
-    fn sub(self, other: &Scalar) -> Self::Output {
-        let mut circuit = self.arith.borrow_mut();
-        Wire {
-            id: circuit.add_const(self.id, -*other),
-            arith: Rc::clone(&self.arith),
-            ast: self.add_ast_const(-*other),
-        }
-    }
-}
-
-// Sub (Constant, Wire) -------------------------------------------------
 
 impl Sub<Wire> for Scalar {
     type Output = Wire;
 
     fn sub(self, other: Wire) -> Self::Output {
-        let neg = &other * -Scalar::ONE;
-        let mut circuit = other.arith.borrow_mut();
+        let neg = other.clone() * -Scalar::ONE;
         Wire {
-            id: circuit.add_const(neg.id, self),
-            arith: Rc::clone(&other.arith),
-            ast: neg.add_ast_const(self),
+            id: other
+                .arith
+                .clone()
+                .borrow_mut()
+                .add_const(neg.id, self.into()),
+            arith: other.arith,
+            ast: WireAST::add_const(neg.ast, self.into()),
         }
     }
 }
 
-impl Sub<&Wire> for Scalar {
-    type Output = Wire;
-
-    fn sub(self, other: &Wire) -> Self::Output {
-        let neg = other * -Scalar::ONE;
-        let mut circuit = other.arith.borrow_mut();
-        Wire {
-            id: circuit.add_const(neg.id, self),
-            arith: Rc::clone(&other.arith),
-            ast: neg.add_ast_const(self),
-        }
-    }
-}
-
-impl Sub<Wire> for &Scalar {
-    type Output = Wire;
-
-    fn sub(self, other: Wire) -> Self::Output {
-        let neg = &other * -Scalar::ONE;
-        let mut circuit = other.arith.borrow_mut();
-        Wire {
-            id: circuit.add_const(neg.id, *self),
-            arith: Rc::clone(&other.arith),
-            ast: neg.add_ast_const(*self),
-        }
-    }
-}
-
-impl Sub<&Wire> for &Scalar {
-    type Output = Wire;
-
-    fn sub(self, other: &Wire) -> Self::Output {
-        let neg = other * -Scalar::ONE;
-        let mut circuit = other.arith.borrow_mut();
-        Wire {
-            id: circuit.add_const(neg.id, *self),
-            arith: Rc::clone(&other.arith),
-            ast: neg.add_ast_const(*self),
-        }
-    }
-}
-
-// Mul (Wire, Constant) -------------------------------------------------
+// Mul ------------------------------------------------------------------------
 
 impl Mul<Scalar> for Wire {
     type Output = Wire;
 
     fn mul(self, other: Scalar) -> Self::Output {
-        let mut circuit = self.arith.borrow_mut();
         Wire {
-            id: circuit.mul_const(self.id, other),
-            arith: Rc::clone(&self.arith),
-            ast: self.ast * other,
+            id: self
+                .arith
+                .clone()
+                .borrow_mut()
+                .mul_const(self.id, other.into()),
+            arith: self.arith,
+            ast: WireAST::mul_const(self.ast, other.into()),
         }
     }
 }
-
-impl Mul<&Scalar> for Wire {
-    type Output = Wire;
-
-    fn mul(self, other: &Scalar) -> Self::Output {
-        let mut circuit = self.arith.borrow_mut();
-        Wire {
-            id: circuit.mul_const(self.id, *other),
-            arith: Rc::clone(&self.arith),
-            ast: self.mul_ast_const(*other),
-        }
-    }
-}
-
-impl Mul<Scalar> for &Wire {
-    type Output = Wire;
-
-    fn mul(self, other: Scalar) -> Self::Output {
-        let mut circuit = self.arith.borrow_mut();
-        Wire {
-            id: circuit.mul_const(self.id, other),
-            arith: Rc::clone(&self.arith),
-            ast: self.mul_ast_const(other),
-        }
-    }
-}
-
-impl Mul<&Scalar> for &Wire {
-    type Output = Wire;
-
-    fn mul(self, other: &Scalar) -> Self::Output {
-        let mut circuit = self.arith.borrow_mut();
-        Wire {
-            id: circuit.mul_const(self.id, *other),
-            arith: Rc::clone(&self.arith),
-            ast: self.mul_ast_const(*other),
-        }
-    }
-}
-
-// Mul (Constant, Wire) -------------------------------------------------
 
 impl Mul<Wire> for Scalar {
     type Output = Wire;
@@ -270,80 +89,20 @@ impl Mul<Wire> for Scalar {
     }
 }
 
-impl Mul<&Wire> for Scalar {
-    type Output = Wire;
-
-    fn mul(self, other: &Wire) -> Self::Output {
-        other * self
-    }
-}
-
-impl Mul<Wire> for &Scalar {
-    type Output = Wire;
-
-    fn mul(self, other: Wire) -> Self::Output {
-        other * self
-    }
-}
-
-impl Mul<&Wire> for &Scalar {
-    type Output = Wire;
-
-    fn mul(self, other: &Wire) -> Self::Output {
-        other * self
-    }
-}
-
-// Div (Wire, Constant) -------------------------------------------------
+// Div ------------------------------------------------------------------------
 
 impl Div<Scalar> for Wire {
     type Output = Wire;
 
     fn div(self, other: Scalar) -> Self::Output {
-        let mut circuit = self.arith.borrow_mut();
         Wire {
-            id: circuit.mul_const(self.id, 1 / other),
-            arith: Rc::clone(&self.arith),
-            ast: self.mul_ast_const(1 / other),
-        }
-    }
-}
-
-impl Div<&Scalar> for Wire {
-    type Output = Wire;
-
-    fn div(self, other: &Scalar) -> Self::Output {
-        let mut circuit = self.arith.borrow_mut();
-        Wire {
-            id: circuit.mul_const(self.id, 1 / *other),
-            arith: Rc::clone(&self.arith),
-            ast: self.mul_ast_const(1 / *other),
-        }
-    }
-}
-
-impl Div<Scalar> for &Wire {
-    type Output = Wire;
-
-    fn div(self, other: Scalar) -> Self::Output {
-        let mut circuit = self.arith.borrow_mut();
-        Wire {
-            id: circuit.mul_const(self.id, 1 / other),
-            arith: Rc::clone(&self.arith),
-            ast: self.mul_ast_const(1 / other),
-        }
-    }
-}
-
-impl Div<&Scalar> for &Wire {
-    type Output = Wire;
-
-    fn div(self, other: &Scalar) -> Self::Output {
-        let mut circuit = self.arith.borrow_mut();
-        Wire {
-            id: circuit.mul_const(self.id, 1 / *other),
-            arith: Rc::clone(&self.arith),
-            ast: self.mul_ast_const(1 / *other),
+            id: self
+                .arith
+                .clone()
+                .borrow_mut()
+                .div_const(self.id, other.into()),
+            arith: self.arith,
+            ast: WireAST::div_const(self.ast, other.into()),
         }
     }
 }

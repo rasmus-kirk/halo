@@ -462,9 +462,9 @@ mod tests {
     #[test]
     fn evaluator_values() {
         let rng = &mut rand::thread_rng();
-        let [x, y] = &Arithmetizer::build::<2>();
+        let [x, y] = Arithmetizer::build::<2>();
         let input_values = vec![1, 2];
-        let output_wires: &[Wire; 1] = &[3 * (x * x) + (y * 5) - 47];
+        let output_wires: &[Wire; 1] = &[3 * (x.clone() * x) + (y * 5) - 47];
         // build circuit
 
         let circuit = output_wires[0].arith().borrow();

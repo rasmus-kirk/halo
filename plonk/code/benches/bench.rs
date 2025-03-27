@@ -29,19 +29,20 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
         let d = 2usize.pow(size as u32) - 1;
         let input_values = vec![3, 4, 5, 6];
 
-        trace!("A1");
-        let start_time = Instant::now();
-        let output_wires = &Arithmetizer::synthesize::<_, 4>(rng, 2usize.pow(size as u32) - 2);
-        let rand_circuit_time = start_time.elapsed().as_secs_f32();
-        trace!("lens: {:?}, {:?}", output_wires.len(), output_wires[0].id());
+            trace!("A1");
+            let start_time = Instant::now();
+            let output_wires = &Arithmetizer::synthesize::<_, 4>(rng, 2usize.pow(size as u32) - 2);
+            let rand_circuit_time = start_time.elapsed().as_secs_f32();
+            trace!("lens: {:?}, {:?}", output_wires.len(), output_wires[0].id());
 
-        trace!("A2");
-        let start_time = Instant::now();
-        let ((x, w), _) = &Arithmetizer::to_circuit(rng, d, input_values, output_wires).unwrap();
-        let to_circuit_time = start_time.elapsed().as_secs_f32();
+            trace!("A2");
+            let start_time = Instant::now();
+            let ((x, w), _) =
+                &Arithmetizer::to_circuit(rng, d, input_values, output_wires).unwrap();
+            let to_circuit_time = start_time.elapsed().as_secs_f32();
 
-        trace!("A3");
-        circuits.push((size, x.clone(), w.clone()));
+            trace!("A3");
+            circuits.push((size, x.clone(), w.clone()));
 
         let start_time = Instant::now();
         let new_pi = plonker::prove(rng, &x, &w);
