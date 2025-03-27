@@ -342,6 +342,7 @@ impl
 
 impl From<Trace> for Circuit {
     fn from(eval: Trace) -> Self {
+        let d = eval.d;
         let (mut gs, mut qs) = eval.gate_polys();
         let mut ss = eval.copy_constraints();
 
@@ -353,12 +354,10 @@ impl From<Trace> for Circuit {
             .map(|i| pcdl::commit(&ss[i].poly, eval.d, None))
             .collect();
 
-        assert!(sa.degree() as usize <= d);
-        assert!(sb.degree() as usize <= d);
-        assert!(sc.degree() as usize <= d);
-        assert!(sida.degree() as usize <= d);
-        assert!(sidb.degree() as usize <= d);
-        assert!(sidc.degree() as usize <= d);
+        gs.iter()
+            .chain(qs.iter())
+            .chain(ss.iter())
+            .for_each(|p: &Poly| assert!(p.degree() as usize <= d));
 
         let x = CircuitPublic {
             d: eval.d,
