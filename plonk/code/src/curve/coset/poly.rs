@@ -41,7 +41,10 @@ impl Coset {
 
         const PARALLEL: bool = true;
         if PARALLEL {
-            points = (0..self.n()).into_par_iter().map(|i| f.evaluate(&(self.w(i) * a))).collect();
+            points = (0..self.n())
+                .into_par_iter()
+                .map(|i| f.evaluate(&(self.w(i) * a)))
+                .collect();
         } else {
             for i in 0..self.n() {
                 let x = self.w(i) * a;

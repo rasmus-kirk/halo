@@ -4,7 +4,9 @@ use std::{ops::Mul, time::Instant};
 
 use anyhow::{ensure, Result};
 use ark_ff::{AdditiveGroup, Field, Zero};
-use ark_poly::{DenseUVPolynomial, EvaluationDomain, Evaluations, GeneralEvaluationDomain, Polynomial};
+use ark_poly::{
+    DenseUVPolynomial, EvaluationDomain, Evaluations, GeneralEvaluationDomain, Polynomial,
+};
 use halo_accumulation::{
     group::{PallasPoint, PallasPoly, PallasScalar},
     pcdl::{self, EvalProof, Instance as HaloInstance},
@@ -29,6 +31,7 @@ pub struct ProofEvaluations {
     qm: PallasScalar,
     qo: PallasScalar,
     qr: PallasScalar,
+    pip: PallasScalar,
     sa: PallasScalar,
     sb: PallasScalar,
     sc: PallasScalar,
@@ -71,7 +74,10 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     let mut transcript = Transcript::new(b"protocol");
     transcript.domain_sep();
     let d = x.d;
-    let domain = GeneralEvaluationDomain::<PallasScalar>::new(x.h.n() as usize).unwrap().get_coset(x.h.w(1).into()).unwrap();
+    let domain = GeneralEvaluationDomain::<PallasScalar>::new(x.h.n() as usize)
+        .unwrap()
+        .get_coset(x.h.w(1).into())
+        .unwrap();
 
     let w_a = &w.a.poly;
     let w_b = &w.b.poly;
@@ -104,34 +110,35 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     // -------------------- Round 2 --------------------
 
     // Compute g(X) such that g(X) = f(aX) for all X in the FFT domain
-    let coset_scale_polynomial = |f: &PallasPoly, a: PallasScalar, domain: &GeneralEvaluationDomain<PallasScalar>| {
-        // Step 1: Get the coset domain scaled by `a`
-        // let coset_domain = domain.get_coset(a*PallasScalar::from(2)).unwrap();
-        
-        let coset_domain = domain.get_coset(domain.coset_offset()*a).unwrap();
+    let coset_scale_polynomial =
+        |f: &PallasPoly, a: PallasScalar, domain: &GeneralEvaluationDomain<PallasScalar>| {
+            // Step 1: Get the coset domain scaled by `a`
+            // let coset_domain = domain.get_coset(a*PallasScalar::from(2)).unwrap();
 
-        // for (x, y) in coset_domain.elements().zip(domain.elements()) {
-        //     println!("loop: {}, {}", x, y);
-        //     assert_eq!(x, y*a);
-        // }
-        //old_evals = (0..self.n()).into_par_iter().map(|i| f.evaluate(&(self.w(i) * a))).collect();
+            let coset_domain = domain.get_coset(domain.coset_offset() * a).unwrap();
 
-        // Step 2: Perform FFT on `f` over the coset domain {a * ζ^i}
-        let mut evals_new = coset_domain.fft(&f.coeffs);
-        let evals_new_last = evals_new.pop().unwrap();
-        evals_new.insert(0, evals_new_last);
+            // for (x, y) in coset_domain.elements().zip(domain.elements()) {
+            //     println!("loop: {}, {}", x, y);
+            //     assert_eq!(x, y*a);
+            // }
+            //old_evals = (0..self.n()).into_par_iter().map(|i| f.evaluate(&(self.w(i) * a))).collect();
 
-        // for (x, y) in evals_new.iter().zip(&evals_old) {
-        //     println!("loop2: {}, {}", *x, y)
-        // }
+            // Step 2: Perform FFT on `f` over the coset domain {a * ζ^i}
+            let mut evals_new = coset_domain.fft(&f.coeffs);
+            let evals_new_last = evals_new.pop().unwrap();
+            evals_new.insert(0, evals_new_last);
 
-        let domain2 = GeneralEvaluationDomain::<PallasScalar>::new(x.h.n() as usize).unwrap();
-        let poly = Evaluations::from_vec_and_domain(evals_new, domain2).interpolate();
-        // Step 3: Perform inverse FFT to interpolate the new polynomial g(X)
-        // let g_coeffs = coset_domain.ifft(&evaluations);
-        // PallasPoly::from_coefficients_vec(g_coeffs)
-        poly
-    };
+            // for (x, y) in evals_new.iter().zip(&evals_old) {
+            //     println!("loop2: {}, {}", *x, y)
+            // }
+
+            let domain2 = GeneralEvaluationDomain::<PallasScalar>::new(x.h.n() as usize).unwrap();
+            let poly = Evaluations::from_vec_and_domain(evals_new, domain2).interpolate();
+            // Step 3: Perform inverse FFT to interpolate the new polynomial g(X)
+            // let g_coeffs = coset_domain.ifft(&evaluations);
+            // PallasPoly::from_coefficients_vec(g_coeffs)
+            poly
+        };
 
     let now = Instant::now();
     // ζ = H(transcript)
@@ -141,18 +148,14 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     let pl_f = &plp[1];
     let pl_h1 = &plp[2];
     let pl_h2 = &plp[3];
-    let pl_t_bar_old = &x.h.poly_times_arg(pl_t, &x.h.w(1));
-    // let pl_t_bar = &pl_t_bar_old.poly;
-    let pl_h1_bar_old = &x.h.poly_times_arg(pl_h1, &x.h.w(1));
-    // let pl_h1_bar = &pl_h1_bar_old.poly;
     let pl_t = &pl_t.poly;
     let pl_f = &pl_f.poly;
     let pl_h1 = &pl_h1.poly;
     let pl_h2 = &pl_h2.poly;
     info!("Round 2 took {} s", now.elapsed().as_secs_f64());
 
-    let pl_t_bar = &coset_scale_polynomial(&pl_t, x.h.w(1).scalar, &domain);
-    let pl_h1_bar = &coset_scale_polynomial(&pl_h1, x.h.w(1).scalar, &domain);
+    let pl_t_bar = &coset_scale_polynomial(pl_t, x.h.w(1).scalar, &domain);
+    let pl_h1_bar = &coset_scale_polynomial(pl_h1, x.h.w(1).scalar, &domain);
 
     // -------------------- Round 3 --------------------
 
@@ -174,16 +177,16 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     // plookup constraints: ε(1 + δ) + a(X) + δb(X)
     let zpl_sc = &(epsilon * (PallasScalar::ONE + delta));
     let zpl_ev = |a: &PallasPoly, b: &PallasPoly, i| {
-        *zpl_sc + a.evaluate(&x.h.w(i).into()) + delta * b.evaluate(&x.h.w(i).into())
+        *zpl_sc + a.evaluate(&x.h.w(i).into()) + (delta * b.evaluate(&x.h.w(i).into()))
     };
-    let zpl = |a: &PallasPoly, b: &PallasPoly| deg0(zpl_sc) + a + deg0(&delta) * b;
+    let zpl = |a: &PallasPoly, b: &PallasPoly| deg0(zpl_sc) + a + (deg0(&delta) * b);
 
     // copy constraints: w(X) + β s(X) + γ
     let zcc_ev = |w: &PallasPoly, s: &PallasPoly, i| {
-        w.evaluate(&x.h.w(i).into()) + beta * s.evaluate(&x.h.w(i).into()) + gamma
+        w.evaluate(&x.h.w(i).into()) + (beta * s.evaluate(&x.h.w(i).into())) + gamma
     };
     // w + s * beta + gamma
-    let zcc = |w: &PallasPoly, s: &PallasPoly| w + s * beta + deg0(&gamma);
+    let zcc = |w: &PallasPoly, s: &PallasPoly| w + (s * beta) + deg0(&gamma);
 
     let cc_zf_ev = |i| zcc_ev(w_a, x_sida, i) * zcc_ev(w_b, x_sidb, i) * zcc_ev(w_c, x_sidc, i);
 
@@ -219,7 +222,7 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     let z = &x.h.interpolate(z_points);
     info!("Round 3 - C - {} s", now.elapsed().as_secs_f64());
     // Z(ω X)
-    let z_bar = &x.h.poly_times_arg(z, &x.h.w(1));
+    let z_bar = &coset_scale_polynomial(&z.poly, x.h.w(1).scalar, &domain);
     info!("Round 3 - D - {} s", now.elapsed().as_secs_f64());
     let z = &z.into();
     let z_com = &pcdl::commit(z, d, None);
@@ -336,29 +339,33 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     let now = Instant::now();
     // 𝔷 = H(transcript)
     let ch = &transcript.challenge_scalar_new(b"xi");
-    let a_ev = &w.a.poly.evaluate(ch);
-    let b_ev = &w.b.poly.evaluate(ch);
-    let c_ev = &w.c.poly.evaluate(ch);
-    let qc_ev = &x.qc.poly.evaluate(ch);
-    let ql_ev = &x.ql.poly.evaluate(ch);
-    let qm_ev = &x.qm.poly.evaluate(ch);
-    let qo_ev = &x.qo.poly.evaluate(ch);
-    let qr_ev = &x.qr.poly.evaluate(ch);
-    let sa_ev = &x.sa.poly.evaluate(ch);
-    let sb_ev = &x.sb.poly.evaluate(ch);
-    let sc_ev = &x.sc.poly.evaluate(ch);
-    let t_parts_ev = [t1,t2,t3,t4,t5].iter().map(|p| p.evaluate(ch)).collect::<Vec<_>>();
+    let a_ev = &w_a.evaluate(ch);
+    let b_ev = &w_b.evaluate(ch);
+    let c_ev = &w_c.evaluate(ch);
+    let qc_ev = &x_qc.evaluate(ch);
+    let ql_ev = &x_ql.evaluate(ch);
+    let qm_ev = &x_qm.evaluate(ch);
+    let qo_ev = &x_qo.evaluate(ch);
+    let qr_ev = &x_qr.evaluate(ch);
+    let sa_ev = &x_sa.evaluate(ch);
+    let sb_ev = &x_sb.evaluate(ch);
+    let sc_ev = &x_sc.evaluate(ch);
+    let pip_ev = &x_pip.evaluate(ch);
+    let t_parts_ev = [t1, t2, t3, t4, t5]
+        .iter()
+        .map(|p| p.evaluate(ch))
+        .collect::<Vec<_>>();
     // let  = vec![PallasScalar::ZERO, PallasScalar::ZERO, PallasScalar::ZERO, PallasScalar::ZERO, PallasScalar::ZERO];
     let z_ev = z.evaluate(ch);
-    let pl_j_ev = x.pl_j.poly.evaluate(ch);
+    let pl_j_ev = x_pl_j.evaluate(ch);
     let pl_f_ev = pl_f.evaluate(ch);
-    let pl_qk_ev = x.pl_qk.poly.evaluate(ch);
+    let pl_qk_ev = x_pl_qk.evaluate(ch);
     let pl_h1_ev = pl_h1.evaluate(ch);
     let pl_h2_ev = pl_h2.evaluate(ch);
     let pl_t_ev = pl_t.evaluate(ch);
 
     let ch_bar = &(*ch * x.h.w(1).scalar);
-    let z_bar_ev = z_bar.poly.evaluate(ch);
+    let z_bar_ev = z_bar.evaluate(ch);
     let pl_h1_bar_ev = pl_h1_bar.evaluate(ch);
     //let pl_h1_bar_ev = pl_h1.evaluate(ch_bar);
     let pl_t_bar_ev = pl_t_bar.evaluate(ch);
@@ -376,7 +383,7 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     transcript.append_scalar_new(b"sb_ev", sb_ev);
     transcript.append_scalar_new(b"sc_ev", sc_ev);
     transcript.append_scalar_new(b"z_bar_ev", &z_bar_ev);
-     transcript.append_scalars_new(b"t_ev", &t_parts_ev.as_slice());
+    transcript.append_scalars_new(b"t_ev", &t_parts_ev.as_slice());
     transcript.append_scalar_new(b"z_ev", &z_ev);
 
     let v = &transcript.challenge_scalar_new(b"v");
@@ -407,6 +414,40 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     let W_bar = z.clone();
     let (_, _, _, _, W_bar_pi) = HaloInstance::open(rng, W_bar, d, ch_bar, None).into_tuple();
 
+    let hdrs = vec![
+        "t".to_string(),
+        "t_bar".to_string(),
+        "f".to_string(),
+        "h1".to_string(),
+        "h1_bar".to_string(),
+        "h2".to_string(),
+        "Z(X)".to_string(),
+        "Z(ωX)".to_string(),
+        "F_GC(X)".to_string(),
+        "F_Z1(X)".to_string(),
+        "F_Z2(X)".to_string(),
+    ];
+    println!(
+        "{}",
+        x.h.evals_str(
+            vec![
+                &plp[0],
+                &pl_t_bar.into(),
+                &plp[1],
+                &plp[2],
+                &pl_h1_bar.into(),
+                &plp[3],
+                &z.into(),
+                &z_bar.into(),
+                &f_gc.into(),
+                &f_z1.into(),
+                &f_z2.into()
+            ],
+            hdrs,
+            vec![false; 11]
+        )
+    );
+
     let pi = Proof {
         ev: ProofEvaluations {
             a: *a_ev,
@@ -420,6 +461,7 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
             sa: *sa_ev,
             sb: *sb_ev,
             sc: *sc_ev,
+            pip: *pip_ev,
             z: z_ev,
             t_parts: t_parts_ev,
             pl_j: pl_j_ev,
@@ -506,7 +548,7 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     let t_evs = &pi.ev.t_parts;
     let z = &pi.ev.z;
     let j = &pi.ev.pl_j;
-    let pip = PallasPoly::from(x.pip.clone()).evaluate(ch);
+    let pip = &pi.ev.pip;
 
     transcript.append_scalar(b"a_ev", &a.into());
     transcript.append_scalar(b"b_ev", &b.into());
@@ -525,7 +567,8 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
 
     // F_GC(𝔷) = A(𝔷)Qₗ(𝔷) + B(𝔷)Qᵣ(𝔷) + C(𝔷)Qₒ(𝔷) + A(𝔷)B(𝔷)Qₘ(𝔷) + Q꜀(𝔷)
     //         + Qₖ(𝔷)(A(𝔷) + ζB(𝔷) + ζ²C(𝔷) + ζ³J(𝔷) - f(𝔷))
-    let f_gcpl_ev = &(*qk * (*a + zeta * b + zeta.pow([2]) * c + zeta.pow([2]) * j - pi.ev.pl_f));
+    let f_gcpl_ev =
+        &(*qk * (*a + (zeta * b) + (zeta.pow([2]) * c) + (zeta.pow([3]) * j) - pi.ev.pl_f));
     let f_gc_ev = &((a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc + pip + f_gcpl_ev);
     // if *f_gc_ev == Scalar::ZERO || !pi.q_fgc.check(ch, Some(f_gc_ev)) {
     //     println!("FAILED GC");
@@ -538,8 +581,8 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     //     panic!();
     // }
     let zpl_sc = &(epsilon * (Scalar::ONE + delta));
-    let zcc = |w: &PallasScalar, s: &PallasScalar| *w + beta * s + gamma;
-    let zpl = |a: &PallasScalar, b: &PallasScalar| zpl_sc + a + delta * b;
+    let zcc = |w: &PallasScalar, s: &PallasScalar| *w + (beta * s) + gamma;
+    let zpl = |a: &PallasScalar, b: &PallasScalar| zpl_sc + a + (delta * b);
     // f'(𝔷) = (A(𝔷) + β Sᵢ₁(𝔷) + γ) (B(𝔷) + β Sᵢ₂(𝔷) + γ) (C(𝔷) + β Sᵢ₃(𝔷) + γ)
     //         (ε(1 + δ) + f(X) + δf(X))(ε(1 + δ) + t(X) + δt(Xω))
     let zfcc_ev = &(zcc(a, sida_ev) * zcc(b, sidb_ev) * zcc(c, sidc_ev));
@@ -557,10 +600,14 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
 
     // T(𝔷) = (F_GC(𝔷) + α F_CC1(𝔷) + α² F_CC2(𝔷)) / Zₕ(𝔷)
     let n = x.h.n();
-    let t_ev = t_evs.iter().enumerate().fold(PallasScalar::zero(), |acc, (i,t)| acc + (*t * ch.pow([n * i as u64])));
+    let t_ev = t_evs
+        .iter()
+        .enumerate()
+        .fold(PallasScalar::zero(), |acc, (i, t)| {
+            acc + (*t * ch.pow([n * i as u64]))
+        });
     ensure!(
-        (f_gc_ev + (alpha * f_z1_ev) + (alpha.pow([2]) * f_z2_ev)) - (t_ev * zh_ev)
-            == Scalar::ZERO,
+        (f_gc_ev + (alpha * f_z1_ev) + (alpha.pow([2]) * f_z2_ev)) - (t_ev * zh_ev) == Scalar::ZERO,
         "T(𝔷) ≠ (F_GC(𝔷) + α F_CC1(𝔷) + α² F_CC2(𝔷)) / Zₕ(𝔷)"
     );
 

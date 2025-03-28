@@ -55,13 +55,9 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
 
         println!(
             "| {:02} | {:>12.8} | {:>12.8} | {:>12.8} | {:>12.8} |",
-            size,
-            rand_circuit_time,
-            to_circuit_time,
-            new_p_time,
-            new_v_time
+            size, rand_circuit_time, to_circuit_time, new_p_time, new_v_time
         );
-    };
+    }
     println!("|____|______________|______________|______________|______________|______________|");
     // for (i, x, w) in &circuits {
     //     group.warm_up_time(WARMUP).bench_with_input(

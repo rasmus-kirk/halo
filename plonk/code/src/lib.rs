@@ -5,8 +5,8 @@ pub mod util;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use protocol::{arithmetizer::Arithmetizer, circuit::print_poly_evaluations, plonk};
     use anyhow::Result;
+    use protocol::{arithmetizer::Arithmetizer, circuit::print_poly_evaluations, plonk};
 
     #[test]
     fn circuit() -> Result<()> {
@@ -32,7 +32,7 @@ mod tests {
         let rng = &mut rand::thread_rng();
         let [x, y] = &Arithmetizer::build();
         let input_values = vec![1, 0];
-        let output_wires = &[(x ^ (y | x).is_bit()).is_public()];
+        let output_wires = &[x | y];
         println!("{}", Arithmetizer::to_string(&input_values, output_wires));
         let ((x, w), e) =
             &Arithmetizer::to_circuit(rng, 2usize.pow(7) - 1, input_values, output_wires)?;
