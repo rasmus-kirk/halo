@@ -1,4 +1,16 @@
-use std::fmt::Debug;
+use std::{env, fmt::Debug};
+
+pub fn is_debug() -> bool {
+    env::var("RUST_LOG").as_deref() == Ok("debug")
+}
+
+pub fn if_debug<T>(x: T) -> Option<T> {
+    if is_debug() {
+        Some(x)
+    } else {
+        None
+    }
+}
 
 pub fn map_to_alphabet(num: usize) -> String {
     let mut n = num + 1;

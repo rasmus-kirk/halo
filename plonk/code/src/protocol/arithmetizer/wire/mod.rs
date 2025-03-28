@@ -7,6 +7,8 @@ mod op_u64;
 mod op_usize;
 mod op_wire;
 
+use crate::util::{if_debug, is_debug};
+
 use super::{Arithmetizer, WireID};
 use ast::WireAST;
 
@@ -16,19 +18,19 @@ use std::{cell::RefCell, fmt, rc::Rc};
 pub struct Wire {
     id: WireID,
     arith: Rc<RefCell<Arithmetizer>>,
-    ast: Rc<WireAST>,
+    ast: Option<Rc<WireAST>>,
 }
 
 impl Wire {
     // constructors -------------------------------------------------------
 
-    pub fn new(id: WireID, arith: Rc<RefCell<Arithmetizer>>, ast: Rc<WireAST>) -> Self {
+    pub fn new(id: WireID, arith: Rc<RefCell<Arithmetizer>>, ast: Option<Rc<WireAST>>) -> Self {
         Self { id, arith, ast }
     }
 
     /// Create a new input wire.
     pub fn new_input(id: WireID, arith: Rc<RefCell<Arithmetizer>>) -> Self {
-        Self::new(id, arith, Rc::new(WireAST::Input(id)))
+        Self::new(id, arith, if_debug(Rc::new(WireAST::Input(id))))
     }
 
     // getters ------------------------------------------------------------
@@ -64,7 +66,11 @@ impl Wire {
 
 impl fmt::Display for Wire {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.ast)
+        if is_debug() {
+            write!(f, "{}", self.ast.clone().unwrap())
+        } else {
+            write!(f, "AST only computed in `RUST_LOG=debug`")
+        }
     }
 }
 
@@ -77,6 +83,7 @@ mod tests {
 
     #[test]
     fn new() {
+        std::env::set_var("RUST_LOG", "debug");
         let [wire_, _] = &Arithmetizer::build::<2>();
         let arithmetizer = wire_.arith().clone();
         let wire = Wire::new_input(0, arithmetizer);
@@ -86,6 +93,7 @@ mod tests {
 
     #[test]
     fn add() {
+        std::env::set_var("RUST_LOG", "debug");
         let [a, b] = Arithmetizer::build::<2>();
         let c = a.clone() + b.clone();
         assert_eq!(a.id, 0);
@@ -101,6 +109,7 @@ mod tests {
 
     #[test]
     fn sub() {
+        std::env::set_var("RUST_LOG", "debug");
         let [a, b] = Arithmetizer::build::<2>();
         let c = a.clone() - b.clone();
         assert_eq!(a.id, 0);
@@ -116,6 +125,7 @@ mod tests {
 
     #[test]
     fn mul() {
+        std::env::set_var("RUST_LOG", "debug");
         let [a, b] = Arithmetizer::build::<2>();
         let c = a.clone() * b.clone();
         assert_eq!(a.id, 0);
@@ -131,6 +141,7 @@ mod tests {
 
     #[test]
     fn add_const() {
+        std::env::set_var("RUST_LOG", "debug");
         let [a] = Arithmetizer::build::<1>();
         let b: Wire = a.clone() + 1;
         assert_eq!(a.id, 0);
@@ -141,6 +152,7 @@ mod tests {
 
     #[test]
     fn sub_const() {
+        std::env::set_var("RUST_LOG", "debug");
         let [a] = Arithmetizer::build::<1>();
         let b: Wire = a.clone() - 1;
         assert_eq!(a.id, 0);
@@ -151,6 +163,7 @@ mod tests {
 
     #[test]
     fn mul_const() {
+        std::env::set_var("RUST_LOG", "debug");
         let [a] = Arithmetizer::build::<1>();
         let b: Wire = a.clone() * 1;
         assert_eq!(a.id, 0);

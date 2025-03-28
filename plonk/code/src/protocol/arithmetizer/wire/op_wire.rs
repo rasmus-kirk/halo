@@ -13,7 +13,7 @@ impl Add for Wire {
         Wire {
             id: self.arith.clone().borrow_mut().add(self.id, other.id),
             arith: self.arith,
-            ast: WireAST::add(self.ast, other.ast),
+            ast: self.ast.map(|ast| WireAST::add(ast, other.ast.unwrap())),
         }
     }
 }
@@ -27,7 +27,7 @@ impl Sub for Wire {
         Wire {
             id: self.arith.clone().borrow_mut().sub(self.id, other.id),
             arith: self.arith,
-            ast: WireAST::sub(self.ast, other.ast),
+            ast: self.ast.map(|ast| WireAST::sub(ast, other.ast.unwrap())),
         }
     }
 }
@@ -41,7 +41,7 @@ impl Mul for Wire {
         Wire {
             id: self.arith.clone().borrow_mut().mul(self.id, other.id),
             arith: self.arith,
-            ast: WireAST::mul(self.ast, other.ast),
+            ast: self.ast.map(|ast| WireAST::mul(ast, other.ast.unwrap())),
         }
     }
 }
@@ -55,7 +55,7 @@ impl Not for Wire {
         Wire {
             id: self.arith.clone().borrow_mut().not(self.id),
             arith: self.arith,
-            ast: WireAST::not(self.ast),
+            ast: self.ast.map(|ast| WireAST::not(ast)),
         }
     }
 }
@@ -69,7 +69,7 @@ impl BitAnd for Wire {
         Wire {
             id: self.arith.clone().borrow_mut().and(self.id, other.id),
             arith: self.arith,
-            ast: WireAST::and(self.ast, other.ast),
+            ast: self.ast.map(|ast| WireAST::and(ast, other.ast.unwrap())),
         }
     }
 }
@@ -87,7 +87,9 @@ impl BitOr for Wire {
                 .borrow_mut()
                 .lookup(PlonkupOps::Or, self.id, other.id),
             arith: self.arith,
-            ast: WireAST::lookup(PlonkupOps::Or, self.ast, other.ast),
+            ast: self
+                .ast
+                .map(|ast| WireAST::lookup(PlonkupOps::Or, ast, other.ast.unwrap())),
         }
     }
 }
@@ -105,7 +107,9 @@ impl BitXor for Wire {
                 .borrow_mut()
                 .lookup(PlonkupOps::Xor, self.id, other.id),
             arith: self.arith,
-            ast: WireAST::lookup(PlonkupOps::Xor, self.ast, other.ast),
+            ast: self
+                .ast
+                .map(|ast| WireAST::lookup(PlonkupOps::Xor, ast, other.ast.unwrap())),
         }
     }
 }
