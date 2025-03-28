@@ -1,16 +1,19 @@
 #![allow(non_snake_case)]
 
+use std::{ops::Mul, time::Instant};
+
 use anyhow::{ensure, Result};
-use ark_ff::{Field, Zero};
-use ark_poly::{DenseUVPolynomial, Polynomial};
+use ark_ff::{AdditiveGroup, Field, Zero};
+use ark_poly::{DenseUVPolynomial, EvaluationDomain, Evaluations, GeneralEvaluationDomain, Polynomial};
 use halo_accumulation::{
     group::{PallasPoint, PallasPoly, PallasScalar},
     pcdl::{self, EvalProof, Instance as HaloInstance},
 };
+use log::info;
 use merlin::Transcript;
 use rand::Rng;
 
-use super::{instance::Instance, transcript::TranscriptProtocol, SNARKProof};
+use super::transcript::TranscriptProtocol;
 use crate::{
     curve::{Poly, Scalar},
     protocol::circuit::{CircuitPrivate, CircuitPublic},
@@ -64,156 +67,11 @@ pub struct Proof {
     pis: EvalProofs,
 }
 
-pub fn proof<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> SNARKProof {
-    let mut transcript = Transcript::new(b"protocol");
-    transcript.domain_sep();
-
-    // -------------------- Round 1 --------------------
-
-    let com_a = &w.a.commit();
-    let com_b = &w.b.commit();
-    let com_c = &w.c.commit();
-    transcript.append_points(b"abc", &[*com_a, *com_b, *com_c]);
-    // Round 2 -----------------------------------------------------
-    // ζ = H(transcript)
-    let zeta = &transcript.challenge_scalar(b"zeta");
-    let plp = w.plonkup.compute(zeta);
-    let tpl = &plp[0];
-    let fpl = &plp[1];
-    let h1pl = &plp[2];
-    let h2pl = &plp[3];
-    let tplbar = &x.h.poly_times_arg(tpl, &x.h.w(1));
-    let h1plbar = &x.h.poly_times_arg(h1pl, &x.h.w(1));
-    // Round 3 -----------------------------------------------------
-    // β = H(transcript, 1)
-    let beta = &transcript.challenge_scalar_augment(1, b"beta");
-    // γ = H(transcript, 2)
-    let gamma = &transcript.challenge_scalar_augment(2, b"gamma");
-    // δ = H(transcript, 3)
-    let delta = &transcript.challenge_scalar_augment(3, b"delta");
-    // ε = H(transcript, 4)
-    let epsilon = &transcript.challenge_scalar_augment(4, b"epsilon");
-    // copy constraints: w(X) + β s(X) + γ
-    let zcc_ev = |w, s, i| x.h.evaluate(w, i) + beta * x.h.evaluate(s, i) + gamma;
-    let zcc = |w, s| w + beta * s + gamma;
-    // plookup constraints: ε(1 + δ) + a(X) + δb(X)
-    let zpl_sc = &(epsilon * (Scalar::ONE + delta));
-    let zpl_ev = |a, b, i| zpl_sc + x.h.evaluate(a, i) + delta * x.h.evaluate(b, i);
-    let zpl = |a, b| zpl_sc + a + delta * b;
-    // f'(X) = (A(X) + β Sᵢ₁(X) + γ) (B(X) + β Sᵢ₂(X) + γ) (C(X) + β Sᵢ₃(X) + γ)
-    //         (ε(1 + δ) + f(X) + δf(X)) (ε(1 + δ) + t(X) + δt(Xω))
-    let zfcc_ev =
-        |i| zcc_ev(&w.a, &x.sida, i) * zcc_ev(&w.b, &x.sidb, i) * zcc_ev(&w.c, &x.sidc, i);
-    let zfpl_ev = |i| zpl_ev(fpl, fpl, i) * zpl_ev(tpl, tplbar, i);
-    let zf = &(zcc(&w.a, &x.sida)
-        * zcc(&w.b, &x.sidb)
-        * zcc(&w.c, &x.sidc)
-        * zpl(fpl, fpl)
-        * zpl(tpl, tplbar));
-    // g'(X) = (A(X) + β S₁(X) + γ) (B(X) + β S₂(X) + γ) (C(X) + β S₃(X) + γ)
-    //         (ε(1 + δ) + h₁(X) + δh₂(X)) (ε(1 + δ) + h₂(X) + δh₁(Xω))
-    let zgcc_ev = |i| zcc_ev(&w.a, &x.sa, i) * zcc_ev(&w.b, &x.sb, i) * zcc_ev(&w.c, &x.sc, i);
-    let zgpl_ev = |i| zpl_ev(h1pl, h2pl, i) * zpl_ev(h2pl, h1plbar, i);
-    let zg = &(zcc(&w.a, &x.sa)
-        * zcc(&w.b, &x.sb)
-        * zcc(&w.c, &x.sc)
-        * zpl(h1pl, h2pl)
-        * zpl(h2pl, h1plbar));
-    // Z(ω) = 1
-    // Z(ωⁱ) = Z(ωᶦ⁻¹) f'(ωᶦ⁻¹) / g'(ωᶦ⁻¹)
-    let z_points = (1..x.h.n() - 1).fold(vec![Scalar::ONE; 2], |mut acc, i| {
-        acc.push(acc[i as usize] * zfcc_ev(i) * zfpl_ev(i) / (zgcc_ev(i) * zgpl_ev(i)));
-        acc
-    });
-    let z = &x.h.interpolate(z_points);
-    // Z(ω X)
-    let zbar = &x.h.poly_times_arg(z, &x.h.w(1));
-    let comm_z = &z.commit();
-    transcript.append_point(b"z", comm_z);
-    // Round 4 -----------------------------------------------------
-    // α = H(transcript)
-    let alpha = &transcript.challenge_scalar(b"alpha");
-    // F_GC(X) = A(X)Qₗ(X) + B(X)Qᵣ(X) + C(X)Qₒ(X) + A(X)B(X)Qₘ(X) + Q꜀(X) + PI(X)
-    //         + Qₖ(X)(A(X) + ζB(X) + ζ²C(X) + ζ³J(X) - f(X))
-    let f_plgc =
-        &(&x.pl_qk * (&w.a + (zeta * &w.b) + (zeta.pow(2) * &w.c) + (zeta.pow(3) * &x.pl_j) - fpl));
-    let f_gc = &((&w.a * &x.ql)
-        + (&w.b * &x.qr)
-        + (&w.c * &x.qo)
-        + (&w.a * &w.b * &x.qm)
-        + &x.qc
-        + &x.pip
-        + f_plgc);
-    // F_Z1(X) = L₁(X) (Z(X) - 1)
-    let f_z1 = &(x.h.lagrange(1) * (z - Scalar::ONE));
-    // F_Z2(X) = Z(X)f'(X) - g'(X)Z(ω X)
-    let f_z2 = &((z * zf) - (zg * zbar));
-    // T(X) = (F_GC(X) + α F_C1(X) + α² F_C2(X)) / Zₕ(X)
-    let t = &((f_gc + alpha * f_z1 + alpha.pow(2) * f_z2) / x.h.zh());
-    let comm_t = &t.commit();
-    transcript.append_point(b"t", comm_t);
-    // Round 5 -----------------------------------------------------
-    // 𝔷 = H(transcript)
-    let ch = &transcript.challenge_scalar(b"xi");
-
-    let q_a = Instance::new(rng, &w.a, ch, true);
-    let q_b = Instance::new(rng, &w.b, ch, true);
-    let q_c = Instance::new(rng, &w.c, ch, true);
-    let q_fgc = Instance::new(rng, f_gc, ch, false);
-    let q_z = Instance::new_from_comm(rng, z, ch, comm_z, true);
-    let zbar_ev = zbar.evaluate(ch);
-    let q_fz1 = Instance::new(rng, f_z1, ch, false);
-    let q_fz2 = Instance::new(rng, f_z2, ch, false);
-    let fpl_ev = fpl.evaluate(ch);
-    let q_tpl = Instance::new(rng, tpl, ch, true);
-    let tplbar_ev = tplbar.evaluate(ch);
-    let q_h1 = Instance::new(rng, h1pl, ch, true);
-    let q_h2 = Instance::new(rng, h2pl, ch, true);
-    let h1plbar_ev = h1plbar.evaluate(ch);
-    let q_t = Instance::new_from_comm(rng, t, ch, comm_t, true);
-
-    // let hdrs = vec![
-    //     "t".to_string(),
-    //     "f".to_string(),
-    //     "h1".to_string(),
-    //     "h2".to_string(),
-    //     "Z(X)".to_string(),
-    //     "Z(ωX)".to_string(),
-    //     "F_GC(X)".to_string(),
-    //     "F_Z1(X)".to_string(),
-    //     "F_Z2(X)".to_string(),
-    // ];
-    // println!(
-    //     "{}",
-    //     x.h.evals_str(
-    //         vec![tpl, fpl, h1pl, h2pl, z, zbar, f_gc, f_z1, f_z2],
-    //         hdrs,
-    //         vec![false; 9]
-    //     )
-    // );
-    SNARKProof {
-        q_a,
-        q_b,
-        q_c,
-        q_fgc,
-        q_z,
-        zbar_ev,
-        q_fz1,
-        q_fz2,
-        q_t,
-        q_tpl,
-        tplbar_ev,
-        fpl_ev,
-        q_h1,
-        q_h2,
-        h1plbar_ev,
-    }
-}
-
-pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proof {
+pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proof {
     let mut transcript = Transcript::new(b"protocol");
     transcript.domain_sep();
     let d = x.d;
+    let domain = GeneralEvaluationDomain::<PallasScalar>::new(x.h.n() as usize).unwrap().get_coset(x.h.w(1).into()).unwrap();
 
     let w_a = &w.a.poly;
     let w_b = &w.b.poly;
@@ -236,13 +94,46 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
 
     // -------------------- Round 1 --------------------
 
+    let now = Instant::now();
     let a_com = &pcdl::commit(&w.a.poly, d, None);
     let b_com = &pcdl::commit(&w.b.poly, d, None);
     let c_com = &pcdl::commit(&w.c.poly, d, None);
     transcript.append_points_new(b"abc", &[*a_com, *b_com, *c_com]);
+    info!("Round 1 took {} s", now.elapsed().as_secs_f64());
 
     // -------------------- Round 2 --------------------
 
+    // Compute g(X) such that g(X) = f(aX) for all X in the FFT domain
+    let coset_scale_polynomial = |f: &PallasPoly, a: PallasScalar, domain: &GeneralEvaluationDomain<PallasScalar>| {
+        // Step 1: Get the coset domain scaled by `a`
+        // let coset_domain = domain.get_coset(a*PallasScalar::from(2)).unwrap();
+        
+        let coset_domain = domain.get_coset(domain.coset_offset()*a).unwrap();
+
+        // for (x, y) in coset_domain.elements().zip(domain.elements()) {
+        //     println!("loop: {}, {}", x, y);
+        //     assert_eq!(x, y*a);
+        // }
+        //old_evals = (0..self.n()).into_par_iter().map(|i| f.evaluate(&(self.w(i) * a))).collect();
+
+        // Step 2: Perform FFT on `f` over the coset domain {a * ζ^i}
+        let mut evals_new = coset_domain.fft(&f.coeffs);
+        let evals_new_last = evals_new.pop().unwrap();
+        evals_new.insert(0, evals_new_last);
+
+        // for (x, y) in evals_new.iter().zip(&evals_old) {
+        //     println!("loop2: {}, {}", *x, y)
+        // }
+
+        let domain2 = GeneralEvaluationDomain::<PallasScalar>::new(x.h.n() as usize).unwrap();
+        let poly = Evaluations::from_vec_and_domain(evals_new, domain2).interpolate();
+        // Step 3: Perform inverse FFT to interpolate the new polynomial g(X)
+        // let g_coeffs = coset_domain.ifft(&evaluations);
+        // PallasPoly::from_coefficients_vec(g_coeffs)
+        poly
+    };
+
+    let now = Instant::now();
     // ζ = H(transcript)
     let zeta = &transcript.challenge_scalar_new(b"zeta");
     let plp = &w.plonkup.compute(&Scalar::new(*zeta));
@@ -251,15 +142,89 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
     let pl_h1 = &plp[2];
     let pl_h2 = &plp[3];
     let pl_t_bar_old = &x.h.poly_times_arg(pl_t, &x.h.w(1));
-    let pl_t_bar = &pl_t_bar_old.poly;
+    // let pl_t_bar = &pl_t_bar_old.poly;
     let pl_h1_bar_old = &x.h.poly_times_arg(pl_h1, &x.h.w(1));
-    let pl_h1_bar = &pl_h1_bar_old.poly;
+    // let pl_h1_bar = &pl_h1_bar_old.poly;
     let pl_t = &pl_t.poly;
     let pl_f = &pl_f.poly;
     let pl_h1 = &pl_h1.poly;
     let pl_h2 = &pl_h2.poly;
+    info!("Round 2 took {} s", now.elapsed().as_secs_f64());
+
+    let pl_t_bar = &coset_scale_polynomial(&pl_t, x.h.w(1).scalar, &domain);
+    let pl_h1_bar = &coset_scale_polynomial(&pl_h1, x.h.w(1).scalar, &domain);
 
     // -------------------- Round 3 --------------------
+
+    let now = Instant::now();
+    // NOTICE: The `1..4` is omitted since the label handles it.
+    // β = H(transcript, 1)
+    let beta = transcript.challenge_scalar_new(b"beta");
+    // γ = H(transcript, 2)
+    let gamma = transcript.challenge_scalar_new(b"gamma");
+    // δ = H(transcript, 3)
+    let delta = transcript.challenge_scalar_new(b"delta");
+    // ε = H(transcript, 4)
+    let epsilon = transcript.challenge_scalar_new(b"epsilon");
+
+    // ----- Lambdas ----- //
+
+    // let deg0 = |scalar: &PallasScalar| PallasPoly::from_coefficients_slice(&[*scalar]);
+
+    // // plookup constraints: ε(1 + δ) + a(X) + δb(X)
+    // let zpl_sc = &(epsilon * (PallasScalar::ONE + delta));
+    // let zpl_ev = |a: &PallasPoly, b: &PallasPoly, i| {
+    //     *zpl_sc + a.evaluate(&x.h.w(i).into()) + delta * b.evaluate(&x.h.w(i).into())
+    // };
+    // let zpl = |a: &PallasPoly, b: &PallasPoly| deg0(zpl_sc) + a + deg0(&delta) * b;
+
+    // // copy constraints: w(X) + β s(X) + γ
+    // let zcc_ev = |w: &PallasPoly, s: &PallasPoly, i| {
+    //     w.evaluate(&x.h.w(i).into()) + beta * s.evaluate(&x.h.w(i).into()) + gamma
+    // };
+    // // w + s * beta + gamma
+    // let zcc = |w: &PallasPoly, s: &PallasPoly| w + s * beta + deg0(&gamma);
+
+    // let cc_zf_ev = |i| zcc_ev(w_a, x_sida, i) * zcc_ev(w_b, x_sidb, i) * zcc_ev(w_c, x_sidc, i);
+
+    // // plookup constraints: ε(1 + δ) + a(X) + δb(X)
+    // // f'(X) = (A(X) + β Sᵢ₁(X) + γ) (B(X) + β Sᵢ₂(X) + γ) (C(X) + β Sᵢ₃(X) + γ)
+    // //         (ε(1 + δ) + f(X) + δf(X)) (ε(1 + δ) + t(X) + δt(Xω))
+    // let pl_zf_ev = |i| zpl_ev(pl_f, pl_f, i) * zpl_ev(pl_t, pl_t_bar, i);
+    // let zf = &(zcc(w_a, x_sida)
+    //     * zcc(w_b, x_sidb)
+    //     * zcc(w_c, x_sidc)
+    //     * zpl(pl_f, pl_f)
+    //     * zpl(pl_t, pl_t_bar));
+    // // g'(X) = (A(X) + β S₁(X) + γ) (B(X) + β S₂(X) + γ) (C(X) + β S₃(X) + γ)
+    // //         (ε(1 + δ) + h₁(X) + δh₂(X)) (ε(1 + δ) + h₂(X) + δh₁(Xω))
+    // let cc_zg_ev = |i| zcc_ev(w_a, x_sa, i) * zcc_ev(w_b, x_sb, i) * zcc_ev(w_c, x_sc, i);
+    // let pl_zg_ev = |i| zpl_ev(pl_h1, pl_h2, i) * zpl_ev(pl_h2, pl_h1_bar, i);
+
+    // // ----- Calculate z ----- //
+
+    // let zg = &(zcc(w_a, x_sa)
+    //     * zcc(w_b, x_sb)
+    //     * zcc(w_c, x_sc)
+    //     * zpl(pl_h1, pl_h2)
+    //     * zpl(pl_h2, pl_h1_bar));
+    // // Z(ω) = 1
+    // // Z(ωⁱ) = Z(ωᶦ⁻¹) f'(ωᶦ⁻¹) / g'(ωᶦ⁻¹)
+    // info!("Round 3 - A - {} s", now.elapsed().as_secs_f64());
+    // let z_points = (1..x.h.n() - 1).fold(vec![Scalar::ONE; 2], |mut acc, i| {
+    //     acc.push(acc[i as usize] * cc_zf_ev(i) * pl_zf_ev(i) / (cc_zg_ev(i) * pl_zg_ev(i)));
+    //     acc
+    // });
+    // info!("Round 3 - B - {} s", now.elapsed().as_secs_f64());
+    // let z = &x.h.interpolate(z_points);
+    // info!("Round 3 - C - {} s", now.elapsed().as_secs_f64());
+    // // Z(ω X)
+    // let z_bar = &x.h.poly_times_arg(z, &x.h.w(1));
+    // info!("Round 3 - D - {} s", now.elapsed().as_secs_f64());
+    // let z = &z.into();
+    // let z_com = &pcdl::commit(z, d, None);
+    // transcript.append_point_new(b"z", z_com);
+    // info!("Round 3 took {} s", now.elapsed().as_secs_f64());
 
     // NOTICE: The `1..4` is omitted since the label handles it.
     // β = H(transcript, 1)
@@ -313,68 +278,62 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
     let cc_zg_ev = |i| zcc_ev(&w.a, &x.sa, i) * zcc_ev(&w.b, &x.sb, i) * zcc_ev(&w.c, &x.sc, i);
     let pl_zg_ev = |i| zpl_ev(&plp[2], &plp[3], i) * zpl_ev(&plp[3], pl_h1_bar_old, i);
 
-    // ----- Calculate z ----- //
-
-    let zg = &(zcc(w_a, x_sa)
-        * zcc(w_b, x_sb)
-        * zcc(w_c, x_sc)
-        * zpl(pl_h1, pl_h2)
-        * zpl(pl_h2, pl_h1_bar));
-    // Z(ω) = 1
-    // Z(ωⁱ) = Z(ωᶦ⁻¹) f'(ωᶦ⁻¹) / g'(ωᶦ⁻¹)
-    let z_points = (1..x.h.n() - 1).fold(vec![Scalar::ONE; 2], |mut acc, i| {
-        acc.push(acc[i as usize] * cc_zf_ev(i) * pl_zf_ev(i) / (cc_zg_ev(i) * pl_zg_ev(i)));
-        acc
-    });
-    let z = &x.h.interpolate(z_points);
-    // Z(ω X)
-    let z_bar = &x.h.poly_times_arg(z, &x.h.w(1));
-    let z = &z.into();
-    let z_com = &pcdl::commit(z, d, None);
-    transcript.append_point_new(b"z", z_com);
-
     // -------------------- Round 4 --------------------
 
+    let now = Instant::now();
     // α = H(transcript)
     let alpha = &transcript.challenge_scalar_new(b"alpha");
     // F_GC(X) = A(X)Qₗ(X) + B(X)Qᵣ(X) + C(X)Qₒ(X) + A(X)B(X)Qₘ(X) + Q꜀(X) + PI(X)
     //         + Qₖ(X)(A(X) + ζB(X) + ζ²C(X) + ζ³J(X) - f(X))
+    // info!("Round 4A - {} s", now.elapsed().as_secs_f64());
     let pl_f_gc = &(x_pl_qk
         * (w_a
             + (deg0(zeta) * w_b)
             + (deg0(&zeta.pow([2])) * w_c)
             + (deg0(&zeta.pow([3])) * x_pl_j)
             - pl_f));
+    // info!("Round 4B - {} s", now.elapsed().as_secs_f64());
     let f_gc =
         &((w_a * x_ql) + (w_b * x_qr) + (w_c * x_qo) + (w_a * w_b * x_qm) + x_qc + x_pip + pl_f_gc);
     // F_Z1(X) = L₁(X) (Z(X) - 1)
+    // info!("Round 4C - {} s", now.elapsed().as_secs_f64());
     let f_z1: &PallasPoly = &(x.h.lagrange(1).poly * (z - deg0(&PallasScalar::ONE)));
     // F_Z2(X) = Z(X)f'(X) - g'(X)Z(ω X)
+    // info!("Round 4D - {} s", now.elapsed().as_secs_f64());
     let f_z2 = &((z * zf) - (zg * z_bar));
     // T(X) = (F_GC(X) + α F_C1(X) + α² F_C2(X)) / Zₕ(X)
-    let t = &((f_gc + deg0(alpha) * f_z1 + deg0(&alpha.pow([2])) * f_z2) / x_zh);
+    // info!("Round 4E1 - {} s", now.elapsed().as_secs_f64());
+    let t_a = f_gc + deg0(alpha) * f_z1 + deg0(&alpha.pow([2])) * f_z2;
+    // info!("Round 4E2 - {} s", now.elapsed().as_secs_f64());
+    let (t, _) = &(t_a.divide_by_vanishing_poly(domain));
+    // println!("t_deg: {:?}", t.degree());
+
     // let t_com = pcdl::commit(t, d, None);
 
     let n = x.h.n() as usize;
-    let n = x.h.n() as usize;
+    // info!("Round 4E3 - {} s", now.elapsed().as_secs_f64());
     let t1 = PallasPoly::from_coefficients_slice(&t.coeffs[0..n]);
     let t2 = PallasPoly::from_coefficients_slice(&t.coeffs[n..2 * n]);
     let t3 = PallasPoly::from_coefficients_slice(&t.coeffs[2 * n..3 * n]);
     let t4 = PallasPoly::from_coefficients_slice(&t.coeffs[3 * n..4 * n]);
     let t5 = PallasPoly::from_coefficients_slice(&t.coeffs[4 * n..]);
+    // info!("Round 4F - {} s", now.elapsed().as_secs_f64());
 
     let t1_com = pcdl::commit(&t1, d, None);
     let t2_com = pcdl::commit(&t2, d, None);
     let t3_com = pcdl::commit(&t3, d, None);
     let t4_com = pcdl::commit(&t4, d, None);
     let t5_com = pcdl::commit(&t5, d, None);
+    // info!("Round 4G - {} s", now.elapsed().as_secs_f64());
 
     let t_coms = vec![t1_com, t2_com, t3_com, t4_com, t5_com];
     transcript.append_points_new(b"t", &t_coms);
     // transcript.append_point_new(b"t", &t_com);
+    info!("Round 4 took {} s", now.elapsed().as_secs_f64());
 
     // -------------------- Round 5 --------------------
 
+    let now = Instant::now();
     // 𝔷 = H(transcript)
     let ch = &transcript.challenge_scalar_new(b"xi");
     let a_ev = &w.a.poly.evaluate(ch);
@@ -389,6 +348,7 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
     let sb_ev = &x.sb.poly.evaluate(ch);
     let sc_ev = &x.sc.poly.evaluate(ch);
     let t_parts_ev = [t1,t2,t3,t4,t5].iter().map(|p| p.evaluate(ch)).collect::<Vec<_>>();
+    // let  = vec![PallasScalar::ZERO, PallasScalar::ZERO, PallasScalar::ZERO, PallasScalar::ZERO, PallasScalar::ZERO];
     let z_ev = z.evaluate(ch);
     let pl_j_ev = x.pl_j.poly.evaluate(ch);
     let pl_f_ev = pl_f.evaluate(ch);
@@ -416,7 +376,7 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
     transcript.append_scalar_new(b"sb_ev", sb_ev);
     transcript.append_scalar_new(b"sc_ev", sc_ev);
     transcript.append_scalar_new(b"z_bar_ev", &z_bar_ev);
-    transcript.append_scalars_new(b"t_ev", &t_parts_ev.as_slice());
+     transcript.append_scalars_new(b"t_ev", &t_parts_ev.as_slice());
     transcript.append_scalar_new(b"z_ev", &z_ev);
 
     let v = &transcript.challenge_scalar_new(b"v");
@@ -440,13 +400,14 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
     // + v.pow(15) * pl_h1
     // + v.pow(16) * pl_h2
     // + v.pow(17) * pl_t;
+
     let (_, _, _, _, W_pi) = HaloInstance::open(rng, W, d, ch, None).into_tuple();
 
     //let W_bar: Poly = z_bar + v.pow(1) * pl_h1_bar + v.pow(2) * pl_t_bar;
     let W_bar = z.clone();
     let (_, _, _, _, W_bar_pi) = HaloInstance::open(rng, W_bar, d, ch_bar, None).into_tuple();
 
-    Proof {
+    let pi = Proof {
         ev: ProofEvaluations {
             a: *a_ev,
             b: *b_ev,
@@ -476,16 +437,20 @@ pub fn prove_w_lu<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) ->
             b: *b_com,
             c: *c_com,
             z: *z_com,
-            t_coms: t_coms,
+            t_coms,
         },
         pis: EvalProofs {
             W: W_pi,
             W_bar: W_bar_pi,
         },
-    }
+    };
+
+    info!("Round 5 took {} s", now.elapsed().as_secs_f64());
+
+    pi
 }
 
-pub fn verify_lu_with_w(x: &CircuitPublic, pi: Proof) -> Result<()> {
+pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     let mut transcript = Transcript::new(b"protocol");
     transcript.domain_sep();
     let d = x.d;

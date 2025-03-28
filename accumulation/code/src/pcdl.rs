@@ -230,6 +230,25 @@ pub fn commit(p: &PallasPoly, d: usize, w: Option<&PallasScalar>) -> PallasPoint
     pedersen::commit(w, &pp.Gs[0..n], &p.coeffs)
 }
 
+/// Creates a commitment to the coefficients of the polynomial $p$ of degree $d' < d$, with optional hiding $\o$, using pedersen commitments.
+///
+/// p: A univariate polynomial p(X),
+/// d: A degree bound for p, we require that p.degree() <= d,
+/// w: Optional hiding to pass to the underlying Pederson Commitment
+pub fn chunked_commit(p: &PallasPoly, d: usize, w: Option<&PallasScalar>, chunk_size: usize) -> Vec<PallasPoint> {
+    let pp = PublicParams::get_pp();
+    let n = d + 1;
+    // let p_deg = p.degree();
+    let pp_len = pp.len();
+    let D = pp.D;
+
+    assert!(n.is_power_of_two(), "n ({n}) is not a power of two");
+    // assert!(p_deg <= d, "p_deg ({p_deg}) <= d ({d})");
+    assert!(d <= D, "d ({d}) <= D ({D}) (pp_len = {pp_len})",);
+
+    p.coeffs().chunks(chunk_size).map(|x| pedersen::commit(w, &pp.Gs[0..n], x)).collect()
+}
+
 /// Creates a proof that states: "I know a polynomial p of degree d' less than d, with commitment C s.t. p(z) = v" where p is private and d, z, v are public.
 ///
 /// rng: Required since the function uses randomness

@@ -1,5 +1,9 @@
+use std::time::Instant;
+
 use ark_poly::{EvaluationDomain, Evaluations, GeneralEvaluationDomain};
 use halo_accumulation::group::PallasScalar;
+use log::info;
+use rayon::prelude::*;
 
 use crate::curve::{Poly, Scalar};
 
@@ -33,10 +37,16 @@ impl Coset {
     /// Given a polynomial f(X) and a scalar a, return a polynomial g(X) such that:
     /// ∀X ∈ H₀: g(X) = f(aX)
     pub fn poly_times_arg(&self, f: &Poly, a: &Scalar) -> Poly {
-        let mut points = vec![];
-        for i in 0..self.n() {
-            let x = self.w(i) * a;
-            points.push(f.evaluate(&x));
+        let mut points = Vec::with_capacity(self.n() as usize);
+
+        const PARALLEL: bool = true;
+        if PARALLEL {
+            points = (0..self.n()).into_par_iter().map(|i| f.evaluate(&(self.w(i) * a))).collect();
+        } else {
+            for i in 0..self.n() {
+                let x = self.w(i) * a;
+                points.push(f.evaluate(&x));
+            }
         }
         self.interpolate(points)
     }
