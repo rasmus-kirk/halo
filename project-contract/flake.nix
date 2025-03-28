@@ -4,6 +4,7 @@
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
   outputs = {
+    self,
     nixpkgs,
     ...
   }: let
@@ -31,7 +32,7 @@
           # Loop through each .md file in the folder
           for filename in ./*.md; do
               pandoc "$filename" \
-                --metadata date -d @$(git show -s --format=%ct) -u "+%Y-%m-%d - %H:%M:%S %Z" \
+                --metadata "date -d "@${toString self.lastModified}" -u '+%Y-%m-%d - %H:%M:%S %Z'" \
                 -o "$1/''${filename%.md}.pdf"
           done
         '';
@@ -45,7 +46,7 @@
               pandoc "$filename" \
                 -H header.tex \
                 --citeproc \
-                --metadata date -d @$(git show -s --format=%ct) -u "+%Y-%m-%d - %H:%M:%S %Z" \
+                --metadata "date -d "@${toString self.lastModified}" -u '+%Y-%m-%d - %H:%M:%S %Z'" \
                 --highlight-style gruvbox.theme \
                 -o "$1/''${filename%.md}.tex"
           done

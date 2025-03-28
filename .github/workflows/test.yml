@@ -26,6 +26,6 @@ jobs:
         run: nix develop -c cargo test
         working-directory: ./accumulation/code
 
-      - name: Lint plonk code
+      - name: Test plonk code
         run: nix develop -c cargo test
         working-directory: ./plonk/code
