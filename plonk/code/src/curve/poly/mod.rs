@@ -77,22 +77,6 @@ impl Poly {
         PallasPoly::from_coefficients_vec(coeffs).into()
     }
 
-    pub fn x(n: u64) -> Poly {
-        let mut points = vec![Scalar::ZERO; n as usize];
-        points.push(Scalar::ONE);
-        Self::scalar_vec_to_poly(points)
-    }
-
-    pub fn a(a: &Scalar) -> Poly {
-        let points = vec![*a];
-        Self::scalar_vec_to_poly(points)
-    }
-
-    pub fn a_exp(a: &Scalar, i: u64) -> Poly {
-        let points = vec![a.pow(i)];
-        Self::scalar_vec_to_poly(points)
-    }
-
     pub fn commit(&self) -> Point {
         let mut d = self.degree().next_power_of_two() - 1;
         if self.degree() >= d {

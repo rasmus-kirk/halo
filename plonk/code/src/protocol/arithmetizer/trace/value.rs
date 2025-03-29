@@ -1,5 +1,7 @@
 use super::WireID;
-use crate::{curve::Scalar, protocol::arithmetizer::cache::ArithWireCache, util::map_to_alphabet};
+use crate::{
+    curve::Scalar, protocol::arithmetizer::cache::ArithWireCache, util::misc::map_to_alphabet,
+};
 
 use std::{
     fmt,

@@ -5,7 +5,7 @@ use super::{
     arith_wire::{ArithWire, CommutativeOps},
     WireID,
 };
-use crate::{curve::Scalar, util::if_empty};
+use crate::{curve::Scalar, util::misc::if_empty};
 pub use commutative_set::CommutativeSet;
 pub use errors::{BitError, CacheError};
 

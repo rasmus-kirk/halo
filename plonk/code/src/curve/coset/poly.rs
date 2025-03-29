@@ -1,9 +1,5 @@
-use std::time::Instant;
-
 use ark_poly::{EvaluationDomain, Evaluations, GeneralEvaluationDomain};
 use halo_accumulation::group::PallasScalar;
-use log::info;
-use rayon::prelude::*;
 
 use crate::curve::{Poly, Scalar};
 
@@ -34,45 +30,6 @@ impl Coset {
         self.interpolate(y_zf)
     }
 
-    /// Given a polynomial f(X) and a scalar a, return a polynomial g(X) such that:
-    /// ∀X ∈ H₀: g(X) = f(aX)
-    pub fn poly_times_arg(&self, f: &Poly, a: &Scalar) -> Poly {
-        let mut points = Vec::with_capacity(self.n() as usize);
-
-        const PARALLEL: bool = true;
-        if PARALLEL {
-            points = (0..self.n())
-                .into_par_iter()
-                .map(|i| f.evaluate(&(self.w(i) * a)))
-                .collect();
-        } else {
-            for i in 0..self.n() {
-                let x = self.w(i) * a;
-                points.push(f.evaluate(&x));
-            }
-        }
-        self.interpolate(points)
-    }
-
-    /// Zₕ(X) = Xⁿ - 1 s.t.
-    /// ∀X ∈ H₀: Zₕ(X) = 0
-    pub fn zh(&self) -> Poly {
-        Poly::x(self.n) - Poly::a(&Scalar::ONE)
-    }
-
-    /// Lᵢ(X) = (ωⁱ (Xⁿ - 1)) / (n (X - ωⁱ))
-    pub fn lagrange(&self, i: u64) -> Poly {
-        let wi = &Poly::a(&self.w(i));
-        let numerator = wi * (Poly::x(self.n) - Poly::a(&-Scalar::ONE));
-        let denominator = Poly::a(&self.n.into()) * (Poly::x(1) - wi);
-        numerator / denominator
-    }
-
-    /// L₁(X) = (Xⁿ - 1) / (n (X - 1))
-    pub fn l1_ev(&self, x: &Scalar) -> Scalar {
-        self.w * (x.pow(self.n) - Scalar::ONE) / (self.n * (x - self.w))
-    }
-
     pub fn evaluate(&self, p: &Poly, i: u64) -> Scalar {
         if let Some(y) = p.cache(i) {
             y
@@ -85,7 +42,6 @@ impl Coset {
 #[cfg(test)]
 mod tests {
     use crate::protocol::scheme::Slots;
-    use rand::Rng;
 
     use super::*;
 
@@ -124,48 +80,6 @@ mod tests {
         for i_ in 0..evals.len() {
             let i = i_ as u64;
             assert_eq!(p.evaluate(&h.w(i + 1)), evals[i_]);
-        }
-    }
-    #[test]
-    fn zh() {
-        let rng = &mut rand::thread_rng();
-        let h_opt = Coset::new(rng, 5, Slots::COUNT);
-        assert!(h_opt.is_some());
-        let h = h_opt.unwrap();
-        let zh = h.zh();
-        for i in h.iter() {
-            assert_eq!(zh.evaluate(&h.w(i)), Scalar::ZERO);
-        }
-    }
-
-    #[test]
-    fn lagrange() {
-        let rng = &mut rand::thread_rng();
-        let h_opt = Coset::new(rng, 5, Slots::COUNT);
-        assert!(h_opt.is_some());
-        let h = h_opt.unwrap();
-        for i in h.iter() {
-            let l = h.lagrange(i);
-            for j in h.iter() {
-                if i == j {
-                    assert_eq!(l.evaluate(&h.w(j)), Scalar::ONE);
-                } else {
-                    assert_eq!(l.evaluate(&h.w(j)), Scalar::ZERO);
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn l1_ev() {
-        let rng = &mut rand::thread_rng();
-        let h_opt = Coset::new(rng, 5, Slots::COUNT);
-        assert!(h_opt.is_some());
-        let h = h_opt.unwrap();
-        let l1 = h.lagrange(1);
-        for _ in 0..100 {
-            let x = rng.gen();
-            assert_eq!(h.l1_ev(&x), l1.evaluate(&x));
         }
     }
 }

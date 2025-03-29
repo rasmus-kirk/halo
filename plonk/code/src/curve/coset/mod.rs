@@ -3,6 +3,8 @@ mod poly;
 
 use crate::curve::Scalar;
 
+use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
+use halo_accumulation::group::PallasScalar;
 use rand::Rng;
 
 /// Base coset scheme.
@@ -86,6 +88,14 @@ impl Coset {
 
     pub fn vec_k<T: Into<usize>>(&self, slot: T) -> Vec<Scalar> {
         self.vec_mul(&self.ks[slot.into()])
+    }
+
+    /// Get the domain over the coset elements
+    pub fn get_domain(&self) -> GeneralEvaluationDomain<PallasScalar> {
+        GeneralEvaluationDomain::<PallasScalar>::new(self.n as usize)
+            .unwrap()
+            .get_coset(self.w.into())
+            .unwrap()
     }
 }
 

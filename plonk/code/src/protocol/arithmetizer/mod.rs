@@ -6,7 +6,7 @@ mod synthesize;
 mod trace;
 mod wire;
 
-use crate::{curve::Scalar, protocol::circuit::Circuit, util::map_to_alphabet};
+use crate::{curve::Scalar, protocol::circuit::Circuit, util::misc::map_to_alphabet};
 use arith_wire::ArithWire;
 pub use errors::ArithmetizerError;
 use plonkup::PlonkupOps;

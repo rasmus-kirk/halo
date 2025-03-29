@@ -2,7 +2,7 @@ use super::constraints::Constraints;
 use crate::{
     curve::Scalar,
     protocol::arithmetizer::{plonkup::PlonkupOps, WireID},
-    util::map_to_alphabet,
+    util::misc::map_to_alphabet,
 };
 
 #[derive(Debug)]

@@ -1,5 +1,5 @@
 use super::{ConstraintID, Coset};
-use crate::{curve::Scalar, protocol::scheme::Slots, util::to_superscript};
+use crate::{curve::Scalar, protocol::scheme::Slots, util::misc::to_superscript};
 
 use std::fmt;
 

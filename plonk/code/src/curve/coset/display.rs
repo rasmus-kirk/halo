@@ -1,7 +1,7 @@
 use super::Coset;
 use crate::{
     curve::{Poly, Scalar},
-    util::{to_subscript, to_superscript},
+    util::misc::{to_subscript, to_superscript},
 };
 
 use ascii_table::{Align, AsciiTable};

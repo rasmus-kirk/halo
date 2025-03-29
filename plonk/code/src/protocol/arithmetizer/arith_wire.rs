@@ -1,5 +1,5 @@
 use super::{plonkup::PlonkupOps, ArithmetizerError, WireID};
-use crate::{curve::Scalar, util::map_to_alphabet};
+use crate::{curve::Scalar, util::misc::map_to_alphabet};
 
 use std::fmt;
 

@@ -39,7 +39,6 @@ mod tests {
         println!("{}", e);
         print_poly_evaluations(x, w);
         let pi = plonk::prove(rng, x, w);
-        // TODO: Fails?
         plonk::verify(x, pi)?;
 
         Ok(())
