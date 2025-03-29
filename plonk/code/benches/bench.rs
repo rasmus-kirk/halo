@@ -6,7 +6,7 @@ const SAMPLE_SIZE: usize = 10;
 const SECONDS: u64 = 2;
 
 use ark_std::test_rng;
-use log::trace;
+use log::info;
 use plonk::protocol::{arithmetizer::Arithmetizer, plonk as plonker};
 
 const WARMUP: Duration = Duration::from_millis(100);
@@ -29,24 +29,24 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
         let d = 2usize.pow(size as u32) - 1;
         let input_values = vec![3, 4, 5, 6];
 
-        trace!("A1");
+        info!("A1");
         let start_time = Instant::now();
         let output_wires = &Arithmetizer::synthesize::<_, 4>(rng, 2usize.pow(size as u32) - 2);
         let rand_circuit_time = start_time.elapsed().as_secs_f32();
-        trace!("lens: {:?}, {:?}", output_wires.len(), output_wires[0].id());
+        info!("lens: {:?}, {:?}", output_wires.len(), output_wires[0].id());
 
-        trace!("A2");
+        info!("A2");
         let start_time = Instant::now();
-        let ((x, w), _) = &Arithmetizer::to_circuit(rng, d, input_values, output_wires).unwrap();
+        let (x, w) = &Arithmetizer::to_circuit(rng, d, input_values, output_wires).unwrap();
         let to_circuit_time = start_time.elapsed().as_secs_f32();
 
-        trace!("A3");
+        info!("A3");
         circuits.push((size, x.clone(), w.clone()));
 
         let start_time = Instant::now();
         let new_pi = plonker::prove(rng, &x, &w);
         let new_p_time = start_time.elapsed().as_secs_f32();
-        trace!("D");
+        info!("D");
         new_pis.push(new_pi.clone());
 
         let start_time = Instant::now();

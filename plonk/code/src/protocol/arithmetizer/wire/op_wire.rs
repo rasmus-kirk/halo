@@ -55,7 +55,7 @@ impl Not for Wire {
         Wire {
             id: self.arith.clone().borrow_mut().not(self.id),
             arith: self.arith,
-            ast: self.ast.map(|ast| WireAST::not(ast)),
+            ast: self.ast.map(WireAST::not),
         }
     }
 }

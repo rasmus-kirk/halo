@@ -1,4 +1,4 @@
-use ark_poly::{EvaluationDomain, Evaluations, GeneralEvaluationDomain};
+use ark_poly::Evaluations;
 use halo_accumulation::group::PallasScalar;
 
 use crate::curve::{Poly, Scalar};
@@ -9,13 +9,8 @@ impl Coset {
     /// Interpolate polynomial from evaluations.
     /// p(xᶦ) = yᵢ
     pub fn interpolate(&self, y: Vec<Scalar>) -> Poly {
-        let domain = GeneralEvaluationDomain::<PallasScalar>::new(self.n as usize).unwrap();
-        let evals = y
-            .clone()
-            .into_iter()
-            .map(Into::<PallasScalar>::into)
-            .collect::<Vec<_>>();
-        let poly = Evaluations::from_vec_and_domain(evals, domain).interpolate();
+        let evals = y.iter().map(Into::<PallasScalar>::into).collect::<Vec<_>>();
+        let poly = Evaluations::from_vec_and_domain(evals, self.domain).interpolate();
         Poly::new_cache(poly, y)
     }
 

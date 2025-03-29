@@ -1,11 +1,11 @@
-mod display;
 mod poly;
 
-use crate::curve::Scalar;
+use crate::{curve::Scalar, util::misc::to_superscript};
 
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use halo_accumulation::group::PallasScalar;
 use rand::Rng;
+use std::fmt;
 
 /// Base coset scheme.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -16,6 +16,8 @@ pub struct Coset {
     w: Scalar,
     /// k:𝔽
     ks: Vec<Scalar>,
+    pub coset_domain: GeneralEvaluationDomain<PallasScalar>,
+    pub domain: GeneralEvaluationDomain<PallasScalar>,
 }
 
 impl Default for Coset {
@@ -24,7 +26,15 @@ impl Default for Coset {
             n: 0,
             w: Scalar::ZERO,
             ks: Vec::new(),
+            coset_domain: GeneralEvaluationDomain::<PallasScalar>::new(0).unwrap(),
+            domain: GeneralEvaluationDomain::<PallasScalar>::new(0).unwrap(),
         }
+    }
+}
+
+impl fmt::Display for Coset {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ω{} = 1", to_superscript(self.n()))
     }
 }
 
@@ -35,10 +45,14 @@ impl Coset {
         assert!(l > 0);
         let n = (m + 1).next_power_of_two();
         let w = Scalar::get_root_of_unity(n)?;
+        let domain = GeneralEvaluationDomain::<PallasScalar>::new(n as usize).unwrap();
+        let coset_domain = domain.get_coset(w.into()).unwrap();
         let mut nw = Coset {
             n,
             w,
             ks: Vec::new(),
+            coset_domain,
+            domain,
         };
         let mut ks = vec![Scalar::ZERO; l];
         ks[0] = Scalar::ONE;
@@ -57,8 +71,14 @@ impl Coset {
         Some(nw)
     }
 
+    /// number of elements in one coset
     pub fn n(&self) -> u64 {
         self.n
+    }
+
+    /// number of cosets
+    pub fn l(&self) -> usize {
+        self.ks.len()
     }
 
     /// ωⁱ:𝔽
@@ -88,14 +108,6 @@ impl Coset {
 
     pub fn vec_k<T: Into<usize>>(&self, slot: T) -> Vec<Scalar> {
         self.vec_mul(&self.ks[slot.into()])
-    }
-
-    /// Get the domain over the coset elements
-    pub fn get_domain(&self) -> GeneralEvaluationDomain<PallasScalar> {
-        GeneralEvaluationDomain::<PallasScalar>::new(self.n as usize)
-            .unwrap()
-            .get_coset(self.w.into())
-            .unwrap()
     }
 }
 

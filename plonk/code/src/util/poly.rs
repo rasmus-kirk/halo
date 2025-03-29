@@ -1,43 +1,47 @@
 use ark_ff::{AdditiveGroup, Field, Zero};
-use ark_poly::{DenseUVPolynomial, EvaluationDomain, Evaluations, GeneralEvaluationDomain};
-use halo_accumulation::group::{PallasPoly, PallasScalar};
+use ark_poly::{
+    DenseUVPolynomial, EvaluationDomain, Evaluations, GeneralEvaluationDomain, Polynomial,
+};
+use halo_accumulation::{
+    group::{PallasPoint, PallasPoly, PallasScalar},
+    pcdl,
+};
 
 use crate::curve::Coset;
 
 type Poly = PallasPoly;
 type Scalar = PallasScalar;
+type Point = PallasPoint;
 
 /// f(X) = v
 pub fn deg0(v: &Scalar) -> Poly {
-    PallasPoly::from_coefficients_slice(&[*v])
+    Poly::from_coefficients_slice(&[*v])
 }
 
 /// f(X) = vXⁿ
 pub fn vxn_poly(v: &Scalar, n: u64) -> Poly {
     let mut coeffs = vec![Scalar::ZERO; n as usize];
     coeffs.push(*v);
-    PallasPoly::from_coefficients_slice(&coeffs)
+    Poly::from_coefficients_slice(&coeffs)
 }
 
 /// f(X) = Xⁿ
 pub fn xn_poly(n: u64) -> Poly {
-    vxn_poly(&PallasScalar::ONE, n)
+    vxn_poly(&Scalar::ONE, n)
 }
 
 /// f(X) = X
 pub fn x_poly() -> Poly {
-    vxn_poly(&PallasScalar::ONE, 1)
+    vxn_poly(&Scalar::ONE, 1)
 }
 
 /// ∀X ∈ H₀: g(X) = f(aX)
-pub fn coset_scale(
-    h: &Coset,
-    f: &Poly,
-    a: Scalar,
-    domain: &GeneralEvaluationDomain<Scalar>,
-) -> PallasPoly {
+pub fn coset_scale(h: &Coset, f: &Poly, a: Scalar) -> Poly {
     // Step 1: Get the coset domain scaled by `a`
-    let coset_domain = domain.get_coset(domain.coset_offset() * a).unwrap();
+    let coset_domain = h
+        .coset_domain
+        .get_coset(h.coset_domain.coset_offset() * a)
+        .unwrap();
 
     // Step 2: Perform FFT on `f` over the coset domain {a * ζ^i}
     let mut evals_new = coset_domain.fft(&f.coeffs);
@@ -46,21 +50,19 @@ pub fn coset_scale(
 
     // Step 3: Perform inverse FFT to interpolate the new polynomial g(X)
     let domain2 = GeneralEvaluationDomain::<Scalar>::new(h.n() as usize).unwrap();
-    let poly = Evaluations::from_vec_and_domain(evals_new, domain2).interpolate();
-    poly
+    Evaluations::from_vec_and_domain(evals_new, domain2).interpolate()
 }
 
 /// ∀X ∈ H₀: g(X) = f(ωX)
-pub fn coset_scale_omega(h: &Coset, f: &Poly, domain: &GeneralEvaluationDomain<Scalar>) -> Poly {
-    coset_scale(h, f, h.w(1).scalar, domain)
+pub fn coset_scale_omega(h: &Coset, f: &Poly) -> Poly {
+    coset_scale(h, f, h.w(1).scalar)
 }
 
 /// f(X) = p₀(X) + Xⁿp₁(X) + X²ⁿp₂(X) + ...
-/// where n = |H₀|
-pub fn split_poly(h: &Coset, f: &Poly) -> Vec<Poly> {
+pub fn split_poly(n: usize, f: &Poly) -> Vec<Poly> {
     f.coeffs
-        .chunks(h.n() as usize)
-        .map(PallasPoly::from_coefficients_slice)
+        .chunks(n)
+        .map(Poly::from_coefficients_slice)
         .collect()
 }
 
@@ -72,6 +74,28 @@ where
     let mut p = Poly::zero();
     for (i, p_i) in ps.into_iter().enumerate() {
         p = p + (deg0(&a.pow([i as u64])) * p_i.clone());
+    }
+    p
+}
+
+pub fn linear_comb_point<I>(a: &Scalar, ps: I) -> Point
+where
+    I: IntoIterator<Item = Point>,
+{
+    let mut p = Point::ZERO;
+    for (i, p_i) in ps.into_iter().enumerate() {
+        p += p_i * a.pow([i as u64]);
+    }
+    p
+}
+
+pub fn linear_comb_scalar<I>(a: &Scalar, xs: I) -> Scalar
+where
+    I: IntoIterator<Item = Scalar>,
+{
+    let mut p = Scalar::ZERO;
+    for (i, p_i) in xs.into_iter().enumerate() {
+        p += p_i * a.pow([i as u64]);
     }
     p
 }
@@ -95,6 +119,32 @@ pub fn lagrange_basis1_ev(h: &Coset, x: &Scalar) -> Scalar {
 /// such that ∀X ∈ H₀: Zₕ(X) = 0
 pub fn zh_poly(h: &Coset) -> Poly {
     xn_poly(h.n()) - deg0(&Scalar::ONE)
+}
+
+pub fn zh_ev(h: &Coset, x: &Scalar) -> Scalar {
+    x.pow([h.n()]) - Scalar::ONE
+}
+
+pub fn batch_evaluate<'a, I>(ps: I, x: &Scalar) -> Vec<Scalar>
+where
+    I: IntoIterator<Item = &'a Poly>,
+{
+    let mut evals = vec![];
+    for f in ps {
+        evals.push(f.evaluate(x));
+    }
+    evals
+}
+
+pub fn batch_commit<'a, I>(ps: I, d: usize, w: Option<&Scalar>) -> Vec<Point>
+where
+    I: IntoIterator<Item = &'a Poly>,
+{
+    let mut commits = vec![];
+    for f in ps {
+        commits.push(pcdl::commit(f, d, w));
+    }
+    commits
 }
 
 #[cfg(test)]
@@ -143,7 +193,7 @@ mod tests {
         let h = h_opt.unwrap();
         let l1 = lagrange_basis_poly(&h, 1);
         for _ in 0..100 {
-            let x = rng.gen();
+            let x: Scalar = rng.gen();
             assert_eq!(lagrange_basis1_ev(&h, &x), l1.evaluate(&x));
         }
     }

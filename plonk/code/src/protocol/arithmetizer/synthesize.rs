@@ -1,4 +1,4 @@
-use log::trace;
+use log::info;
 use rand::Rng;
 
 use crate::curve::Scalar;
@@ -7,7 +7,7 @@ use super::{Arithmetizer, Wire};
 
 impl Arithmetizer {
     pub fn synthesize<R: Rng, const N: usize>(rng: &mut R, degree: usize) -> [Wire; 1] {
-        trace!("[A]: Remaining stack - {:?}", stacker::remaining_stack());
+        info!("[A]: Remaining stack - {:?}", stacker::remaining_stack());
         let wires: Vec<Wire> = Arithmetizer::build::<N>().into();
 
         let mut cur = wires[rng.gen_range(0..N)].clone();
@@ -34,7 +34,7 @@ impl Arithmetizer {
                 }
             };
         }
-        trace!("[B]: Remaining stack - {:?}", stacker::remaining_stack());
+        info!("[B]: Remaining stack - {:?}", stacker::remaining_stack());
 
         [cur]
     }

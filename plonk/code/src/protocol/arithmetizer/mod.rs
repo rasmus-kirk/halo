@@ -55,7 +55,7 @@ impl Arithmetizer {
         d: usize,
         input_values: Vec<T>,
         output_wires: &[Wire],
-    ) -> Result<(Circuit, Trace), ArithmetizerError>
+    ) -> Result<Circuit, ArithmetizerError>
     where
         T: Into<Scalar> + Copy + std::fmt::Display,
     {
@@ -65,7 +65,7 @@ impl Arithmetizer {
         let output_ids = output_wires.iter().map(Wire::id).collect();
         Trace::new(rng, d, wires, input_scalars, output_ids)
             .map_err(ArithmetizerError::EvaluatorError)
-            .map(Into::<(Circuit, Trace)>::into)
+            .map(Into::<Circuit>::into)
     }
 
     // operators ----------------------------------------------------------

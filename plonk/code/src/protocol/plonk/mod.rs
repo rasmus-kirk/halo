@@ -1,4 +1,3 @@
-mod instance;
 mod pi;
 mod proof;
 mod transcript;

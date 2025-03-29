@@ -13,9 +13,9 @@ impl Add<Scalar> for Wire {
 
     fn add(self, other: Scalar) -> Self::Output {
         Wire {
-            id: self.arith.borrow_mut().add_const(self.id, other.into()),
+            id: self.arith.borrow_mut().add_const(self.id, other),
             arith: Rc::clone(&self.arith),
-            ast: self.ast.map(|ast| WireAST::add_const(ast, other.into())),
+            ast: self.ast.map(|ast| WireAST::add_const(ast, other)),
         }
     }
 }
@@ -35,13 +35,9 @@ impl Sub<Scalar> for Wire {
 
     fn sub(self, other: Scalar) -> Self::Output {
         Wire {
-            id: self
-                .arith
-                .clone()
-                .borrow_mut()
-                .sub_const(self.id, other.into()),
+            id: self.arith.clone().borrow_mut().sub_const(self.id, other),
             arith: self.arith,
-            ast: self.ast.map(|ast| WireAST::sub_const(ast, other.into())),
+            ast: self.ast.map(|ast| WireAST::sub_const(ast, other)),
         }
     }
 }
@@ -52,13 +48,9 @@ impl Sub<Wire> for Scalar {
     fn sub(self, other: Wire) -> Self::Output {
         let neg = other.clone() * -Scalar::ONE;
         Wire {
-            id: other
-                .arith
-                .clone()
-                .borrow_mut()
-                .add_const(neg.id, self.into()),
+            id: other.arith.clone().borrow_mut().add_const(neg.id, self),
             arith: other.arith,
-            ast: neg.ast.map(|ast| WireAST::add_const(ast, self.into())),
+            ast: neg.ast.map(|ast| WireAST::add_const(ast, self)),
         }
     }
 }
@@ -70,13 +62,9 @@ impl Mul<Scalar> for Wire {
 
     fn mul(self, other: Scalar) -> Self::Output {
         Wire {
-            id: self
-                .arith
-                .clone()
-                .borrow_mut()
-                .mul_const(self.id, other.into()),
+            id: self.arith.clone().borrow_mut().mul_const(self.id, other),
             arith: self.arith,
-            ast: self.ast.map(|ast| WireAST::mul_const(ast, other.into())),
+            ast: self.ast.map(|ast| WireAST::mul_const(ast, other)),
         }
     }
 }
@@ -96,13 +84,9 @@ impl Div<Scalar> for Wire {
 
     fn div(self, other: Scalar) -> Self::Output {
         Wire {
-            id: self
-                .arith
-                .clone()
-                .borrow_mut()
-                .div_const(self.id, other.into()),
+            id: self.arith.clone().borrow_mut().div_const(self.id, other),
             arith: self.arith,
-            ast: self.ast.map(|ast| WireAST::div_const(ast, other.into())),
+            ast: self.ast.map(|ast| WireAST::div_const(ast, other)),
         }
     }
 }

@@ -21,7 +21,7 @@ use crate::{
 pub use constraints::Constraints;
 pub use errors::TraceError;
 use halo_accumulation::{group::PallasPoint, pcdl};
-use log::trace;
+use log::{debug, info};
 pub use pos::Pos;
 use value::Value;
 
@@ -59,31 +59,32 @@ impl Trace {
             table: TableRegistry::new(),
             d,
         };
-        trace!("[A]: Remaining stack - {:?}", stacker::remaining_stack());
+        info!("[A]: Remaining stack - {:?}", stacker::remaining_stack());
         for (wire, value) in input_values.into_iter().enumerate() {
             let value = Value::new_wire(wire, value).set_bit_type(wires);
             eval.evals.insert(wire, value);
             eval.bool_constraint(wires, wire, value)?;
             eval.public_constraint(wires, wire, value)?;
         }
-        trace!("[B]: Remaining stack - {:?}", stacker::remaining_stack());
+        info!("[B]: Remaining stack - {:?}", stacker::remaining_stack());
         // fix input wire values
         for w in output_wires {
             eval.resolve(wires, w)?;
         }
         // compute wire values
 
-        trace!("[C]: Remaining stack - {:?}", stacker::remaining_stack());
+        info!("[C]: Remaining stack - {:?}", stacker::remaining_stack());
         eval.compute_pos_permutation()?;
         // compute copy constraint values
 
-        trace!("[D]: Remaining stack - {:?}", stacker::remaining_stack());
+        info!("[D]: Remaining stack - {:?}", stacker::remaining_stack());
         let n = eval.table.len() as u64;
         let m = eval.constraints.len() as u64;
         eval.h = Coset::new(rng, std::cmp::max(n, m) + MAX_BLIND_TERMS, Slots::COUNT)
             .ok_or(TraceError::FailedToMakeCoset(m))?;
         // compute coset
 
+        debug!("{}", eval);
         Ok(eval)
     }
 
@@ -256,9 +257,10 @@ impl Trace {
     // Poly construction -------------------------------------------------------
 
     /// Compute the circuit polynomials.
-    fn gate_polys(&self) -> (Vec<Poly>, Vec<Poly>) {
+    fn gate_polys(&self) -> (Vec<Poly>, Vec<Poly>, Poly) {
         let mut points_slots: Vec<Vec<Scalar>> = vec![vec![]; Slots::COUNT];
-        let mut points_selectors: Vec<Vec<Scalar>> = vec![vec![]; Selectors::COUNT + 1];
+        let mut points_selectors: Vec<Vec<Scalar>> = vec![vec![]; Selectors::COUNT];
+        let mut points_pip: Vec<Scalar> = vec![];
         for eqn in self.constraints.iter() {
             for slot in Slots::iter() {
                 points_slots[slot as usize].push(eqn[Terms::F(slot)].into());
@@ -266,7 +268,7 @@ impl Trace {
             for selector in Selectors::iter() {
                 points_selectors[selector as usize].push(eqn[Terms::Q(selector)].into());
             }
-            points_selectors[Selectors::COUNT].push(eqn[Terms::PublicInputs].into());
+            points_pip.push(eqn[Terms::PublicInputs].into());
         }
         (
             points_slots
@@ -277,13 +279,15 @@ impl Trace {
                 .into_iter()
                 .map(|ps| self.h.interpolate_zf(ps))
                 .collect(),
+            self.h.interpolate_zf(points_pip),
         )
     }
 
     /// Compute the permutation and identity permutation polynomials.
-    fn copy_constraints(&self) -> Vec<Poly> {
-        let mut points: Vec<Vec<Scalar>> = vec![vec![]; Slots::COUNT * 2];
-        for ps in points.iter_mut() {
+    fn copy_constraints(&self) -> (Vec<Poly>, Vec<Poly>) {
+        let mut points_id: Vec<Vec<Scalar>> = vec![vec![]; Slots::COUNT];
+        let mut points_perm: Vec<Vec<Scalar>> = vec![vec![]; Slots::COUNT];
+        for ps in points_id.iter_mut().chain(points_perm.iter_mut()) {
             ps.push(Scalar::ONE);
         }
         for i_ in 0..self.h.n() - 1 {
@@ -291,17 +295,23 @@ impl Trace {
             for slot in Slots::iter() {
                 let pos = Pos::new(slot, id);
                 let pos_scalar = pos.to_scalar(&self.h);
-                points[Slots::COUNT + slot as usize].push(pos_scalar);
-                points[slot as usize].push(match self.permutation.get(&pos) {
+                points_id[slot as usize].push(pos_scalar);
+                points_perm[slot as usize].push(match self.permutation.get(&pos) {
                     Some(y_pos) => y_pos.to_scalar(&self.h),
                     None => pos_scalar,
                 });
             }
         }
-        points
-            .into_iter()
-            .map(|ps| self.h.interpolate(ps))
-            .collect()
+        (
+            points_id
+                .into_iter()
+                .map(|ps| self.h.interpolate(ps))
+                .collect(),
+            points_perm
+                .into_iter()
+                .map(|ps| self.h.interpolate(ps))
+                .collect(),
+        )
     }
 }
 
@@ -343,18 +353,19 @@ impl
 impl From<Trace> for Circuit {
     fn from(eval: Trace) -> Self {
         let d = eval.d;
-        let (mut gs, mut qs) = eval.gate_polys();
-        let mut ss = eval.copy_constraints();
+        let (ws, qs, pip) = eval.gate_polys();
+        let (sids, ss) = eval.copy_constraints();
 
-        let mut qs_comms: Vec<PallasPoint> = qs
+        let pip_com = pcdl::commit(&pip.poly, d, None);
+        let qs_coms: Vec<PallasPoint> = qs
             .iter()
             .map(|q| pcdl::commit(&q.poly, eval.d, None))
             .collect();
-        let mut ss_comms: Vec<PallasPoint> = (0..Slots::COUNT)
+        let ss_coms: Vec<PallasPoint> = (0..Slots::COUNT)
             .map(|i| pcdl::commit(&ss[i].poly, eval.d, None))
             .collect();
 
-        gs.iter()
+        ws.iter()
             .chain(qs.iter())
             .chain(ss.iter())
             .for_each(|p: &Poly| assert!(p.degree() as usize <= d));
@@ -362,45 +373,19 @@ impl From<Trace> for Circuit {
         let x = CircuitPublic {
             d: eval.d,
             h: eval.h.clone(),
-            pip_com: qs_comms.pop().unwrap(),
-            pl_j_com: qs_comms.pop().unwrap(),
-            pl_qk_com: qs_comms.pop().unwrap(),
-            qc_com: qs_comms.pop().unwrap(),
-            qm_com: qs_comms.pop().unwrap(),
-            qo_com: qs_comms.pop().unwrap(),
-            qr_com: qs_comms.pop().unwrap(),
-            ql_com: qs_comms.pop().unwrap(),
-            sc_com: ss_comms.pop().unwrap(),
-            sb_com: ss_comms.pop().unwrap(),
-            sa_com: ss_comms.pop().unwrap(),
-            pip: qs.pop().unwrap(),
-            pl_j: qs.pop().unwrap(),
-            pl_qk: qs.pop().unwrap(),
-            qc: qs.pop().unwrap(),
-            qm: qs.pop().unwrap(),
-            qo: qs.pop().unwrap(),
-            qr: qs.pop().unwrap(),
-            ql: qs.pop().unwrap(),
-            sidc: ss.pop().unwrap(),
-            sidb: ss.pop().unwrap(),
-            sida: ss.pop().unwrap(),
-            sc: ss.pop().unwrap(),
-            sb: ss.pop().unwrap(),
-            sa: ss.pop().unwrap(),
+            pip_com,
+            qs_coms,
+            ss_coms,
+            pip,
+            qs,
+            sids,
+            ss,
         };
         let w = CircuitPrivate {
-            c: gs.pop().unwrap(),
-            b: gs.pop().unwrap(),
-            a: gs.pop().unwrap(),
+            ws,
             plonkup: PlonkupVecCompute::new(eval.h, eval.constraints, eval.table),
         };
         (x, w)
-    }
-}
-
-impl From<Trace> for (Circuit, Trace) {
-    fn from(eval: Trace) -> Self {
-        (eval.clone().into(), eval)
     }
 }
 
@@ -411,11 +396,11 @@ impl From<Circuit> for Trace {
         let mut expected_constraints: Vec<Constraints> = vec![];
         for i in 1..m {
             let wi = &h.w(i);
-            let polys = vec![
-                &w.a, &w.b, &w.c, &x.ql, &x.qr, &x.qo, &x.qm, &x.qc, &x.pl_qk, &x.pl_j, &x.pip,
-            ];
+            let polys =
+                w.ws.iter()
+                    .chain(x.qs.iter())
+                    .chain(std::iter::once(&x.pip));
             let vs = polys
-                .into_iter()
                 .map(|p| Value::AnonWire(p.evaluate(wi)))
                 .collect::<Vec<Value>>()
                 .try_into()
@@ -432,9 +417,8 @@ impl From<Circuit> for Trace {
         let mut expected_permutation: [Vec<Pos>; Slots::COUNT] = [vec![], vec![], vec![]];
         for i in 1..m {
             let wi = &h.w(i);
-            let p = [&x.sa, &x.sb, &x.sc];
             for slot in Slots::iter() {
-                let y = p[slot as usize].evaluate(wi);
+                let y = x.ss[slot as usize].evaluate(wi);
                 if let Some(pos) = Pos::from_scalar(y, h) {
                     expected_permutation[slot as usize].push(pos);
                 }
@@ -444,12 +428,6 @@ impl From<Circuit> for Trace {
 
         let table = TableRegistry::new();
         (x.d, expected_constraints, expected_permutation, table).into()
-    }
-}
-
-impl From<(&CircuitPublic, &CircuitPrivate)> for Trace {
-    fn from((x, w): (&CircuitPublic, &CircuitPrivate)) -> Self {
-        (x.clone(), w.clone()).into()
     }
 }
 
