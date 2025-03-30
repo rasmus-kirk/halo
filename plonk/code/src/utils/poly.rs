@@ -14,8 +14,9 @@ use super::misc::batch_op;
 type Poly = PallasPoly;
 type Scalar = PallasScalar;
 type Point = PallasPoint;
+type Evals = Evaluations<Scalar>;
 
-pub fn batch_interpolate(es: Vec<Evaluations<Scalar>>) -> Vec<Poly> {
+pub fn batch_interpolate(es: Vec<Evals>) -> Vec<Poly> {
     batch_op(es, |e| e.interpolate())
 }
 
@@ -63,7 +64,7 @@ pub fn coset_scale_omega(h: &Coset, f: &Poly) -> Poly {
     coset_scale(h, f, h.w(1))
 }
 
-pub fn coset_scale_omega_evals(h: &Coset, evals: Evaluations<Scalar>) -> Evaluations<Scalar> {
+pub fn coset_scale_omega_evals(h: &Coset, evals: Evals) -> Evals {
     let mut evals_new = evals.evals;
     let evals_new_first = evals_new.remove(0);
     evals_new.push(evals_new_first);

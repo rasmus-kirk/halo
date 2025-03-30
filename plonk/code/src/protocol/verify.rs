@@ -1,17 +1,19 @@
 #![allow(non_snake_case)]
 
+use super::{transcript::TranscriptProtocol, Proof};
 use crate::{
     circuit::CircuitPublic,
     scheme::{Selectors, Slots},
     utils::poly::{batch_evaluate, lagrange_basis1_ev, linear_comb, linear_comb_right, zh_ev},
 };
 
-use super::{transcript::TranscriptProtocol, Proof};
+use halo_accumulation::{group::PallasScalar, pcdl};
 
 use anyhow::{ensure, Result};
 use ark_ff::Field;
-use halo_accumulation::{group::PallasScalar, pcdl};
 use merlin::Transcript;
+
+type Scalar = PallasScalar;
 
 pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     let mut transcript = Transcript::new(b"protocol");
@@ -48,7 +50,7 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     let ch_w = ch * &x.h.w(1);
     let zh_ev = zh_ev(&x.h, ch);
     let l1_ev_ch = lagrange_basis1_ev(&x.h, ch);
-    let sids_ev = batch_evaluate(&x.sids, ch);
+    let sids_ev = batch_evaluate(&x.is, ch);
     let a = &pi.ev.ws[Slots::A as usize];
     let b = &pi.ev.ws[Slots::B as usize];
     let c = &pi.ev.ws[Slots::C as usize];
@@ -86,10 +88,10 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     let f_gc_ev = (a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc + pip + f_gcpl_ev;
 
     // plookup constraint term: ε(1 + δ) + a(X) + δb(X)
-    let zpl_sc = &((PallasScalar::ONE + delta) * epsilon);
-    let zpl = |a: &PallasScalar, b: &PallasScalar| zpl_sc + a + (delta * b);
+    let zpl_sc = &((Scalar::ONE + delta) * epsilon);
+    let zpl = |a: &Scalar, b: &Scalar| zpl_sc + a + (delta * b);
     // copy constraint term: w(X) + β s(X) + γ
-    let zcc = |w: &PallasScalar, s: &PallasScalar| *w + (beta * s) + gamma;
+    let zcc = |w: &Scalar, s: &Scalar| *w + (beta * s) + gamma;
     // f'(𝔷) = (A(𝔷) + β Sᵢ₁(𝔷) + γ) (B(𝔷) + β Sᵢ₂(𝔷) + γ) (C(𝔷) + β Sᵢ₃(𝔷) + γ)
     //         (ε(1 + δ) + f(𝔷) + δf(𝔷))(ε(1 + δ) + t(𝔷) + δt(Xω))
     let zfcc_ev = &(zcc(a, sida_ev) * zcc(b, sidb_ev) * zcc(c, sidc_ev));
@@ -100,7 +102,7 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     let zgpl_ev = &(zpl(pl_h1, pl_h2) * zpl(pl_h2, &pi.ev.pl_h1_bar));
 
     // F_Z1(𝔷) = L₁(𝔷) (Z(𝔷) - 1)
-    let f_z1_ev = l1_ev_ch * (pi.ev.z - PallasScalar::ONE);
+    let f_z1_ev = l1_ev_ch * (pi.ev.z - Scalar::ONE);
     // F_Z2(𝔷) = Z(𝔷)f'(𝔷) - g'(𝔷)Z(ω 𝔷)
     let f_z2_ev = (pi.ev.z * zfcc_ev * zfpl_ev) - (zgcc_ev * zgpl_ev * pi.ev.z_bar);
 
@@ -113,8 +115,8 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
 
     let v = &transcript.challenge_scalar(b"v");
 
-    // W(𝔷) = Qₗ(𝔷) + vQᵣ(𝔷) + v²Qₒ(𝔷) + v³Qₖ(𝔷) + v⁴Qₘ(𝔷) + v⁵Q꜀(𝔷) + v⁶Qₖ(𝔷) + v⁷J(𝔷)
-    //      + v⁸A(𝔷) + v⁹B(𝔷) + v¹⁰C(𝔷) + v¹¹Z(𝔷)
+    // W(𝔷) = Qₗ(𝔷) + vQᵣ(𝔷) + v²Qₒ(𝔷) + v³Qₘ(𝔷) + v⁴Q꜀(𝔷) + v⁵Qₖ(𝔷) + v⁶J(𝔷)
+    //      + v⁷A(𝔷) + v⁸B(𝔷) + v⁹C(𝔷) + v¹⁰Z(𝔷)
     let W_com = linear_comb(
         v,
         x.qs_coms

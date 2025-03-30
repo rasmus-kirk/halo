@@ -55,22 +55,22 @@ impl From<Trace> for Circuit {
     fn from(eval: Trace) -> Self {
         let d = eval.d;
         let (ws_cache, qs_cache, pip_cache) = eval.gate_polys();
-        let (sids_cache, ss_cache) = eval.copy_constraints();
+        let (is_cache, ps_cache) = eval.copy_constraints();
         let ws = batch_interpolate(ws_cache.clone());
         let qs = batch_interpolate(qs_cache);
         let pip = pip_cache.interpolate();
-        let sids = batch_interpolate(sids_cache.clone());
-        let ss = batch_interpolate(ss_cache.clone());
+        let is = batch_interpolate(is_cache.clone());
+        let ps = batch_interpolate(ps_cache.clone());
 
         let pip_com = pcdl::commit(&pip, d, None);
         let qs_coms: Vec<PallasPoint> = qs.iter().map(|q| pcdl::commit(q, eval.d, None)).collect();
-        let ss_coms: Vec<PallasPoint> = (0..Slots::COUNT)
-            .map(|i| pcdl::commit(&ss[i], eval.d, None))
+        let ps_coms: Vec<PallasPoint> = (0..Slots::COUNT)
+            .map(|i| pcdl::commit(&ps[i], eval.d, None))
             .collect();
 
         ws.iter()
             .chain(qs.iter())
-            .chain(ss.iter())
+            .chain(ps.iter())
             .for_each(|p: &Poly| assert!(p.degree() <= d));
 
         let x = CircuitPublic {
@@ -78,13 +78,13 @@ impl From<Trace> for Circuit {
             h: eval.h.clone(),
             pip_com,
             qs_coms,
-            ss_coms,
+            ps_coms,
             pip,
             qs,
-            sids,
-            sids_cache,
-            ss,
-            ss_cache,
+            is,
+            is_cache,
+            ps,
+            ps_cache,
         };
         let w = CircuitPrivate {
             ws,
@@ -124,7 +124,7 @@ impl From<Circuit> for Trace {
         for i in 1..m {
             let wi = &h.w(i);
             for slot in Slots::iter() {
-                let y = x.ss[slot as usize].evaluate(wi);
+                let y = x.ps[slot as usize].evaluate(wi);
                 if let Some(pos) = Pos::from_scalar(y, h) {
                     expected_permutation[slot as usize].push(pos);
                 }

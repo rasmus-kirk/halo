@@ -32,6 +32,7 @@ use std::collections::HashMap;
 use value::Value;
 
 type Scalar = PallasScalar;
+type Evals = Evaluations<Scalar>;
 
 /// A unique identifier for a constraint in the circuit.
 type ConstraintID = u64;
@@ -276,13 +277,7 @@ impl Trace {
     // Poly construction -------------------------------------------------------
 
     /// Compute the circuit polynomials.
-    fn gate_polys(
-        &self,
-    ) -> (
-        Vec<Evaluations<Scalar>>,
-        Vec<Evaluations<Scalar>>,
-        Evaluations<Scalar>,
-    ) {
+    fn gate_polys(&self) -> (Vec<Evals>, Vec<Evals>, Evals) {
         let mut ws_evs: Vec<Vec<Scalar>> = vec![vec![Scalar::ZERO]; Slots::COUNT];
         let mut qs_evs: Vec<Vec<Scalar>> = vec![vec![Scalar::ZERO]; Selectors::COUNT];
         let mut pip_evs: Vec<Scalar> = vec![];
@@ -311,7 +306,7 @@ impl Trace {
     }
 
     /// Compute the permutation and identity permutation polynomials.
-    fn copy_constraints(&self) -> (Vec<Evaluations<Scalar>>, Vec<Evaluations<Scalar>>) {
+    fn copy_constraints(&self) -> (Vec<Evals>, Vec<Evals>) {
         let mut sids_evs: Vec<Vec<Scalar>> = vec![vec![Scalar::ONE]; Slots::COUNT];
         let mut ss_evs: Vec<Vec<Scalar>> = vec![vec![Scalar::ONE]; Slots::COUNT];
         for i_ in 0..self.h.n() - 1 {

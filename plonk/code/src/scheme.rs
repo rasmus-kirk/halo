@@ -154,7 +154,7 @@ impl Terms {
             .chain(Selectors::iter().map(Terms::Q))
             .chain(std::iter::once(Terms::PublicInputs))
     }
-
+    // TODO move out of Terms?
     pub fn eqn(terms: [Scalar; Self::COUNT]) -> Scalar {
         let [a, b, c, ql, qr, qo, qm, qc, _, _, pi] = terms;
         (a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc + pi
