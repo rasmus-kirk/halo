@@ -235,7 +235,12 @@ pub fn commit(p: &PallasPoly, d: usize, w: Option<&PallasScalar>) -> PallasPoint
 /// p: A univariate polynomial p(X),
 /// d: A degree bound for p, we require that p.degree() <= d,
 /// w: Optional hiding to pass to the underlying Pederson Commitment
-pub fn chunked_commit(p: &PallasPoly, d: usize, w: Option<&PallasScalar>, chunk_size: usize) -> Vec<PallasPoint> {
+pub fn chunked_commit(
+    p: &PallasPoly,
+    d: usize,
+    w: Option<&PallasScalar>,
+    chunk_size: usize,
+) -> Vec<PallasPoint> {
     let pp = PublicParams::get_pp();
     let n = d + 1;
     // let p_deg = p.degree();
@@ -246,7 +251,10 @@ pub fn chunked_commit(p: &PallasPoly, d: usize, w: Option<&PallasScalar>, chunk_
     // assert!(p_deg <= d, "p_deg ({p_deg}) <= d ({d})");
     assert!(d <= D, "d ({d}) <= D ({D}) (pp_len = {pp_len})",);
 
-    p.coeffs().chunks(chunk_size).map(|x| pedersen::commit(w, &pp.Gs[0..n], x)).collect()
+    p.coeffs()
+        .chunks(chunk_size)
+        .map(|x| pedersen::commit(w, &pp.Gs[0..n], x))
+        .collect()
 }
 
 /// Creates a proof that states: "I know a polynomial p of degree d' less than d, with commitment C s.t. p(z) = v" where p is private and d, z, v are public.

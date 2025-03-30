@@ -14,7 +14,7 @@ use ark_poly::Evaluations;
 type Scalar = PallasScalar;
 
 /// A struct that acts as a thunk where `compute` takes in zeta
-/// from transcript to compute the polynomials for Plonkup protocol
+/// from transcript to compute the polynomials for plookup
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlookupEvsThunk {
     h: Coset,
