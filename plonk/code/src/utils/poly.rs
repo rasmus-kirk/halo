@@ -9,12 +9,14 @@ use ark_ff::{AdditiveGroup, Field, Zero};
 use ark_poly::{DenseUVPolynomial, EvaluationDomain, Evaluations, Polynomial};
 use std::ops::{AddAssign, Mul};
 
+use super::misc::batch_op;
+
 type Poly = PallasPoly;
 type Scalar = PallasScalar;
 type Point = PallasPoint;
 
 pub fn batch_interpolate(es: Vec<Evaluations<Scalar>>) -> Vec<Poly> {
-    es.into_iter().map(|e| e.interpolate()).collect()
+    batch_op(es, |e| e.interpolate())
 }
 
 /// f(X) = v
@@ -144,26 +146,18 @@ pub fn zh_ev(h: &Coset, x: &Scalar) -> Scalar {
     x.pow([h.n()]) - Scalar::ONE
 }
 
-pub fn batch_poly_op<'a, I, T, F>(ps: I, op: F) -> Vec<T>
-where
-    I: IntoIterator<Item = &'a Poly>,
-    F: Fn(&Poly) -> T,
-{
-    ps.into_iter().map(op).collect()
-}
-
 pub fn batch_evaluate<'a, I>(ps: I, x: &Scalar) -> Vec<Scalar>
 where
     I: IntoIterator<Item = &'a Poly>,
 {
-    batch_poly_op(ps, |f| f.evaluate(x))
+    batch_op(ps, |f| f.evaluate(x))
 }
 
 pub fn batch_commit<'a, I>(ps: I, d: usize, w: Option<&Scalar>) -> Vec<Point>
 where
     I: IntoIterator<Item = &'a Poly>,
 {
-    batch_poly_op(ps, |f| pcdl::commit(f, d, w))
+    batch_op(ps, |f| pcdl::commit(f, d, w))
 }
 
 #[cfg(test)]

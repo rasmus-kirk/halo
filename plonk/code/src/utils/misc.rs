@@ -57,3 +57,11 @@ pub fn to_subscript(num: u64) -> String {
 pub fn pair_app<T, U>(f: impl Fn(T) -> U) -> impl Fn((T, T)) -> (U, U) {
     move |(a, b)| (f(a), f(b))
 }
+
+pub fn batch_op<I, T, U, F>(ps: I, op: F) -> Vec<T>
+where
+    I: IntoIterator<Item = U>,
+    F: Fn(U) -> T,
+{
+    ps.into_iter().map(op).collect()
+}

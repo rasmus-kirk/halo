@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 
 const SAMPLE_SIZE: usize = 10;
 const SECONDS: u64 = 2;
@@ -9,14 +9,14 @@ use ark_std::test_rng;
 use log::info;
 use plonk::{arithmetizer::Arithmetizer, protocol};
 
-const WARMUP: Duration = Duration::from_millis(100);
+// const WARMUP: Duration = Duration::from_millis(100);
 const MIN: usize = 5;
 const MAX: usize = 20;
 
 pub fn plonk_proof_verify(c: &mut Criterion) {
     env_logger::init();
 
-    let mut group = c.benchmark_group("plonk_proof_verify");
+    let group = c.benchmark_group("plonk_proof_verify");
     let rng = &mut test_rng();
 
     // let mut new_pis = Vec::new();

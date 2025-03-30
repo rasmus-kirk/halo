@@ -5,6 +5,8 @@ use ark_ff::{BigInteger, PrimeField};
 
 use crate::Coset;
 
+use super::misc::batch_op;
+
 type Scalar = PallasScalar;
 
 /// Compute the bitwise XOR of two scalars
@@ -20,7 +22,7 @@ pub fn bitxor(lhs: Scalar, rhs: Scalar) -> Scalar {
 
 /// Compute the Evaluation struct for a Vec of Vec of Scalars
 pub fn batch_compute_evals(h: &Coset, ys: Vec<Vec<Scalar>>) -> Vec<Evaluations<Scalar>> {
-    ys.into_iter()
-        .map(|evals| Evaluations::from_vec_and_domain(evals, h.domain))
-        .collect()
+    batch_op(ys, |evals| {
+        Evaluations::from_vec_and_domain(evals, h.domain)
+    })
 }

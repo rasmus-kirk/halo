@@ -1,20 +1,20 @@
 #![allow(non_snake_case)]
 
+use super::{
+    pi::{EvalProofs, Proof, ProofCommitments, ProofEvaluations},
+    transcript::TranscriptProtocol,
+};
 use crate::{
     circuit::{CircuitPrivate, CircuitPublic},
     scheme::{Selectors, Slots},
     utils::{
+        misc::batch_op,
         poly::{
-            batch_commit, batch_evaluate, coset_scale_omega, coset_scale_omega_evals, deg0,
-            lagrange_basis_poly, linear_comb_poly, split_poly,
+            batch_commit, batch_evaluate, coset_scale_omega_evals, deg0, lagrange_basis_poly,
+            linear_comb_poly, split_poly,
         },
         print_table::evals_str,
     },
-};
-
-use super::{
-    pi::{EvalProofs, Proof, ProofCommitments, ProofEvaluations},
-    transcript::TranscriptProtocol,
 };
 
 use halo_accumulation::{
@@ -38,6 +38,9 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     let w_a = &w.ws[Slots::A as usize];
     let w_b = &w.ws[Slots::B as usize];
     let w_c = &w.ws[Slots::C as usize];
+    let _a = &w.ws_cache[Slots::A as usize];
+    let _b = &w.ws_cache[Slots::B as usize];
+    let _c = &w.ws_cache[Slots::C as usize];
     let x_ql = &x.qs[Selectors::Ql as usize];
     let x_qr = &x.qs[Selectors::Qr as usize];
     let x_qo = &x.qs[Selectors::Qo as usize];
@@ -48,9 +51,15 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     let x_sida = &x.sids[Slots::A as usize];
     let x_sidb = &x.sids[Slots::B as usize];
     let x_sidc = &x.sids[Slots::C as usize];
+    let _sida = &x.sids_cache[Slots::A as usize];
+    let _sidb = &x.sids_cache[Slots::B as usize];
+    let _sidc = &x.sids_cache[Slots::C as usize];
     let x_sa = &x.ss[Slots::A as usize];
     let x_sb = &x.ss[Slots::B as usize];
     let x_sc = &x.ss[Slots::C as usize];
+    let _sa = &x.ss_cache[Slots::A as usize];
+    let _sb = &x.ss_cache[Slots::B as usize];
+    let _sc = &x.ss_cache[Slots::C as usize];
     let x_pip = &x.pip;
 
     let mut transcript = Transcript::new(b"protocol");
@@ -74,10 +83,7 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     let _pl_h2 = &pl_cache[3];
     let _pl_t_bar = &coset_scale_omega_evals(&x.h, _pl_t.clone());
     let _pl_h1_bar = &coset_scale_omega_evals(&x.h, _pl_h1.clone());
-    let plp: Vec<Poly> = pl_cache
-        .iter()
-        .map(|evals| evals.clone().interpolate())
-        .collect();
+    let plp = batch_op(pl_cache, |evals| evals.clone().interpolate());
     let pl_t = &plp[0];
     let pl_f = &plp[1];
     let pl_h1 = &plp[2];
@@ -113,16 +119,6 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     };
     let zcc = |w: &Poly, s: &Poly| w + (s * beta) + deg0(&gamma);
 
-    let _a = &w.ws_cache[Slots::A as usize];
-    let _b = &w.ws_cache[Slots::B as usize];
-    let _c = &w.ws_cache[Slots::C as usize];
-    let _sida = &x.sids_cache[Slots::A as usize];
-    let _sidb = &x.sids_cache[Slots::B as usize];
-    let _sidc = &x.sids_cache[Slots::C as usize];
-    let _sa = &x.ss_cache[Slots::A as usize];
-    let _sb = &x.ss_cache[Slots::B as usize];
-    let _sc = &x.ss_cache[Slots::C as usize];
-
     // f'(X) = (A(X) + β Sᵢ₁(X) + γ) (B(X) + β Sᵢ₂(X) + γ) (C(X) + β Sᵢ₃(X) + γ)
     //         (ε(1 + δ) + f(X) + δf(X)) (ε(1 + δ) + t(X) + δt(Xω))
     let zf_cc = &(zcc(w_a, x_sida) * zcc(w_b, x_sidb) * zcc(w_c, x_sidc));
@@ -149,10 +145,11 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
         acc
     });
     info!("Round 3 - B - {} s", now.elapsed().as_secs_f64());
-    let z = &Evaluations::from_vec_and_domain(z_points, x.h.domain).interpolate();
+    let z_cache = Evaluations::from_vec_and_domain(z_points, x.h.domain);
+    let z = &z_cache.clone().interpolate();
     info!("Round 3 - C - {} s", now.elapsed().as_secs_f64());
     // Z(ω X)
-    let z_bar = &coset_scale_omega(&x.h, z);
+    let z_bar = &coset_scale_omega_evals(&x.h, z_cache).interpolate();
     info!("Round 3 - D - {} s", now.elapsed().as_secs_f64());
     let z_com = &pcdl::commit(z, d, None);
     transcript.append_point(b"z", z_com);
@@ -217,6 +214,7 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     transcript.append_scalar(b"z_bar_ev", &z_bar_ev);
     transcript.append_scalars(b"t_ev", ts_ev.as_slice());
     transcript.append_scalar(b"z_ev", &z_ev);
+    // WARNING: soundness t1_bar_ev and h1_bar_ev?
 
     let v = &transcript.challenge_scalar(b"v");
 
