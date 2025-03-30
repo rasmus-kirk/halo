@@ -3,7 +3,7 @@ use halo_accumulation::group::PallasScalar;
 
 use ark_ff::{BigInteger, PrimeField};
 
-use crate::curve::Coset;
+use crate::Coset;
 
 type Scalar = PallasScalar;
 

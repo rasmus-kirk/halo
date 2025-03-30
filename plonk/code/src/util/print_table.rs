@@ -1,5 +1,5 @@
 use super::misc::{to_subscript, to_superscript};
-use crate::curve::Coset;
+use crate::Coset;
 
 use halo_accumulation::group::{PallasPoly, PallasScalar};
 

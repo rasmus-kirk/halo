@@ -1,6 +1,11 @@
-pub mod curve;
+pub mod arithmetizer;
+pub mod circuit;
+pub mod coset;
 pub mod protocol;
+pub mod scheme;
 pub mod util;
+
+pub use coset::Coset;
 
 #[cfg(test)]
 mod tests {
@@ -8,8 +13,10 @@ mod tests {
 
     use super::*;
     use anyhow::Result;
+    use arithmetizer::Arithmetizer;
+    use circuit::poly_evaluations_to_string;
     use log::debug;
-    use protocol::{arithmetizer::Arithmetizer, circuit::poly_evaluations_to_string, plonk};
+    use protocol;
 
     #[test]
     fn circuit() -> Result<()> {
@@ -21,8 +28,8 @@ mod tests {
         let (x, w) = &Arithmetizer::to_circuit(rng, input_values, output_wires, None)?;
         debug!("{}", poly_evaluations_to_string(x, w));
         // let _ = plonk::proof(rng, x, w);
-        let pi = plonk::prove(rng, x, w);
-        plonk::verify(x, pi)?;
+        let pi = protocol::prove(rng, x, w);
+        protocol::verify(x, pi)?;
 
         Ok(())
     }
@@ -37,8 +44,8 @@ mod tests {
         debug!("\n{}", Arithmetizer::to_string(&input_values, output_wires));
         let (x, w) = &Arithmetizer::to_circuit(rng, input_values, output_wires, None)?;
         debug!("\n{}", poly_evaluations_to_string(x, w));
-        let pi = plonk::prove(rng, x, w);
-        plonk::verify(x, pi)?;
+        let pi = protocol::prove(rng, x, w);
+        protocol::verify(x, pi)?;
 
         Ok(())
     }
@@ -51,8 +58,8 @@ mod tests {
         debug!("{}", Arithmetizer::to_string(&input_values, output_wires));
         let (x, w) = &Arithmetizer::to_circuit(rng, input_values, output_wires, None)?;
         debug!("{}", poly_evaluations_to_string(x, w));
-        let pi = plonk::prove(rng, x, w);
-        plonk::verify(x, pi)?;
+        let pi = protocol::prove(rng, x, w);
+        protocol::verify(x, pi)?;
 
         Ok(())
     }

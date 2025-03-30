@@ -7,7 +7,7 @@ const SECONDS: u64 = 2;
 
 use ark_std::test_rng;
 use log::info;
-use plonk::protocol::{arithmetizer::Arithmetizer, plonk as plonker};
+use plonk::{arithmetizer::Arithmetizer, protocol};
 
 const WARMUP: Duration = Duration::from_millis(100);
 const MIN: usize = 5;
@@ -44,13 +44,13 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
         circuits.push((size, x.clone(), w.clone()));
 
         let start_time = Instant::now();
-        let new_pi = plonker::prove(rng, &x, &w);
+        let new_pi = protocol::prove(rng, &x, &w);
         let new_p_time = start_time.elapsed().as_secs_f32();
         info!("D");
         // new_pis.push(new_pi.clone());
 
         let start_time = Instant::now();
-        plonker::verify(&x, new_pi).unwrap();
+        protocol::verify(&x, new_pi).unwrap();
         let new_v_time = start_time.elapsed().as_secs_f32();
 
         println!(
@@ -65,7 +65,7 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
     //         &i,
     //         |b, _| {
     //             b.iter(|| {
-    //                 let pi = plonker::proof(rng, x, w);
+    //                 let pi = protocol::proof(rng, x, w);
     //                 pis.push(pi.clone());
     //             })
     //         },
@@ -77,7 +77,7 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
     //         .warm_up_time(WARMUP)
     //         .bench_with_input(BenchmarkId::new("verifier", i), &i, |b, _| {
     //             b.iter(|| {
-    //                 plonker::verify(&x, pi.clone());
+    //                 protocol::verify(&x, pi.clone());
     //             })
     //         });
     // }
@@ -88,7 +88,7 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
     //         &i,
     //         |b, _| {
     //             b.iter(|| {
-    //                 plonker::prove_w_lu(rng, &x, &w);
+    //                 protocol::prove_w_lu(rng, &x, &w);
     //             })
     //         },
     //     );
@@ -99,7 +99,7 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
     //         &i,
     //         |b, _| {
     //             b.iter(|| {
-    //                 plonker::verify_lu_with_w(&x, pi.clone()).unwrap();
+    //                 protocol::verify_lu_with_w(&x, pi.clone()).unwrap();
     //             })
     //         },
     //     );

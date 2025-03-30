@@ -1,4 +1,4 @@
-use crate::curve::Coset;
+use crate::Coset;
 
 use halo_accumulation::{
     group::{PallasPoint, PallasPoly, PallasScalar},
@@ -160,7 +160,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::protocol::scheme::Slots;
+    use crate::scheme::Slots;
     use ark_poly::Polynomial;
     use rand::Rng;
 
