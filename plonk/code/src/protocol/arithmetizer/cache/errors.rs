@@ -1,4 +1,8 @@
-use crate::{curve::Scalar, protocol::arithmetizer::arith_wire::ArithWire};
+use crate::protocol::arithmetizer::arith_wire::ArithWire;
+
+use halo_accumulation::group::PallasScalar;
+
+type Scalar = PallasScalar;
 
 #[derive(Debug)]
 pub enum CacheError {

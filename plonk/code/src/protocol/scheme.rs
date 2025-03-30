@@ -1,8 +1,10 @@
+use crate::util::poly::plookup_compress;
+
+use halo_accumulation::group::PallasScalar;
+
 use std::fmt;
 
-use crate::curve::Scalar;
-
-use super::arithmetizer::Table;
+type Scalar = PallasScalar;
 
 /// Used to determine degree of root of unity along with number of constraints.
 pub const MAX_BLIND_TERMS: u64 = 0;
@@ -168,7 +170,7 @@ impl Terms {
 
     pub fn plonkup_eqn(terms: [Scalar; Self::COUNT], zeta: &Scalar, f: &Scalar) -> Scalar {
         let [a, b, c, _, _, _, _, _, qk, j, _] = terms;
-        qk * (Table::eval_compress(zeta, &a, &b, &c, &j) - f)
+        qk * (plookup_compress(zeta, &a, &b, &c, &j) - f)
     }
 
     pub fn is_slot(&self) -> bool {

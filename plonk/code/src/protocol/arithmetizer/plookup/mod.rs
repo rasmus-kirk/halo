@@ -2,9 +2,14 @@ mod compute;
 
 pub use compute::PlookupEvsThunk;
 
+use crate::util::poly::plookup_compress;
+
+use halo_accumulation::group::PallasScalar;
+
+use ark_ff::{AdditiveGroup, Field};
 use std::fmt::Display;
 
-use crate::{curve::Scalar, util::poly::plookup_compress};
+type Scalar = PallasScalar;
 
 /// Operations defined for the Plookup protocol
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -16,7 +21,7 @@ pub enum PlookupOps {
 
 impl From<PlookupOps> for Scalar {
     fn from(op: PlookupOps) -> Self {
-        Scalar::from(op as usize)
+        Scalar::from(op as u32)
     }
 }
 
@@ -53,14 +58,10 @@ impl Table {
         let mut res = Vec::new();
         for row in self.0.iter() {
             let [a, b, c] = row;
-            let t = Self::eval_compress(zeta, a, b, c, j);
+            let t = plookup_compress(zeta, a, b, c, j);
             res.push(t);
         }
         res
-    }
-
-    pub fn eval_compress(zeta: &Scalar, a: &Scalar, b: &Scalar, c: &Scalar, j: &Scalar) -> Scalar {
-        plookup_compress(&zeta.scalar, &a.scalar, &b.scalar, &c.scalar, &j.scalar).into()
     }
 
     /// Number of entries in the table
@@ -142,7 +143,7 @@ impl TableRegistry {
     pub fn query(&self, op: PlookupOps, zeta: &Scalar, a: &Scalar, b: &Scalar) -> Option<Scalar> {
         let c = &self.lookup(op, a, b)?;
         let j = &op.into();
-        Some(Table::eval_compress(zeta, a, b, c, j))
+        Some(plookup_compress(zeta, a, b, c, j))
     }
 
     /// Total number of entries in all tables

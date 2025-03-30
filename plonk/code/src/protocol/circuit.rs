@@ -1,12 +1,14 @@
-use crate::{
-    curve::{Coset, Poly},
-    protocol::scheme::Terms,
-    util::print_table::evals_str,
-};
+use crate::{curve::Coset, protocol::scheme::Terms, util::print_table::evals_str};
 
 use super::{arithmetizer::PlookupEvsThunk, scheme::Slots};
 
-use halo_accumulation::group::PallasPoint;
+use halo_accumulation::group::{PallasPoint, PallasPoly, PallasScalar};
+
+use ark_poly::Evaluations;
+
+type Scalar = PallasScalar;
+type Poly = PallasPoly;
+type Point = PallasPoint;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CircuitPublic {
@@ -19,18 +21,21 @@ pub struct CircuitPublic {
     pub pip: Poly,
     // identity permutation polynomial
     pub sids: Vec<Poly>,
+    pub sids_cache: Vec<Evaluations<Scalar>>,
     // permutation polynomial
     pub ss: Vec<Poly>,
+    pub ss_cache: Vec<Evaluations<Scalar>>,
 
-    pub pip_com: PallasPoint,
-    pub qs_coms: Vec<PallasPoint>,
-    pub ss_coms: Vec<PallasPoint>,
+    pub pip_com: Point,
+    pub qs_coms: Vec<Point>,
+    pub ss_coms: Vec<Point>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CircuitPrivate {
     // slot polynomials
     pub ws: Vec<Poly>,
+    pub ws_cache: Vec<Evaluations<Scalar>>,
     // thunk to compute Plonkup polys
     pub plonkup: PlookupEvsThunk,
 }

@@ -1,15 +1,16 @@
-use bimap::BiMap;
-
 use super::Value;
-use crate::{
-    curve::Scalar,
-    protocol::{
-        arithmetizer::{plookup::PlookupOps, WireID},
-        scheme::{Selectors, Slots, Terms},
-    },
+use crate::protocol::{
+    arithmetizer::{plookup::PlookupOps, WireID},
+    scheme::{Selectors, Slots, Terms},
 };
 
+use halo_accumulation::group::PallasScalar;
+
+use ark_ff::AdditiveGroup;
+use bimap::BiMap;
 use std::{fmt, ops::Index};
+
+type Scalar = PallasScalar;
 
 /// Values for a single equation / constraint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -161,9 +162,10 @@ impl fmt::Display for Constraints {
 
 #[cfg(test)]
 mod tests {
-    use crate::protocol::arithmetizer::plookup::TableRegistry;
-
     use super::*;
+    use crate::{protocol::arithmetizer::plookup::TableRegistry, util::scalar::bitxor};
+
+    use ark_ff::Field;
     use rand::Rng;
 
     const N: usize = 100;
@@ -260,7 +262,7 @@ mod tests {
         for _ in 0..N {
             let a_ = &Scalar::from(rng.gen_range(0..2));
             let b_ = &Scalar::from(rng.gen_range(0..2));
-            let c_ = a_ ^ b_;
+            let c_ = bitxor(*a_, *b_);
             let a = &Value::new_wire(0, *a_);
             let b = &Value::new_wire(1, *b_);
             let c = &Value::new_wire(2, c_);

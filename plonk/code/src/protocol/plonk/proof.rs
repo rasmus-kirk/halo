@@ -1,7 +1,6 @@
 #![allow(non_snake_case)]
 
 use crate::{
-    curve::Scalar,
     protocol::{
         circuit::{CircuitPrivate, CircuitPublic},
         scheme::{Selectors, Slots},
@@ -26,39 +25,42 @@ use halo_accumulation::{
 };
 
 use ark_ff::Field;
-use ark_poly::Polynomial;
+use ark_poly::{Evaluations, Polynomial};
 use log::{debug, info};
 use merlin::Transcript;
 use rand::Rng;
 use std::time::Instant;
 
+type Scalar = PallasScalar;
+type Poly = PallasPoly;
+
 pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proof {
     let d = x.d;
 
-    let w_a = &w.ws[Slots::A as usize].poly;
-    let w_b = &w.ws[Slots::B as usize].poly;
-    let w_c = &w.ws[Slots::C as usize].poly;
-    let x_sida = &x.sids[Slots::A as usize].poly;
-    let x_sidb = &x.sids[Slots::B as usize].poly;
-    let x_sidc = &x.sids[Slots::C as usize].poly;
-    let x_sa = &x.ss[Slots::A as usize].poly;
-    let x_sb = &x.ss[Slots::B as usize].poly;
-    let x_sc = &x.ss[Slots::C as usize].poly;
-    let x_ql = &x.qs[Selectors::Ql as usize].poly;
-    let x_qr = &x.qs[Selectors::Qr as usize].poly;
-    let x_qo = &x.qs[Selectors::Qo as usize].poly;
-    let x_qm = &x.qs[Selectors::Qm as usize].poly;
-    let x_qc = &x.qs[Selectors::Qc as usize].poly;
-    let x_qk = &x.qs[Selectors::Qk as usize].poly;
-    let x_j = &x.qs[Selectors::J as usize].poly;
-    let x_pip = &x.pip.poly;
+    let w_a = &w.ws[Slots::A as usize];
+    let w_b = &w.ws[Slots::B as usize];
+    let w_c = &w.ws[Slots::C as usize];
+    let x_sida = &x.sids[Slots::A as usize];
+    let x_sidb = &x.sids[Slots::B as usize];
+    let x_sidc = &x.sids[Slots::C as usize];
+    let x_sa = &x.ss[Slots::A as usize];
+    let x_sb = &x.ss[Slots::B as usize];
+    let x_sc = &x.ss[Slots::C as usize];
+    let x_ql = &x.qs[Selectors::Ql as usize];
+    let x_qr = &x.qs[Selectors::Qr as usize];
+    let x_qo = &x.qs[Selectors::Qo as usize];
+    let x_qm = &x.qs[Selectors::Qm as usize];
+    let x_qc = &x.qs[Selectors::Qc as usize];
+    let x_qk = &x.qs[Selectors::Qk as usize];
+    let x_j = &x.qs[Selectors::J as usize];
+    let x_pip = &x.pip;
 
     let mut transcript = Transcript::new(b"protocol");
     transcript.domain_sep();
     // -------------------- Round 1 --------------------
 
     let now = Instant::now();
-    let abc_coms = batch_commit(w.ws.iter().map(|p| &p.poly), d, None);
+    let abc_coms = batch_commit(&w.ws, d, None);
     transcript.append_points(b"abc", &abc_coms);
     info!("Round 1 took {} s", now.elapsed().as_secs_f64());
 
@@ -67,15 +69,16 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     let now = Instant::now();
     // ζ = H(transcript)
     let zeta = &transcript.challenge_scalar(b"zeta");
-    let plp = &w.plonkup.compute(&Scalar::new(*zeta));
+    let plp = &w
+        .plonkup
+        .compute(zeta)
+        .into_iter()
+        .map(|e| e.interpolate())
+        .collect::<Vec<Poly>>();
     let pl_t = &plp[0];
     let pl_f = &plp[1];
     let pl_h1 = &plp[2];
     let pl_h2 = &plp[3];
-    let pl_t = &pl_t.poly;
-    let pl_f = &pl_f.poly;
-    let pl_h1 = &pl_h1.poly;
-    let pl_h2 = &pl_h2.poly;
     info!("Round 2 took {} s", now.elapsed().as_secs_f64());
 
     let pl_t_bar = &coset_scale_omega(&x.h, pl_t);
@@ -98,13 +101,13 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     // plookup constraint term: ε(1 + δ) + a(X) + δb(X)
     let zpl_sc = &(epsilon * (PallasScalar::ONE + delta));
     let zpl_ev = |a: &PallasPoly, b: &PallasPoly, i| {
-        *zpl_sc + a.evaluate(&x.h.w(i).into()) + (delta * b.evaluate(&x.h.w(i).into()))
+        *zpl_sc + a.evaluate(&x.h.w(i)) + (delta * b.evaluate(&x.h.w(i)))
     };
     let zpl = |a: &PallasPoly, b: &PallasPoly| deg0(zpl_sc) + a + (deg0(&delta) * b);
 
     // copy constraint term: w(X) + β s(X) + γ
     let zcc_ev = |w: &PallasPoly, s: &PallasPoly, i| {
-        w.evaluate(&x.h.w(i).into()) + (beta * s.evaluate(&x.h.w(i).into())) + gamma
+        w.evaluate(&x.h.w(i)) + (beta * s.evaluate(&x.h.w(i))) + gamma
     };
     let zcc = |w: &PallasPoly, s: &PallasPoly| w + (s * beta) + deg0(&gamma);
 
@@ -126,7 +129,6 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     let zg_ev = |i| zg_cc_ev(i) * zg_pl_ev(i);
 
     // ----- Calculate z ----- //
-
     // Z(ω) = 1
     // Z(ωⁱ) = Z(ωᶦ⁻¹) f'(ωᶦ⁻¹) / g'(ωᶦ⁻¹)
     info!("Round 3 - A - {} s", now.elapsed().as_secs_f64());
@@ -135,12 +137,11 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
         acc
     });
     info!("Round 3 - B - {} s", now.elapsed().as_secs_f64());
-    let z = &x.h.interpolate(z_points);
+    let z = &Evaluations::from_vec_and_domain(z_points, x.h.domain).interpolate();
     info!("Round 3 - C - {} s", now.elapsed().as_secs_f64());
     // Z(ω X)
-    let z_bar = &coset_scale_omega(&x.h, &z.poly);
+    let z_bar = &coset_scale_omega(&x.h, z);
     info!("Round 3 - D - {} s", now.elapsed().as_secs_f64());
-    let z = &z.into();
     let z_com = &pcdl::commit(z, d, None);
     transcript.append_point(b"z", z_com);
     info!("Round 3 took {} s", now.elapsed().as_secs_f64());
@@ -184,9 +185,9 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     let now = Instant::now();
     // 𝔷 = H(transcript)
     let ch = &transcript.challenge_scalar(b"xi");
-    let ws_ev = batch_evaluate(w.ws.iter().map(|p| &p.poly), ch);
-    let qs_ev = batch_evaluate(x.qs.iter().map(|p| &p.poly), ch);
-    let ss_ev = batch_evaluate(x.ss.iter().map(|p| &p.poly), ch);
+    let ws_ev = batch_evaluate(&w.ws, ch);
+    let qs_ev = batch_evaluate(&x.qs, ch);
+    let ss_ev = batch_evaluate(&x.ss, ch);
     let pip_ev = &x_pip.evaluate(ch);
     let ts_ev = batch_evaluate(ts, ch);
     let z_ev = z.evaluate(ch);
@@ -195,7 +196,7 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     let pl_h2_ev = pl_h2.evaluate(ch);
     let pl_t_ev = pl_t.evaluate(ch);
 
-    let ch_bar = &(*ch * x.h.w(1).scalar);
+    let ch_bar = &(*ch * x.h.w(1));
     let z_bar_ev = z_bar.evaluate(ch);
     let pl_h1_bar_ev = pl_h1_bar.evaluate(ch);
     let pl_t_bar_ev = pl_t_bar.evaluate(ch);
@@ -210,36 +211,14 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
 
     let v = &transcript.challenge_scalar(b"v");
 
-    // let W = x_ql
-    //     + x_qr * deg0(&v.pow([1]))
-    //     + x_qo * deg0(&v.pow([2]))
-    //     + x_qc * deg0(&v.pow([3]))
-    //     + x_qm * deg0(&v.pow([4]))
-    //     + x_sa * deg0(&v.pow([5]))
-    //     + x_sb * deg0(&v.pow([6]))
-    //     + x_sc * deg0(&v.pow([7]))
-    //     + w_a * deg0(&v.pow([8]))
-    //     + w_b * deg0(&v.pow([9]))
-    //     + w_c * deg0(&v.pow([10]))
-    //     + z * deg0(&v.pow([11]))
-    //     + x_j * deg0(&v.pow([12]))
-    //     + x_qk * deg0(&v.pow([13]));
-    let W = linear_comb_poly(
-        v,
-        x.qs.iter()
-            .chain(w.ws.iter())
-            .map(|p| &p.poly)
-            .chain(std::iter::once(z)),
-    );
-    // WARNING: Possible soundness issue
-    // + v.pow(13) * pl_f
-    // + v.pow(15) * pl_h1
-    // + v.pow(16) * pl_h2
-    // + v.pow(17) * pl_t;
+    // W(X) = Qₗ(X) + vQᵣ(X) + v²Qₒ(X) + v³Qₖ(X) + v⁴Qₘ(X) + v⁵Q꜀(X) + v⁶Qₖ(X) + v⁷J(X)
+    //      + v⁸A(X) + v⁹B(X) + v¹⁰C(X) + v¹¹Z(X)
+    let W = linear_comb_poly(v, x.qs.iter().chain(w.ws.iter()).chain(std::iter::once(z)));
+    // WARNING: Possible soundness issue; include plookup polynomials
 
     let (_, _, _, _, W_pi) = Instance::open(rng, W, d, ch, None).into_tuple();
 
-    //let W_bar: Poly = z_bar + v.pow(1) * pl_h1_bar + v.pow(2) * pl_t_bar;
+    // W'(X) = Z(ωX)
     let W_bar = z.clone();
     let (_, _, _, _, W_bar_pi) = Instance::open(rng, W_bar, d, ch_bar, None).into_tuple();
 
@@ -247,19 +226,7 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
         "\n{}",
         evals_str(
             &x.h,
-            vec![
-                &plp[0],
-                &pl_t_bar.into(),
-                &plp[1],
-                &plp[2],
-                &pl_h1_bar.into(),
-                &plp[3],
-                &z.into(),
-                &z_bar.into(),
-                &f_gc.into(),
-                &f_z1.into(),
-                &f_z2.into()
-            ],
+            vec![pl_t, pl_t_bar, pl_f, pl_h1, pl_h1_bar, pl_h2, z, z_bar, f_gc, f_z1, f_z2,],
             vec![
                 "t(X)".to_string(),
                 "t(ωX)".to_string(),
@@ -309,7 +276,5 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     pi
 }
 
-// TODO move interpolate to util
-// TODO add documentation for W
-// TODO remove Poly and Scalar in Coset
-// TODO remove Poly and Scalar in plookup
+// TODO use cache in proof
+// TODO delete Scalar, Poly and Point in repo

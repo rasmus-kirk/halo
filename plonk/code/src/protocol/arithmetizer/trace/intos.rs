@@ -1,17 +1,22 @@
+use super::{value::Value, ConstraintID, Constraints, Pos, Trace};
 use crate::{
-    curve::Poly,
     protocol::{
         arithmetizer::{plookup::TableRegistry, PlookupEvsThunk},
         circuit::{Circuit, CircuitPrivate, CircuitPublic},
         scheme::Slots,
     },
+    util::poly::batch_interpolate,
 };
 
-use super::{value::Value, ConstraintID, Constraints, Pos, Trace};
+use halo_accumulation::{
+    group::{PallasPoint, PallasPoly},
+    pcdl,
+};
 
-use halo_accumulation::{group::PallasPoint, pcdl};
-
+use ark_poly::Polynomial;
 use std::collections::HashMap;
+
+type Poly = PallasPoly;
 
 impl
     From<(
@@ -51,22 +56,24 @@ impl
 impl From<Trace> for Circuit {
     fn from(eval: Trace) -> Self {
         let d = eval.d;
-        let (ws, qs, pip) = eval.gate_polys();
-        let (sids, ss) = eval.copy_constraints();
+        let (ws_cache, qs_cache, pip_cache) = eval.gate_polys();
+        let (sids_cache, ss_cache) = eval.copy_constraints();
+        let ws = batch_interpolate(ws_cache.clone());
+        let qs = batch_interpolate(qs_cache);
+        let pip = pip_cache.interpolate();
+        let sids = batch_interpolate(sids_cache.clone());
+        let ss = batch_interpolate(ss_cache.clone());
 
-        let pip_com = pcdl::commit(&pip.poly, d, None);
-        let qs_coms: Vec<PallasPoint> = qs
-            .iter()
-            .map(|q| pcdl::commit(&q.poly, eval.d, None))
-            .collect();
+        let pip_com = pcdl::commit(&pip, d, None);
+        let qs_coms: Vec<PallasPoint> = qs.iter().map(|q| pcdl::commit(q, eval.d, None)).collect();
         let ss_coms: Vec<PallasPoint> = (0..Slots::COUNT)
-            .map(|i| pcdl::commit(&ss[i].poly, eval.d, None))
+            .map(|i| pcdl::commit(&ss[i], eval.d, None))
             .collect();
 
         ws.iter()
             .chain(qs.iter())
             .chain(ss.iter())
-            .for_each(|p: &Poly| assert!(p.degree() as usize <= d));
+            .for_each(|p: &Poly| assert!(p.degree() <= d));
 
         let x = CircuitPublic {
             d: eval.d,
@@ -77,10 +84,13 @@ impl From<Trace> for Circuit {
             pip,
             qs,
             sids,
+            sids_cache,
             ss,
+            ss_cache,
         };
         let w = CircuitPrivate {
             ws,
+            ws_cache,
             plonkup: PlookupEvsThunk::new(eval.h, eval.constraints, eval.table),
         };
         (x, w)

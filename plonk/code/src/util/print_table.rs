@@ -1,8 +1,14 @@
-use crate::curve::{Coset, Poly, Scalar};
+use super::misc::{to_subscript, to_superscript};
+use crate::curve::Coset;
 
+use halo_accumulation::group::{PallasPoly, PallasScalar};
+
+use ark_ff::Field;
+use ark_poly::Polynomial;
 use ascii_table::{Align, AsciiTable};
 
-use super::misc::{to_subscript, to_superscript};
+type Scalar = PallasScalar;
+type Poly = PallasPoly;
 
 fn w_str(i: u64) -> String {
     format!("ω{}", to_superscript(i))
@@ -21,7 +27,7 @@ fn v_str(h: &Coset, x: &Scalar) -> String {
             let i = (i_ + 1) as u64;
             if x == w {
                 return if slot == 0 {
-                    format!("ω{}", to_superscript(i))
+                    w_str(i)
                 } else {
                     format!("k{} ω{}", to_subscript(slot as u64), to_superscript(i))
                 };

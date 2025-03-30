@@ -19,7 +19,7 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
     let mut group = c.benchmark_group("plonk_proof_verify");
     let rng = &mut test_rng();
 
-    let mut new_pis = Vec::new();
+    // let mut new_pis = Vec::new();
 
     let mut circuits = Vec::new();
     println!("|‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|");
@@ -47,7 +47,7 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
         let new_pi = plonker::prove(rng, &x, &w);
         let new_p_time = start_time.elapsed().as_secs_f32();
         info!("D");
-        new_pis.push(new_pi.clone());
+        // new_pis.push(new_pi.clone());
 
         let start_time = Instant::now();
         plonker::verify(&x, new_pi).unwrap();

@@ -1,7 +1,11 @@
 use super::{ConstraintID, Coset};
-use crate::{curve::Scalar, protocol::scheme::Slots, util::misc::to_superscript};
+use crate::{protocol::scheme::Slots, util::misc::to_superscript};
+
+use halo_accumulation::group::PallasScalar;
 
 use std::fmt;
+
+type Scalar = PallasScalar;
 
 /// Position in the permutation polynomial.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

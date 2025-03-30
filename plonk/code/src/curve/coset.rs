@@ -1,11 +1,12 @@
-mod poly;
+use crate::util::misc::to_superscript;
 
-use crate::{curve::Scalar, util::misc::to_superscript};
-
+use ark_ff::{AdditiveGroup, FftField, Field};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use halo_accumulation::group::PallasScalar;
 use rand::Rng;
 use std::fmt;
+
+type Scalar = PallasScalar;
 
 /// Base coset scheme.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -16,8 +17,8 @@ pub struct Coset {
     w: Scalar,
     /// k:𝔽
     ks: Vec<Scalar>,
-    pub coset_domain: GeneralEvaluationDomain<PallasScalar>,
-    pub domain: GeneralEvaluationDomain<PallasScalar>,
+    pub coset_domain: GeneralEvaluationDomain<Scalar>,
+    pub domain: GeneralEvaluationDomain<Scalar>,
 }
 
 impl Default for Coset {
@@ -26,8 +27,8 @@ impl Default for Coset {
             n: 0,
             w: Scalar::ZERO,
             ks: Vec::new(),
-            coset_domain: GeneralEvaluationDomain::<PallasScalar>::new(0).unwrap(),
-            domain: GeneralEvaluationDomain::<PallasScalar>::new(0).unwrap(),
+            coset_domain: GeneralEvaluationDomain::<Scalar>::new(0).unwrap(),
+            domain: GeneralEvaluationDomain::<Scalar>::new(0).unwrap(),
         }
     }
 }
@@ -46,7 +47,7 @@ impl Coset {
         let n = (m + 1).next_power_of_two();
         let w = Scalar::get_root_of_unity(n)?;
         let domain = GeneralEvaluationDomain::<PallasScalar>::new(n as usize).unwrap();
-        let coset_domain = domain.get_coset(w.into()).unwrap();
+        let coset_domain = domain.get_coset(w).unwrap();
         let mut nw = Coset {
             n,
             w,
@@ -87,7 +88,7 @@ impl Coset {
 
     /// ωⁱ:𝔽
     pub fn w(&self, i: u64) -> Scalar {
-        self.w.pow(i)
+        self.w.pow([i])
     }
 
     // Hₛ = { kₛ ωⁱ | 1 ≤ i < n }

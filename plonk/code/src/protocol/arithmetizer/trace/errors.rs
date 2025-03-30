@@ -1,9 +1,12 @@
 use super::constraints::Constraints;
 use crate::{
-    curve::Scalar,
     protocol::arithmetizer::{plookup::PlookupOps, WireID},
     util::misc::map_to_alphabet,
 };
+
+use halo_accumulation::group::PallasScalar;
+
+type Scalar = PallasScalar;
 
 #[derive(Debug)]
 pub enum TraceError {

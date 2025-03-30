@@ -6,8 +6,10 @@ mod intos;
 mod pos;
 mod value;
 
+use ark_poly::Evaluations;
 pub use constraints::Constraints;
 pub use errors::TraceError;
+use halo_accumulation::group::PallasScalar;
 pub use pos::Pos;
 
 use super::{
@@ -18,14 +20,18 @@ use super::{
 };
 
 use crate::{
-    curve::{Coset, Poly, Scalar},
+    curve::Coset,
     protocol::scheme::{Selectors, Slots, Terms, MAX_BLIND_TERMS},
+    util::scalar::batch_compute_evals,
 };
 
+use ark_ff::{AdditiveGroup, Field};
 use log::info;
 use rand::Rng;
 use std::collections::HashMap;
 use value::Value;
+
+type Scalar = PallasScalar;
 
 /// A unique identifier for a constraint in the circuit.
 type ConstraintID = u64;
@@ -270,9 +276,15 @@ impl Trace {
     // Poly construction -------------------------------------------------------
 
     /// Compute the circuit polynomials.
-    fn gate_polys(&self) -> (Vec<Poly>, Vec<Poly>, Poly) {
-        let mut ws_evs: Vec<Vec<Scalar>> = vec![vec![]; Slots::COUNT];
-        let mut qs_evs: Vec<Vec<Scalar>> = vec![vec![]; Selectors::COUNT];
+    fn gate_polys(
+        &self,
+    ) -> (
+        Vec<Evaluations<Scalar>>,
+        Vec<Evaluations<Scalar>>,
+        Evaluations<Scalar>,
+    ) {
+        let mut ws_evs: Vec<Vec<Scalar>> = vec![vec![Scalar::ZERO]; Slots::COUNT];
+        let mut qs_evs: Vec<Vec<Scalar>> = vec![vec![Scalar::ZERO]; Selectors::COUNT];
         let mut pip_evs: Vec<Scalar> = vec![];
         for eqn in self.constraints.iter() {
             for slot in Slots::iter() {
@@ -284,25 +296,16 @@ impl Trace {
             pip_evs.push(eqn[Terms::PublicInputs].into());
         }
         (
-            ws_evs
-                .into_iter()
-                .map(|ps| self.h.interpolate_zf(ps))
-                .collect(),
-            qs_evs
-                .into_iter()
-                .map(|ps| self.h.interpolate_zf(ps))
-                .collect(),
-            self.h.interpolate_zf(pip_evs),
+            batch_compute_evals(&self.h, ws_evs),
+            batch_compute_evals(&self.h, qs_evs),
+            Evaluations::from_vec_and_domain(pip_evs, self.h.domain),
         )
     }
 
     /// Compute the permutation and identity permutation polynomials.
-    fn copy_constraints(&self) -> (Vec<Poly>, Vec<Poly>) {
-        let mut sids_evs: Vec<Vec<Scalar>> = vec![vec![]; Slots::COUNT];
-        let mut ss_evs: Vec<Vec<Scalar>> = vec![vec![]; Slots::COUNT];
-        for ps in sids_evs.iter_mut().chain(ss_evs.iter_mut()) {
-            ps.push(Scalar::ONE);
-        }
+    fn copy_constraints(&self) -> (Vec<Evaluations<Scalar>>, Vec<Evaluations<Scalar>>) {
+        let mut sids_evs: Vec<Vec<Scalar>> = vec![vec![Scalar::ONE]; Slots::COUNT];
+        let mut ss_evs: Vec<Vec<Scalar>> = vec![vec![Scalar::ONE]; Slots::COUNT];
         for i_ in 0..self.h.n() - 1 {
             let id = i_ + 1;
             for slot in Slots::iter() {
@@ -316,14 +319,8 @@ impl Trace {
             }
         }
         (
-            sids_evs
-                .into_iter()
-                .map(|ps| self.h.interpolate(ps))
-                .collect(),
-            ss_evs
-                .into_iter()
-                .map(|ps| self.h.interpolate(ps))
-                .collect(),
+            batch_compute_evals(&self.h, sids_evs),
+            batch_compute_evals(&self.h, ss_evs),
         )
     }
 }

@@ -76,10 +76,14 @@ impl fmt::Display for Wire {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::util::misc::{map_to_alphabet, on_debug};
 
-    use super::Arithmetizer;
-    use super::*;
+    use halo_accumulation::group::PallasScalar;
+
+    use ark_ff::Field;
+
+    type Scalar = PallasScalar;
 
     #[test]
     fn new() {
@@ -119,7 +123,12 @@ mod tests {
         assert_eq!(format!("{}", b), map_to_alphabet(1));
         assert_eq!(
             format!("{}", c),
-            format!("(+ {} (* {} -1))", map_to_alphabet(0), map_to_alphabet(1))
+            format!(
+                "(+ {} (* {} {}))",
+                map_to_alphabet(0),
+                map_to_alphabet(1),
+                -Scalar::ONE
+            )
         );
     }
 
@@ -158,7 +167,10 @@ mod tests {
         assert_eq!(a.id, 0);
         assert_eq!(b.id, 2);
         assert_eq!(format!("{}", a), map_to_alphabet(0));
-        assert_eq!(format!("{}", b), format!("(+ {} -1)", map_to_alphabet(0)));
+        assert_eq!(
+            format!("{}", b),
+            format!("(+ {} {})", map_to_alphabet(0), -Scalar::ONE)
+        );
     }
 
     #[test]

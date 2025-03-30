@@ -47,8 +47,8 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     // -------------------- Round 5 --------------------
 
     let ch = &transcript.challenge_scalar(b"xi");
-    let ch_w = ch * &x.h.w(1).scalar;
-    let sids_ev = batch_evaluate(x.sids.iter().map(|p| &p.poly), ch);
+    let ch_w = ch * &x.h.w(1);
+    let sids_ev = batch_evaluate(&x.sids, ch);
     let sida_ev = &sids_ev[Slots::A as usize];
     let sidb_ev = &sids_ev[Slots::B as usize];
     let sidc_ev = &sids_ev[Slots::C as usize];
@@ -86,33 +86,25 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     //         + Qₖ(𝔷)(A(𝔷) + ζB(𝔷) + ζ²C(𝔷) + ζ³J(𝔷) - f(𝔷))
     let f_gcpl_ev = &(*qk * (linear_comb_right(zeta, [*a, *b, *c, *j]) - pi.ev.pl_f));
     let f_gc_ev = (a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc + pip + f_gcpl_ev;
-    // if *f_gc_ev == Scalar::ZERO || !pi.q_fgc.check(ch, Some(f_gc_ev)) {
-    //     println!("FAILED GC");
-    //     panic!();
-    // }
-    // F_Z1(𝔷) = L₁(𝔷) (Z(𝔷) - 1)
-    let f_z1_ev = l1_ev_ch * (pi.ev.z - PallasScalar::ONE);
-    // if !pi.q_fz1.check(ch, Some(f_z1_ev)) {
-    //     println!("FAILED CC1");
-    //     panic!();
-    // }
+
+    // plookup constraint term: ε(1 + δ) + a(X) + δb(X)
     let zpl_sc = &((PallasScalar::ONE + delta) * epsilon);
-    let zcc = |w: &PallasScalar, s: &PallasScalar| *w + (beta * s) + gamma;
     let zpl = |a: &PallasScalar, b: &PallasScalar| zpl_sc + a + (delta * b);
+    // copy constraint term: w(X) + β s(X) + γ
+    let zcc = |w: &PallasScalar, s: &PallasScalar| *w + (beta * s) + gamma;
     // f'(𝔷) = (A(𝔷) + β Sᵢ₁(𝔷) + γ) (B(𝔷) + β Sᵢ₂(𝔷) + γ) (C(𝔷) + β Sᵢ₃(𝔷) + γ)
-    //         (ε(1 + δ) + f(X) + δf(X))(ε(1 + δ) + t(X) + δt(Xω))
+    //         (ε(1 + δ) + f(𝔷) + δf(𝔷))(ε(1 + δ) + t(𝔷) + δt(Xω))
     let zfcc_ev = &(zcc(a, sida_ev) * zcc(b, sidb_ev) * zcc(c, sidc_ev));
     let zfpl_ev = &(zpl(&pi.ev.pl_f, &pi.ev.pl_f) * zpl(&pi.ev.pl_t, &pi.ev.pl_t_bar));
     // g'(𝔷) = (A(𝔷)) + β S₁(𝔷)) + γ) (B(𝔷)) + β S₂(𝔷)) + γ) (C(𝔷)) + β S₃(𝔷)) + γ)
-    //         (ε(1 + δ) + h₁(X) + δh₂(X))(ε(1 + δ) + h₂(X) + δh₁(Xω))
+    //         (ε(1 + δ) + h₁(𝔷) + δh₂(𝔷))(ε(1 + δ) + h₂(𝔷) + δh₁(Xω))
     let zgcc_ev = &(zcc(a, sa_ev) * zcc(b, sb_ev) * zcc(c, sc_ev));
     let zgpl_ev = &(zpl(&pi.ev.pl_h1, &pi.ev.pl_h2) * zpl(&pi.ev.pl_h2, &pi.ev.pl_h1_bar));
+
+    // F_Z1(𝔷) = L₁(𝔷) (Z(𝔷) - 1)
+    let f_z1_ev = l1_ev_ch * (pi.ev.z - PallasScalar::ONE);
     // F_Z2(𝔷) = Z(𝔷)f'(𝔷) - g'(𝔷)Z(ω 𝔷)
     let f_z2_ev = (pi.ev.z * zfcc_ev * zfpl_ev) - (zgcc_ev * zgpl_ev * pi.ev.z_bar);
-    // if !pi.q_fz2.check(ch, Some(f_z2_ev)) {
-    //     println!("FAILED CC2");
-    //     panic!();
-    // }
 
     // T(𝔷) = (F_GC(𝔷) + α F_CC1(𝔷) + α² F_CC2(𝔷)) / Zₕ(𝔷)
     let t_ev = linear_comb(&ch.pow([x.h.n()]), t_evs);
@@ -123,33 +115,8 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
 
     let v = &transcript.challenge_scalar(b"v");
 
-    // let a_com = pi.com.abc_coms[Slots::A as usize];
-    // let b_com = pi.com.abc_coms[Slots::B as usize];
-    // let c_com = pi.com.abc_coms[Slots::C as usize];
-    // let ql_com = x.qs_coms[Selectors::Ql as usize];
-    // let qr_com = x.qs_coms[Selectors::Qr as usize];
-    // let qo_com = x.qs_coms[Selectors::Qo as usize];
-    // let qm_com = x.qs_coms[Selectors::Qm as usize];
-    // let qc_com = x.qs_coms[Selectors::Qc as usize];
-    // let qk_com = x.qs_coms[Selectors::Qk as usize];
-    // let j_com = x.qs_coms[Selectors::J as usize];
-    // let sa_com = x.ss_coms[Slots::A as usize];
-    // let sb_com = x.ss_coms[Slots::B as usize];
-    // let sc_com = x.ss_coms[Slots::C as usize];
-    // let W_com: PallasPoint = ql_com
-    //     + qr_com * v.pow([1])
-    //     + qo_com * v.pow([2])
-    //     + qc_com * v.pow([3])
-    //     + qm_com * v.pow([4])
-    //     + sa_com * v.pow([5])
-    //     + sb_com * v.pow([6])
-    //     + sc_com * v.pow([7])
-    //     + a_com * v.pow([8])
-    //     + b_com * v.pow([9])
-    //     + c_com * v.pow([10])
-    //     + pi.com.z * v.pow([11])
-    //     + j_com * v.pow([12])
-    //     + qk_com * v.pow([13]);
+    // W(𝔷) = Qₗ(𝔷) + vQᵣ(𝔷) + v²Qₒ(𝔷) + v³Qₖ(𝔷) + v⁴Qₘ(𝔷) + v⁵Q꜀(𝔷) + v⁶Qₖ(𝔷) + v⁷J(𝔷)
+    //      + v⁸A(𝔷) + v⁹B(𝔷) + v¹⁰C(𝔷) + v¹¹Z(𝔷)
     let W_com = linear_comb(
         v,
         x.qs_coms
@@ -158,21 +125,6 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
             .chain(std::iter::once(&pi.com.z))
             .cloned(),
     );
-
-    // let W_ev: PallasScalar = pi.ev.ql
-    //     + pi.ev.qr * v.pow([1])
-    //     + pi.ev.qo * v.pow([2])
-    //     + pi.ev.qc * v.pow([3])
-    //     + pi.ev.qm * v.pow([4])
-    //     + pi.ev.sa * v.pow([5])
-    //     + pi.ev.sb * v.pow([6])
-    //     + pi.ev.sc * v.pow([7])
-    //     + pi.ev.a * v.pow([8])
-    //     + pi.ev.b * v.pow([9])
-    //     + pi.ev.c * v.pow([10])
-    //     + pi.ev.z * v.pow([11])
-    //     + pi.ev.pl_j * v.pow([12])
-    //     + pi.ev.pl_qk * v.pow([13]);
     let W_ev = linear_comb(
         v,
         pi.ev
@@ -182,8 +134,8 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
             .chain(std::iter::once(&pi.ev.z))
             .cloned(),
     );
-
     pcdl::check(&W_com, x.d, ch, &W_ev, pi.pis.W)?;
+    // W'(𝔷) = Z(ω𝔷)
     pcdl::check(&pi.com.z, x.d, &ch_w, &pi.ev.z_bar, pi.pis.W_bar)?;
 
     Ok(())

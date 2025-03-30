@@ -1,12 +1,15 @@
 use super::WireID;
-use crate::{
-    curve::Scalar, protocol::arithmetizer::cache::ArithWireCache, util::misc::map_to_alphabet,
-};
+use crate::{protocol::arithmetizer::cache::ArithWireCache, util::misc::map_to_alphabet};
 
+use halo_accumulation::group::PallasScalar;
+
+use ark_ff::{AdditiveGroup, Field};
 use std::{
     fmt,
     ops::{Add, Mul, Neg},
 };
+
+type Scalar = PallasScalar;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ValueType {

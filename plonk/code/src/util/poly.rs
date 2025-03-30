@@ -13,6 +13,10 @@ type Poly = PallasPoly;
 type Scalar = PallasScalar;
 type Point = PallasPoint;
 
+pub fn batch_interpolate(es: Vec<Evaluations<Scalar>>) -> Vec<Poly> {
+    es.into_iter().map(|e| e.interpolate()).collect()
+}
+
 /// f(X) = v
 pub fn deg0(v: &Scalar) -> Poly {
     Poly::from_coefficients_slice(&[*v])
@@ -54,7 +58,7 @@ pub fn coset_scale(h: &Coset, f: &Poly, a: Scalar) -> Poly {
 
 /// ∀X ∈ H₀: g(X) = f(ωX)
 pub fn coset_scale_omega(h: &Coset, f: &Poly) -> Poly {
-    coset_scale(h, f, h.w(1).scalar)
+    coset_scale(h, f, h.w(1))
 }
 
 /// f(X) = p₀(X) + Xⁿp₁(X) + X²ⁿp₂(X) + ...
@@ -108,7 +112,7 @@ pub fn plookup_compress(zeta: &Scalar, a: &Scalar, b: &Scalar, c: &Scalar, j: &S
 
 /// Lᵢ(X) = (ωⁱ (Xⁿ - 1)) / (n (X - ωⁱ))
 pub fn lagrange_basis_poly(h: &Coset, i: u64) -> Poly {
-    let wi = &h.w(i).scalar;
+    let wi = &h.w(i);
     let numerator = (xn_poly(h.n()) + deg0(&PallasScalar::ONE)) * *wi;
     let denominator = (x_poly() - deg0(wi)) * PallasScalar::from(h.n());
     numerator / denominator
@@ -117,7 +121,7 @@ pub fn lagrange_basis_poly(h: &Coset, i: u64) -> Poly {
 /// Y = L₁(X) = (Xⁿ - 1) / (n (X - 1))
 pub fn lagrange_basis1_ev(h: &Coset, x: &Scalar) -> Scalar {
     let n = h.n();
-    let w = h.w(1).scalar;
+    let w = h.w(1);
     w * (x.pow([n]) - Scalar::ONE) / (Scalar::from(n) * (*x - w))
 }
 
@@ -170,7 +174,7 @@ mod tests {
         let h = h_opt.unwrap();
         let zh = zh_poly(&h);
         for i in h.iter() {
-            assert_eq!(zh.evaluate(&h.w(i).scalar), Scalar::ZERO);
+            assert_eq!(zh.evaluate(&h.w(i)), Scalar::ZERO);
         }
     }
 
@@ -184,9 +188,9 @@ mod tests {
             let l = lagrange_basis_poly(&h, i);
             for j in h.iter() {
                 if i == j {
-                    assert_eq!(l.evaluate(&h.w(j).scalar), Scalar::ONE);
+                    assert_eq!(l.evaluate(&h.w(j)), Scalar::ONE);
                 } else {
-                    assert_eq!(l.evaluate(&h.w(j).scalar), Scalar::ZERO);
+                    assert_eq!(l.evaluate(&h.w(j)), Scalar::ZERO);
                 }
             }
         }

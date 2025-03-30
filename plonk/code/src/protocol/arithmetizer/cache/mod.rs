@@ -1,16 +1,21 @@
 mod commutative_set;
 mod errors;
 
+pub use commutative_set::CommutativeSet;
+pub use errors::{BitError, CacheError};
+
 use super::{
     arith_wire::{ArithWire, CommutativeOps},
     WireID,
 };
-use crate::curve::Scalar;
-pub use commutative_set::CommutativeSet;
-pub use errors::{BitError, CacheError};
 
+use halo_accumulation::group::PallasScalar;
+
+use ark_ff::{AdditiveGroup, Field};
 use bimap::BiMap;
 use std::collections::{HashMap, HashSet};
+
+type Scalar = PallasScalar;
 
 /// Cache of arithmetized wires.
 /// Wire reuse leads to smaller circuits.

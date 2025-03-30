@@ -1,7 +1,11 @@
 use super::{plookup::PlookupOps, ArithmetizerError, WireID};
-use crate::{curve::Scalar, util::misc::map_to_alphabet};
+use crate::util::misc::map_to_alphabet;
+
+use halo_accumulation::group::PallasScalar;
 
 use std::fmt;
+
+type Scalar = PallasScalar;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum ArithWire {

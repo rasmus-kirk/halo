@@ -1,9 +1,12 @@
 use super::WireID;
-use crate::{
-    curve::Scalar, protocol::arithmetizer::plookup::PlookupOps, util::misc::map_to_alphabet,
-};
+use crate::{protocol::arithmetizer::plookup::PlookupOps, util::misc::map_to_alphabet};
 
+use halo_accumulation::group::PallasScalar;
+
+use ark_ff::Field;
 use std::{fmt, rc::Rc};
+
+type Scalar = PallasScalar;
 
 /// An abstract syntax tree representing a wire.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]

@@ -1,9 +1,11 @@
+use super::{Arithmetizer, Wire};
+
+use halo_accumulation::group::PallasScalar;
+
 use log::info;
 use rand::Rng;
 
-use crate::curve::Scalar;
-
-use super::{Arithmetizer, Wire};
+type Scalar = PallasScalar;
 
 impl Arithmetizer {
     pub fn synthesize<R: Rng, const N: usize>(rng: &mut R, degree: usize) -> [Wire; 1] {

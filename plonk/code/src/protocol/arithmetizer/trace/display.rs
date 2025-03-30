@@ -1,12 +1,16 @@
 use super::{value::Value, ConstraintID, Pos, Trace};
 use crate::{
-    curve::{Coset, Scalar},
+    curve::Coset,
     protocol::scheme::{Selectors, Slots, Terms},
 };
 
+use halo_accumulation::group::PallasScalar;
+
+use ark_ff::AdditiveGroup;
+use ascii_table::{Align, AsciiTable};
 use std::fmt;
 
-use ascii_table::{Align, AsciiTable};
+type Scalar = PallasScalar;
 
 impl Trace {
     /// Get the debugging table data for the evaluator.

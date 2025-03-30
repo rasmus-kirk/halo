@@ -1,10 +1,14 @@
 use super::{ast::WireAST, Wire};
-use crate::curve::Scalar;
 
+use halo_accumulation::group::PallasScalar;
+
+use ark_ff::Field;
 use std::{
     ops::{Add, Div, Mul, Sub},
     rc::Rc,
 };
+
+type Scalar = PallasScalar;
 
 // Add ------------------------------------------------------------------------
 

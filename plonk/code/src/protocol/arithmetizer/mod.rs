@@ -6,17 +6,23 @@ mod synthesize;
 mod trace;
 mod wire;
 
-use crate::{curve::Scalar, protocol::circuit::Circuit, util::misc::map_to_alphabet};
 use arith_wire::ArithWire;
 pub use errors::ArithmetizerError;
-use log::debug;
 use plookup::PlookupOps;
 pub use plookup::{PlookupEvsThunk, Table};
 pub use trace::{Pos, Trace};
 pub use wire::Wire;
 
+use crate::{protocol::circuit::Circuit, util::misc::map_to_alphabet};
+
+use halo_accumulation::group::PallasScalar;
+
+use ark_ff::Field;
+use log::debug;
 use rand::Rng;
 use std::{cell::RefCell, rc::Rc};
+
+type Scalar = PallasScalar;
 
 /// A unique identifier for a wire in the circuit.
 type WireID = usize;
@@ -118,7 +124,7 @@ impl Arithmetizer {
 
     /// a / b : 𝔽
     pub fn div_const(&mut self, a: WireID, b: Scalar) -> WireID {
-        let right = self.wires.get_const_id(1 / b);
+        let right = self.wires.get_const_id(Scalar::ONE / b);
         let gate = ArithWire::MulGate(a, right);
         self.wires.get_id(gate)
     }
