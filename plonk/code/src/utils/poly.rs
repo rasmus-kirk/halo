@@ -47,7 +47,7 @@ pub fn coset_scale(h: &Coset, f: &Poly, a: Scalar) -> Poly {
         .get_coset(h.coset_domain.coset_offset() * a)
         .unwrap();
 
-    // Step 2: Perform FFT on `f` over the coset domain {a * ζ^i}
+    // Step 2: Perform FFT on `f` over the coset domain {a * ωᶦ}
     let mut evals_new = coset_domain.fft(&f.coeffs);
     let evals_new_last = evals_new.pop().unwrap();
     evals_new.insert(0, evals_new_last);
@@ -59,6 +59,13 @@ pub fn coset_scale(h: &Coset, f: &Poly, a: Scalar) -> Poly {
 /// ∀X ∈ H₀: g(X) = f(ωX)
 pub fn coset_scale_omega(h: &Coset, f: &Poly) -> Poly {
     coset_scale(h, f, h.w(1))
+}
+
+pub fn coset_scale_omega_evals(h: &Coset, evals: Evaluations<Scalar>) -> Evaluations<Scalar> {
+    let mut evals_new = evals.evals;
+    let evals_new_first = evals_new.remove(0);
+    evals_new.push(evals_new_first);
+    Evaluations::from_vec_and_domain(evals_new, h.domain)
 }
 
 /// f(X) = p₀(X) + Xⁿp₁(X) + X²ⁿp₂(X) + ...
@@ -106,6 +113,7 @@ where
 }
 
 /// f = a + ζb + ζ²c + ζ³j
+/// TODO move to scheme?
 pub fn plookup_compress(zeta: &Scalar, a: &Scalar, b: &Scalar, c: &Scalar, j: &Scalar) -> Scalar {
     linear_comb(zeta, [*a, *b, *c, *j])
 }

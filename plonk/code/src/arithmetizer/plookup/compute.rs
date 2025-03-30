@@ -2,7 +2,7 @@ use super::{PlookupOps, TableRegistry};
 use crate::{
     arithmetizer::trace::Constraints,
     scheme::{Selectors, Slots, Terms},
-    util::poly::plookup_compress,
+    utils::poly::plookup_compress,
     Coset,
 };
 

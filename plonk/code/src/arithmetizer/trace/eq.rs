@@ -1,5 +1,5 @@
 use super::{ConstraintID, Pos, Trace};
-use crate::{arithmetizer::WireID, util::misc::pair_app};
+use crate::{arithmetizer::WireID, utils::misc::pair_app};
 
 use bimap::BiMap;
 use std::collections::HashMap;

@@ -21,7 +21,7 @@ use super::{
 
 use crate::{
     scheme::{Selectors, Slots, Terms, MAX_BLIND_TERMS},
-    util::scalar::batch_compute_evals,
+    utils::scalar::batch_compute_evals,
     Coset,
 };
 
@@ -295,6 +295,14 @@ impl Trace {
             }
             pip_evs.push(eqn[Terms::PublicInputs].into());
         }
+        let extend = self.h.n() as usize - self.constraints.len();
+        ws_evs
+            .iter_mut()
+            .chain(qs_evs.iter_mut())
+            .chain(std::iter::once(&mut pip_evs))
+            .for_each(|evs| {
+                evs.extend(vec![Scalar::ZERO; extend]);
+            });
         (
             batch_compute_evals(&self.h, ws_evs),
             batch_compute_evals(&self.h, qs_evs),

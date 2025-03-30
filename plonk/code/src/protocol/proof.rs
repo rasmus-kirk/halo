@@ -3,10 +3,10 @@
 use crate::{
     circuit::{CircuitPrivate, CircuitPublic},
     scheme::{Selectors, Slots},
-    util::{
+    utils::{
         poly::{
-            batch_commit, batch_evaluate, coset_scale_omega, deg0, lagrange_basis_poly,
-            linear_comb_poly, split_poly,
+            batch_commit, batch_evaluate, coset_scale_omega, coset_scale_omega_evals, deg0,
+            lagrange_basis_poly, linear_comb_poly, split_poly,
         },
         print_table::evals_str,
     },
@@ -38,12 +38,6 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     let w_a = &w.ws[Slots::A as usize];
     let w_b = &w.ws[Slots::B as usize];
     let w_c = &w.ws[Slots::C as usize];
-    let x_sida = &x.sids[Slots::A as usize];
-    let x_sidb = &x.sids[Slots::B as usize];
-    let x_sidc = &x.sids[Slots::C as usize];
-    let x_sa = &x.ss[Slots::A as usize];
-    let x_sb = &x.ss[Slots::B as usize];
-    let x_sc = &x.ss[Slots::C as usize];
     let x_ql = &x.qs[Selectors::Ql as usize];
     let x_qr = &x.qs[Selectors::Qr as usize];
     let x_qo = &x.qs[Selectors::Qo as usize];
@@ -51,6 +45,12 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     let x_qc = &x.qs[Selectors::Qc as usize];
     let x_qk = &x.qs[Selectors::Qk as usize];
     let x_j = &x.qs[Selectors::J as usize];
+    let x_sida = &x.sids[Slots::A as usize];
+    let x_sidb = &x.sids[Slots::B as usize];
+    let x_sidc = &x.sids[Slots::C as usize];
+    let x_sa = &x.ss[Slots::A as usize];
+    let x_sb = &x.ss[Slots::B as usize];
+    let x_sc = &x.ss[Slots::C as usize];
     let x_pip = &x.pip;
 
     let mut transcript = Transcript::new(b"protocol");
@@ -67,20 +67,24 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     let now = Instant::now();
     // ζ = H(transcript)
     let zeta = &transcript.challenge_scalar(b"zeta");
-    let plp = &w
-        .plonkup
-        .compute(zeta)
-        .into_iter()
-        .map(|e| e.interpolate())
-        .collect::<Vec<Poly>>();
+    let pl_cache = &w.plonkup.compute(zeta);
+    let _pl_t = &pl_cache[0];
+    let _pl_f = &pl_cache[1];
+    let _pl_h1 = &pl_cache[2];
+    let _pl_h2 = &pl_cache[3];
+    let _pl_t_bar = &coset_scale_omega_evals(&x.h, _pl_t.clone());
+    let _pl_h1_bar = &coset_scale_omega_evals(&x.h, _pl_h1.clone());
+    let plp: Vec<Poly> = pl_cache
+        .iter()
+        .map(|evals| evals.clone().interpolate())
+        .collect();
     let pl_t = &plp[0];
     let pl_f = &plp[1];
     let pl_h1 = &plp[2];
     let pl_h2 = &plp[3];
+    let pl_t_bar = &_pl_t_bar.clone().interpolate();
+    let pl_h1_bar = &_pl_h1_bar.clone().interpolate();
     info!("Round 2 took {} s", now.elapsed().as_secs_f64());
-
-    let pl_t_bar = &coset_scale_omega(&x.h, pl_t);
-    let pl_h1_bar = &coset_scale_omega(&x.h, pl_h1);
 
     // -------------------- Round 3 --------------------
 
@@ -97,41 +101,51 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     // ----- Lambdas ----- //
 
     // plookup constraint term: ε(1 + δ) + a(X) + δb(X)
-    let zpl_sc = &(epsilon * (PallasScalar::ONE + delta));
-    let zpl_ev = |a: &PallasPoly, b: &PallasPoly, i| {
-        *zpl_sc + a.evaluate(&x.h.w(i)) + (delta * b.evaluate(&x.h.w(i)))
+    let zpl_sc = &(epsilon * (Scalar::ONE + delta));
+    let zpl_ev = |a: &Evaluations<Scalar>, b: &Evaluations<Scalar>, i: usize| {
+        *zpl_sc + a.evals[i] + (delta * b.evals[i])
     };
-    let zpl = |a: &PallasPoly, b: &PallasPoly| deg0(zpl_sc) + a + (deg0(&delta) * b);
+    let zpl = |a: &Poly, b: &Poly| deg0(zpl_sc) + a + (deg0(&delta) * b);
 
     // copy constraint term: w(X) + β s(X) + γ
-    let zcc_ev = |w: &PallasPoly, s: &PallasPoly, i| {
-        w.evaluate(&x.h.w(i)) + (beta * s.evaluate(&x.h.w(i))) + gamma
+    let zcc_ev = |w: &Evaluations<Scalar>, s: &Evaluations<Scalar>, i: usize| {
+        w.evals[i] + (beta * s.evals[i]) + gamma
     };
-    let zcc = |w: &PallasPoly, s: &PallasPoly| w + (s * beta) + deg0(&gamma);
+    let zcc = |w: &Poly, s: &Poly| w + (s * beta) + deg0(&gamma);
+
+    let _a = &w.ws_cache[Slots::A as usize];
+    let _b = &w.ws_cache[Slots::B as usize];
+    let _c = &w.ws_cache[Slots::C as usize];
+    let _sida = &x.sids_cache[Slots::A as usize];
+    let _sidb = &x.sids_cache[Slots::B as usize];
+    let _sidc = &x.sids_cache[Slots::C as usize];
+    let _sa = &x.ss_cache[Slots::A as usize];
+    let _sb = &x.ss_cache[Slots::B as usize];
+    let _sc = &x.ss_cache[Slots::C as usize];
 
     // f'(X) = (A(X) + β Sᵢ₁(X) + γ) (B(X) + β Sᵢ₂(X) + γ) (C(X) + β Sᵢ₃(X) + γ)
     //         (ε(1 + δ) + f(X) + δf(X)) (ε(1 + δ) + t(X) + δt(Xω))
     let zf_cc = &(zcc(w_a, x_sida) * zcc(w_b, x_sidb) * zcc(w_c, x_sidc));
     let zf_pl = &(zpl(pl_f, pl_f) * zpl(pl_t, pl_t_bar));
     let zf = &(zf_cc * zf_pl);
-    let zf_cc_ev = |i| zcc_ev(w_a, x_sida, i) * zcc_ev(w_b, x_sidb, i) * zcc_ev(w_c, x_sidc, i);
-    let zf_pl_ev = |i| zpl_ev(pl_f, pl_f, i) * zpl_ev(pl_t, pl_t_bar, i);
+    let zf_cc_ev = |i| zcc_ev(_a, _sida, i) * zcc_ev(_b, _sidb, i) * zcc_ev(_c, _sidc, i);
+    let zf_pl_ev = |i| zpl_ev(_pl_f, _pl_f, i) * zpl_ev(_pl_t, _pl_t_bar, i);
     let zf_ev = |i| zf_cc_ev(i) * zf_pl_ev(i);
     // g'(X) = (A(X) + β S₁(X) + γ) (B(X) + β S₂(X) + γ) (C(X) + β S₃(X) + γ)
     //         (ε(1 + δ) + h₁(X) + δh₂(X)) (ε(1 + δ) + h₂(X) + δh₁(Xω))
     let zg_cc = &(zcc(w_a, x_sa) * zcc(w_b, x_sb) * zcc(w_c, x_sc));
     let zg_pl = &(zpl(pl_h1, pl_h2) * zpl(pl_h2, pl_h1_bar));
     let zg = &(zg_cc * zg_pl);
-    let zg_cc_ev = |i| zcc_ev(w_a, x_sa, i) * zcc_ev(w_b, x_sb, i) * zcc_ev(w_c, x_sc, i);
-    let zg_pl_ev = |i| zpl_ev(pl_h1, pl_h2, i) * zpl_ev(pl_h2, pl_h1_bar, i);
+    let zg_cc_ev = |i| zcc_ev(_a, _sa, i) * zcc_ev(_b, _sb, i) * zcc_ev(_c, _sc, i);
+    let zg_pl_ev = |i| zpl_ev(_pl_h1, _pl_h2, i) * zpl_ev(_pl_h2, _pl_h1_bar, i);
     let zg_ev = |i| zg_cc_ev(i) * zg_pl_ev(i);
 
     // ----- Calculate z ----- //
     // Z(ω) = 1
     // Z(ωⁱ) = Z(ωᶦ⁻¹) f'(ωᶦ⁻¹) / g'(ωᶦ⁻¹)
     info!("Round 3 - A - {} s", now.elapsed().as_secs_f64());
-    let z_points = (1..x.h.n() - 1).fold(vec![Scalar::ONE; 2], |mut acc, i| {
-        acc.push(acc[i as usize] * zf_ev(i) / zg_ev(i));
+    let z_points = (1..x.h.n() as usize - 1).fold(vec![Scalar::ONE; 2], |mut acc, i| {
+        acc.push(acc[i] * zf_ev(i) / zg_ev(i));
         acc
     });
     info!("Round 3 - B - {} s", now.elapsed().as_secs_f64());
@@ -189,10 +203,7 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     let pip_ev = &x_pip.evaluate(ch);
     let ts_ev = batch_evaluate(ts, ch);
     let z_ev = z.evaluate(ch);
-    let pl_f_ev = pl_f.evaluate(ch);
-    let pl_h1_ev = pl_h1.evaluate(ch);
-    let pl_h2_ev = pl_h2.evaluate(ch);
-    let pl_t_ev = pl_t.evaluate(ch);
+    let pl_evs = batch_evaluate(&plp, ch);
 
     let ch_bar = &(*ch * x.h.w(1));
     let z_bar_ev = z_bar.evaluate(ch);
@@ -202,7 +213,7 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     transcript.append_scalars(b"ws_ev", &ws_ev);
     transcript.append_scalars(b"qs_ev", &qs_ev);
     transcript.append_scalars(b"ss_ev", &ss_ev);
-    transcript.append_scalars(b"plonkup_ev", &[pl_t_ev, pl_f_ev, pl_h1_ev, pl_h2_ev]);
+    transcript.append_scalars(b"plonkup_ev", &pl_evs);
     transcript.append_scalar(b"z_bar_ev", &z_bar_ev);
     transcript.append_scalars(b"t_ev", ts_ev.as_slice());
     transcript.append_scalar(b"z_ev", &z_ev);
@@ -250,10 +261,7 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
             pip: *pip_ev,
             z: z_ev,
             ts: ts_ev,
-            pl_f: pl_f_ev,
-            pl_h1: pl_h1_ev,
-            pl_h2: pl_h2_ev,
-            pl_t: pl_t_ev,
+            pls: pl_evs,
             z_bar: z_bar_ev,
             pl_h1_bar: pl_h1_bar_ev,
             pl_t_bar: pl_t_bar_ev,
@@ -274,5 +282,5 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     pi
 }
 
-// TODO use cache in proof
 // TODO think how to make destructure of pi more cleaner, maybe a struct for Terms indexed objects
+// TODO consider extracting equational constraints into its own function like linear_comb, thus single point of truth, no room for deviation

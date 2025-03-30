@@ -163,7 +163,7 @@ impl fmt::Display for Constraints {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{arithmetizer::plookup::TableRegistry, util::scalar::bitxor};
+    use crate::{arithmetizer::plookup::TableRegistry, utils::scalar::bitxor};
 
     use ark_ff::Field;
     use rand::Rng;

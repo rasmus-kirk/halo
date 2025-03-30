@@ -1,5 +1,5 @@
 use super::{ConstraintID, Coset};
-use crate::{scheme::Slots, util::misc::to_superscript};
+use crate::{scheme::Slots, utils::misc::to_superscript};
 
 use halo_accumulation::group::PallasScalar;
 

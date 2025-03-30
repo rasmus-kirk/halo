@@ -1,7 +1,7 @@
 use super::constraints::Constraints;
 use crate::{
     arithmetizer::{plookup::PlookupOps, WireID},
-    util::misc::map_to_alphabet,
+    utils::misc::map_to_alphabet,
 };
 
 use halo_accumulation::group::PallasScalar;

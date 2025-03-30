@@ -1,5 +1,5 @@
 use super::{plookup::PlookupOps, ArithmetizerError, WireID};
-use crate::util::misc::map_to_alphabet;
+use crate::utils::misc::map_to_alphabet;
 
 use halo_accumulation::group::PallasScalar;
 

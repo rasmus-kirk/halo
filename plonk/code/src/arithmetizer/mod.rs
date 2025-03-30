@@ -13,7 +13,7 @@ pub use plookup::{PlookupEvsThunk, Table};
 pub use trace::{Pos, Trace};
 pub use wire::Wire;
 
-use crate::{circuit::Circuit, util::misc::map_to_alphabet};
+use crate::{circuit::Circuit, utils::misc::map_to_alphabet};
 
 use halo_accumulation::group::PallasScalar;
 

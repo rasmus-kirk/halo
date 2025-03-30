@@ -3,7 +3,7 @@ use crate::{
     arithmetizer::{plookup::TableRegistry, PlookupEvsThunk},
     circuit::{Circuit, CircuitPrivate, CircuitPublic},
     scheme::Slots,
-    util::poly::batch_interpolate,
+    utils::poly::batch_interpolate,
 };
 
 use halo_accumulation::{

@@ -1,4 +1,4 @@
-use crate::util::misc::to_superscript;
+use crate::utils::misc::to_superscript;
 
 use ark_ff::{AdditiveGroup, FftField, Field};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};

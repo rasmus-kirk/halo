@@ -7,7 +7,7 @@ mod op_u64;
 mod op_usize;
 mod op_wire;
 
-use crate::util::misc::{if_debug, is_debug};
+use crate::utils::misc::{if_debug, is_debug};
 
 use super::{Arithmetizer, WireID};
 use ast::WireAST;
@@ -77,7 +77,7 @@ impl fmt::Display for Wire {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::util::misc::{map_to_alphabet, on_debug};
+    use crate::utils::misc::{map_to_alphabet, on_debug};
 
     use halo_accumulation::group::PallasScalar;
 

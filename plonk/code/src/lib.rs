@@ -3,13 +3,13 @@ pub mod circuit;
 pub mod coset;
 pub mod protocol;
 pub mod scheme;
-pub mod util;
+pub mod utils;
 
 pub use coset::Coset;
 
 #[cfg(test)]
 mod tests {
-    use crate::util::misc::on_debug;
+    use crate::utils::misc::on_debug;
 
     use super::*;
     use anyhow::Result;

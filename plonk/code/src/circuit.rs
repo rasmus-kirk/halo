@@ -1,4 +1,4 @@
-use crate::{scheme::Terms, util::print_table::evals_str, Coset};
+use crate::{scheme::Terms, utils::print_table::evals_str, Coset};
 
 use super::{arithmetizer::PlookupEvsThunk, scheme::Slots};
 

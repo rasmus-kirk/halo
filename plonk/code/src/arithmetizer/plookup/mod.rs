@@ -2,7 +2,7 @@ mod compute;
 
 pub use compute::PlookupEvsThunk;
 
-use crate::util::poly::plookup_compress;
+use crate::utils::poly::plookup_compress;
 
 use halo_accumulation::group::PallasScalar;
 
