@@ -76,14 +76,14 @@ impl fmt::Display for Wire {
 
 #[cfg(test)]
 mod tests {
-    use crate::util::misc::map_to_alphabet;
+    use crate::util::misc::{map_to_alphabet, on_debug};
 
     use super::Arithmetizer;
     use super::*;
 
     #[test]
     fn new() {
-        std::env::set_var("RUST_LOG", "debug");
+        on_debug();
         let [wire_, _] = &Arithmetizer::build::<2>();
         let arithmetizer = wire_.arith().clone();
         let wire = Wire::new_input(0, arithmetizer);
@@ -93,7 +93,7 @@ mod tests {
 
     #[test]
     fn add() {
-        std::env::set_var("RUST_LOG", "debug");
+        on_debug();
         let [a, b] = Arithmetizer::build::<2>();
         let c = a.clone() + b.clone();
         assert_eq!(a.id, 0);
@@ -109,7 +109,7 @@ mod tests {
 
     #[test]
     fn sub() {
-        std::env::set_var("RUST_LOG", "debug");
+        on_debug();
         let [a, b] = Arithmetizer::build::<2>();
         let c = a.clone() - b.clone();
         assert_eq!(a.id, 0);
@@ -125,7 +125,7 @@ mod tests {
 
     #[test]
     fn mul() {
-        std::env::set_var("RUST_LOG", "debug");
+        on_debug();
         let [a, b] = Arithmetizer::build::<2>();
         let c = a.clone() * b.clone();
         assert_eq!(a.id, 0);
@@ -141,7 +141,7 @@ mod tests {
 
     #[test]
     fn add_const() {
-        std::env::set_var("RUST_LOG", "debug");
+        on_debug();
         let [a] = Arithmetizer::build::<1>();
         let b: Wire = a.clone() + 1;
         assert_eq!(a.id, 0);
@@ -152,7 +152,7 @@ mod tests {
 
     #[test]
     fn sub_const() {
-        std::env::set_var("RUST_LOG", "debug");
+        on_debug();
         let [a] = Arithmetizer::build::<1>();
         let b: Wire = a.clone() - 1;
         assert_eq!(a.id, 0);
@@ -163,7 +163,7 @@ mod tests {
 
     #[test]
     fn mul_const() {
-        std::env::set_var("RUST_LOG", "debug");
+        on_debug();
         let [a] = Arithmetizer::build::<1>();
         let b: Wire = a.clone() * 1;
         assert_eq!(a.id, 0);

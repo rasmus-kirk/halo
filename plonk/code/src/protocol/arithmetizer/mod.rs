@@ -1,7 +1,7 @@
 mod arith_wire;
 mod cache;
 mod errors;
-mod plonkup;
+mod plookup;
 mod synthesize;
 mod trace;
 mod wire;
@@ -9,8 +9,9 @@ mod wire;
 use crate::{curve::Scalar, protocol::circuit::Circuit, util::misc::map_to_alphabet};
 use arith_wire::ArithWire;
 pub use errors::ArithmetizerError;
-use plonkup::PlonkupOps;
-pub use plonkup::{PlonkupVecCompute, Table};
+use log::debug;
+use plookup::PlookupOps;
+pub use plookup::{PlookupEvsThunk, Table};
 pub use trace::{Pos, Trace};
 pub use wire::Wire;
 
@@ -52,9 +53,9 @@ impl Arithmetizer {
     /// Compute the circuit R where R(x,w) = ⊤.
     pub fn to_circuit<T, R: Rng>(
         rng: &mut R,
-        d: usize,
         input_values: Vec<T>,
         output_wires: &[Wire],
+        d: Option<usize>,
     ) -> Result<Circuit, ArithmetizerError>
     where
         T: Into<Scalar> + Copy + std::fmt::Display,
@@ -65,7 +66,10 @@ impl Arithmetizer {
         let output_ids = output_wires.iter().map(Wire::id).collect();
         Trace::new(rng, d, wires, input_scalars, output_ids)
             .map_err(ArithmetizerError::EvaluatorError)
-            .map(Into::<Circuit>::into)
+            .map(|t| {
+                debug!("\n{}", t);
+                Into::<Circuit>::into(t)
+            })
     }
 
     // operators ----------------------------------------------------------
@@ -120,7 +124,7 @@ impl Arithmetizer {
     }
 
     /// Plonkup operations
-    pub fn lookup(&mut self, op: PlonkupOps, a: WireID, b: WireID) -> WireID {
+    pub fn lookup(&mut self, op: PlookupOps, a: WireID, b: WireID) -> WireID {
         self.wires.get_id(ArithWire::Lookup(op, a, b))
     }
 

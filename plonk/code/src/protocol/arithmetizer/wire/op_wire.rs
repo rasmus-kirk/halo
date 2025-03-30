@@ -1,4 +1,4 @@
-use crate::protocol::arithmetizer::plonkup::PlonkupOps;
+use crate::protocol::arithmetizer::plookup::PlookupOps;
 
 use super::{ast::WireAST, Wire};
 
@@ -85,11 +85,11 @@ impl BitOr for Wire {
                 .arith
                 .clone()
                 .borrow_mut()
-                .lookup(PlonkupOps::Or, self.id, other.id),
+                .lookup(PlookupOps::Or, self.id, other.id),
             arith: self.arith,
             ast: self
                 .ast
-                .map(|ast| WireAST::lookup(PlonkupOps::Or, ast, other.ast.unwrap())),
+                .map(|ast| WireAST::lookup(PlookupOps::Or, ast, other.ast.unwrap())),
         }
     }
 }
@@ -105,11 +105,11 @@ impl BitXor for Wire {
                 .arith
                 .clone()
                 .borrow_mut()
-                .lookup(PlonkupOps::Xor, self.id, other.id),
+                .lookup(PlookupOps::Xor, self.id, other.id),
             arith: self.arith,
             ast: self
                 .ast
-                .map(|ast| WireAST::lookup(PlonkupOps::Xor, ast, other.ast.unwrap())),
+                .map(|ast| WireAST::lookup(PlookupOps::Xor, ast, other.ast.unwrap())),
         }
     }
 }

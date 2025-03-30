@@ -1,4 +1,18 @@
-use std::{env, fmt::Debug};
+use std::env;
+use std::sync::Once;
+
+static INIT: Once = Once::new();
+
+fn init_logger() {
+    INIT.call_once(|| {
+        env_logger::Builder::from_default_env().init();
+    });
+}
+
+pub fn on_debug() {
+    init_logger();
+    std::env::set_var("RUST_LOG", "debug");
+}
 
 pub fn is_debug() -> bool {
     env::var("RUST_LOG").as_deref() == Ok("debug")
@@ -24,14 +38,6 @@ pub fn map_to_alphabet(num: usize) -> String {
     result.chars().rev().collect()
 }
 
-pub fn if_empty<T>(xs: Vec<T>, default: T) -> Vec<T> {
-    if xs.is_empty() {
-        vec![default]
-    } else {
-        xs
-    }
-}
-
 pub fn to_superscript(num: u64) -> String {
     let superscripts = ['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹'];
     num.to_string()
@@ -50,20 +56,4 @@ pub fn to_subscript(num: u64) -> String {
 
 pub fn pair_app<T, U>(f: impl Fn(T) -> U) -> impl Fn((T, T)) -> (U, U) {
     move |(a, b)| (f(a), f(b))
-}
-
-pub fn map_fix<const N: usize, T, U: Debug>(xs: &[T; N], f: impl FnMut(&T) -> U) -> [U; N] {
-    xs.iter().map(f).collect::<Vec<U>>().try_into().unwrap()
-}
-
-pub fn zip_fix<const N: usize, T: Debug + Clone, U: Debug + Clone>(
-    xs: &[T; N],
-    ys: &[U; N],
-) -> [(T, U); N] {
-    xs.iter()
-        .zip(ys.iter())
-        .map(|(p, q)| (p.clone(), q.clone()))
-        .collect::<Vec<_>>()
-        .try_into()
-        .unwrap()
 }

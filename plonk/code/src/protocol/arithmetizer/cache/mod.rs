@@ -5,7 +5,7 @@ use super::{
     arith_wire::{ArithWire, CommutativeOps},
     WireID,
 };
-use crate::{curve::Scalar, util::misc::if_empty};
+use crate::curve::Scalar;
 pub use commutative_set::CommutativeSet;
 pub use errors::{BitError, CacheError};
 
@@ -142,7 +142,7 @@ impl ArithWireCache {
                         .get_by_left(&operand)
                         .ok_or(CacheError::OperandNotInCache)?;
                     let xs = self.get_commutative_vec(comm_type, *wire_)?;
-                    set.push(if_empty(xs, operand));
+                    set.push(if xs.is_empty() { vec![operand] } else { xs });
                 }
             }
         }

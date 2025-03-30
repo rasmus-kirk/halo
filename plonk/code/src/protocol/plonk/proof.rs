@@ -20,17 +20,17 @@ use super::{
     transcript::TranscriptProtocol,
 };
 
-use std::time::Instant;
-
-use ark_ff::Field;
-use ark_poly::Polynomial;
 use halo_accumulation::{
     group::{PallasPoint, PallasPoly, PallasScalar},
     pcdl::{self, Instance},
 };
+
+use ark_ff::Field;
+use ark_poly::Polynomial;
 use log::{debug, info};
 use merlin::Transcript;
 use rand::Rng;
+use std::time::Instant;
 
 pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proof {
     let d = x.d;
@@ -244,7 +244,7 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     let (_, _, _, _, W_bar_pi) = Instance::open(rng, W_bar, d, ch_bar, None).into_tuple();
 
     debug!(
-        "{}",
+        "\n{}",
         evals_str(
             &x.h,
             vec![
@@ -261,12 +261,12 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
                 &f_z2.into()
             ],
             vec![
-                "t".to_string(),
-                "t_bar".to_string(),
-                "f".to_string(),
-                "h1".to_string(),
-                "h1_bar".to_string(),
-                "h2".to_string(),
+                "t(X)".to_string(),
+                "t(ωX)".to_string(),
+                "f(X)".to_string(),
+                "h1(X)".to_string(),
+                "h1(ωX)".to_string(),
+                "h2(X)".to_string(),
                 "Z(X)".to_string(),
                 "Z(ωX)".to_string(),
                 "F_GC(X)".to_string(),
@@ -308,3 +308,8 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
 
     pi
 }
+
+// TODO move interpolate to util
+// TODO add documentation for W
+// TODO remove Poly and Scalar in Coset
+// TODO remove Poly and Scalar in plookup

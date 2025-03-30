@@ -4,7 +4,7 @@ use crate::{
     util::print_table::evals_str,
 };
 
-use super::{arithmetizer::PlonkupVecCompute, scheme::Slots};
+use super::{arithmetizer::PlookupEvsThunk, scheme::Slots};
 
 use halo_accumulation::group::PallasPoint;
 
@@ -32,7 +32,7 @@ pub struct CircuitPrivate {
     // slot polynomials
     pub ws: Vec<Poly>,
     // thunk to compute Plonkup polys
-    pub plonkup: PlonkupVecCompute,
+    pub plonkup: PlookupEvsThunk,
 }
 
 pub type Circuit = (CircuitPublic, CircuitPrivate);

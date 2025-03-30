@@ -1,13 +1,13 @@
-use ark_ff::{AdditiveGroup, Field, Zero};
-use ark_poly::{
-    DenseUVPolynomial, EvaluationDomain, Evaluations, GeneralEvaluationDomain, Polynomial,
-};
+use crate::curve::Coset;
+
 use halo_accumulation::{
     group::{PallasPoint, PallasPoly, PallasScalar},
     pcdl,
 };
 
-use crate::curve::Coset;
+use ark_ff::{AdditiveGroup, Field, Zero};
+use ark_poly::{DenseUVPolynomial, EvaluationDomain, Evaluations, Polynomial};
+use std::ops::{AddAssign, Mul};
 
 type Poly = PallasPoly;
 type Scalar = PallasScalar;
@@ -49,8 +49,7 @@ pub fn coset_scale(h: &Coset, f: &Poly, a: Scalar) -> Poly {
     evals_new.insert(0, evals_new_last);
 
     // Step 3: Perform inverse FFT to interpolate the new polynomial g(X)
-    let domain2 = GeneralEvaluationDomain::<Scalar>::new(h.n() as usize).unwrap();
-    Evaluations::from_vec_and_domain(evals_new, domain2).interpolate()
+    Evaluations::from_vec_and_domain(evals_new, h.domain).interpolate()
 }
 
 /// ∀X ∈ H₀: g(X) = f(ωX)
@@ -71,33 +70,40 @@ pub fn linear_comb_poly<'a, I>(a: &Scalar, ps: I) -> Poly
 where
     I: IntoIterator<Item = &'a Poly>,
 {
-    let mut p = Poly::zero();
-    for (i, p_i) in ps.into_iter().enumerate() {
-        p = p + (deg0(&a.pow([i as u64])) * p_i.clone());
-    }
-    p
+    ps.into_iter()
+        .enumerate()
+        .fold(Poly::zero(), |acc, (i, p_i)| {
+            acc + deg0(&a.pow([i as u64])) * p_i
+        })
 }
 
-pub fn linear_comb_point<I>(a: &Scalar, ps: I) -> Point
+/// Y = p₀ + a₁p₁ + a₂p₂ + ...
+pub fn linear_comb<I, T: Mul<Scalar, Output = T> + AdditiveGroup + AddAssign>(
+    a: &Scalar,
+    ps: I,
+) -> T
 where
-    I: IntoIterator<Item = Point>,
+    I: IntoIterator<Item = T>,
 {
-    let mut p = Point::ZERO;
-    for (i, p_i) in ps.into_iter().enumerate() {
-        p += p_i * a.pow([i as u64]);
-    }
-    p
+    ps.into_iter()
+        .enumerate()
+        .fold(T::ZERO, |acc, (i, p_i)| acc + p_i * a.pow([i as u64]))
 }
 
-pub fn linear_comb_scalar<I>(a: &Scalar, xs: I) -> Scalar
+/// Y = p₀ + a₁p₁ + a₂p₂ + ...
+pub fn linear_comb_right<I, T: AdditiveGroup + AddAssign>(a: &Scalar, ps: I) -> T
 where
-    I: IntoIterator<Item = Scalar>,
+    I: IntoIterator<Item = T>,
+    Scalar: Mul<T, Output = T>,
 {
-    let mut p = Scalar::ZERO;
-    for (i, p_i) in xs.into_iter().enumerate() {
-        p += p_i * a.pow([i as u64]);
-    }
-    p
+    ps.into_iter()
+        .enumerate()
+        .fold(T::ZERO, |acc, (i, p_i)| acc + a.pow([i as u64]) * p_i)
+}
+
+/// f = a + ζb + ζ²c + ζ³j
+pub fn plookup_compress(zeta: &Scalar, a: &Scalar, b: &Scalar, c: &Scalar, j: &Scalar) -> Scalar {
+    linear_comb(zeta, [*a, *b, *c, *j])
 }
 
 /// Lᵢ(X) = (ωⁱ (Xⁿ - 1)) / (n (X - ωⁱ))
@@ -108,7 +114,7 @@ pub fn lagrange_basis_poly(h: &Coset, i: u64) -> Poly {
     numerator / denominator
 }
 
-/// L₁(X) = (Xⁿ - 1) / (n (X - 1))
+/// Y = L₁(X) = (Xⁿ - 1) / (n (X - 1))
 pub fn lagrange_basis1_ev(h: &Coset, x: &Scalar) -> Scalar {
     let n = h.n();
     let w = h.w(1).scalar;
@@ -121,30 +127,31 @@ pub fn zh_poly(h: &Coset) -> Poly {
     xn_poly(h.n()) - deg0(&Scalar::ONE)
 }
 
+/// Y = Zₕ(X) = Xⁿ - 1
 pub fn zh_ev(h: &Coset, x: &Scalar) -> Scalar {
     x.pow([h.n()]) - Scalar::ONE
+}
+
+pub fn batch_poly_op<'a, I, T, F>(ps: I, op: F) -> Vec<T>
+where
+    I: IntoIterator<Item = &'a Poly>,
+    F: Fn(&Poly) -> T,
+{
+    ps.into_iter().map(op).collect()
 }
 
 pub fn batch_evaluate<'a, I>(ps: I, x: &Scalar) -> Vec<Scalar>
 where
     I: IntoIterator<Item = &'a Poly>,
 {
-    let mut evals = vec![];
-    for f in ps {
-        evals.push(f.evaluate(x));
-    }
-    evals
+    batch_poly_op(ps, |f| f.evaluate(x))
 }
 
 pub fn batch_commit<'a, I>(ps: I, d: usize, w: Option<&Scalar>) -> Vec<Point>
 where
     I: IntoIterator<Item = &'a Poly>,
 {
-    let mut commits = vec![];
-    for f in ps {
-        commits.push(pcdl::commit(f, d, w));
-    }
-    commits
+    batch_poly_op(ps, |f| pcdl::commit(f, d, w))
 }
 
 #[cfg(test)]

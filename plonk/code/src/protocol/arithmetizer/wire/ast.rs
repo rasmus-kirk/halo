@@ -1,6 +1,6 @@
 use super::WireID;
 use crate::{
-    curve::Scalar, protocol::arithmetizer::plonkup::PlonkupOps, util::misc::map_to_alphabet,
+    curve::Scalar, protocol::arithmetizer::plookup::PlookupOps, util::misc::map_to_alphabet,
 };
 
 use std::{fmt, rc::Rc};
@@ -12,7 +12,7 @@ pub enum WireAST {
     Constant(Scalar),
     Add(Rc<WireAST>, Rc<WireAST>),
     Mul(Rc<WireAST>, Rc<WireAST>),
-    Lookup(PlonkupOps, Rc<WireAST>, Rc<WireAST>),
+    Lookup(PlookupOps, Rc<WireAST>, Rc<WireAST>),
 }
 
 impl fmt::Display for WireAST {
@@ -64,7 +64,7 @@ impl WireAST {
         WireAST::mul(ast, WireAST::constant(Scalar::ONE / other))
     }
 
-    pub fn lookup(op: PlonkupOps, lhs: Rc<WireAST>, rhs: Rc<WireAST>) -> Rc<WireAST> {
+    pub fn lookup(op: PlookupOps, lhs: Rc<WireAST>, rhs: Rc<WireAST>) -> Rc<WireAST> {
         Rc::new(WireAST::Lookup(op, lhs, rhs))
     }
 

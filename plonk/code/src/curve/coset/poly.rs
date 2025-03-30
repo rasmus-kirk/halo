@@ -24,14 +24,6 @@ impl Coset {
         y_zf.extend(vec![Scalar::ZERO; self.n as usize - y_len]);
         self.interpolate(y_zf)
     }
-
-    pub fn evaluate(&self, p: &Poly, i: u64) -> Scalar {
-        if let Some(y) = p.cache(i) {
-            y
-        } else {
-            p.evaluate(&self.w(i))
-        }
-    }
 }
 
 #[cfg(test)]

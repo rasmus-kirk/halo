@@ -37,7 +37,7 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
 
         info!("A2");
         let start_time = Instant::now();
-        let (x, w) = &Arithmetizer::to_circuit(rng, d, input_values, output_wires).unwrap();
+        let (x, w) = &Arithmetizer::to_circuit(rng, input_values, output_wires, Some(d)).unwrap();
         let to_circuit_time = start_time.elapsed().as_secs_f32();
 
         info!("A3");

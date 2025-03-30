@@ -1,7 +1,7 @@
 use super::constraints::Constraints;
 use crate::{
     curve::Scalar,
-    protocol::arithmetizer::{plonkup::PlonkupOps, WireID},
+    protocol::arithmetizer::{plookup::PlookupOps, WireID},
     util::misc::map_to_alphabet,
 };
 
@@ -13,7 +13,7 @@ pub enum TraceError {
     FailedToEval(WireID),
     FailedToMakeCoset(u64),
     ConstraintNotSatisfied(String),
-    LookupFailed(PlonkupOps, Scalar, Scalar),
+    LookupFailed(PlookupOps, Scalar, Scalar),
 }
 
 impl TraceError {

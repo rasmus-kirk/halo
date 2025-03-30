@@ -54,21 +54,25 @@ impl Coset {
             coset_domain,
             domain,
         };
-        let mut ks = vec![Scalar::ZERO; l];
-        ks[0] = Scalar::ONE;
-        for i in 1..l {
-            ks[i] = loop {
-                let k_ = rng.gen();
-                if k_ != Scalar::ZERO
-                    && !nw.vec().contains(&k_)
-                    && !ks[1..i].iter().any(|&k| nw.vec_mul(&k).contains(&k_))
-                {
-                    break k_;
-                }
-            };
-        }
+        let ks = (1..l).fold(vec![Scalar::ONE], |mut acc, _| {
+            acc.push(nw.gen_k(rng, acc.as_slice()));
+            acc
+        });
         nw.ks = ks;
         Some(nw)
+    }
+
+    /// Generate a random k that is not in any previous cosets of `ks`
+    fn gen_k<R: Rng>(&self, rng: &mut R, ks: &[Scalar]) -> Scalar {
+        loop {
+            let k_ = rng.gen();
+            if k_ != Scalar::ZERO
+                && !self.vec().contains(&k_)
+                && !ks.iter().any(|&k| self.vec_mul(&k).contains(&k_))
+            {
+                return k_;
+            }
+        }
     }
 
     /// number of elements in one coset

@@ -4,7 +4,7 @@ use super::Value;
 use crate::{
     curve::Scalar,
     protocol::{
-        arithmetizer::{plonkup::PlonkupOps, WireID},
+        arithmetizer::{plookup::PlookupOps, WireID},
         scheme::{Selectors, Slots, Terms},
     },
 };
@@ -93,7 +93,7 @@ impl Constraints {
         vs
     }
 
-    pub fn lookup(op: PlonkupOps, lhs: &Value, rhs: &Value, out: &Value) -> Self {
+    pub fn lookup(op: PlookupOps, lhs: &Value, rhs: &Value, out: &Value) -> Self {
         let mut vs = Constraints::default();
         vs[Terms::F(Slots::A)] = *lhs;
         vs[Terms::F(Slots::B)] = *rhs;
@@ -161,7 +161,7 @@ impl fmt::Display for Constraints {
 
 #[cfg(test)]
 mod tests {
-    use crate::protocol::arithmetizer::plonkup::TableRegistry;
+    use crate::protocol::arithmetizer::plookup::TableRegistry;
 
     use super::*;
     use rand::Rng;
@@ -264,7 +264,7 @@ mod tests {
             let a = &Value::new_wire(0, *a_);
             let b = &Value::new_wire(1, *b_);
             let c = &Value::new_wire(2, c_);
-            let op = PlonkupOps::Xor;
+            let op = PlookupOps::Xor;
             let eqn_values = Constraints::lookup(op, a, b, c);
             assert_eq!(eqn_values[Terms::F(Slots::A)], *a);
             assert_eq!(eqn_values[Terms::F(Slots::B)], *b);
@@ -272,7 +272,7 @@ mod tests {
             assert_eq!(eqn_values[Terms::Q(Selectors::Qk)], Value::ONE);
             assert!(eqn_values.is_satisfied());
             let zeta: Scalar = rng.gen();
-            let f = table.query(PlonkupOps::Xor, &zeta, a_, b_);
+            let f = table.query(PlookupOps::Xor, &zeta, a_, b_);
             assert!(f.is_some());
             assert!(eqn_values.is_plonkup_satisfied(&zeta, &f.unwrap()))
         }

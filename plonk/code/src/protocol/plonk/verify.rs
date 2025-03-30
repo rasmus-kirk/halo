@@ -5,22 +5,19 @@ use crate::{
         circuit::CircuitPublic,
         scheme::{Selectors, Slots},
     },
-    util::poly::{
-        batch_evaluate, lagrange_basis1_ev, linear_comb_point, linear_comb_scalar, zh_ev,
-    },
+    util::poly::{batch_evaluate, lagrange_basis1_ev, linear_comb, linear_comb_right, zh_ev},
 };
 
 use super::{transcript::TranscriptProtocol, Proof};
 
 use anyhow::{ensure, Result};
-use ark_ff::{Field, Zero};
+use ark_ff::Field;
 use halo_accumulation::{group::PallasScalar, pcdl};
 use merlin::Transcript;
 
 pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     let mut transcript = Transcript::new(b"protocol");
     transcript.domain_sep();
-    let d = x.d;
 
     // -------------------- Round 1 --------------------
 
@@ -71,7 +68,7 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     let qc = &pi.ev.qs[Selectors::Qc as usize];
     let qk = &pi.ev.qs[Selectors::Qk as usize];
     let j = &pi.ev.qs[Selectors::J as usize];
-    let t_evs = &pi.ev.ts;
+    let t_evs = pi.ev.ts;
     let pip = &pi.ev.pip;
 
     transcript.append_scalars(b"ws_ev", &pi.ev.ws);
@@ -82,13 +79,12 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
         &[pi.ev.pl_t, pi.ev.pl_f, pi.ev.pl_h1, pi.ev.pl_h2],
     );
     transcript.append_scalar(b"z_bar_ev", &pi.ev.z_bar);
-    transcript.append_scalars(b"t_ev", t_evs);
+    transcript.append_scalars(b"t_ev", &t_evs);
     transcript.append_scalar(b"z_ev", &pi.ev.z);
 
     // F_GC(𝔷) = A(𝔷)Qₗ(𝔷) + B(𝔷)Qᵣ(𝔷) + C(𝔷)Qₒ(𝔷) + A(𝔷)B(𝔷)Qₘ(𝔷) + Q꜀(𝔷)
     //         + Qₖ(𝔷)(A(𝔷) + ζB(𝔷) + ζ²C(𝔷) + ζ³J(𝔷) - f(𝔷))
-    let f_gcpl_ev =
-        &(*qk * (*a + (zeta * b) + (zeta.pow([2]) * c) + (zeta.pow([3]) * j) - pi.ev.pl_f));
+    let f_gcpl_ev = &(*qk * (linear_comb_right(zeta, [*a, *b, *c, *j]) - pi.ev.pl_f));
     let f_gc_ev = (a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc + pip + f_gcpl_ev;
     // if *f_gc_ev == Scalar::ZERO || !pi.q_fgc.check(ch, Some(f_gc_ev)) {
     //     println!("FAILED GC");
@@ -119,15 +115,9 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     // }
 
     // T(𝔷) = (F_GC(𝔷) + α F_CC1(𝔷) + α² F_CC2(𝔷)) / Zₕ(𝔷)
-    let n = x.h.n();
-    let t_ev = t_evs
-        .iter()
-        .enumerate()
-        .fold(PallasScalar::zero(), |acc, (i, t)| {
-            acc + (*t * ch.pow([n * i as u64]))
-        });
+    let t_ev = linear_comb(&ch.pow([x.h.n()]), t_evs);
     ensure!(
-        linear_comb_scalar(alpha, [f_gc_ev, f_z1_ev, f_z2_ev]) == t_ev * zh_ev,
+        linear_comb(alpha, [f_gc_ev, f_z1_ev, f_z2_ev]) == t_ev * zh_ev,
         "T(𝔷) ≠ (F_GC(𝔷) + α F_CC1(𝔷) + α² F_CC2(𝔷)) / Zₕ(𝔷)"
     );
 
@@ -160,7 +150,7 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     //     + pi.com.z * v.pow([11])
     //     + j_com * v.pow([12])
     //     + qk_com * v.pow([13]);
-    let W_com = linear_comb_point(
+    let W_com = linear_comb(
         v,
         x.qs_coms
             .iter()
@@ -183,7 +173,7 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     //     + pi.ev.z * v.pow([11])
     //     + pi.ev.pl_j * v.pow([12])
     //     + pi.ev.pl_qk * v.pow([13]);
-    let W_ev = linear_comb_scalar(
+    let W_ev = linear_comb(
         v,
         pi.ev
             .qs
@@ -193,8 +183,8 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
             .cloned(),
     );
 
-    pcdl::check(&W_com, d, ch, &W_ev, pi.pis.W)?;
-    pcdl::check(&pi.com.z, d, &ch_w, &pi.ev.z_bar, pi.pis.W_bar)?;
+    pcdl::check(&W_com, x.d, ch, &W_ev, pi.pis.W)?;
+    pcdl::check(&pi.com.z, x.d, &ch_w, &pi.ev.z_bar, pi.pis.W_bar)?;
 
     Ok(())
 }
