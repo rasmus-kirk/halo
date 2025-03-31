@@ -89,7 +89,7 @@ impl From<Trace> for Circuit {
         let w = CircuitPrivate {
             ws,
             ws_cache,
-            plonkup: PlookupEvsThunk::new(eval.h, eval.constraints, eval.table),
+            plookup: PlookupEvsThunk::new(eval.h, eval.constraints, eval.table),
         };
         (x, w)
     }

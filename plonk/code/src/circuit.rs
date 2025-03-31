@@ -42,7 +42,7 @@ pub struct CircuitPrivate {
     pub ws: Vec<Poly>,
     pub ws_cache: Vec<Evals>,
     // thunk to compute Plonkup polys
-    pub plonkup: PlookupEvsThunk,
+    pub plookup: PlookupEvsThunk,
 }
 
 pub type Circuit = (CircuitPublic, CircuitPrivate);

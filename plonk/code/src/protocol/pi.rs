@@ -21,9 +21,9 @@ pub struct ProofEvaluations {
 
 #[derive(Clone)]
 pub struct ProofCommitments {
-    pub abc_coms: Vec<PallasPoint>,
+    pub ws: Vec<PallasPoint>,
     pub z: PallasPoint,
-    pub t_coms: Vec<PallasPoint>,
+    pub ts: Vec<PallasPoint>,
 }
 
 #[derive(Clone)]

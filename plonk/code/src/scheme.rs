@@ -1,4 +1,4 @@
-use crate::utils::poly::plookup_compress;
+use crate::utils::scalar::plookup_compress;
 
 use halo_accumulation::group::PallasScalar;
 

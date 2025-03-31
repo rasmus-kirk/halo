@@ -19,7 +19,8 @@ mod tests {
     use protocol;
 
     #[test]
-    fn circuit() -> Result<()> {
+    fn circuit_canonical() -> Result<()> {
+        on_debug();
         let rng = &mut rand::thread_rng();
         let [x, y] = Arithmetizer::build();
         let input_values = vec![1, 2];
@@ -52,6 +53,7 @@ mod tests {
 
     #[test]
     fn circuit_synthesize() -> Result<()> {
+        on_debug();
         let rng = &mut rand::thread_rng();
         let output_wires = &Arithmetizer::synthesize::<_, 2>(rng, 4);
         let input_values = vec![3, 4];

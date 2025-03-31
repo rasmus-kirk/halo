@@ -5,14 +5,10 @@ pub mod tests {
     use std::sync::Once;
     static INIT: Once = Once::new();
 
-    fn init_logger() {
+    pub fn on_debug() {
         INIT.call_once(|| {
             env_logger::Builder::from_default_env().init();
         });
-    }
-
-    pub fn on_debug() {
-        init_logger();
         std::env::set_var("RUST_LOG", "debug");
     }
 }

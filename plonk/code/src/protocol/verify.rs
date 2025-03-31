@@ -4,7 +4,7 @@ use super::{transcript::TranscriptProtocol, Proof};
 use crate::{
     circuit::CircuitPublic,
     scheme::{Selectors, Slots},
-    utils::poly::{batch_evaluate, lagrange_basis1_ev, linear_comb, linear_comb_right, zh_ev},
+    utils::{poly, scalar},
 };
 
 use halo_accumulation::{group::PallasScalar, pcdl};
@@ -21,7 +21,7 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
 
     // -------------------- Round 1 --------------------
 
-    transcript.append_points(b"abc", &pi.com.abc_coms);
+    transcript.append_points(b"abc", &pi.com.ws);
 
     // -------------------- Round 2 --------------------
 
@@ -42,15 +42,15 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     // -------------------- Round 4 --------------------
 
     let alpha = &transcript.challenge_scalar(b"alpha");
-    transcript.append_points(b"t", &pi.com.t_coms);
+    transcript.append_points(b"t", &pi.com.ts);
 
     // -------------------- Round 5 --------------------
 
     let ch = &transcript.challenge_scalar(b"xi");
     let ch_w = ch * &x.h.w(1);
-    let zh_ev = zh_ev(&x.h, ch);
-    let l1_ev_ch = lagrange_basis1_ev(&x.h, ch);
-    let sids_ev = batch_evaluate(&x.is, ch);
+    let zh_ev = scalar::zh_ev(&x.h, ch);
+    let l1_ev_ch = scalar::lagrange_basis1(&x.h, ch);
+    let sids_ev = poly::batch_evaluate(&x.is, ch);
     let a = &pi.ev.ws[Slots::A as usize];
     let b = &pi.ev.ws[Slots::B as usize];
     let c = &pi.ev.ws[Slots::C as usize];
@@ -84,7 +84,7 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
 
     // F_GC(𝔷) = A(𝔷)Qₗ(𝔷) + B(𝔷)Qᵣ(𝔷) + C(𝔷)Qₒ(𝔷) + A(𝔷)B(𝔷)Qₘ(𝔷) + Q꜀(𝔷)
     //         + Qₖ(𝔷)(A(𝔷) + ζB(𝔷) + ζ²C(𝔷) + ζ³J(𝔷) - f(𝔷))
-    let f_gcpl_ev = &(*qk * (linear_comb_right(zeta, [*a, *b, *c, *j]) - pl_f));
+    let f_gcpl_ev = &(*qk * (scalar::linear_comb_right(zeta, [*a, *b, *c, *j]) - pl_f));
     let f_gc_ev = (a * ql) + (b * qr) + (c * qo) + (a * b * qm) + qc + pip + f_gcpl_ev;
 
     // plookup constraint term: ε(1 + δ) + a(X) + δb(X)
@@ -107,9 +107,9 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     let f_z2_ev = (pi.ev.z * zfcc_ev * zfpl_ev) - (zgcc_ev * zgpl_ev * pi.ev.z_bar);
 
     // T(𝔷) = (F_GC(𝔷) + α F_CC1(𝔷) + α² F_CC2(𝔷)) / Zₕ(𝔷)
-    let t_ev = linear_comb(&ch.pow([x.h.n()]), t_evs);
+    let t_ev = scalar::linear_comb(&ch.pow([x.h.n()]), t_evs);
     ensure!(
-        linear_comb(alpha, [f_gc_ev, f_z1_ev, f_z2_ev]) == t_ev * zh_ev,
+        scalar::linear_comb(alpha, [f_gc_ev, f_z1_ev, f_z2_ev]) == t_ev * zh_ev,
         "T(𝔷) ≠ (F_GC(𝔷) + α F_CC1(𝔷) + α² F_CC2(𝔷)) / Zₕ(𝔷)"
     );
 
@@ -117,15 +117,15 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
 
     // W(𝔷) = Qₗ(𝔷) + vQᵣ(𝔷) + v²Qₒ(𝔷) + v³Qₘ(𝔷) + v⁴Q꜀(𝔷) + v⁵Qₖ(𝔷) + v⁶J(𝔷)
     //      + v⁷A(𝔷) + v⁸B(𝔷) + v⁹C(𝔷) + v¹⁰Z(𝔷)
-    let W_com = linear_comb(
+    let W_com = scalar::linear_comb(
         v,
         x.qs_coms
             .iter()
-            .chain(pi.com.abc_coms.iter())
+            .chain(pi.com.ws.iter())
             .chain(std::iter::once(&pi.com.z))
             .cloned(),
     );
-    let W_ev = linear_comb(
+    let W_ev = scalar::linear_comb(
         v,
         pi.ev
             .qs

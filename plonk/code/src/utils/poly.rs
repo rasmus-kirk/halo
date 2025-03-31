@@ -7,7 +7,6 @@ use halo_accumulation::{
 
 use ark_ff::{AdditiveGroup, Field, Zero};
 use ark_poly::{DenseUVPolynomial, Evaluations, Polynomial};
-use std::ops::{AddAssign, Mul};
 
 use super::misc::batch_op;
 
@@ -26,20 +25,20 @@ pub fn deg0(v: &Scalar) -> Poly {
 }
 
 /// f(X) = vXⁿ
-pub fn vxn_poly(v: &Scalar, n: u64) -> Poly {
+pub fn vxn(v: &Scalar, n: u64) -> Poly {
     let mut coeffs = vec![Scalar::ZERO; n as usize];
     coeffs.push(*v);
     Poly::from_coefficients_slice(&coeffs)
 }
 
 /// f(X) = Xⁿ
-pub fn xn_poly(n: u64) -> Poly {
-    vxn_poly(&Scalar::ONE, n)
+pub fn xn(n: u64) -> Poly {
+    vxn(&Scalar::ONE, n)
 }
 
 /// f(X) = X
-pub fn x_poly() -> Poly {
-    vxn_poly(&Scalar::ONE, 1)
+pub fn x() -> Poly {
+    vxn(&Scalar::ONE, 1)
 }
 
 // /// ∀X ∈ H₀: g(X) = f(aX)
@@ -73,7 +72,7 @@ pub fn shift_wrap_eval(h: &Coset, evals: Evals) -> Evals {
 }
 
 /// f(X) = p₀(X) + Xⁿp₁(X) + X²ⁿp₂(X) + ...
-pub fn split_poly(n: usize, f: &Poly) -> Vec<Poly> {
+pub fn split(n: usize, f: &Poly) -> Vec<Poly> {
     f.coeffs
         .chunks(n)
         .map(Poly::from_coefficients_slice)
@@ -81,7 +80,7 @@ pub fn split_poly(n: usize, f: &Poly) -> Vec<Poly> {
 }
 
 /// f(X) = p₀(X) + ap₁(X) + a²p₂(X) + ...
-pub fn linear_comb_poly<'a, I>(a: &Scalar, ps: I) -> Poly
+pub fn linear_comb<'a, I>(a: &Scalar, ps: I) -> Poly
 where
     I: IntoIterator<Item = &'a Poly>,
 {
@@ -92,49 +91,12 @@ where
         })
 }
 
-/// Y = p₀ + a₁p₁ + a₂p₂ + ...
-pub fn linear_comb<I, T: Mul<Scalar, Output = T> + AdditiveGroup + AddAssign>(
-    a: &Scalar,
-    ps: I,
-) -> T
-where
-    I: IntoIterator<Item = T>,
-{
-    ps.into_iter()
-        .enumerate()
-        .fold(T::ZERO, |acc, (i, p_i)| acc + p_i * a.pow([i as u64]))
-}
-
-/// Y = p₀ + a₁p₁ + a₂p₂ + ...
-pub fn linear_comb_right<I, T: AdditiveGroup + AddAssign>(a: &Scalar, ps: I) -> T
-where
-    I: IntoIterator<Item = T>,
-    Scalar: Mul<T, Output = T>,
-{
-    ps.into_iter()
-        .enumerate()
-        .fold(T::ZERO, |acc, (i, p_i)| acc + a.pow([i as u64]) * p_i)
-}
-
-/// f = a + ζb + ζ²c + ζ³j
-/// TODO move to scheme?
-pub fn plookup_compress(zeta: &Scalar, a: &Scalar, b: &Scalar, c: &Scalar, j: &Scalar) -> Scalar {
-    linear_comb(zeta, [*a, *b, *c, *j])
-}
-
 /// Lᵢ(X) = (ωⁱ (Xⁿ - 1)) / (n (X - ωⁱ))
-pub fn lagrange_basis_poly(h: &Coset, i: u64) -> Poly {
+pub fn lagrange_basis(h: &Coset, i: u64) -> Poly {
     let wi = &h.w(i);
-    let numerator = (xn_poly(h.n()) + deg0(&PallasScalar::ONE)) * *wi;
-    let denominator = (x_poly() - deg0(wi)) * PallasScalar::from(h.n());
+    let numerator = (xn(h.n()) + deg0(&PallasScalar::ONE)) * *wi;
+    let denominator = (x() - deg0(wi)) * PallasScalar::from(h.n());
     numerator / denominator
-}
-
-/// Y = L₁(X) = (Xⁿ - 1) / (n (X - 1))
-pub fn lagrange_basis1_ev(h: &Coset, x: &Scalar) -> Scalar {
-    let n = h.n();
-    let w = h.w(1);
-    w * (x.pow([n]) - Scalar::ONE) / (Scalar::from(n) * (*x - w))
 }
 
 // /// Zₕ(X) = Xⁿ - 1
@@ -143,9 +105,13 @@ pub fn lagrange_basis1_ev(h: &Coset, x: &Scalar) -> Scalar {
 //     xn_poly(h.n()) - deg0(&Scalar::ONE)
 // }
 
-/// Y = Zₕ(X) = Xⁿ - 1
-pub fn zh_ev(h: &Coset, x: &Scalar) -> Scalar {
-    x.pow([h.n()]) - Scalar::ONE
+/// Y = x₀y₀ + x₁y₁ + x₂y₂ + ...
+pub fn hadamard(xs: &[Poly], ys: &[Poly]) -> Poly {
+    xs.iter()
+        .zip(ys.iter())
+        .map(|(x, y)| x * y)
+        .reduce(|acc, x| acc + x)
+        .unwrap()
 }
 
 pub fn batch_evaluate<'a, I>(ps: I, x: &Scalar) -> Vec<Scalar>
@@ -166,7 +132,6 @@ where
 mod tests {
     use crate::scheme::Slots;
     use ark_poly::Polynomial;
-    use rand::Rng;
 
     use super::*;
 
@@ -189,7 +154,7 @@ mod tests {
         assert!(h_opt.is_some());
         let h = h_opt.unwrap();
         for i in h.iter() {
-            let l = lagrange_basis_poly(&h, i);
+            let l = lagrange_basis(&h, i);
             for j in h.iter() {
                 if i == j {
                     assert_eq!(l.evaluate(&h.w(j)), Scalar::ONE);
@@ -197,19 +162,6 @@ mod tests {
                     assert_eq!(l.evaluate(&h.w(j)), Scalar::ZERO);
                 }
             }
-        }
-    }
-
-    #[test]
-    fn l1_ev() {
-        let rng = &mut rand::thread_rng();
-        let h_opt = Coset::new(rng, 5, Slots::COUNT);
-        assert!(h_opt.is_some());
-        let h = h_opt.unwrap();
-        let l1 = lagrange_basis_poly(&h, 1);
-        for _ in 0..100 {
-            let x: Scalar = rng.gen();
-            assert_eq!(lagrange_basis1_ev(&h, &x), l1.evaluate(&x));
         }
     }
 }
