@@ -9,11 +9,11 @@
       "locked": {
         "lastModified": 1,
         "narHash": "sha256-NCPt2OTkl1AvxrdO2w+wach4G5jwDhdPLO6Kcj2Y9P0=",
-        "path": "/nix/store/1jrh05r1988x49cb5ivsv6dx9bs9z46v-source/project-contract",
+        "path": "/nix/store/fdm6g8aivil1lpa1nkrg6dfgsaldhnjc-source/project-contract",
         "type": "path"
       },
       "original": {
-        "path": "/nix/store/1jrh05r1988x49cb5ivsv6dx9bs9z46v-source/project-contract",
+        "path": "/nix/store/fdm6g8aivil1lpa1nkrg6dfgsaldhnjc-source/project-contract",
         "type": "path"
       }
     },
@@ -50,11 +50,11 @@
       "locked": {
         "lastModified": 1,
         "narHash": "sha256-ZmYS9eMBfOkV1vYzd2lnyGXnUgTJEBxD42W/IJ9n9Jo=",
-        "path": "/nix/store/1jrh05r1988x49cb5ivsv6dx9bs9z46v-source/thesis",
+        "path": "/nix/store/fdm6g8aivil1lpa1nkrg6dfgsaldhnjc-source/thesis",
         "type": "path"
       },
       "original": {
-        "path": "/nix/store/1jrh05r1988x49cb5ivsv6dx9bs9z46v-source/thesis",
+        "path": "/nix/store/fdm6g8aivil1lpa1nkrg6dfgsaldhnjc-source/thesis",
         "type": "path"
       }
     },
