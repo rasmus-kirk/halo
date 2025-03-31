@@ -224,4 +224,5 @@ pub fn prove<R: rand::Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -
 // TODO generalize Coset for any field
 // TODO generalize Arithmetizer for any field
 // TODO generalize Circuit for any field; prover, verifier
+// TODO compare Circuit output with rust function extensionality tester
 // TODO optimization by parallel evaluate at ch?
