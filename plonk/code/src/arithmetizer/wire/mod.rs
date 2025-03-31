@@ -2,9 +2,8 @@ mod ast;
 mod op_scalar;
 mod op_wire;
 
-use crate::utils::misc::{if_debug, is_debug};
-
 use super::{Arithmetizer, WireID};
+use crate::utils::misc::{if_debug, is_debug};
 use ast::WireAST;
 
 use std::{cell::RefCell, fmt, rc::Rc};

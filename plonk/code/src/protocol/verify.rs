@@ -29,13 +29,13 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
 
     // -------------------- Round 3 --------------------
 
-    // β = H(transcript, 1)
+    // β = H(transcript)
     let beta = &transcript.challenge_scalar(b"beta");
-    // γ = H(transcript, 2)
+    // γ = H(transcript)
     let gamma = &transcript.challenge_scalar(b"gamma");
-    // δ = H(transcript, 3)
+    // δ = H(transcript)
     let delta = &transcript.challenge_scalar(b"delta");
-    // ε = H(transcript, 4)
+    // ε = H(transcript)
     let epsilon = &transcript.challenge_scalar(b"epsilon");
     transcript.append_point(b"z", &pi.com.z);
 

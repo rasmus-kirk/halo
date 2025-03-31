@@ -4,7 +4,7 @@ use crate::{
     scheme::{Selectors, Slots, Terms},
     utils::{
         misc::batch_op,
-        poly::{coset_scale_omega_evals, plookup_compress},
+        poly::{plookup_compress, shift_wrap_eval},
     },
     Coset,
 };
@@ -129,8 +129,8 @@ impl PlookupPolys {
         let _f = evals[1].clone();
         let _h1 = evals[2].clone();
         let _h2 = evals[3].clone();
-        let _t_bar = coset_scale_omega_evals(h, _t.clone());
-        let _h1_bar = coset_scale_omega_evals(h, _h1.clone());
+        let _t_bar = shift_wrap_eval(h, _t.clone());
+        let _h1_bar = shift_wrap_eval(h, _h1.clone());
         let mut plp = batch_op(evals, |eval| eval.interpolate());
         let h2 = plp.pop().unwrap();
         let h1 = plp.pop().unwrap();

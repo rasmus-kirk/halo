@@ -9,8 +9,8 @@ use crate::{
     utils::{
         misc::batch_op,
         poly::{
-            batch_commit, batch_evaluate, coset_scale_omega_evals, deg0, lagrange_basis_poly,
-            linear_comb_poly, split_poly,
+            batch_commit, batch_evaluate, deg0, lagrange_basis_poly, linear_comb_poly,
+            shift_wrap_eval, split_poly,
         },
         print_table::evals_str,
     },
@@ -53,13 +53,13 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     // -------------------- Round 3 --------------------
 
     let now = Instant::now();
-    // β = H(transcript, 1)
+    // β = H(transcript)
     let beta = transcript.challenge_scalar(b"beta");
-    // γ = H(transcript, 2)
+    // γ = H(transcript)
     let gamma = transcript.challenge_scalar(b"gamma");
-    // δ = H(transcript, 3)
+    // δ = H(transcript)
     let delta = transcript.challenge_scalar(b"delta");
-    // ε = H(transcript, 4)
+    // ε = H(transcript)
     let epsilon = transcript.challenge_scalar(b"epsilon");
 
     // ----- Lambdas ----- //
@@ -103,7 +103,7 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     let z = &z_cache.clone().interpolate();
     info!("Round 3 - C - {} s", now.elapsed().as_secs_f64());
     // Z(ω X)
-    let z_bar = &coset_scale_omega_evals(&x.h, z_cache).interpolate();
+    let z_bar = &shift_wrap_eval(&x.h, z_cache).interpolate();
     info!("Round 3 - D - {} s", now.elapsed().as_secs_f64());
     let z_com = &pcdl::commit(z, x.d, None);
     transcript.append_point(b"z", z_com);
