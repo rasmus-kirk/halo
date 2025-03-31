@@ -2,7 +2,7 @@ use crate::arithmetizer::plookup::PlookupOps;
 
 use super::{ast::WireAST, Wire};
 
-use std::ops::{Add, BitAnd, BitOr, BitXor, Mul, Not, Sub};
+use std::ops::{Add, BitAnd, BitOr, BitXor, Mul, Neg, Not, Sub};
 
 // Add ------------------------------------------------------------------------
 
@@ -42,6 +42,20 @@ impl Mul for Wire {
             id: self.arith.clone().borrow_mut().mul(self.id, other.id),
             arith: self.arith,
             ast: self.ast.map(|ast| WireAST::mul(ast, other.ast.unwrap())),
+        }
+    }
+}
+
+// Neg ---------------------------------------------------------
+
+impl Neg for Wire {
+    type Output = Wire;
+
+    fn neg(self) -> Self::Output {
+        Wire {
+            id: self.arith.clone().borrow_mut().neg(self.id),
+            arith: self.arith,
+            ast: self.ast.map(WireAST::neg),
         }
     }
 }

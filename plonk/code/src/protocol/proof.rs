@@ -233,6 +233,7 @@ pub fn prove<R: Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proo
     pi
 }
 
+// TODO format Scalar print for -ve numbers
 // TODO destructure in verify using getters from pi
 // TODO consider extracting equational constraints (and Z lambdas) into its own function; in scheme, like linear_comb, thus single point of truth, no room for deviation for multiple calls in arithmetizer, proof and verify
 // TODO optimization by parallel evaluate at ch?

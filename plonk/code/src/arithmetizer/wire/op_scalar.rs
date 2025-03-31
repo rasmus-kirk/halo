@@ -1,97 +1,90 @@
-use super::{ast::WireAST, Wire};
-
 use halo_accumulation::group::PallasScalar;
+
+use super::{ast::WireAST, Wire};
 
 use std::{
     ops::{Add, Div, Mul, Sub},
     rc::Rc,
 };
 
-use ark_ff::Field;
-
 type Scalar = PallasScalar;
 
 // Add ------------------------------------------------------------------------
 
-impl Add<Scalar> for Wire {
+impl<T> Add<T> for Wire
+where
+    T: Into<Scalar> + Copy,
+{
     type Output = Wire;
 
-    fn add(self, other: Scalar) -> Self::Output {
+    fn add(self, other: T) -> Self::Output {
         Wire {
-            id: self.arith.borrow_mut().add_const(self.id, other),
+            id: self.arith.borrow_mut().add_const(self.id, other.into()),
             arith: Rc::clone(&self.arith),
-            ast: self.ast.map(|ast| WireAST::add_const(ast, other)),
+            ast: self.ast.map(|ast| WireAST::add_const(ast, other.into())),
         }
-    }
-}
-
-impl Add<Wire> for Scalar {
-    type Output = Wire;
-
-    fn add(self, other: Wire) -> Self::Output {
-        other + self
     }
 }
 
 // Sub ------------------------------------------------------------------------
 
-impl Sub<Scalar> for Wire {
+impl<T> Sub<T> for Wire
+where
+    T: Into<Scalar> + Copy,
+{
     type Output = Wire;
 
-    fn sub(self, other: Scalar) -> Self::Output {
+    fn sub(self, other: T) -> Self::Output {
         Wire {
-            id: self.arith.clone().borrow_mut().sub_const(self.id, other),
+            id: self
+                .arith
+                .clone()
+                .borrow_mut()
+                .sub_const(self.id, other.into()),
             arith: self.arith,
-            ast: self.ast.map(|ast| WireAST::sub_const(ast, other)),
-        }
-    }
-}
-
-impl Sub<Wire> for Scalar {
-    type Output = Wire;
-
-    fn sub(self, other: Wire) -> Self::Output {
-        let neg = other.clone() * -Scalar::ONE;
-        Wire {
-            id: other.arith.clone().borrow_mut().add_const(neg.id, self),
-            arith: other.arith,
-            ast: neg.ast.map(|ast| WireAST::add_const(ast, self)),
+            ast: self.ast.map(|ast| WireAST::sub_const(ast, other.into())),
         }
     }
 }
 
 // Mul ------------------------------------------------------------------------
 
-impl Mul<Scalar> for Wire {
+impl<T> Mul<T> for Wire
+where
+    T: Into<Scalar> + Copy,
+{
     type Output = Wire;
 
-    fn mul(self, other: Scalar) -> Self::Output {
+    fn mul(self, other: T) -> Self::Output {
         Wire {
-            id: self.arith.clone().borrow_mut().mul_const(self.id, other),
+            id: self
+                .arith
+                .clone()
+                .borrow_mut()
+                .mul_const(self.id, other.into()),
             arith: self.arith,
-            ast: self.ast.map(|ast| WireAST::mul_const(ast, other)),
+            ast: self.ast.map(|ast| WireAST::mul_const(ast, other.into())),
         }
-    }
-}
-
-impl Mul<Wire> for Scalar {
-    type Output = Wire;
-
-    fn mul(self, other: Wire) -> Self::Output {
-        other * self
     }
 }
 
 // Div ------------------------------------------------------------------------
 
-impl Div<Scalar> for Wire {
+impl<T> Div<T> for Wire
+where
+    T: Into<Scalar> + Copy,
+{
     type Output = Wire;
 
-    fn div(self, other: Scalar) -> Self::Output {
+    fn div(self, other: T) -> Self::Output {
         Wire {
-            id: self.arith.clone().borrow_mut().div_const(self.id, other),
+            id: self
+                .arith
+                .clone()
+                .borrow_mut()
+                .div_const(self.id, other.into()),
             arith: self.arith,
-            ast: self.ast.map(|ast| WireAST::div_const(ast, other)),
+            ast: self.ast.map(|ast| WireAST::div_const(ast, other.into())),
         }
     }
 }

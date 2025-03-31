@@ -28,10 +28,8 @@ impl Arithmetizer {
             } else {
                 let constant: Scalar = rng.gen();
                 match branch {
-                    4 => cur * constant,
-                    5 => constant * cur,
-                    6 => cur + constant,
-                    7 => constant + cur,
+                    4 | 5 => cur * constant,
+                    6 | 7 => cur + constant,
                     _ => unreachable!(),
                 }
             };

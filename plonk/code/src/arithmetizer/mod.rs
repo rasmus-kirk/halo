@@ -122,6 +122,10 @@ impl Arithmetizer {
         self.wires.get_id(gate)
     }
 
+    pub fn neg(&mut self, x: WireID) -> WireID {
+        self.mul_const(x, -Scalar::ONE)
+    }
+
     /// a / b : 𝔽
     pub fn div_const(&mut self, a: WireID, b: Scalar) -> WireID {
         let right = self.wires.get_const_id(Scalar::ONE / b);

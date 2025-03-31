@@ -1,10 +1,5 @@
 mod ast;
-mod op_i32;
-mod op_i64;
 mod op_scalar;
-mod op_u32;
-mod op_u64;
-mod op_usize;
 mod op_wire;
 
 use crate::utils::misc::{if_debug, is_debug};
