@@ -68,20 +68,16 @@ pub fn main() {
 # Developer Guide
 
 The plonk library has the following structure:
-- `plonk::curve` contains structs that wrap the underlying curve
-  - `::point` point of the elliptic curve
-  - `::scalar` scalar of the field for the curve
-  - `::poly` polynomial over the scalar field 
-  - `::coset` set of elements generated from the root of unity of the curve used as indices for wires in the circuit
-- `plonk::protocol`
-  - `::arithmetizer` arithmetizes a program
-    - `::cache` cache of unique identifiers and computation used to minimize circuit size
-    - `::wire` the variables users use to arithmetize their program
-    - `::trace` computes the values of the wires prior to circuit construction
-  - `::scheme` contains the arithmetization scheme constants and constraint structure
-  - `::circuit` $x R w$ where $x$ are public polynomials, $w$ are private, and $R$ is the arithmetized program as a relation
-  - `::plonk` the PLONK protocol
-    - `::proof` generates the SNARK proof
-    - `::verify` verifies the SNARK proof
-    - `::instance` the data for a PCS
-    - `::transcript` the hash scheme used (merlin)
+- `::coset` set of elements generated from the root of unity of the curve used as indices for wires in the circuit
+- `::arithmetizer` arithmetizes a program
+  - `::cache` cache of unique identifiers and computation used to minimize circuit size
+  - `::wire` the variables users use to arithmetize their program
+  - `::trace` computes the values of the wires prior to circuit construction
+  - `::plookup` the table and other abstractions used in the lookup argument
+- `::scheme` contains the arithmetization scheme constants and constraint structure
+- `::circuit` $x R w$ where $x$ are public polynomials, $w$ are private, and $R$ is the arithmetized program as a relation
+- `::protocol` the PLONK protocol
+  - `::proof` generates the SNARK proof
+  - `::verify` verifies the SNARK proof
+  - `::pi` the SNARK proof
+  - `::transcript` the hash scheme used (merlin)

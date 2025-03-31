@@ -1,25 +1,25 @@
 use std::time::{Duration, Instant};
 
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 
 const SAMPLE_SIZE: usize = 10;
 const SECONDS: u64 = 2;
 
 use ark_std::test_rng;
-use log::trace;
-use plonk::protocol::{arithmetizer::Arithmetizer, plonk as plonker};
+use log::info;
+use plonk::{arithmetizer::Arithmetizer, protocol};
 
-const WARMUP: Duration = Duration::from_millis(100);
-const MIN: usize = 13;
+// const WARMUP: Duration = Duration::from_millis(100);
+const MIN: usize = 4;
 const MAX: usize = 20;
 
 pub fn plonk_proof_verify(c: &mut Criterion) {
     env_logger::init();
 
-    let mut group = c.benchmark_group("plonk_proof_verify");
+    let group = c.benchmark_group("plonk_proof_verify");
     let rng = &mut test_rng();
 
-    let mut new_pis = Vec::new();
+    // let mut new_pis = Vec::new();
 
     let mut circuits = Vec::new();
     println!("|‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|");
@@ -29,28 +29,28 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
         let d = 2usize.pow(size as u32) - 1;
         let input_values = vec![3, 4, 5, 6];
 
-        trace!("A1");
+        info!("A1");
         let start_time = Instant::now();
         let output_wires = &Arithmetizer::synthesize::<_, 4>(rng, 2usize.pow(size as u32) - 2);
         let rand_circuit_time = start_time.elapsed().as_secs_f32();
-        trace!("lens: {:?}, {:?}", output_wires.len(), output_wires[0].id());
+        info!("lens: {:?}, {:?}", output_wires.len(), output_wires[0].id());
 
-        trace!("A2");
+        info!("A2");
         let start_time = Instant::now();
-        let ((x, w), _) = &Arithmetizer::to_circuit(rng, d, input_values, output_wires).unwrap();
+        let (x, w) = &Arithmetizer::to_circuit(rng, input_values, output_wires, Some(d)).unwrap();
         let to_circuit_time = start_time.elapsed().as_secs_f32();
 
-        trace!("A3");
+        info!("A3");
         circuits.push((size, x.clone(), w.clone()));
 
         let start_time = Instant::now();
-        let new_pi = plonker::prove(rng, &x, &w);
+        let new_pi = protocol::prove(rng, &x, &w);
         let new_p_time = start_time.elapsed().as_secs_f32();
-        trace!("D");
-        new_pis.push(new_pi.clone());
+        info!("D");
+        // new_pis.push(new_pi.clone());
 
         let start_time = Instant::now();
-        plonker::verify(&x, new_pi).unwrap();
+        protocol::verify(&x, new_pi).unwrap();
         let new_v_time = start_time.elapsed().as_secs_f32();
 
         println!(
@@ -58,14 +58,14 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
             size, rand_circuit_time, to_circuit_time, new_p_time, new_v_time
         );
     }
-    println!("|____|______________|______________|______________|______________|______________|");
+    println!("|____|______________|______________|______________|______________|");
     // for (i, x, w) in &circuits {
     //     group.warm_up_time(WARMUP).bench_with_input(
     //         BenchmarkId::new("prover", i),
     //         &i,
     //         |b, _| {
     //             b.iter(|| {
-    //                 let pi = plonker::proof(rng, x, w);
+    //                 let pi = protocol::proof(rng, x, w);
     //                 pis.push(pi.clone());
     //             })
     //         },
@@ -77,7 +77,7 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
     //         .warm_up_time(WARMUP)
     //         .bench_with_input(BenchmarkId::new("verifier", i), &i, |b, _| {
     //             b.iter(|| {
-    //                 plonker::verify(&x, pi.clone());
+    //                 protocol::verify(&x, pi.clone());
     //             })
     //         });
     // }
@@ -88,7 +88,7 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
     //         &i,
     //         |b, _| {
     //             b.iter(|| {
-    //                 plonker::prove_w_lu(rng, &x, &w);
+    //                 protocol::prove_w_lu(rng, &x, &w);
     //             })
     //         },
     //     );
@@ -99,7 +99,7 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
     //         &i,
     //         |b, _| {
     //             b.iter(|| {
-    //                 plonker::verify_lu_with_w(&x, pi.clone()).unwrap();
+    //                 protocol::verify_lu_with_w(&x, pi.clone()).unwrap();
     //             })
     //         },
     //     );

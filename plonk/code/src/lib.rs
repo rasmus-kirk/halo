@@ -1,62 +1,67 @@
-pub mod curve;
+pub mod arithmetizer;
+pub mod circuit;
+pub mod coset;
 pub mod protocol;
-pub mod util;
+mod scheme;
+mod utils;
+
+pub use coset::Coset;
 
 #[cfg(test)]
 mod tests {
+    use crate::utils::misc::tests::on_debug;
+
     use super::*;
     use anyhow::Result;
-    use protocol::{arithmetizer::Arithmetizer, circuit::print_poly_evaluations, plonk};
+    use arithmetizer::Arithmetizer;
+    use circuit::poly_evaluations_to_string;
+    use log::debug;
+    use protocol;
 
     #[test]
-    fn circuit() -> Result<()> {
+    fn circuit_canonical() -> Result<()> {
+        on_debug();
         let rng = &mut rand::thread_rng();
-        let [x, y] = &Arithmetizer::build();
+        let [x, y] = Arithmetizer::build();
         let input_values = vec![1, 2];
-        let output_wires = &[3 * (x * x) + (y * 5) - 47];
-        println!("{}", Arithmetizer::to_string(&input_values, output_wires));
-        let ((x, w), e) =
-            &Arithmetizer::to_circuit(rng, 2usize.pow(7) - 1, input_values, output_wires)?;
-        println!("{}", e);
-        assert_eq!(e.clone(), (x, w).into());
-        print_poly_evaluations(x, w);
+        let output_wires = &[(x.clone() * x) * 3 + (y * 5) - 47];
+        debug!("{}", Arithmetizer::to_string(&input_values, output_wires));
+        let (x, w) = &Arithmetizer::to_circuit(rng, input_values, output_wires, None)?;
+        debug!("{}", poly_evaluations_to_string(x, w));
         // let _ = plonk::proof(rng, x, w);
-        let pi = plonk::prove(rng, x, w);
-        plonk::verify(x, pi)?;
+        let pi = protocol::prove(rng, x, w);
+        protocol::verify(x, pi)?;
 
         Ok(())
     }
 
     #[test]
     fn circuit_bool() -> Result<()> {
+        on_debug();
         let rng = &mut rand::thread_rng();
-        let [x, y] = &Arithmetizer::build();
+        let [x, y] = Arithmetizer::build();
         let input_values = vec![1, 0];
-        let output_wires = &[x | y];
-        println!("{}", Arithmetizer::to_string(&input_values, output_wires));
-        let ((x, w), e) =
-            &Arithmetizer::to_circuit(rng, 2usize.pow(7) - 1, input_values, output_wires)?;
-        println!("{}", e);
-        print_poly_evaluations(x, w);
-        let pi = plonk::prove(rng, x, w);
-        // TODO: Fails?
-        plonk::verify(x, pi)?;
+        let output_wires = &[(x.clone() ^ (y | x).is_bit()).is_public()];
+        debug!("\n{}", Arithmetizer::to_string(&input_values, output_wires));
+        let (x, w) = &Arithmetizer::to_circuit(rng, input_values, output_wires, None)?;
+        debug!("\n{}", poly_evaluations_to_string(x, w));
+        let pi = protocol::prove(rng, x, w);
+        protocol::verify(x, pi)?;
 
         Ok(())
     }
 
     #[test]
     fn circuit_synthesize() -> Result<()> {
+        on_debug();
         let rng = &mut rand::thread_rng();
         let output_wires = &Arithmetizer::synthesize::<_, 2>(rng, 4);
         let input_values = vec![3, 4];
-        println!("{}", Arithmetizer::to_string(&input_values, output_wires));
-        let ((x, w), e) =
-            &Arithmetizer::to_circuit(rng, 2usize.pow(7) - 1, input_values, output_wires)?;
-        println!("{}", e);
-        print_poly_evaluations(x, w);
-        let pi = plonk::prove(rng, x, w);
-        plonk::verify(x, pi)?;
+        debug!("{}", Arithmetizer::to_string(&input_values, output_wires));
+        let (x, w) = &Arithmetizer::to_circuit(rng, input_values, output_wires, None)?;
+        debug!("{}", poly_evaluations_to_string(x, w));
+        let pi = protocol::prove(rng, x, w);
+        protocol::verify(x, pi)?;
 
         Ok(())
     }
