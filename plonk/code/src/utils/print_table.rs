@@ -10,9 +10,9 @@ use ascii_table::{Align, AsciiTable};
 type Scalar = PallasScalar;
 type Poly = PallasPoly;
 
-pub fn print_scalar(x: &Scalar) -> String {
+pub fn print_scalar(x: Scalar) -> String {
     let s1 = format!("{}", x);
-    let s2 = format!("{}", -*x);
+    let s2 = format!("{}", -x);
     if s2.len() < s1.len() {
         format!("-{}", s2)
     } else {
@@ -25,15 +25,15 @@ fn w_str(i: u64) -> String {
 }
 
 /// Util to print Scalars formatted as elements in H otherwise just print the scalar.
-fn v_str(h: &Coset, x: &Scalar) -> String {
-    if *x == Scalar::ONE {
+fn v_str(h: &Coset, x: Scalar) -> String {
+    if x == Scalar::ONE {
         return Scalar::ONE.to_string();
     }
     for slot in 0..h.l() {
-        if x == &h.h(slot, 1) {
+        if x == h.h(slot, 1) {
             return format!("k{}", to_subscript(slot as u64));
         }
-        for (i_, w) in h.vec_k(slot).iter().enumerate() {
+        for (i_, w) in h.vec_k(slot).into_iter().enumerate() {
             let i = (i_ + 1) as u64;
             if x == w {
                 return if slot == 0 {
@@ -55,9 +55,9 @@ pub fn evals_str(h: &Coset, fs: Vec<&Poly>, hs: Vec<String>, is_pos: Vec<bool>) 
             row.extend(fs.iter().enumerate().map(|(j, &f)| {
                 let y = f.evaluate(&h.w(i));
                 if is_pos[j] {
-                    v_str(h, &y)
+                    v_str(h, y)
                 } else {
-                    print_scalar(&y)
+                    print_scalar(y)
                 }
             }));
             row

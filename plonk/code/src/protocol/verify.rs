@@ -3,7 +3,7 @@
 use super::{transcript::TranscriptProtocol, Proof};
 use crate::{
     circuit::CircuitPublic,
-    scheme::{eqns::plonkup_eqn, Slots},
+    scheme::eqns::plonkup_eqn,
     utils::{
         geometric,
         poly::{self},
@@ -36,13 +36,13 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     // -------------------- Round 3 --------------------
 
     // β = H(transcript)
-    let beta = &transcript.challenge_scalar(b"beta");
+    let beta = transcript.challenge_scalar(b"beta");
     // γ = H(transcript)
-    let gamma = &transcript.challenge_scalar(b"gamma");
+    let gamma = transcript.challenge_scalar(b"gamma");
     // δ = H(transcript)
-    let delta = &transcript.challenge_scalar(b"delta");
+    let delta = transcript.challenge_scalar(b"delta");
     // ε = H(transcript)
-    let epsilon = &transcript.challenge_scalar(b"epsilon");
+    let epsilon = transcript.challenge_scalar(b"epsilon");
     transcript.append_point(b"z", &com.z);
 
     // -------------------- Round 4 --------------------
@@ -56,10 +56,7 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     let ch_w = ch * x.h.w(1);
     let zh_ev = scalar::zh_ev(&x.h, ch);
     let l1_ev_ch = scalar::lagrange_basis1(&x.h, ch);
-    let is_ev = poly::batch_evaluate(&x.is, ch);
-    let ia_ev = &is_ev[Slots::A as usize];
-    let ib_ev = &is_ev[Slots::B as usize];
-    let ic_ev = &is_ev[Slots::C as usize];
+    let [ia_ev, ib_ev, ic_ev] = poly::batch_evaluate(&x.is, ch).try_into().unwrap();
 
     transcript.append_scalars(b"ws_ev", &ev.ws);
     transcript.append_scalars(b"qs_ev", &ev.qs);
@@ -69,22 +66,21 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     transcript.append_scalars(b"t_ev", &ev.ts);
     transcript.append_scalar(b"z_ev", &ev.z);
 
-    let f_gc_ev = plonkup_eqn(zeta, ev.ws.clone(), ev.qs.clone(), ev.pip, *ev.f());
-
     // plookup constraint term: ε(1 + δ) + a(X) + δb(X)
-    let zpl_sc = &((Scalar::ONE + delta) * epsilon);
-    let zpl = |a: &Scalar, b: &Scalar| zpl_sc + a + (delta * b);
+    let zpl_sc = (Scalar::ONE + delta) * epsilon;
+    let zpl = |a: Scalar, b: Scalar| zpl_sc + a + (delta * b);
     // copy constraint term: w(X) + β s(X) + γ
-    let zcc = |w: &Scalar, s: &Scalar| *w + (beta * s) + gamma;
+    let zcc = |w: Scalar, s: Scalar| w + (beta * s) + gamma;
     // f'(𝔷) = (A(𝔷) + β Sᵢ₁(𝔷) + γ) (B(𝔷) + β Sᵢ₂(𝔷) + γ) (C(𝔷) + β Sᵢ₃(𝔷) + γ)
     //         (ε(1 + δ) + f(𝔷) + δf(𝔷))(ε(1 + δ) + t(𝔷) + δt(Xω))
     let zfcc_ev = &(zcc(ev.a(), ia_ev) * zcc(ev.b(), ib_ev) * zcc(ev.c(), ic_ev));
-    let zfpl_ev = &(zpl(ev.f(), ev.f()) * zpl(ev.t(), &ev.t_bar));
+    let zfpl_ev = &(zpl(ev.f(), ev.f()) * zpl(ev.t(), ev.t_bar));
     // g'(𝔷) = (A(𝔷)) + β S₁(𝔷)) + γ) (B(𝔷)) + β S₂(𝔷)) + γ) (C(𝔷)) + β S₃(𝔷)) + γ)
     //         (ε(1 + δ) + h₁(𝔷) + δh₂(𝔷))(ε(1 + δ) + h₂(𝔷) + δh₁(Xω))
     let zgcc_ev = &(zcc(ev.a(), ev.pa()) * zcc(ev.b(), ev.pb()) * zcc(ev.c(), ev.pc()));
-    let zgpl_ev = &(zpl(ev.h1(), ev.h2()) * zpl(ev.h2(), &ev.h1_bar));
+    let zgpl_ev = &(zpl(ev.h1(), ev.h2()) * zpl(ev.h2(), ev.h1_bar));
 
+    let f_gc_ev = plonkup_eqn(zeta, ev.ws.clone(), ev.qs.clone(), ev.pip, ev.f());
     // F_Z1(𝔷) = L₁(𝔷) (Z(𝔷) - 1)
     let f_z1_ev = l1_ev_ch * (ev.z - Scalar::ONE);
     // F_Z2(𝔷) = Z(𝔷)f'(𝔷) - g'(𝔷)Z(ω 𝔷)

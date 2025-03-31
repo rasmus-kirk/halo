@@ -175,13 +175,13 @@ impl Mul<Value> for &Value {
 
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
+        match *self {
             Value::AnonWire(scalar) => write!(f, "{}", print_scalar(scalar)),
             Value::Wire(wire_id, val_type, scalar) => {
                 write!(
                     f,
                     "{} {}:{}",
-                    map_to_alphabet(*wire_id),
+                    map_to_alphabet(wire_id),
                     print_scalar(scalar),
                     val_type
                 )
