@@ -69,7 +69,7 @@ impl Coset {
             let k_ = rng.gen();
             if k_ != Scalar::ZERO
                 && !self.vec().contains(&k_)
-                && !ks.iter().any(|&k| self.vec_mul(&k).contains(&k_))
+                && !ks.iter().any(|&k| self.vec_mul(k).contains(&k_))
             {
                 return k_;
             }
@@ -107,12 +107,12 @@ impl Coset {
     }
 
     /// { k ωⁱ | 1 ≤ i < n }
-    pub fn vec_mul(&self, k: &Scalar) -> Vec<Scalar> {
+    pub fn vec_mul(&self, k: Scalar) -> Vec<Scalar> {
         self.vec().iter().map(|h| k * h).collect()
     }
 
     pub fn vec_k<T: Into<usize>>(&self, slot: T) -> Vec<Scalar> {
-        self.vec_mul(&self.ks[slot.into()])
+        self.vec_mul(self.ks[slot.into()])
     }
 }
 
@@ -131,9 +131,8 @@ mod tests {
         assert!(h_opt.is_some());
         let h = h_opt.unwrap();
         assert_eq!(h.n, 8);
-        let h_vec = h.vec();
-        for w in h_vec.iter() {
-            assert!(w != &Scalar::ONE);
+        for w in h.vec() {
+            assert!(w != Scalar::ONE);
         }
         assert!(h.w(0) == Scalar::ONE);
         assert_eq!(h.w(0), h.w(h.n));

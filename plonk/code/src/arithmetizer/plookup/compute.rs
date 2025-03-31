@@ -46,7 +46,7 @@ impl PlookupEvsThunk {
         zeta: Scalar,
         h: &Coset,
         constraints: &[Constraints],
-        default: &Scalar,
+        default: Scalar,
     ) -> Evals {
         let mut f = vec![Scalar::ZERO];
         for constraint in constraints.iter() {
@@ -57,11 +57,11 @@ impl PlookupEvsThunk {
                 let j: Scalar = constraint[Terms::Q(Selectors::J)].into();
                 f.push(plookup_compress(zeta, a, b, c, j));
             } else {
-                f.push(*default);
+                f.push(default);
             }
         }
         let extend = h.n() as usize - f.len();
-        f.extend(vec![*default; extend]);
+        f.extend(vec![default; extend]);
         Evaluations::from_vec_and_domain(f, h.domain)
     }
 
@@ -84,7 +84,7 @@ impl PlookupEvsThunk {
     pub fn compute(&self, h: &Coset, zeta: Scalar) -> PlookupPolys {
         let mut evals = vec![];
         evals.push(self.compute_t_evs(zeta, h));
-        evals.push(self.compute_f_evs(zeta, h, &self.constraints, evals[0].evals.last().unwrap()));
+        evals.push(self.compute_f_evs(zeta, h, &self.constraints, *evals[0].evals.last().unwrap()));
         let mut s: Vec<Scalar> = Vec::new();
         s.extend(evals[0].evals.iter());
         s.extend(evals[1].evals.iter());

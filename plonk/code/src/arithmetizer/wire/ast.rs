@@ -24,8 +24,8 @@ pub enum WireAST {
 impl fmt::Display for WireAST {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            WireAST::Input(id) => write!(f, "{}", map_to_alphabet(*id)),
-            WireAST::Constant(c) => write!(f, "{}", print_scalar(c)),
+            &WireAST::Input(id) => write!(f, "{}", map_to_alphabet(id)),
+            &WireAST::Constant(c) => write!(f, "{}", print_scalar(c)),
             WireAST::Add(lhs, rhs) => write!(f, "(+ {} {})", lhs, rhs),
             WireAST::Mul(lhs, rhs) => write!(f, "(* {} {})", lhs, rhs),
             WireAST::Lookup(op, lhs, rhs) => write!(f, "({} {} {})", op, lhs, rhs),
