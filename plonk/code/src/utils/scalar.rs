@@ -1,4 +1,4 @@
-use std::ops::{AddAssign, Mul};
+use std::ops::{Add, AddAssign, Mul};
 
 use ark_ff::AdditiveGroup;
 use ark_poly::Evaluations;
@@ -47,16 +47,16 @@ where
         .fold(T::ZERO, |acc, (i, p_i)| acc + p_i * a.pow([i as u64]))
 }
 
-/// Y = p₀ + a₁p₁ + a₂p₂ + ...
-pub fn linear_comb_right<I, T: AdditiveGroup + AddAssign>(a: &Scalar, ps: I) -> T
-where
-    I: IntoIterator<Item = T>,
-    Scalar: Mul<T, Output = T>,
-{
-    ps.into_iter()
-        .enumerate()
-        .fold(T::ZERO, |acc, (i, p_i)| acc + a.pow([i as u64]) * p_i)
-}
+// /// Y = p₀ + a₁p₁ + a₂p₂ + ...
+// pub fn linear_comb_right<I, T: AdditiveGroup + AddAssign>(a: &Scalar, ps: I) -> T
+// where
+//     I: IntoIterator<Item = T>,
+//     Scalar: Mul<T, Output = T>,
+// {
+//     ps.into_iter()
+//         .enumerate()
+//         .fold(T::ZERO, |acc, (i, p_i)| acc + a.pow([i as u64]) * p_i)
+// }
 
 /// f = a + ζb + ζ²c + ζ³j
 /// TODO move to scheme?
@@ -74,6 +74,15 @@ pub fn lagrange_basis1(h: &Coset, x: &Scalar) -> Scalar {
 /// Y = Zₕ(X) = Xⁿ - 1
 pub fn zh_ev(h: &Coset, x: &Scalar) -> Scalar {
     x.pow([h.n()]) - Scalar::ONE
+}
+
+/// Y = x₀y₀ + x₁y₁ + x₂y₂ + ...
+pub fn hadamard<T: Mul<T, Output = T> + Add<T, Output = T> + Copy>(xs: &[T], ys: &[T]) -> T {
+    xs.iter()
+        .zip(ys.iter())
+        .map(|(x, y)| *x * *y)
+        .reduce(|acc, x| acc + x)
+        .unwrap()
 }
 
 #[cfg(test)]
