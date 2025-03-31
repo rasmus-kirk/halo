@@ -149,7 +149,7 @@ pub fn prove<R: rand::Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -
     let ws_ev = poly::batch_evaluate(&w.ws, ch);
     let qs_ev = poly::batch_evaluate(&x.qs, ch);
     let pip_ev = x.pip.evaluate(ch);
-    let ss_ev = poly::batch_evaluate(&x.ps, ch);
+    let ps_ev = poly::batch_evaluate(&x.ps, ch);
     let ts_ev = poly::batch_evaluate(ts, ch);
     let z_ev = z.evaluate(ch);
     let pl_evs = poly::batch_evaluate(p.base_polys(), ch);
@@ -158,7 +158,7 @@ pub fn prove<R: rand::Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -
 
     transcript.append_scalars(b"ws_ev", &ws_ev);
     transcript.append_scalars(b"qs_ev", &qs_ev);
-    transcript.append_scalars(b"ss_ev", &ss_ev);
+    transcript.append_scalars(b"ss_ev", &ps_ev);
     transcript.append_scalars(b"plonkup_ev", &pl_evs);
     transcript.append_scalar(b"z_bar_ev", &z_bar_ev);
     transcript.append_scalars(b"t_ev", ts_ev.as_slice());
@@ -199,14 +199,14 @@ pub fn prove<R: rand::Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -
         ev: ProofEvaluations {
             ws: ws_ev,
             qs: qs_ev,
-            ss: ss_ev,
+            ps: ps_ev,
             pip: pip_ev,
             z: z_ev,
             ts: ts_ev,
             pls: pl_evs,
             z_bar: z_bar_ev,
-            pl_h1_bar: pl_h1_bar_ev,
-            pl_t_bar: pl_t_bar_ev,
+            h1_bar: pl_h1_bar_ev,
+            t_bar: pl_t_bar_ev,
         },
         com: ProofCommitments {
             ws: ws_coms,
@@ -224,6 +224,5 @@ pub fn prove<R: rand::Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -
     pi
 }
 
-// TODO destructure in verify using getters from pi
 // TODO consider extracting equations (and Z lambdas) into its own function; in scheme, like linear_comb, thus single point of truth, no room for deviation for multiple calls in arithmetizer, proof and verify; if its generic, you can even use it for circuit building
 // TODO optimization by parallel evaluate at ch?
