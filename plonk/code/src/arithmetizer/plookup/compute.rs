@@ -19,18 +19,13 @@ type Evals = Evaluations<Scalar>;
 /// from transcript to compute the polynomials for plookup
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlookupEvsThunk {
-    h: Coset,
     constraints: Vec<Constraints>,
     table: TableRegistry,
 }
 
 impl PlookupEvsThunk {
-    pub fn new(h: Coset, constraints: Vec<Constraints>, table: TableRegistry) -> Self {
-        Self {
-            h,
-            constraints,
-            table,
-        }
+    pub fn new(constraints: Vec<Constraints>, table: TableRegistry) -> Self {
+        Self { constraints, table }
     }
 
     fn compute_t_evs(&self, zeta: &Scalar, h: &Coset) -> Evals {
@@ -88,18 +83,13 @@ impl PlookupEvsThunk {
 
     pub fn compute(&self, h: &Coset, zeta: &Scalar) -> PlookupPolys {
         let mut evals = vec![];
-        evals.push(self.compute_t_evs(zeta, &self.h));
-        evals.push(self.compute_f_evs(
-            zeta,
-            &self.h,
-            &self.constraints,
-            evals[0].evals.last().unwrap(),
-        ));
+        evals.push(self.compute_t_evs(zeta, h));
+        evals.push(self.compute_f_evs(zeta, h, &self.constraints, evals[0].evals.last().unwrap()));
         let mut s: Vec<Scalar> = Vec::new();
         s.extend(evals[0].evals.iter());
         s.extend(evals[1].evals.iter());
         s.sort();
-        evals.extend(Self::split_sort(&self.h, s));
+        evals.extend(Self::split_sort(h, s));
 
         PlookupPolys::new(h, evals)
     }

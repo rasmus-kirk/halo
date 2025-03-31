@@ -75,7 +75,7 @@ impl From<Trace> for Circuit {
 
         let x = CircuitPublic {
             d: eval.d,
-            h: eval.h.clone(),
+            h: eval.h,
             pip_com,
             qs_coms,
             ps_coms,
@@ -89,7 +89,7 @@ impl From<Trace> for Circuit {
         let w = CircuitPrivate {
             ws,
             ws_cache,
-            plookup: PlookupEvsThunk::new(eval.h, eval.constraints, eval.table),
+            plookup: PlookupEvsThunk::new(eval.constraints, eval.table),
         };
         (x, w)
     }
