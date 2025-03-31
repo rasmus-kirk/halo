@@ -1,4 +1,4 @@
-pub mod general;
+mod general;
 pub mod misc;
 pub mod poly;
 pub mod print_table;

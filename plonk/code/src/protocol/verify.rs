@@ -5,7 +5,7 @@ use crate::{
     circuit::CircuitPublic,
     scheme::{eqns::plonkup_eqn, Slots},
     utils::{
-        general::geometric,
+        geometric,
         poly::{self},
         scalar,
     },
