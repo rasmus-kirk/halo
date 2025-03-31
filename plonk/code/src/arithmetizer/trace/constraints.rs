@@ -1,7 +1,11 @@
 use super::Value;
 use crate::{
     arithmetizer::{plookup::PlookupOps, WireID},
-    scheme::{Selectors, Slots, Terms},
+    scheme::{
+        eqns::{plonk_eqn, plonk_eqn_str, plonkup_eqn},
+        Selectors, Slots, Terms,
+    },
+    utils::misc::batch_op,
 };
 
 use halo_accumulation::group::PallasScalar;
@@ -105,22 +109,34 @@ impl Constraints {
     }
 
     pub fn scalars(&self) -> [Scalar; Terms::COUNT] {
-        self.vs
-            .iter()
-            .map(|&v| v.into())
-            .collect::<Vec<Scalar>>()
+        batch_op(self.vs, Into::<Scalar>::into).try_into().unwrap()
+    }
+
+    pub fn ws(&self) -> [Scalar; Slots::COUNT] {
+        batch_op(&self.vs[..Slots::COUNT], Into::<Scalar>::into)
             .try_into()
             .unwrap()
     }
 
-    pub fn is_satisfied(&self) -> bool {
-        let scalars = self.scalars();
-        Terms::eqn(scalars) == Scalar::ZERO
+    pub fn qs(&self) -> [Scalar; Selectors::COUNT] {
+        batch_op(
+            &self.vs[Slots::COUNT..Slots::COUNT + Selectors::COUNT],
+            Into::<Scalar>::into,
+        )
+        .try_into()
+        .unwrap()
     }
 
-    pub fn is_plonkup_satisfied(&self, zeta: &Scalar, f: &Scalar) -> bool {
-        let scalars = self.scalars();
-        Terms::plonkup_eqn(scalars, zeta, f) == Scalar::ZERO
+    pub fn pip(&self) -> Scalar {
+        self.vs[Into::<usize>::into(Terms::PublicInputs)].into()
+    }
+
+    pub fn is_satisfied(&self) -> bool {
+        plonk_eqn(self.ws(), self.qs(), self.pip()) == Scalar::ZERO
+    }
+
+    pub fn is_plonkup_satisfied(&self, zeta: Scalar, f: Scalar) -> bool {
+        plonkup_eqn(zeta, self.ws(), self.qs(), self.pip(), f) == Scalar::ZERO
     }
 
     /// Check if the constraints are structurally equal.
@@ -156,7 +172,7 @@ impl Constraints {
 
 impl fmt::Display for Constraints {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", Terms::eqn_str(self.vs.map(|v| v.to_string())))
+        write!(f, "{}", plonk_eqn_str(self.vs.map(|v| v.to_string())))
     }
 }
 
@@ -260,11 +276,11 @@ mod tests {
         let table = TableRegistry::new();
         let rng = &mut rand::thread_rng();
         for _ in 0..N {
-            let a_ = &Scalar::from(rng.gen_range(0..2));
-            let b_ = &Scalar::from(rng.gen_range(0..2));
-            let c_ = bitxor(*a_, *b_);
-            let a = &Value::new_wire(0, *a_);
-            let b = &Value::new_wire(1, *b_);
+            let a_ = Scalar::from(rng.gen_range(0..2));
+            let b_ = Scalar::from(rng.gen_range(0..2));
+            let c_ = bitxor(a_, b_);
+            let a = &Value::new_wire(0, a_);
+            let b = &Value::new_wire(1, b_);
             let c = &Value::new_wire(2, c_);
             let op = PlookupOps::Xor;
             let eqn_values = Constraints::lookup(op, a, b, c);
@@ -274,9 +290,9 @@ mod tests {
             assert_eq!(eqn_values[Terms::Q(Selectors::Qk)], Value::ONE);
             assert!(eqn_values.is_satisfied());
             let zeta: Scalar = rng.gen();
-            let f = table.query(PlookupOps::Xor, &zeta, a_, b_);
+            let f = table.query(PlookupOps::Xor, zeta, a_, b_);
             assert!(f.is_some());
-            assert!(eqn_values.is_plonkup_satisfied(&zeta, &f.unwrap()))
+            assert!(eqn_values.is_plonkup_satisfied(zeta, f.unwrap()))
         }
     }
 

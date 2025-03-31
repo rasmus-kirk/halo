@@ -6,6 +6,7 @@ use super::{
 };
 use crate::{
     circuit::{CircuitPrivate, CircuitPublic},
+    scheme::eqns::plonkup_eqn,
     utils::{
         self,
         poly::{self, deg0},
@@ -41,7 +42,7 @@ pub fn prove<R: rand::Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -
 
     let now = Instant::now();
     // ζ = H(transcript)
-    let zeta = &transcript.challenge_scalar(b"zeta");
+    let zeta = transcript.challenge_scalar(b"zeta");
     let p = &w.plookup.compute(&x.h, zeta);
     info!("Round 2 took {} s", now.elapsed().as_secs_f64());
 
@@ -108,15 +109,10 @@ pub fn prove<R: rand::Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -
 
     let now = Instant::now();
     // α = H(transcript)
-    let alpha = &transcript.challenge_scalar(b"alpha");
-    // F_GC(X) = A(X)Qₗ(X) + B(X)Qᵣ(X) + C(X)Qₒ(X) + A(X)B(X)Qₘ(X) + Q꜀(X) + PI(X)
-    //         + Qₖ(X)(A(X) + ζB(X) + ζ²C(X) + ζ³J(X) - f(X))
+    let alpha = transcript.challenge_scalar(b"alpha");
+
     // info!("Round 4A - {} s", now.elapsed().as_secs_f64());
-    let pl_query = poly::linear_comb(zeta, [w.a(), w.b(), w.c(), x.j()]);
-    let pl_gc = &(x.qk() * (pl_query - &p.f));
-    // info!("Round 4B - {} s", now.elapsed().as_secs_f64());
-    let f_gc_abc = &poly::hadamard(&w.ws, &x.qs[..3]);
-    let f_gc = &(f_gc_abc + (w.a() * w.b() * x.qm()) + x.qc() + &x.pip + pl_gc);
+    let f_gc = &plonkup_eqn(zeta, &w.ws, &x.qs, &x.pip, &p.f);
     // F_Z1(X) = L₁(X) (Z(X) - 1)
     // info!("Round 4C - {} s", now.elapsed().as_secs_f64());
     let f_z1 = &(poly::lagrange_basis(&x.h, 1) * (z - deg0(&PallasScalar::ONE)));
@@ -125,7 +121,7 @@ pub fn prove<R: rand::Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -
     let f_z2 = &((z * zf) - (zg * z_bar));
     // T(X) = (F_GC(X) + α F_C1(X) + α² F_C2(X)) / Zₕ(X)
     // info!("Round 4E1 - {} s", now.elapsed().as_secs_f64());
-    let tzh = poly::linear_comb(alpha, [f_gc, f_z1, f_z2]);
+    let tzh = utils::geometric(alpha, [f_gc, f_z1, f_z2]);
     // info!("Round 4E2 - {} s", now.elapsed().as_secs_f64());
     let (t, _) = tzh.divide_by_vanishing_poly(x.h.coset_domain);
     // info!("Round 4E3 - {} s", now.elapsed().as_secs_f64());
@@ -142,19 +138,19 @@ pub fn prove<R: rand::Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -
 
     let now = Instant::now();
     // 𝔷 = H(transcript)
-    let ch = &transcript.challenge_scalar(b"xi");
-    let ch_bar = &(*ch * x.h.w(1));
-    let z_bar_ev = z_bar.evaluate(ch);
+    let ch = transcript.challenge_scalar(b"xi");
+    let ch_bar = &(ch * x.h.w(1));
+    let z_bar_ev = z_bar.evaluate(&ch);
 
     let ws_ev = poly::batch_evaluate(&w.ws, ch);
     let qs_ev = poly::batch_evaluate(&x.qs, ch);
-    let pip_ev = x.pip.evaluate(ch);
+    let pip_ev = x.pip.evaluate(&ch);
     let ps_ev = poly::batch_evaluate(&x.ps, ch);
     let ts_ev = poly::batch_evaluate(ts, ch);
-    let z_ev = z.evaluate(ch);
+    let z_ev = z.evaluate(&ch);
     let pl_evs = poly::batch_evaluate(p.base_polys(), ch);
-    let pl_h1_bar_ev = p.h1_bar.evaluate(ch);
-    let pl_t_bar_ev = p.t_bar.evaluate(ch);
+    let pl_h1_bar_ev = p.h1_bar.evaluate(&ch);
+    let pl_t_bar_ev = p.t_bar.evaluate(&ch);
 
     transcript.append_scalars(b"ws_ev", &ws_ev);
     transcript.append_scalars(b"qs_ev", &qs_ev);
@@ -165,15 +161,15 @@ pub fn prove<R: rand::Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -
     transcript.append_scalar(b"z_ev", &z_ev);
     // WARNING: soundness t1_bar_ev and h1_bar_ev? pip?
 
-    let v = &transcript.challenge_scalar(b"v");
+    let v = transcript.challenge_scalar(b"v");
 
     // W(X) = Qₗ(X) + vQᵣ(X) + v²Qₒ(X) + v³Qₘ(X) + v⁴Q꜀(X) + v⁵Qₖ(X) + v⁶J(X)
     //      + v⁷A(X) + v⁸B(X) + v⁹C(X) + v¹⁰Z(X)
     let W_polys = x.qs.iter().chain(w.ws.iter()).chain(std::iter::once(z));
-    let W = poly::linear_comb(v, W_polys);
+    let W = utils::geometric(v, W_polys);
     // WARNING: Possible soundness issue; include plookup polynomials
 
-    let (_, _, _, _, W_pi) = Instance::open(rng, W, x.d, ch, None).into_tuple();
+    let (_, _, _, _, W_pi) = Instance::open(rng, W, x.d, &ch, None).into_tuple();
 
     // W'(X) = Z(ωX)
     let W_bar = z.clone();
@@ -224,5 +220,8 @@ pub fn prove<R: rand::Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -
     pi
 }
 
-// TODO consider extracting equations (and Z lambdas) into its own function; in scheme, like linear_comb, thus single point of truth, no room for deviation for multiple calls in arithmetizer, proof and verify; if its generic, you can even use it for circuit building
+// TODO extract Z lambdas into its own function
+// TODO generalize Coset for any field
+// TODO generalize Arithmetizer for any field
+// TODO generalize Circuit for any field; prover, verifier
 // TODO optimization by parallel evaluate at ch?

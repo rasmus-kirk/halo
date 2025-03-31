@@ -3,8 +3,12 @@
 use super::{transcript::TranscriptProtocol, Proof};
 use crate::{
     circuit::CircuitPublic,
-    scheme::Slots,
-    utils::{poly, scalar},
+    scheme::{eqns::plonkup_eqn, Slots},
+    utils::{
+        general::geometric,
+        poly::{self},
+        scalar,
+    },
 };
 
 use halo_accumulation::{group::PallasScalar, pcdl};
@@ -27,7 +31,7 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
 
     // -------------------- Round 2 --------------------
 
-    let zeta = &transcript.challenge_scalar(b"zeta");
+    let zeta = transcript.challenge_scalar(b"zeta");
 
     // -------------------- Round 3 --------------------
 
@@ -43,13 +47,13 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
 
     // -------------------- Round 4 --------------------
 
-    let alpha = &transcript.challenge_scalar(b"alpha");
+    let alpha = transcript.challenge_scalar(b"alpha");
     transcript.append_points(b"t", &com.ts);
 
     // -------------------- Round 5 --------------------
 
-    let ch = &transcript.challenge_scalar(b"xi");
-    let ch_w = ch * &x.h.w(1);
+    let ch = transcript.challenge_scalar(b"xi");
+    let ch_w = ch * x.h.w(1);
     let zh_ev = scalar::zh_ev(&x.h, ch);
     let l1_ev_ch = scalar::lagrange_basis1(&x.h, ch);
     let is_ev = poly::batch_evaluate(&x.is, ch);
@@ -65,12 +69,7 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     transcript.append_scalars(b"t_ev", &ev.ts);
     transcript.append_scalar(b"z_ev", &ev.z);
 
-    // F_GC(𝔷) = A(𝔷)Qₗ(𝔷) + B(𝔷)Qᵣ(𝔷) + C(𝔷)Qₒ(𝔷) + A(𝔷)B(𝔷)Qₘ(𝔷) + Q꜀(𝔷)
-    //         + Qₖ(𝔷)(A(𝔷) + ζB(𝔷) + ζ²C(𝔷) + ζ³J(𝔷) - f(𝔷))
-    let f_pl_query = scalar::plookup_compress(zeta, ev.a(), ev.b(), ev.c(), ev.j());
-    let f_gcpl_ev = *ev.qk() * (f_pl_query - ev.f());
-    let f_gc_abc = scalar::hadamard(&ev.ws, &ev.qs[..3]);
-    let f_gc_ev = f_gc_abc + (ev.a() * ev.b() * ev.qm()) + ev.qc() + ev.pip + f_gcpl_ev;
+    let f_gc_ev = plonkup_eqn(zeta, ev.ws.clone(), ev.qs.clone(), ev.pip, *ev.f());
 
     // plookup constraint term: ε(1 + δ) + a(X) + δb(X)
     let zpl_sc = &((Scalar::ONE + delta) * epsilon);
@@ -92,17 +91,17 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     let f_z2_ev = (ev.z * zfcc_ev * zfpl_ev) - (zgcc_ev * zgpl_ev * ev.z_bar);
 
     // T(𝔷) = (F_GC(𝔷) + α F_CC1(𝔷) + α² F_CC2(𝔷)) / Zₕ(𝔷)
-    let t_ev = scalar::linear_comb(&ch.pow([x.h.n()]), ev.ts.clone());
+    let t_ev = geometric(ch.pow([x.h.n()]), ev.ts.clone());
     ensure!(
-        scalar::linear_comb(alpha, [f_gc_ev, f_z1_ev, f_z2_ev]) == t_ev * zh_ev,
+        geometric(alpha, [f_gc_ev, f_z1_ev, f_z2_ev]) == t_ev * zh_ev,
         "T(𝔷) ≠ (F_GC(𝔷) + α F_CC1(𝔷) + α² F_CC2(𝔷)) / Zₕ(𝔷)"
     );
 
-    let v = &transcript.challenge_scalar(b"v");
+    let v = transcript.challenge_scalar(b"v");
 
     // W(𝔷) = Qₗ(𝔷) + vQᵣ(𝔷) + v²Qₒ(𝔷) + v³Qₘ(𝔷) + v⁴Q꜀(𝔷) + v⁵Qₖ(𝔷) + v⁶J(𝔷)
     //      + v⁷A(𝔷) + v⁸B(𝔷) + v⁹C(𝔷) + v¹⁰Z(𝔷)
-    let W_com = scalar::linear_comb(
+    let W_com = geometric(
         v,
         x.qs_coms
             .iter()
@@ -110,7 +109,7 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
             .chain(std::iter::once(&com.z))
             .cloned(),
     );
-    let W_ev = scalar::linear_comb(
+    let W_ev = geometric(
         v,
         ev.qs
             .iter()
@@ -118,7 +117,7 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
             .chain(std::iter::once(&ev.z))
             .cloned(),
     );
-    pcdl::check(&W_com, x.d, ch, &W_ev, pi.pis.W)?;
+    pcdl::check(&W_com, x.d, &ch, &W_ev, pi.pis.W)?;
     // W'(𝔷) = Z(ω𝔷)
     pcdl::check(&com.z, x.d, &ch_w, &ev.z_bar, pi.pis.W_bar)?;
 

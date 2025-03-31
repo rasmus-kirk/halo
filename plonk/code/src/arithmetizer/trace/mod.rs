@@ -243,7 +243,7 @@ impl Trace {
     pub fn lookup_value(&self, op: PlookupOps, a: &Value, b: &Value) -> Result<Value, TraceError> {
         let a = a.into();
         let b = b.into();
-        if let Some(c) = self.table.lookup(op, &a, &b) {
+        if let Some(c) = self.table.lookup(op, a, b) {
             Ok(Value::AnonWire(c))
         } else {
             Err(TraceError::LookupFailed(op, a, b))
