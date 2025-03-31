@@ -10,6 +10,16 @@ use ascii_table::{Align, AsciiTable};
 type Scalar = PallasScalar;
 type Poly = PallasPoly;
 
+pub fn print_scalar(x: &Scalar) -> String {
+    let s1 = format!("{}", x);
+    let s2 = format!("{}", -*x);
+    if s2.len() < s1.len() {
+        format!("-{}", s2)
+    } else {
+        s1
+    }
+}
+
 fn w_str(i: u64) -> String {
     format!("ω{}", to_superscript(i))
 }
@@ -34,7 +44,7 @@ fn v_str(h: &Coset, x: &Scalar) -> String {
             }
         }
     }
-    x.to_string()
+    print_scalar(x)
 }
 
 /// Print the evaluations of a vector of polynomials for all elements in the coset.
@@ -47,7 +57,7 @@ pub fn evals_str(h: &Coset, fs: Vec<&Poly>, hs: Vec<String>, is_pos: Vec<bool>) 
                 if is_pos[j] {
                     v_str(h, &y)
                 } else {
-                    y.to_string()
+                    print_scalar(&y)
                 }
             }));
             row
@@ -65,7 +75,7 @@ pub fn evals_str(h: &Coset, fs: Vec<&Poly>, hs: Vec<String>, is_pos: Vec<bool>) 
     ascii_table.format(data)
 }
 
-/// Print the evaluation of a polynomial for all elements in the coset.
-pub fn poly_str(h: &Coset, p: &Poly, pos: bool, header: String) -> String {
-    evals_str(h, vec![p], vec![header], vec![pos])
-}
+// /// Print the evaluation of a polynomial for all elements in the coset.
+// pub fn poly_str(h: &Coset, p: &Poly, pos: bool, header: String) -> String {
+//     evals_str(h, vec![p], vec![header], vec![pos])
+// }

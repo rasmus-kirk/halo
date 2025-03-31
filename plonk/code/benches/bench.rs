@@ -10,7 +10,7 @@ use log::info;
 use plonk::{arithmetizer::Arithmetizer, protocol};
 
 // const WARMUP: Duration = Duration::from_millis(100);
-const MIN: usize = 5;
+const MIN: usize = 4;
 const MAX: usize = 20;
 
 pub fn plonk_proof_verify(c: &mut Criterion) {

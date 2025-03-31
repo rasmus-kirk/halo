@@ -137,11 +137,11 @@ pub fn lagrange_basis1_ev(h: &Coset, x: &Scalar) -> Scalar {
     w * (x.pow([n]) - Scalar::ONE) / (Scalar::from(n) * (*x - w))
 }
 
-/// Zₕ(X) = Xⁿ - 1
-/// such that ∀X ∈ H₀: Zₕ(X) = 0
-pub fn zh_poly(h: &Coset) -> Poly {
-    xn_poly(h.n()) - deg0(&Scalar::ONE)
-}
+// /// Zₕ(X) = Xⁿ - 1
+// /// such that ∀X ∈ H₀: Zₕ(X) = 0
+// pub fn zh_poly(h: &Coset) -> Poly {
+//     xn_poly(h.n()) - deg0(&Scalar::ONE)
+// }
 
 /// Y = Zₕ(X) = Xⁿ - 1
 pub fn zh_ev(h: &Coset, x: &Scalar) -> Scalar {
@@ -170,17 +170,17 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn zh() {
-        let rng = &mut rand::thread_rng();
-        let h_opt = Coset::new(rng, 5, Slots::COUNT);
-        assert!(h_opt.is_some());
-        let h = h_opt.unwrap();
-        let zh = zh_poly(&h);
-        for i in h.iter() {
-            assert_eq!(zh.evaluate(&h.w(i)), Scalar::ZERO);
-        }
-    }
+    // #[test]
+    // fn zh() {
+    //     let rng = &mut rand::thread_rng();
+    //     let h_opt = Coset::new(rng, 5, Slots::COUNT);
+    //     assert!(h_opt.is_some());
+    //     let h = h_opt.unwrap();
+    //     let zh = zh_poly(&h);
+    //     for i in h.iter() {
+    //         assert_eq!(zh.evaluate(&h.w(i)), Scalar::ZERO);
+    //     }
+    // }
 
     #[test]
     fn lagrange() {

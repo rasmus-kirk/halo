@@ -1,5 +1,8 @@
 use super::WireID;
-use crate::{arithmetizer::cache::ArithWireCache, utils::misc::map_to_alphabet};
+use crate::{
+    arithmetizer::cache::ArithWireCache,
+    utils::{misc::map_to_alphabet, print_table::print_scalar},
+};
 
 use halo_accumulation::group::PallasScalar;
 
@@ -173,9 +176,15 @@ impl Mul<Value> for &Value {
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Value::AnonWire(scalar) => write!(f, "{}", scalar),
+            Value::AnonWire(scalar) => write!(f, "{}", print_scalar(scalar)),
             Value::Wire(wire_id, val_type, scalar) => {
-                write!(f, "{} {}:{}", map_to_alphabet(*wire_id), scalar, val_type)
+                write!(
+                    f,
+                    "{} {}:{}",
+                    map_to_alphabet(*wire_id),
+                    print_scalar(scalar),
+                    val_type
+                )
             }
         }
     }

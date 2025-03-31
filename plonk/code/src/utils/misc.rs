@@ -1,17 +1,20 @@
 use std::env;
-use std::sync::Once;
 
-static INIT: Once = Once::new();
+#[cfg(test)]
+pub mod tests {
+    use std::sync::Once;
+    static INIT: Once = Once::new();
 
-fn init_logger() {
-    INIT.call_once(|| {
-        env_logger::Builder::from_default_env().init();
-    });
-}
+    fn init_logger() {
+        INIT.call_once(|| {
+            env_logger::Builder::from_default_env().init();
+        });
+    }
 
-pub fn on_debug() {
-    init_logger();
-    std::env::set_var("RUST_LOG", "debug");
+    pub fn on_debug() {
+        init_logger();
+        std::env::set_var("RUST_LOG", "debug");
+    }
 }
 
 pub fn is_debug() -> bool {

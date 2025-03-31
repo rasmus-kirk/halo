@@ -122,8 +122,9 @@ impl Arithmetizer {
         self.wires.get_id(gate)
     }
 
-    pub fn neg(&mut self, x: WireID) -> WireID {
-        self.mul_const(x, -Scalar::ONE)
+    /// -a : 𝔽
+    pub fn neg(&mut self, a: WireID) -> WireID {
+        self.mul_const(a, -Scalar::ONE)
     }
 
     /// a / b : 𝔽
@@ -133,7 +134,7 @@ impl Arithmetizer {
         self.wires.get_id(gate)
     }
 
-    /// Plonkup operations
+    /// Plookup operations
     pub fn lookup(&mut self, op: PlookupOps, a: WireID, b: WireID) -> WireID {
         self.wires.get_id(ArithWire::Lookup(op, a, b))
     }

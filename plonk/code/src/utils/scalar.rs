@@ -1,6 +1,7 @@
 use ark_poly::Evaluations;
 use halo_accumulation::group::PallasScalar;
 
+#[cfg(test)]
 use ark_ff::{BigInteger, PrimeField};
 
 use crate::Coset;
@@ -10,6 +11,7 @@ use super::misc::batch_op;
 type Scalar = PallasScalar;
 type Evals = Evaluations<Scalar>;
 
+#[cfg(test)]
 /// Compute the bitwise XOR of two scalars
 pub fn bitxor(lhs: Scalar, rhs: Scalar) -> Scalar {
     let xs = lhs.into_bigint().to_bits_be();
