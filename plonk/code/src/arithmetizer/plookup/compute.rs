@@ -1,8 +1,8 @@
 use super::{PlookupOps, TableRegistry};
 use crate::{
     arithmetizer::trace::Constraints,
-    scheme::{Selectors, Slots, Terms},
-    utils::{misc::batch_op, poly::shift_wrap_eval, scalar::plookup_compress},
+    scheme::{eqns::plookup_compress, Selectors, Slots, Terms},
+    utils::{misc::batch_op, poly::shift_wrap_eval},
     Coset,
 };
 
@@ -28,10 +28,10 @@ impl PlookupEvsThunk {
         Self { constraints, table }
     }
 
-    fn compute_t_evs(&self, zeta: &Scalar, h: &Coset) -> Evals {
+    fn compute_t_evs(&self, zeta: Scalar, h: &Coset) -> Evals {
         let mut t = vec![Scalar::ZERO];
         for op in PlookupOps::iter() {
-            let j = &op.into();
+            let j = op.into();
             t.extend(self.table.tables[op as usize].compress(zeta, j));
         }
         t.sort();
@@ -43,7 +43,7 @@ impl PlookupEvsThunk {
 
     fn compute_f_evs(
         &self,
-        zeta: &Scalar,
+        zeta: Scalar,
         h: &Coset,
         constraints: &[Constraints],
         default: &Scalar,
@@ -55,7 +55,7 @@ impl PlookupEvsThunk {
                 let b: Scalar = constraint[Terms::F(Slots::B)].into();
                 let c: Scalar = constraint[Terms::F(Slots::C)].into();
                 let j: Scalar = constraint[Terms::Q(Selectors::J)].into();
-                f.push(plookup_compress(zeta, &a, &b, &c, &j));
+                f.push(plookup_compress(zeta, a, b, c, j));
             } else {
                 f.push(*default);
             }
@@ -81,7 +81,7 @@ impl PlookupEvsThunk {
             .collect()
     }
 
-    pub fn compute(&self, h: &Coset, zeta: &Scalar) -> PlookupPolys {
+    pub fn compute(&self, h: &Coset, zeta: Scalar) -> PlookupPolys {
         let mut evals = vec![];
         evals.push(self.compute_t_evs(zeta, h));
         evals.push(self.compute_f_evs(zeta, h, &self.constraints, evals[0].evals.last().unwrap()));

@@ -5,8 +5,8 @@ use halo_accumulation::{
     pcdl,
 };
 
-use ark_ff::{AdditiveGroup, Field, Zero};
-use ark_poly::{DenseUVPolynomial, Evaluations, Polynomial};
+use ark_ff::{AdditiveGroup, Field, Fp, FpConfig};
+use ark_poly::{univariate::DensePolynomial, DenseUVPolynomial, Evaluations, Polynomial};
 
 use super::misc::batch_op;
 
@@ -15,30 +15,32 @@ type Scalar = PallasScalar;
 type Point = PallasPoint;
 type Evals = Evaluations<Scalar>;
 
-pub fn batch_interpolate(es: Vec<Evals>) -> Vec<Poly> {
+pub fn batch_interpolate<const N: usize, C: FpConfig<N>>(
+    es: Vec<Evaluations<Fp<C, N>>>,
+) -> Vec<DensePolynomial<Fp<C, N>>> {
     batch_op(es, |e| e.interpolate())
 }
 
 /// f(X) = v
-pub fn deg0(v: &Scalar) -> Poly {
-    Poly::from_coefficients_slice(&[*v])
+pub fn deg0<const N: usize, C: FpConfig<N>>(v: &Fp<C, N>) -> DensePolynomial<Fp<C, N>> {
+    DensePolynomial::from_coefficients_slice(&[*v])
 }
 
 /// f(X) = vXⁿ
-pub fn vxn(v: &Scalar, n: u64) -> Poly {
-    let mut coeffs = vec![Scalar::ZERO; n as usize];
+pub fn vxn<const N: usize, C: FpConfig<N>>(v: &Fp<C, N>, n: u64) -> DensePolynomial<Fp<C, N>> {
+    let mut coeffs = vec![Fp::ZERO; n as usize];
     coeffs.push(*v);
-    Poly::from_coefficients_slice(&coeffs)
+    DensePolynomial::from_coefficients_slice(&coeffs)
 }
 
 /// f(X) = Xⁿ
-pub fn xn(n: u64) -> Poly {
-    vxn(&Scalar::ONE, n)
+pub fn xn<const N: usize, C: FpConfig<N>>(n: u64) -> DensePolynomial<Fp<C, N>> {
+    vxn(&Fp::ONE, n)
 }
 
 /// f(X) = X
-pub fn x() -> Poly {
-    vxn(&Scalar::ONE, 1)
+pub fn x<const N: usize, C: FpConfig<N>>() -> DensePolynomial<Fp<C, N>> {
+    vxn(&Fp::ONE, 1)
 }
 
 // /// ∀X ∈ H₀: g(X) = f(aX)
@@ -63,6 +65,7 @@ pub fn x() -> Poly {
 //     coset_scale(h, f, h.w(1))
 // }
 
+// TODO coset needs to generalize
 /// ∀X ∈ H₀: g(X) = f(ωX)
 pub fn shift_wrap_eval(h: &Coset, evals: Evals) -> Evals {
     let mut evals_new = evals.evals;
@@ -72,25 +75,17 @@ pub fn shift_wrap_eval(h: &Coset, evals: Evals) -> Evals {
 }
 
 /// f(X) = p₀(X) + Xⁿp₁(X) + X²ⁿp₂(X) + ...
-pub fn split(n: usize, f: &Poly) -> Vec<Poly> {
+pub fn split<const N: usize, C: FpConfig<N>>(
+    n: usize,
+    f: &DensePolynomial<Fp<C, N>>,
+) -> Vec<DensePolynomial<Fp<C, N>>> {
     f.coeffs
         .chunks(n)
-        .map(Poly::from_coefficients_slice)
+        .map(DensePolynomial::from_coefficients_slice)
         .collect()
 }
 
-/// f(X) = p₀(X) + ap₁(X) + a²p₂(X) + ...
-pub fn linear_comb<'a, I>(a: &Scalar, ps: I) -> Poly
-where
-    I: IntoIterator<Item = &'a Poly>,
-{
-    ps.into_iter()
-        .enumerate()
-        .fold(Poly::zero(), |acc, (i, p_i)| {
-            acc + deg0(&a.pow([i as u64])) * p_i
-        })
-}
-
+// TODO Coset needs to generalize
 /// Lᵢ(X) = (ωⁱ (Xⁿ - 1)) / (n (X - ωⁱ))
 pub fn lagrange_basis(h: &Coset, i: u64) -> Poly {
     let wi = &h.w(i);
@@ -105,22 +100,15 @@ pub fn lagrange_basis(h: &Coset, i: u64) -> Poly {
 //     xn_poly(h.n()) - deg0(&Scalar::ONE)
 // }
 
-/// Y = x₀y₀ + x₁y₁ + x₂y₂ + ...
-pub fn hadamard(xs: &[Poly], ys: &[Poly]) -> Poly {
-    xs.iter()
-        .zip(ys.iter())
-        .map(|(x, y)| x * y)
-        .reduce(|acc, x| acc + x)
-        .unwrap()
-}
-
-pub fn batch_evaluate<'a, I>(ps: I, x: &Scalar) -> Vec<Scalar>
+pub fn batch_evaluate<'a, const N: usize, C, I>(ps: I, x: Fp<C, N>) -> Vec<Fp<C, N>>
 where
-    I: IntoIterator<Item = &'a Poly>,
+    C: FpConfig<N>,
+    I: IntoIterator<Item = &'a DensePolynomial<Fp<C, N>>>,
 {
-    batch_op(ps, |f| f.evaluate(x))
+    batch_op(ps, |f| f.evaluate(&x))
 }
 
+// TODO pcdl needs to generalize
 pub fn batch_commit<'a, I>(ps: I, d: usize, w: Option<&Scalar>) -> Vec<Point>
 where
     I: IntoIterator<Item = &'a Poly>,

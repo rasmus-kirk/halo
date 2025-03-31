@@ -884,6 +884,7 @@ dependencies = [
  "anyhow",
  "ark-bls12-381",
  "ark-bw6-761",
+ "ark-ec",
  "ark-ed25519",
  "ark-ff 0.5.0",
  "ark-pallas",

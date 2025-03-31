@@ -2,7 +2,7 @@ mod compute;
 
 pub use compute::PlookupEvsThunk;
 
-use crate::utils::scalar::plookup_compress;
+use crate::scheme::eqns::plookup_compress;
 
 use halo_accumulation::group::PallasScalar;
 
@@ -54,9 +54,9 @@ impl Table {
     }
 
     /// Compress table to the table vector
-    pub fn compress(&self, zeta: &Scalar, j: &Scalar) -> Vec<Scalar> {
+    pub fn compress(&self, zeta: Scalar, j: Scalar) -> Vec<Scalar> {
         let mut res = Vec::new();
-        for row in self.0.iter() {
+        for row in self.0.iter().copied() {
             let [a, b, c] = row;
             let t = plookup_compress(zeta, a, b, c, j);
             res.push(t);
@@ -129,10 +129,10 @@ impl TableRegistry {
     }
 
     /// Lookup the result of an operation
-    pub fn lookup(&self, op: PlookupOps, a: &Scalar, b: &Scalar) -> Option<Scalar> {
+    pub fn lookup(&self, op: PlookupOps, a: Scalar, b: Scalar) -> Option<Scalar> {
         let table = &self.tables[op as usize];
         for &row in table.0.iter() {
-            if row[0] == *a && row[1] == *b {
+            if row[0] == a && row[1] == b {
                 return Some(row[2]);
             }
         }
@@ -140,9 +140,9 @@ impl TableRegistry {
     }
 
     /// Lookup the result of an operation and use it to compute the compressed vector value
-    pub fn query(&self, op: PlookupOps, zeta: &Scalar, a: &Scalar, b: &Scalar) -> Option<Scalar> {
-        let c = &self.lookup(op, a, b)?;
-        let j = &op.into();
+    pub fn query(&self, op: PlookupOps, zeta: Scalar, a: Scalar, b: Scalar) -> Option<Scalar> {
+        let c = self.lookup(op, a, b)?;
+        let j = op.into();
         Some(plookup_compress(zeta, a, b, c, j))
     }
 
