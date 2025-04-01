@@ -2,7 +2,7 @@ use super::{value::Value, ConstraintID, Constraints, Pos, Trace};
 use crate::{
     arithmetizer::{plookup::TableRegistry, PlookupEvsThunk},
     circuit::{Circuit, CircuitPrivate, CircuitPublic},
-    scheme::Slots,
+    scheme::{Selectors, Slots, Terms},
     utils::poly::batch_interpolate,
 };
 
@@ -54,37 +54,42 @@ impl
 impl From<Trace> for Circuit {
     fn from(eval: Trace) -> Self {
         let d = eval.d;
-        let (_ws, _qs, _pip) = eval.gate_polys();
+        let _ts = eval.gate_polys();
         let (_is, _ps) = eval.copy_constraints();
-        let ws = batch_interpolate(_ws.clone());
-        let qs = batch_interpolate(_qs);
-        let pip = _pip.interpolate();
+        let ts = batch_interpolate(_ts.clone());
         let is = batch_interpolate(_is.clone());
         let ps = batch_interpolate(_ps.clone());
 
-        let pip_com = pcdl::commit(&pip, d, None);
-        let qs_coms: Vec<PallasPoint> = qs.iter().map(|q| pcdl::commit(q, eval.d, None)).collect();
+        let pip_com = pcdl::commit(&ts[Terms::PublicInputs.index()], d, None);
+        let qs_coms: Vec<PallasPoint> = ts[Slots::COUNT..Slots::COUNT + Selectors::COUNT]
+            .iter()
+            .map(|q| pcdl::commit(q, eval.d, None))
+            .collect();
         let ps_coms: Vec<PallasPoint> = (0..Slots::COUNT)
             .map(|i| pcdl::commit(&ps[i], eval.d, None))
             .collect();
 
-        ws.iter()
-            .chain(qs.iter())
+        ts.iter()
             .chain(ps.iter())
+            .chain(is.iter())
             .for_each(|p: &Poly| assert!(p.degree() <= d));
 
+        let pip = ts[Terms::PublicInputs.index()].clone();
+        let ws = ts[..Slots::COUNT].to_vec();
+        let _ws = _ts[..Slots::COUNT].to_vec();
+        let qs = ts[Slots::COUNT..Slots::COUNT + Selectors::COUNT].to_vec();
         let x = CircuitPublic {
             d: eval.d,
             h: eval.h,
-            pip_com,
-            qs_coms,
-            ps_coms,
-            pip,
             qs,
+            pip,
             is,
             _is,
             ps,
             _ps,
+            pip_com,
+            qs_coms,
+            ps_coms,
         };
         let w = CircuitPrivate {
             ws,

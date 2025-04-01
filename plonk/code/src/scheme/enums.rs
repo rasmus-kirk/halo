@@ -28,7 +28,7 @@ impl Slots {
     pub const COUNT: usize = 3;
 
     pub fn iter() -> impl Iterator<Item = Self> {
-        [Slots::A, Slots::B, Slots::C].iter().copied()
+        [Slots::A, Slots::B, Slots::C].into_iter()
     }
 
     pub fn perm_string(&self) -> String {
@@ -99,8 +99,7 @@ impl Selectors {
             Selectors::Qk,
             Selectors::J,
         ]
-        .iter()
-        .copied()
+        .into_iter()
     }
 }
 
@@ -155,6 +154,10 @@ impl Terms {
 
     pub fn is_selector(&self) -> bool {
         matches!(self, Terms::Q(_))
+    }
+
+    pub fn index(self) -> usize {
+        Into::<usize>::into(self)
     }
 }
 

@@ -1,4 +1,3 @@
-use ark_poly::Evaluations;
 use halo_accumulation::group::PallasScalar;
 
 use ark_ff::Field;
@@ -7,10 +6,7 @@ use ark_ff::{BigInteger, Fp, FpConfig, PrimeField};
 
 use crate::Coset;
 
-use super::misc::batch_op;
-
 type Scalar = PallasScalar;
-type Evals = Evaluations<Scalar>;
 
 #[cfg(test)]
 /// Compute the bitwise XOR of two scalars
@@ -25,12 +21,12 @@ pub fn bitxor<const N: usize, C: FpConfig<N>>(lhs: Fp<C, N>, rhs: Fp<C, N>) -> F
 }
 
 // TODO coset needs to be generalized
-/// Compute the Evaluation struct for a Vec of Vec of Scalars
-pub fn batch_compute_evals(h: &Coset, ys: Vec<Vec<Scalar>>) -> Vec<Evals> {
-    batch_op(ys, |evals| {
-        Evaluations::from_vec_and_domain(evals, h.domain)
-    })
-}
+// /// Compute the Evaluation struct for a Vec of Vec of Scalars
+// pub fn batch_compute_evals(h: &Coset, ys: Vec<Vec<Scalar>>) -> Vec<Evals> {
+//     batch_op(ys, |evals| {
+//         Evaluations::from_vec_and_domain(evals, h.domain)
+//     })
+// }
 
 // /// Y = p₀ + a₁p₁ + a₂p₂ + ...
 // pub fn linear_comb_right<I, T: AdditiveGroup + AddAssign>(a: &Scalar, ps: I) -> T
