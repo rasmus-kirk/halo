@@ -96,7 +96,8 @@ pub fn prove<R: rand::Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -
     // Z(ω) = 1
     // Z(ωⁱ) = Z(ωᶦ⁻¹) f'(ωᶦ⁻¹) / g'(ωᶦ⁻¹)
     info!("Round 3 - A - {} s", now.elapsed().as_secs_f64());
-    let z_points = (1..x.h.n() as usize - 1).fold(vec![Scalar::ONE; 2], |mut acc, i| {
+    let z_points = x.h.iter().fold(vec![Scalar::ONE; 2], |mut acc, _i| {
+        let i = _i as usize;
         acc.push(acc[i] * _zf(i) / _zg(i));
         acc
     });

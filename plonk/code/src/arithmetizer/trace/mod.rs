@@ -316,7 +316,8 @@ impl Trace {
     fn copy_constraints(&self) -> (Vec<Evals>, Vec<Evals>) {
         Slots::iter()
             .map(|slot| {
-                (1..self.h.n())
+                self.h
+                    .iter()
                     .map(|id| {
                         let pos = Pos::new(slot, id);
                         let perm = self
