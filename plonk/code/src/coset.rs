@@ -52,14 +52,13 @@ impl Coset {
             n,
             w,
             ks: Vec::new(),
-            coset_domain,
             domain,
+            coset_domain,
         };
-        let ks = (1..l).fold(vec![Scalar::ONE], |mut acc, _| {
+        nw.ks = (1..l).fold(vec![Scalar::ONE], |mut acc, _| {
             acc.push(nw.gen_k(rng, acc.as_slice()));
             acc
         });
-        nw.ks = ks;
         Some(nw)
     }
 

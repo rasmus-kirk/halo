@@ -105,7 +105,7 @@ impl From<Circuit> for Trace {
         let h = &x.h;
         let mut m = h.n();
         let mut expected_constraints: Vec<Constraints> = vec![];
-        for i in 1..m {
+        for i in h.iter() {
             let wi = &h.w(i);
             let polys =
                 w.ws.iter()
