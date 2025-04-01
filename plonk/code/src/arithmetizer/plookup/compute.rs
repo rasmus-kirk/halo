@@ -17,7 +17,7 @@ type Evals = Evaluations<Scalar>;
 
 /// A struct that acts as a thunk where `compute` takes in zeta
 /// from transcript to compute the polynomials for plookup
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct PlookupEvsThunk {
     constraints: Vec<Constraints>,
     table: TableRegistry,
@@ -28,9 +28,9 @@ impl PlookupEvsThunk {
         Self { constraints, table }
     }
 
-    fn compute_t_evs(&self, zeta: Scalar, h: &Coset) -> Evals {
-        let mut t = PlookupOps::iter().fold(vec![Scalar::ZERO], |mut acc, op| {
-            acc.extend(self.table.tables[op as usize].compress(zeta, op.into()));
+    fn compute_t_evs<Op: PlookupOps>(&self, zeta: Scalar, h: &Coset) -> Evals {
+        let mut t = Op::iter().fold(vec![Scalar::ZERO], |mut acc, op| {
+            acc.extend(self.table.tables[op.id()].compress(zeta, op.to_fp()));
             acc
         });
         t.sort();
@@ -76,9 +76,9 @@ impl PlookupEvsThunk {
             .collect()
     }
 
-    pub fn compute(&self, h: &Coset, zeta: Scalar) -> PlookupPolys {
+    pub fn compute<Op: PlookupOps>(&self, h: &Coset, zeta: Scalar) -> PlookupPolys {
         let mut evals = vec![];
-        evals.push(self.compute_t_evs(zeta, h));
+        evals.push(self.compute_t_evs::<Op>(zeta, h));
         let default = *evals[0].evals.last().unwrap();
         evals.push(self.compute_f_evs(zeta, h, &self.constraints, default));
         let mut s: Vec<Scalar> = Vec::new();

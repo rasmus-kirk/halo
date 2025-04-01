@@ -1,4 +1,4 @@
-use crate::arithmetizer::plookup::PlookupOps;
+use crate::arithmetizer::plookup::{BinXorOr, PlookupOps};
 
 use super::{ast::WireAST, Wire};
 
@@ -6,10 +6,10 @@ use std::ops::{Add, BitAnd, BitOr, BitXor, Mul, Neg, Not, Sub};
 
 // Add ------------------------------------------------------------------------
 
-impl Add for Wire {
-    type Output = Wire;
+impl<Op: PlookupOps> Add for Wire<Op> {
+    type Output = Self;
 
-    fn add(self, other: Wire) -> Self::Output {
+    fn add(self, other: Self) -> Self::Output {
         Wire {
             id: self.arith.clone().borrow_mut().add(self.id, other.id),
             arith: self.arith,
@@ -20,10 +20,10 @@ impl Add for Wire {
 
 // Sub ------------------------------------------------------------------------
 
-impl Sub for Wire {
-    type Output = Wire;
+impl<Op: PlookupOps> Sub for Wire<Op> {
+    type Output = Self;
 
-    fn sub(self, other: Wire) -> Self::Output {
+    fn sub(self, other: Self) -> Self::Output {
         Wire {
             id: self.arith.clone().borrow_mut().sub(self.id, other.id),
             arith: self.arith,
@@ -34,10 +34,10 @@ impl Sub for Wire {
 
 // Mul ------------------------------------------------------------------------
 
-impl Mul for Wire {
-    type Output = Wire;
+impl<Op: PlookupOps> Mul for Wire<Op> {
+    type Output = Self;
 
-    fn mul(self, other: Wire) -> Self::Output {
+    fn mul(self, other: Self) -> Self::Output {
         Wire {
             id: self.arith.clone().borrow_mut().mul(self.id, other.id),
             arith: self.arith,
@@ -48,8 +48,8 @@ impl Mul for Wire {
 
 // Neg ---------------------------------------------------------
 
-impl Neg for Wire {
-    type Output = Wire;
+impl<Op: PlookupOps> Neg for Wire<Op> {
+    type Output = Self;
 
     fn neg(self) -> Self::Output {
         Wire {
@@ -62,8 +62,8 @@ impl Neg for Wire {
 
 // Not -----------------------------------------------------
 
-impl Not for Wire {
-    type Output = Wire;
+impl<Op: PlookupOps> Not for Wire<Op> {
+    type Output = Self;
 
     fn not(self) -> Self::Output {
         Wire {
@@ -76,10 +76,10 @@ impl Not for Wire {
 
 // BitAnd -----------------------------------------------------
 
-impl BitAnd for Wire {
-    type Output = Wire;
+impl<Op: PlookupOps> BitAnd for Wire<Op> {
+    type Output = Self;
 
-    fn bitand(self, other: Wire) -> Self::Output {
+    fn bitand(self, other: Self) -> Self::Output {
         Wire {
             id: self.arith.clone().borrow_mut().and(self.id, other.id),
             arith: self.arith,
@@ -88,42 +88,37 @@ impl BitAnd for Wire {
     }
 }
 
-// BitOr -----------------------------------------------------
+// Lookup -----------------------------------------------------
 
-impl BitOr for Wire {
-    type Output = Wire;
-
-    fn bitor(self, other: Wire) -> Self::Output {
+impl Wire<BinXorOr> {
+    /// Perform a lookup operation between itself and other
+    pub fn lookup(self, op: BinXorOr, other: Self) -> Self {
         Wire {
             id: self
                 .arith
                 .clone()
                 .borrow_mut()
-                .lookup(PlookupOps::Or, self.id, other.id),
+                .lookup(op, self.id, other.id),
             arith: self.arith,
             ast: self
                 .ast
-                .map(|ast| WireAST::lookup(PlookupOps::Or, ast, other.ast.unwrap())),
+                .map(|ast| WireAST::lookup(op, ast, other.ast.unwrap())),
         }
     }
 }
 
-// BitXor ----------------------------------------------------
+impl BitOr for Wire<BinXorOr> {
+    type Output = Self;
 
-impl BitXor for Wire {
-    type Output = Wire;
+    fn bitor(self, other: Self) -> Self::Output {
+        self.lookup(BinXorOr::Or, other)
+    }
+}
+
+impl BitXor for Wire<BinXorOr> {
+    type Output = Self;
 
     fn bitxor(self, other: Self) -> Self::Output {
-        Wire {
-            id: self
-                .arith
-                .clone()
-                .borrow_mut()
-                .lookup(PlookupOps::Xor, self.id, other.id),
-            arith: self.arith,
-            ast: self
-                .ast
-                .map(|ast| WireAST::lookup(PlookupOps::Xor, ast, other.ast.unwrap())),
-        }
+        self.lookup(BinXorOr::Xor, other)
     }
 }

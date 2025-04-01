@@ -1,5 +1,5 @@
-use super::misc::{to_subscript, to_superscript};
-use crate::Coset;
+use super::misc::{to_subscript, to_superscript, EnumIter};
+use crate::{scheme::Slots, Coset};
 
 use halo_accumulation::group::{PallasPoly, PallasScalar};
 
@@ -29,14 +29,14 @@ fn v_str(h: &Coset, x: Scalar) -> String {
     if x == Scalar::ONE {
         return Scalar::ONE.to_string();
     }
-    for slot in 0..h.l() {
+    for slot in Slots::iter() {
         if x == h.h(slot, 1) {
             return format!("k{}", to_subscript(slot as u64));
         }
         for (i_, w) in h.vec_k(slot).into_iter().enumerate() {
             let i = (i_ + 1) as u64;
             if x == w {
-                return if slot == 0 {
+                return if slot.id() == 0 {
                     w_str(i)
                 } else {
                     format!("k{} ω{}", to_subscript(slot as u64), to_superscript(i))

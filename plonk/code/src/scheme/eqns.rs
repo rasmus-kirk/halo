@@ -1,5 +1,5 @@
 use super::Terms;
-use crate::utils::geometric;
+use crate::utils::{geometric, misc::EnumIter};
 
 use ark_ff::{Field, Fp, FpConfig};
 use std::{
@@ -12,7 +12,7 @@ pub fn plonk_eqn<const N: usize, C: FpConfig<N>, P, T, I1, I2>(ws: I1, qs: I2, p
 where
     I1: IntoIterator<Item = T>,
     I2: IntoIterator<Item = T>,
-    P: Default + Add<P, Output = P> + Add<T, Output = P> + Mul<T, Output = P>,
+    P: Add<T, Output = P> + Add<P, Output = P> + Mul<T, Output = P> + Default,
     T: Mul<Fp<C, N>, Output = P> + Mul<T, Output = P> + Mul<P, Output = P> + Debug + Copy,
 {
     let [a, b, c] = ws.into_iter().collect::<Vec<T>>().try_into().unwrap();
@@ -33,10 +33,10 @@ pub fn plonk_eqn_str(terms: [String; Terms::COUNT]) -> String {
 pub fn plookup_compress<const N: usize, C, P, T>(zeta: Fp<C, N>, a: T, b: T, c: T, j: T) -> P
 where
     C: FpConfig<N>,
-    P: Default + Add<P, Output = P>,
+    P: Add<P, Output = P> + Default,
     T: Mul<Fp<C, N>, Output = P>,
 {
-    geometric(zeta, [a, b, c, j])
+    geometric(Fp::ONE, zeta, [a, b, c, j])
 }
 
 /// aQₗ + bQᵣ + cQₒ + abQₘ + Q꜀ + PI + Qₖ(a + ζb + ζ²c + ζ³j - f)
@@ -50,7 +50,7 @@ pub fn plonkup_eqn<const N: usize, C: FpConfig<N>, T, P, I1, I2>(
 where
     I1: IntoIterator<Item = T> + Clone,
     I2: IntoIterator<Item = T> + Clone,
-    P: Default + Add<P, Output = P> + Add<T, Output = P> + Mul<T, Output = P> + Sub<T, Output = P>,
+    P: Add<T, Output = P> + Add<P, Output = P> + Sub<T, Output = P> + Mul<T, Output = P> + Default,
     T: Mul<Fp<C, N>, Output = P>
         + Mul<Fp<C, N>, Output = P>
         + Mul<T, Output = P>

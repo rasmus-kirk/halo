@@ -5,6 +5,7 @@ use super::{
     transcript::TranscriptProtocol,
 };
 use crate::{
+    arithmetizer::PlookupOps,
     circuit::{CircuitPrivate, CircuitPublic},
     scheme::eqns::{self, plonkup_eqn},
     utils::{
@@ -26,7 +27,11 @@ use std::time::Instant;
 
 type Scalar = PallasScalar;
 
-pub fn prove<R: rand::Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -> Proof {
+pub fn prove<R: rand::Rng, Op: PlookupOps>(
+    rng: &mut R,
+    x: &CircuitPublic,
+    w: &CircuitPrivate,
+) -> Proof {
     let mut transcript = Transcript::new(b"protocol");
     transcript.domain_sep();
     // -------------------- Round 1 --------------------
@@ -41,7 +46,7 @@ pub fn prove<R: rand::Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -
     let now = Instant::now();
     // ζ = H(transcript)
     let zeta = transcript.challenge_scalar(b"zeta");
-    let p = &w.plookup.compute(&x.h, zeta);
+    let p = &w.plookup.compute::<Op>(&x.h, zeta);
     info!("Round 2 took {} s", now.elapsed().as_secs_f64());
 
     // -------------------- Round 3 --------------------
@@ -59,10 +64,10 @@ pub fn prove<R: rand::Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -
     // ----- Calculate z ----- //
 
     // a + βb + γ
-    let _cc = eqns::copy_constraint_term(|x| x, beta, gamma);
+    let _cc = eqns::copy_constraint_term(Into::into, beta, gamma);
     let cc = eqns::copy_constraint_term(deg0, beta, gamma);
     // ε(1 + δ) + a + δb
-    let _pl = eqns::plookup_term(|x| x, epsilon, delta);
+    let _pl = eqns::plookup_term(Into::into, epsilon, delta);
     let pl = eqns::plookup_term(deg0, epsilon, delta);
     // f'(X) = (A(X) + β Sᵢ₁(X) + γ) (B(X) + β Sᵢ₂(X) + γ) (C(X) + β Sᵢ₃(X) + γ)
     //         (ε(1 + δ) + f(X) + δf(X)) (ε(1 + δ) + t(X) + δt(Xω))
@@ -130,11 +135,11 @@ pub fn prove<R: rand::Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -
     let f_z2 = &((z * zf) - (zg * z_bar));
     // T(X) = (F_GC(X) + α F_C1(X) + α² F_C2(X)) / Zₕ(X)
     info!("Round 4E1 - {} s", now.elapsed().as_secs_f64());
-    let tzh = utils::geometric(alpha, [f_gc, f_z1, f_z2]);
+    let tzh = utils::geometric_fp(alpha, [f_gc, f_z1, f_z2]);
     info!("Round 4E2 - {} s", now.elapsed().as_secs_f64());
     let (t, _) = tzh.divide_by_vanishing_poly(x.h.coset_domain);
     info!("Round 4E3 - {} s", now.elapsed().as_secs_f64());
-    let ts = &poly::split(x.h.n() as usize, &t);
+    let ts = &poly::split(x.h.n(), &t);
     info!("Round 4F - {} s", now.elapsed().as_secs_f64());
     let ts_coms = poly::batch_commit(ts, x.d, None);
     info!("Round 4G - {} s", now.elapsed().as_secs_f64());
@@ -173,8 +178,7 @@ pub fn prove<R: rand::Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -
 
     // W(X) = Qₗ(X) + vQᵣ(X) + v²Qₒ(X) + v³Qₘ(X) + v⁴Q꜀(X) + v⁵Qₖ(X) + v⁶J(X)
     //      + v⁷A(X) + v⁸B(X) + v⁹C(X) + v¹⁰Z(X)
-    let W_polys = x.qs.iter().chain(w.ws.iter()).chain(std::iter::once(z));
-    let W = utils::geometric(v, W_polys);
+    let W = utils::flat_geometric_fp(v, [&x.qs, &w.ws, &vec![z.clone()]]);
     // WARNING: Possible soundness issue; include plookup polynomials
 
     let (_, _, _, _, W_pi) = Instance::open(rng, W, x.d, &ch, None).into_tuple();
@@ -228,6 +232,8 @@ pub fn prove<R: rand::Rng>(rng: &mut R, x: &CircuitPublic, w: &CircuitPrivate) -
     pi
 }
 
+// TODO make PlookupOps into a trait, but need to change Table to not used fixed size array but Vecs
+// TODO generalize eqns for circuit construction too; i.e. one: F arg
 // TODO generalize Coset for any field
 // TODO generalize Arithmetizer for any field
 // TODO generalize Circuit for any field; prover, verifier

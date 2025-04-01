@@ -56,7 +56,10 @@ pub fn zh_ev(h: &Coset, x: Scalar) -> Scalar {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{scheme::Slots, utils::poly::lagrange_basis};
+    use crate::{
+        scheme::Slots,
+        utils::{misc::EnumIter, poly::lagrange_basis},
+    };
 
     use ark_poly::Polynomial;
     use rand::Rng;

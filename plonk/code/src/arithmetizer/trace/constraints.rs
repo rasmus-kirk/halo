@@ -5,19 +5,22 @@ use crate::{
         eqns::{plonk_eqn, plonk_eqn_str, plonkup_eqn},
         Selectors, Slots, Terms,
     },
-    utils::misc::batch_op,
+    utils::misc::{batch_op, EnumIter},
 };
 
 use halo_accumulation::group::PallasScalar;
 
 use ark_ff::AdditiveGroup;
 use bimap::BiMap;
-use std::{fmt, ops::Index};
+use std::{
+    fmt::{self, Display},
+    ops::{Index, IndexMut},
+};
 
 type Scalar = PallasScalar;
 
 /// Values for a single equation / constraint.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Constraints {
     pub vs: [Value; Terms::COUNT],
 }
@@ -26,32 +29,30 @@ impl Index<Terms> for Constraints {
     type Output = Value;
 
     fn index(&self, index: Terms) -> &Self::Output {
-        let index_usize: usize = index.into();
-        &self.vs[index_usize]
+        &self.vs[index.id()]
     }
 }
 
-impl std::ops::IndexMut<Terms> for Constraints {
+impl IndexMut<Terms> for Constraints {
     fn index_mut(&mut self, index: Terms) -> &mut Self::Output {
-        let index_usize: usize = index.into();
-        &mut self.vs[index_usize]
+        &mut self.vs[index.id()]
     }
 }
 
-impl Default for Constraints {
-    fn default() -> Self {
-        Constraints::new([Value::ZERO; Terms::COUNT])
+impl Display for Constraints {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", plonk_eqn_str(self.vs.map(|v| v.to_string())))
     }
 }
 
 impl Constraints {
     pub fn new(vs: [Value; Terms::COUNT]) -> Self {
-        Constraints { vs }
+        Self { vs }
     }
 
     /// Create a constraint that enforces a constant value.
     pub fn constant(const_wire: &Value) -> Self {
-        let mut vs = Constraints::default();
+        let mut vs: Self = Default::default();
         vs[Terms::F(Slots::A)] = *const_wire;
         vs[Terms::Q(Selectors::Ql)] = Value::ONE;
         vs[Terms::Q(Selectors::Qc)] = Value::AnonWire(-Into::<Scalar>::into(*const_wire));
@@ -101,13 +102,13 @@ impl Constraints {
     }
 
     /// Create a plookup constraint.
-    pub fn lookup(op: PlookupOps, lhs: &Value, rhs: &Value, out: &Value) -> Self {
+    pub fn lookup<Op: PlookupOps>(op: Op, lhs: &Value, rhs: &Value, out: &Value) -> Self {
         let mut vs = Constraints::default();
         vs[Terms::F(Slots::A)] = *lhs;
         vs[Terms::F(Slots::B)] = *rhs;
         vs[Terms::F(Slots::C)] = *out;
         vs[Terms::Q(Selectors::Qk)] = Value::ONE;
-        vs[Terms::Q(Selectors::J)] = Value::AnonWire(Into::<Scalar>::into(op));
+        vs[Terms::Q(Selectors::J)] = Value::AnonWire(op.to_fp());
         vs
     }
 
@@ -135,7 +136,7 @@ impl Constraints {
 
     /// Get the public input scalar value of the constraint.
     pub fn pip(&self) -> Scalar {
-        self.vs[Terms::PublicInputs.index()].into()
+        self.vs[Terms::PublicInputs.id()].into()
     }
 
     /// Check if plonk constraints are satisfied.
@@ -179,16 +180,13 @@ impl Constraints {
     }
 }
 
-impl fmt::Display for Constraints {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", plonk_eqn_str(self.vs.map(|v| v.to_string())))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{arithmetizer::plookup::TableRegistry, utils::scalar::bitxor};
+    use crate::{
+        arithmetizer::plookup::{BinXorOr, TableRegistry},
+        utils::scalar::bitxor,
+    };
 
     use ark_ff::Field;
     use rand::Rng;
@@ -282,7 +280,7 @@ mod tests {
 
     #[test]
     fn lookup() {
-        let table = TableRegistry::new();
+        let table = TableRegistry::new::<BinXorOr>();
         let rng = &mut rand::thread_rng();
         for _ in 0..N {
             let a_ = Scalar::from(rng.gen_range(0..2));
@@ -291,7 +289,7 @@ mod tests {
             let a = &Value::new_wire(0, a_);
             let b = &Value::new_wire(1, b_);
             let c = &Value::new_wire(2, c_);
-            let op = PlookupOps::Xor;
+            let op = BinXorOr::Xor;
             let eqn_values = Constraints::lookup(op, a, b, c);
             assert_eq!(eqn_values[Terms::F(Slots::A)], *a);
             assert_eq!(eqn_values[Terms::F(Slots::B)], *b);
@@ -299,7 +297,7 @@ mod tests {
             assert_eq!(eqn_values[Terms::Q(Selectors::Qk)], Value::ONE);
             assert!(eqn_values.is_satisfied());
             let zeta: Scalar = rng.gen();
-            let f = table.query(PlookupOps::Xor, zeta, a_, b_);
+            let f = table.query(BinXorOr::Xor, zeta, a_, b_);
             assert!(f.is_some());
             assert!(eqn_values.is_plonkup_satisfied(zeta, f.unwrap()))
         }

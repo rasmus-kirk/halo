@@ -1,18 +1,20 @@
-use crate::arithmetizer::arith_wire::ArithWire;
+use std::fmt::Display;
+
+use crate::arithmetizer::{arith_wire::ArithWire, plookup::PlookupOps};
 
 use halo_accumulation::group::PallasScalar;
 
 type Scalar = PallasScalar;
 
 #[derive(Debug)]
-pub enum CacheError {
+pub enum CacheError<Op: PlookupOps> {
     WireIDNotInCache,
     OperandNotInCache,
-    InvalidCommutativeOperator(ArithWire),
+    InvalidCommutativeOperator(ArithWire<Op>),
     TypeError(TypeError),
 }
 
-impl std::fmt::Display for CacheError {
+impl<Op: PlookupOps> Display for CacheError<Op> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             CacheError::WireIDNotInCache => write!(f, "Cache: WireID not in cache"),
@@ -25,7 +27,7 @@ impl std::fmt::Display for CacheError {
     }
 }
 
-impl std::error::Error for CacheError {}
+impl<Op: PlookupOps> std::error::Error for CacheError<Op> {}
 
 #[derive(Debug)]
 pub enum TypeError {
@@ -57,9 +59,9 @@ impl std::fmt::Display for BitError {
     }
 }
 
-impl From<BitError> for CacheError {
+impl<Op: PlookupOps> From<BitError> for CacheError<Op> {
     fn from(e: BitError) -> Self {
-        CacheError::TypeError(TypeError::BitErrors(e))
+        Self::TypeError(TypeError::BitErrors(e))
     }
 }
 

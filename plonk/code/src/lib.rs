@@ -9,7 +9,10 @@ pub use coset::Coset;
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::misc::tests::on_debug;
+    use crate::{
+        arithmetizer::{BinXorOr, EmptyOpSet},
+        utils::misc::tests::on_debug,
+    };
 
     use super::*;
     use anyhow::Result;
@@ -22,14 +25,14 @@ mod tests {
     fn circuit_canonical() -> Result<()> {
         on_debug();
         let rng = &mut rand::thread_rng();
-        let [x, y] = Arithmetizer::build();
+        let [x, y] = Arithmetizer::<EmptyOpSet>::build();
         let input_values = vec![1, 2];
         let output_wires = &[(x.clone() * x) * 3 + (y * 5) - 47];
         debug!("{}", Arithmetizer::to_string(&input_values, output_wires));
         let (x, w) = &Arithmetizer::to_circuit(rng, input_values, output_wires, None)?;
         debug!("{}", poly_evaluations_to_string(x, w));
         // let _ = plonk::proof(rng, x, w);
-        let pi = protocol::prove(rng, x, w);
+        let pi = protocol::prove::<_, EmptyOpSet>(rng, x, w);
         protocol::verify(x, pi)?;
 
         Ok(())
@@ -45,7 +48,7 @@ mod tests {
         debug!("\n{}", Arithmetizer::to_string(&input_values, output_wires));
         let (x, w) = &Arithmetizer::to_circuit(rng, input_values, output_wires, None)?;
         debug!("\n{}", poly_evaluations_to_string(x, w));
-        let pi = protocol::prove(rng, x, w);
+        let pi = protocol::prove::<_, BinXorOr>(rng, x, w);
         protocol::verify(x, pi)?;
 
         Ok(())
@@ -55,12 +58,12 @@ mod tests {
     fn circuit_synthesize() -> Result<()> {
         on_debug();
         let rng = &mut rand::thread_rng();
-        let output_wires = &Arithmetizer::synthesize::<_, 2>(rng, 4);
+        let output_wires = &Arithmetizer::<EmptyOpSet>::synthesize::<_, 2>(rng, 4);
         let input_values = vec![3, 4];
         debug!("{}", Arithmetizer::to_string(&input_values, output_wires));
         let (x, w) = &Arithmetizer::to_circuit(rng, input_values, output_wires, None)?;
         debug!("{}", poly_evaluations_to_string(x, w));
-        let pi = protocol::prove(rng, x, w);
+        let pi = protocol::prove::<_, EmptyOpSet>(rng, x, w);
         protocol::verify(x, pi)?;
 
         Ok(())

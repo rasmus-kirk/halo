@@ -1,4 +1,4 @@
-use super::{Arithmetizer, Wire};
+use super::{plookup::PlookupOps, Arithmetizer, Wire};
 
 use halo_accumulation::group::PallasScalar;
 
@@ -7,10 +7,10 @@ use rand::Rng;
 
 type Scalar = PallasScalar;
 
-impl Arithmetizer {
-    pub fn synthesize<R: Rng, const N: usize>(rng: &mut R, degree: usize) -> [Wire; 1] {
+impl<Op: PlookupOps> Arithmetizer<Op> {
+    pub fn synthesize<R: Rng, const N: usize>(rng: &mut R, degree: usize) -> [Wire<Op>; 1] {
         info!("[A]: Remaining stack - {:?}", stacker::remaining_stack());
-        let wires: Vec<Wire> = Arithmetizer::build::<N>().into();
+        let wires: Vec<Wire<Op>> = Arithmetizer::build::<N>().into();
 
         let mut cur = wires[rng.gen_range(0..N)].clone();
 

@@ -18,7 +18,8 @@ use super::{
 };
 
 use crate::{
-    scheme::{Selectors, Slots, Terms, MAX_BLIND_TERMS},
+    scheme::{Slots, Terms, MAX_BLIND_TERMS},
+    utils::misc::EnumIter,
     Coset,
 };
 
@@ -39,7 +40,7 @@ type ConstraintID = u64;
 
 /// Given a circuit arithmetization, output wires, and input wire values,
 /// computes the circuit polynomials and permutation polynomials.
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone, Eq)]
 pub struct Trace {
     h: Coset,
     d: usize,
@@ -50,20 +51,16 @@ pub struct Trace {
 }
 
 impl Trace {
-    pub fn new<R: Rng>(
+    pub fn new<R: Rng, Op: PlookupOps>(
         rng: &mut R,
         d: Option<usize>,
-        wires: &ArithWireCache,
+        wires: &ArithWireCache<Op>,
         input_values: Vec<Scalar>,
         output_wires: Vec<WireID>,
-    ) -> Result<Self, TraceError> {
-        let mut eval = Self {
-            h: Default::default(),
-            evals: HashMap::new(),
-            permutation: HashMap::new(),
-            constraints: vec![],
-            table: TableRegistry::new(),
-            d: 0,
+    ) -> Result<Self, TraceError<Op>> {
+        let mut eval: Self = Trace {
+            table: TableRegistry::new::<Op>(),
+            ..Default::default()
         };
         info!("[A]: Remaining stack - {:?}", stacker::remaining_stack());
 
@@ -99,7 +96,11 @@ impl Trace {
     // Evaluation computation -------------------------------------------------
 
     /// Look up for the wire's evaluation, otherwise start the evaluating.
-    fn resolve(&mut self, wires: &ArithWireCache, wire: WireID) -> Result<Value, TraceError> {
+    fn resolve<Op: PlookupOps>(
+        &mut self,
+        wires: &ArithWireCache<Op>,
+        wire: WireID,
+    ) -> Result<Value, TraceError<Op>> {
         match self.evals.get(&wire) {
             Some(val) => Ok(*val),
             None => self.eval(wires, wire),
@@ -107,7 +108,11 @@ impl Trace {
     }
 
     /// Compute the values and constraints for the wire and all its dependencies.
-    fn eval(&mut self, wires: &ArithWireCache, wire: WireID) -> Result<Value, TraceError> {
+    fn eval<Op: PlookupOps>(
+        &mut self,
+        wires: &ArithWireCache<Op>,
+        wire: WireID,
+    ) -> Result<Value, TraceError<Op>> {
         let mut stack = vec![wire];
         while let Some(wire) = stack.pop() {
             if self.evals.contains_key(&wire) {
@@ -134,13 +139,13 @@ impl Trace {
     }
 
     // Compute constraint and value for a wire, and update the stack used in eval.
-    fn eval_helper(
+    fn eval_helper<Op: PlookupOps>(
         &self,
         stack: &mut Vec<WireID>,
-        wires: &ArithWireCache,
+        wires: &ArithWireCache<Op>,
         wire: WireID,
-        arith_wire: ArithWire,
-    ) -> Result<Option<(Constraints, Value)>, TraceError> {
+        arith_wire: ArithWire<Op>,
+    ) -> Result<Option<(Constraints, Value)>, TraceError<Op>> {
         match arith_wire {
             ArithWire::Input(id) => Err(TraceError::InputNotSet(id)),
             ArithWire::Constant(scalar) => {
@@ -176,7 +181,12 @@ impl Trace {
     }
 
     /// Compute the output value of a gate operation.
-    fn compute_output(&self, arith_wire: &ArithWire, lhs_val: &Value, rhs_val: &Value) -> Value {
+    fn compute_output<Op: PlookupOps>(
+        &self,
+        arith_wire: &ArithWire<Op>,
+        lhs_val: &Value,
+        rhs_val: &Value,
+    ) -> Value {
         match arith_wire {
             ArithWire::AddGate(_, _) => lhs_val + rhs_val,
             ArithWire::MulGate(_, _) => lhs_val * rhs_val,
@@ -186,8 +196,8 @@ impl Trace {
     }
 
     /// Compute the constraint for a gate operation.
-    fn compute_constraint(
-        arith_wire: &ArithWire,
+    fn compute_constraint<Op: PlookupOps>(
+        arith_wire: &ArithWire<Op>,
         lhs_val: &Value,
         rhs_val: &Value,
         out_val: &Value,
@@ -206,12 +216,12 @@ impl Trace {
     }
 
     /// Check and construct if the wire has a boolean constraint.
-    fn bool_constraint(
+    fn bool_constraint<Op: PlookupOps>(
         &mut self,
-        wires: &ArithWireCache,
+        wires: &ArithWireCache<Op>,
         wire: WireID,
         value: Value,
-    ) -> Result<(), TraceError> {
+    ) -> Result<(), TraceError<Op>> {
         if value.is_bit() && wires.is_bool_constraint(wire) {
             let bool_constraint = Constraints::boolean(&value);
             if !bool_constraint.is_satisfied() {
@@ -223,12 +233,12 @@ impl Trace {
     }
 
     /// Check and construct if the wire has a public input constraint.
-    fn public_constraint(
+    fn public_constraint<Op: PlookupOps>(
         &mut self,
-        wires: &ArithWireCache,
+        wires: &ArithWireCache<Op>,
         wire: WireID,
         value: Value,
-    ) -> Result<(), TraceError> {
+    ) -> Result<(), TraceError<Op>> {
         if wires.is_public(wire) {
             let pub_constraint = Constraints::public_input(&value);
             if !pub_constraint.is_satisfied() {
@@ -240,7 +250,12 @@ impl Trace {
     }
 
     /// Look up the output value of the gate in the table.
-    pub fn lookup_value(&self, op: PlookupOps, a: &Value, b: &Value) -> Result<Value, TraceError> {
+    pub fn lookup_value<Op: PlookupOps>(
+        &self,
+        op: Op,
+        a: &Value,
+        b: &Value,
+    ) -> Result<Value, TraceError<Op>> {
         let a = a.into();
         let b = b.into();
         if let Some(c) = self.table.lookup(op, a, b) {
@@ -285,26 +300,13 @@ impl Trace {
     /// Compute the circuit polynomials.
     fn gate_polys(&self) -> Vec<Evals> {
         let extend = self.h.n() as usize - self.constraints.len();
-        Slots::iter()
-            .map(|slot| {
-                self.constraints
+        Terms::iter()
+            .map(|term| {
+                let mut evals = self
+                    .constraints
                     .iter()
-                    .map(|eqn| eqn[Terms::F(slot)].into())
-                    .collect::<Vec<Scalar>>()
-            })
-            .chain(Selectors::iter().map(|selector| {
-                self.constraints
-                    .iter()
-                    .map(|eqn| eqn[Terms::Q(selector)].into())
-                    .collect()
-            }))
-            .chain(std::iter::once(
-                self.constraints
-                    .iter()
-                    .map(|eqn| eqn[Terms::PublicInputs].into())
-                    .collect(),
-            ))
-            .map(|mut evals| {
+                    .map(|eqn| eqn[term].into())
+                    .collect::<Vec<Scalar>>();
                 evals.insert(0, Scalar::ZERO);
                 evals.extend(vec![Scalar::ZERO; extend]);
                 Evaluations::from_vec_and_domain(evals, self.h.domain)
@@ -343,7 +345,10 @@ impl Trace {
 #[cfg(test)]
 mod tests {
     use crate::{
-        arithmetizer::{Arithmetizer, Wire},
+        arithmetizer::{
+            plookup::EmptyOpSet,
+            {Arithmetizer, Wire},
+        },
         circuit::Circuit,
     };
 
@@ -352,9 +357,9 @@ mod tests {
     #[test]
     fn evaluator_values() {
         let rng = &mut rand::thread_rng();
-        let [x, y] = Arithmetizer::build::<2>();
+        let [x, y] = Arithmetizer::<EmptyOpSet>::build::<2>();
         let input_values = vec![1, 2];
-        let output_wires: &[Wire; 1] = &[(x.clone() * x) * 3 + (y * 5) - 47];
+        let output_wires = &[(x.clone() * x) * 3 + (y * 5) - 47];
         // build circuit
 
         let circuit = output_wires[0].arith().borrow();
@@ -432,7 +437,7 @@ mod tests {
             d,
             expected_constraints.clone(),
             expected_permutation.clone(),
-            TableRegistry::new(),
+            TableRegistry::new::<EmptyOpSet>(),
         )
             .into();
         assert!(eval == expected_eval);

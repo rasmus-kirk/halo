@@ -1,4 +1,7 @@
-use std::env;
+use std::{
+    env,
+    fmt::{Debug, Display},
+};
 
 #[cfg(test)]
 pub mod tests {
@@ -63,4 +66,13 @@ where
     F: Fn(U) -> T,
 {
     ps.into_iter().map(op).collect()
+}
+
+pub trait EnumIter: Sized + Ord + Display + Copy + Default + Debug {
+    const COUNT: usize;
+    fn iter() -> impl Iterator<Item = Self>;
+    fn id(self) -> usize;
+    fn un_id(id: usize) -> Self {
+        Self::iter().nth(id).unwrap()
+    }
 }
