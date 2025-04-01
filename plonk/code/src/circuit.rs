@@ -26,10 +26,10 @@ pub struct CircuitPublic {
     pub pip: Poly,
     // identity permutation polynomial
     pub is: Vec<Poly>,
-    pub is_cache: Vec<Evals>,
+    pub _is: Vec<Evals>,
     // permutation polynomial
     pub ps: Vec<Poly>,
-    pub ps_cache: Vec<Evals>,
+    pub _ps: Vec<Evals>,
 
     pub pip_com: Point,
     pub qs_coms: Vec<Point>,
@@ -40,7 +40,7 @@ pub struct CircuitPublic {
 pub struct CircuitPrivate {
     // slot polynomials
     pub ws: Vec<Poly>,
-    pub ws_cache: Vec<Evals>,
+    pub _ws: Vec<Evals>,
     // thunk to compute Plonkup polys
     pub plookup: PlookupEvsThunk,
 }
@@ -91,16 +91,16 @@ impl CircuitPrivate {
         &self.ws[Slots::C as usize]
     }
 
-    pub fn _a(&self) -> &Evals {
-        &self.ws_cache[Slots::A as usize]
+    pub fn _a(&self, i: usize) -> Scalar {
+        self._ws[Slots::A as usize].evals[i]
     }
 
-    pub fn _b(&self) -> &Evals {
-        &self.ws_cache[Slots::B as usize]
+    pub fn _b(&self, i: usize) -> Scalar {
+        self._ws[Slots::B as usize].evals[i]
     }
 
-    pub fn _c(&self) -> &Evals {
-        &self.ws_cache[Slots::C as usize]
+    pub fn _c(&self, i: usize) -> Scalar {
+        self._ws[Slots::C as usize].evals[i]
     }
 }
 
@@ -149,16 +149,16 @@ impl CircuitPublic {
         &self.is[Slots::C as usize]
     }
 
-    pub fn _ia(&self) -> &Evals {
-        &self.is_cache[Slots::A as usize]
+    pub fn _ia(&self, i: usize) -> Scalar {
+        self._is[Slots::A as usize].evals[i]
     }
 
-    pub fn _ib(&self) -> &Evals {
-        &self.is_cache[Slots::B as usize]
+    pub fn _ib(&self, i: usize) -> Scalar {
+        self._is[Slots::B as usize].evals[i]
     }
 
-    pub fn _ic(&self) -> &Evals {
-        &self.is_cache[Slots::C as usize]
+    pub fn _ic(&self, i: usize) -> Scalar {
+        self._is[Slots::C as usize].evals[i]
     }
 
     // Permutation Getters ---------------------------------------------
@@ -175,15 +175,15 @@ impl CircuitPublic {
         &self.ps[Slots::C as usize]
     }
 
-    pub fn _pa(&self) -> &Evals {
-        &self.ps_cache[Slots::A as usize]
+    pub fn _pa(&self, i: usize) -> Scalar {
+        self._ps[Slots::A as usize].evals[i]
     }
 
-    pub fn _pb(&self) -> &Evals {
-        &self.ps_cache[Slots::B as usize]
+    pub fn _pb(&self, i: usize) -> Scalar {
+        self._ps[Slots::B as usize].evals[i]
     }
 
-    pub fn _pc(&self) -> &Evals {
-        &self.ps_cache[Slots::C as usize]
+    pub fn _pc(&self, i: usize) -> Scalar {
+        self._ps[Slots::C as usize].evals[i]
     }
 }

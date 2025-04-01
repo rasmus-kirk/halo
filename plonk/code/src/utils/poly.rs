@@ -22,8 +22,8 @@ pub fn batch_interpolate<const N: usize, C: FpConfig<N>>(
 }
 
 /// f(X) = v
-pub fn deg0<const N: usize, C: FpConfig<N>>(v: &Fp<C, N>) -> DensePolynomial<Fp<C, N>> {
-    DensePolynomial::from_coefficients_slice(&[*v])
+pub fn deg0<const N: usize, C: FpConfig<N>>(v: Fp<C, N>) -> DensePolynomial<Fp<C, N>> {
+    DensePolynomial::from_coefficients_slice(&[v])
 }
 
 /// f(X) = vXⁿ
@@ -88,8 +88,8 @@ pub fn split<const N: usize, C: FpConfig<N>>(
 // TODO Coset needs to generalize
 /// Lᵢ(X) = (ωⁱ (Xⁿ - 1)) / (n (X - ωⁱ))
 pub fn lagrange_basis(h: &Coset, i: u64) -> Poly {
-    let wi = &h.w(i);
-    let numerator = (xn(h.n()) + deg0(&PallasScalar::ONE)) * *wi;
+    let wi = h.w(i);
+    let numerator = (xn(h.n()) + deg0(PallasScalar::ONE)) * wi;
     let denominator = (x() - deg0(wi)) * PallasScalar::from(h.n());
     numerator / denominator
 }
