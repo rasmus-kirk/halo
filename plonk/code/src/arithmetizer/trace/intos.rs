@@ -54,13 +54,13 @@ impl
 impl From<Trace> for Circuit {
     fn from(eval: Trace) -> Self {
         let d = eval.d;
-        let (ws_cache, qs_cache, pip_cache) = eval.gate_polys();
-        let (is_cache, ps_cache) = eval.copy_constraints();
-        let ws = batch_interpolate(ws_cache.clone());
-        let qs = batch_interpolate(qs_cache);
-        let pip = pip_cache.interpolate();
-        let is = batch_interpolate(is_cache.clone());
-        let ps = batch_interpolate(ps_cache.clone());
+        let (_ws, _qs, _pip) = eval.gate_polys();
+        let (_is, _ps) = eval.copy_constraints();
+        let ws = batch_interpolate(_ws.clone());
+        let qs = batch_interpolate(_qs);
+        let pip = _pip.interpolate();
+        let is = batch_interpolate(_is.clone());
+        let ps = batch_interpolate(_ps.clone());
 
         let pip_com = pcdl::commit(&pip, d, None);
         let qs_coms: Vec<PallasPoint> = qs.iter().map(|q| pcdl::commit(q, eval.d, None)).collect();
@@ -82,13 +82,13 @@ impl From<Trace> for Circuit {
             pip,
             qs,
             is,
-            is_cache,
+            _is,
             ps,
-            ps_cache,
+            _ps,
         };
         let w = CircuitPrivate {
             ws,
-            ws_cache,
+            _ws,
             plookup: PlookupEvsThunk::new(eval.constraints, eval.table),
         };
         (x, w)

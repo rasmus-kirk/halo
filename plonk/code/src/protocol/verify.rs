@@ -3,12 +3,8 @@
 use super::{transcript::TranscriptProtocol, Proof};
 use crate::{
     circuit::CircuitPublic,
-    scheme::eqns::plonkup_eqn,
-    utils::{
-        geometric,
-        poly::{self},
-        scalar,
-    },
+    scheme::eqns::{self, plonkup_eqn},
+    utils::{self, poly, scalar},
 };
 
 use halo_accumulation::{group::PallasScalar, pcdl};
@@ -56,7 +52,7 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     let ch_w = ch * x.h.w(1);
     let zh_ev = scalar::zh_ev(&x.h, ch);
     let l1_ev_ch = scalar::lagrange_basis1(&x.h, ch);
-    let [ia_ev, ib_ev, ic_ev] = poly::batch_evaluate(&x.is, ch).try_into().unwrap();
+    let [ia, ib, ic] = poly::batch_evaluate(&x.is, ch).try_into().unwrap();
 
     transcript.append_scalars(b"ws_ev", &ev.ws);
     transcript.append_scalars(b"qs_ev", &ev.qs);
@@ -66,30 +62,37 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     transcript.append_scalars(b"t_ev", &ev.ts);
     transcript.append_scalar(b"z_ev", &ev.z);
 
-    // plookup constraint term: ε(1 + δ) + a(X) + δb(X)
-    let zpl_sc = (Scalar::ONE + delta) * epsilon;
-    let zpl = |a: Scalar, b: Scalar| zpl_sc + a + (delta * b);
-    // copy constraint term: w(X) + β s(X) + γ
-    let zcc = |w: Scalar, s: Scalar| w + (beta * s) + gamma;
+    // a + βb + γ
+    let cc = eqns::copy_constraint_term(|x| x, beta, gamma);
+    // ε(1 + δ) + a + δb
+    let pl = eqns::plookup_term(|x| x, epsilon, delta);
     // f'(𝔷) = (A(𝔷) + β Sᵢ₁(𝔷) + γ) (B(𝔷) + β Sᵢ₂(𝔷) + γ) (C(𝔷) + β Sᵢ₃(𝔷) + γ)
     //         (ε(1 + δ) + f(𝔷) + δf(𝔷))(ε(1 + δ) + t(𝔷) + δt(Xω))
-    let zfcc_ev = &(zcc(ev.a(), ia_ev) * zcc(ev.b(), ib_ev) * zcc(ev.c(), ic_ev));
-    let zfpl_ev = &(zpl(ev.f(), ev.f()) * zpl(ev.t(), ev.t_bar));
+    let zf_ev = cc(ev.a(), ia)
+        * cc(ev.b(), ib)
+        * cc(ev.c(), ic)
+        * pl(ev.f(), ev.f())
+        * pl(ev.t(), ev.t_bar);
     // g'(𝔷) = (A(𝔷)) + β S₁(𝔷)) + γ) (B(𝔷)) + β S₂(𝔷)) + γ) (C(𝔷)) + β S₃(𝔷)) + γ)
     //         (ε(1 + δ) + h₁(𝔷) + δh₂(𝔷))(ε(1 + δ) + h₂(𝔷) + δh₁(Xω))
-    let zgcc_ev = &(zcc(ev.a(), ev.pa()) * zcc(ev.b(), ev.pb()) * zcc(ev.c(), ev.pc()));
-    let zgpl_ev = &(zpl(ev.h1(), ev.h2()) * zpl(ev.h2(), ev.h1_bar));
+    let zg_ev = cc(ev.a(), ev.pa())
+        * cc(ev.b(), ev.pb())
+        * cc(ev.c(), ev.pc())
+        * pl(ev.h1(), ev.h2())
+        * pl(ev.h2(), ev.h1_bar);
 
+    // F_GC(𝔷) = A(𝔷)Qₗ(𝔷) + B(𝔷)Qᵣ(𝔷) + C(𝔷)Qₒ(𝔷) + A(𝔷)B(𝔷)Qₘ(𝔷) + Q꜀(𝔷) + PI(𝔷)
+    //         + Qₖ(𝔷)(A(𝔷) + ζB(𝔷) + ζ²C(𝔷) + ζ³J(𝔷) - f(𝔷))
     let f_gc_ev = plonkup_eqn(zeta, ev.ws.clone(), ev.qs.clone(), ev.pip, ev.f());
     // F_Z1(𝔷) = L₁(𝔷) (Z(𝔷) - 1)
     let f_z1_ev = l1_ev_ch * (ev.z - Scalar::ONE);
     // F_Z2(𝔷) = Z(𝔷)f'(𝔷) - g'(𝔷)Z(ω 𝔷)
-    let f_z2_ev = (ev.z * zfcc_ev * zfpl_ev) - (zgcc_ev * zgpl_ev * ev.z_bar);
+    let f_z2_ev = (ev.z * zf_ev) - (zg_ev * ev.z_bar);
 
     // T(𝔷) = (F_GC(𝔷) + α F_CC1(𝔷) + α² F_CC2(𝔷)) / Zₕ(𝔷)
-    let t_ev = geometric(ch.pow([x.h.n()]), ev.ts.clone());
+    let t_ev = utils::geometric(ch.pow([x.h.n()]), ev.ts.clone());
     ensure!(
-        geometric(alpha, [f_gc_ev, f_z1_ev, f_z2_ev]) == t_ev * zh_ev,
+        utils::geometric(alpha, [f_gc_ev, f_z1_ev, f_z2_ev]) == t_ev * zh_ev,
         "T(𝔷) ≠ (F_GC(𝔷) + α F_CC1(𝔷) + α² F_CC2(𝔷)) / Zₕ(𝔷)"
     );
 
@@ -97,7 +100,7 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
 
     // W(𝔷) = Qₗ(𝔷) + vQᵣ(𝔷) + v²Qₒ(𝔷) + v³Qₘ(𝔷) + v⁴Q꜀(𝔷) + v⁵Qₖ(𝔷) + v⁶J(𝔷)
     //      + v⁷A(𝔷) + v⁸B(𝔷) + v⁹C(𝔷) + v¹⁰Z(𝔷)
-    let W_com = geometric(
+    let W_com = utils::geometric(
         v,
         x.qs_coms
             .iter()
@@ -105,7 +108,7 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
             .chain(std::iter::once(&com.z))
             .cloned(),
     );
-    let W_ev = geometric(
+    let W_ev = utils::geometric(
         v,
         ev.qs
             .iter()
