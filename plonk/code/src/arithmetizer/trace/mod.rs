@@ -6,10 +6,8 @@ mod intos;
 mod pos;
 mod value;
 
-use ark_poly::Evaluations;
 pub use constraints::Constraints;
 pub use errors::TraceError;
-use halo_accumulation::group::PallasScalar;
 pub use pos::Pos;
 
 use super::{
@@ -21,11 +19,13 @@ use super::{
 
 use crate::{
     scheme::{Selectors, Slots, Terms, MAX_BLIND_TERMS},
-    utils::scalar::batch_compute_evals,
     Coset,
 };
 
+use halo_accumulation::group::PallasScalar;
+
 use ark_ff::{AdditiveGroup, Field};
+use ark_poly::Evaluations;
 use log::info;
 use rand::Rng;
 use std::collections::HashMap;
@@ -82,7 +82,7 @@ impl Trace {
         // compute wire values
         info!("[C]: Remaining stack - {:?}", stacker::remaining_stack());
 
-        eval.compute_pos_permutation()?;
+        eval.compute_pos_permutation();
         // compute copy constraint values
         info!("[D]: Remaining stack - {:?}", stacker::remaining_stack());
 
@@ -251,80 +251,91 @@ impl Trace {
     }
 
     /// Compute the permutation of slot positions as per copy constraints.
-    fn compute_pos_permutation(&mut self) -> Result<(), TraceError> {
-        let mut pos_sets: HashMap<WireID, Vec<Pos>> = HashMap::new();
-        for (i_, eqn) in self.constraints.iter().enumerate() {
-            let i = (i_ + 1) as ConstraintID;
-            for slot in Slots::iter() {
-                let pos = Pos::new(slot, i);
-                if let Value::Wire(wire, _, _) = eqn[Terms::F(slot)] {
-                    pos_sets.entry(wire).or_default().push(pos);
-                }
-            }
-        }
-        // compute set of positions per wire
-
-        for set in pos_sets.values() {
-            let last_index = set.len() - 1;
-            for i in 0..last_index {
-                self.permutation.insert(set[i], set[i + 1]);
-            }
-            self.permutation.insert(set[last_index], set[0]);
-        }
-        Ok(())
+    fn compute_pos_permutation(&mut self) {
+        self.constraints
+            .iter()
+            .enumerate()
+            .fold(
+                HashMap::new(),
+                |mut acc: HashMap<WireID, Vec<Pos>>, (i_, eqn)| {
+                    let i = (i_ + 1) as ConstraintID;
+                    Slots::iter().for_each(|slot| {
+                        if let Value::Wire(wire, _, _) = eqn[Terms::F(slot)] {
+                            let pos = Pos::new(slot, i);
+                            acc.entry(wire).or_default().push(pos);
+                        }
+                    });
+                    acc
+                },
+            )
+            // compute equivalence class of wire indices
+            .into_values()
+            .for_each(|set| {
+                let last_index = set.len() - 1;
+                (0..last_index).for_each(|i| {
+                    self.permutation.insert(set[i], set[i + 1]);
+                });
+                self.permutation.insert(set[last_index], set[0]);
+            })
+        // compute cyclic permutation per equivalence class
     }
 
     // Poly construction -------------------------------------------------------
 
     /// Compute the circuit polynomials.
-    fn gate_polys(&self) -> (Vec<Evals>, Vec<Evals>, Evals) {
-        let mut ws_evs: Vec<Vec<Scalar>> = vec![vec![Scalar::ZERO]; Slots::COUNT];
-        let mut qs_evs: Vec<Vec<Scalar>> = vec![vec![Scalar::ZERO]; Selectors::COUNT];
-        let mut pip_evs: Vec<Scalar> = vec![];
-        for eqn in self.constraints.iter() {
-            for slot in Slots::iter() {
-                ws_evs[slot as usize].push(eqn[Terms::F(slot)].into());
-            }
-            for selector in Selectors::iter() {
-                qs_evs[selector as usize].push(eqn[Terms::Q(selector)].into());
-            }
-            pip_evs.push(eqn[Terms::PublicInputs].into());
-        }
+    fn gate_polys(&self) -> Vec<Evals> {
         let extend = self.h.n() as usize - self.constraints.len();
-        ws_evs
-            .iter_mut()
-            .chain(qs_evs.iter_mut())
-            .chain(std::iter::once(&mut pip_evs))
-            .for_each(|evs| {
-                evs.extend(vec![Scalar::ZERO; extend]);
-            });
-        (
-            batch_compute_evals(&self.h, ws_evs),
-            batch_compute_evals(&self.h, qs_evs),
-            Evaluations::from_vec_and_domain(pip_evs, self.h.domain),
-        )
+        Slots::iter()
+            .map(|slot| {
+                self.constraints
+                    .iter()
+                    .map(|eqn| eqn[Terms::F(slot)].into())
+                    .collect::<Vec<Scalar>>()
+            })
+            .chain(Selectors::iter().map(|selector| {
+                self.constraints
+                    .iter()
+                    .map(|eqn| eqn[Terms::Q(selector)].into())
+                    .collect()
+            }))
+            .chain(std::iter::once(
+                self.constraints
+                    .iter()
+                    .map(|eqn| eqn[Terms::PublicInputs].into())
+                    .collect(),
+            ))
+            .map(|mut evals| {
+                evals.insert(0, Scalar::ZERO);
+                evals.extend(vec![Scalar::ZERO; extend]);
+                Evaluations::from_vec_and_domain(evals, self.h.domain)
+            })
+            .collect()
     }
 
     /// Compute the permutation and identity permutation polynomials.
     fn copy_constraints(&self) -> (Vec<Evals>, Vec<Evals>) {
-        let mut sids_evs: Vec<Vec<Scalar>> = vec![vec![Scalar::ONE]; Slots::COUNT];
-        let mut ss_evs: Vec<Vec<Scalar>> = vec![vec![Scalar::ONE]; Slots::COUNT];
-        for i_ in 0..self.h.n() - 1 {
-            let id = i_ + 1;
-            for slot in Slots::iter() {
-                let pos = Pos::new(slot, id);
-                let pos_scalar = pos.to_scalar(&self.h);
-                sids_evs[slot as usize].push(pos_scalar);
-                ss_evs[slot as usize].push(match self.permutation.get(&pos) {
-                    Some(y_pos) => y_pos.to_scalar(&self.h),
-                    None => pos_scalar,
-                });
-            }
-        }
-        (
-            batch_compute_evals(&self.h, sids_evs),
-            batch_compute_evals(&self.h, ss_evs),
-        )
+        Slots::iter()
+            .map(|slot| {
+                (1..self.h.n())
+                    .map(|id| {
+                        let pos = Pos::new(slot, id);
+                        let perm = self
+                            .permutation
+                            .get(&pos)
+                            .unwrap_or(&pos)
+                            .to_scalar(&self.h);
+                        (pos.to_scalar(&self.h), perm)
+                    })
+                    .unzip::<_, _, Vec<_>, Vec<_>>()
+            })
+            .map(|(id_evs, ss_evs)| {
+                let to_evals = |mut evals: Vec<Scalar>| {
+                    evals.insert(0, Scalar::ONE);
+                    Evaluations::from_vec_and_domain(evals, self.h.domain)
+                };
+                (to_evals(id_evs), to_evals(ss_evs))
+            })
+            .unzip()
     }
 }
 

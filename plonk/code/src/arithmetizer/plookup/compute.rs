@@ -29,11 +29,10 @@ impl PlookupEvsThunk {
     }
 
     fn compute_t_evs(&self, zeta: Scalar, h: &Coset) -> Evals {
-        let mut t = vec![Scalar::ZERO];
-        for op in PlookupOps::iter() {
-            let j = op.into();
-            t.extend(self.table.tables[op as usize].compress(zeta, j));
-        }
+        let mut t = PlookupOps::iter().fold(vec![Scalar::ZERO], |mut acc, op| {
+            acc.extend(self.table.tables[op as usize].compress(zeta, op.into()));
+            acc
+        });
         t.sort();
         let default = t.last().unwrap();
         let extend = h.n() as usize - t.len();
@@ -48,43 +47,40 @@ impl PlookupEvsThunk {
         constraints: &[Constraints],
         default: Scalar,
     ) -> Evals {
-        let mut f = vec![Scalar::ZERO];
-        for constraint in constraints.iter() {
+        let mut f: Vec<Scalar> = vec![Scalar::ZERO];
+        f.extend(constraints.iter().map(|constraint| {
             if Into::<Scalar>::into(constraint[Terms::Q(Selectors::Qk)]) == Scalar::ONE {
                 let a: Scalar = constraint[Terms::F(Slots::A)].into();
                 let b: Scalar = constraint[Terms::F(Slots::B)].into();
                 let c: Scalar = constraint[Terms::F(Slots::C)].into();
                 let j: Scalar = constraint[Terms::Q(Selectors::J)].into();
-                f.push(plookup_compress(zeta, a, b, c, j));
+                plookup_compress(zeta, a, b, c, j)
             } else {
-                f.push(default);
+                default
             }
-        }
+        }));
         let extend = h.n() as usize - f.len();
         f.extend(vec![default; extend]);
         Evaluations::from_vec_and_domain(f, h.domain)
     }
 
     fn split_sort(h: &Coset, s: Vec<Scalar>) -> Vec<Evals> {
-        let mut h1 = Vec::new();
-        let mut h2 = Vec::new();
-        for (i, x) in s.into_iter().enumerate() {
-            if i % 2 == 0 {
-                h1.push(x);
-            } else {
-                h2.push(x);
-            }
-        }
-        [h1, h2]
+        s.into_iter()
+            .enumerate()
+            .fold([vec![], vec![]], |mut hs, (i, x)| {
+                hs[i % 2].push(x);
+                hs
+            })
             .into_iter()
-            .map(|points| Evaluations::from_vec_and_domain(points, h.domain))
+            .map(|evals| Evaluations::from_vec_and_domain(evals, h.domain))
             .collect()
     }
 
     pub fn compute(&self, h: &Coset, zeta: Scalar) -> PlookupPolys {
         let mut evals = vec![];
         evals.push(self.compute_t_evs(zeta, h));
-        evals.push(self.compute_f_evs(zeta, h, &self.constraints, *evals[0].evals.last().unwrap()));
+        let default = *evals[0].evals.last().unwrap();
+        evals.push(self.compute_f_evs(zeta, h, &self.constraints, default));
         let mut s: Vec<Scalar> = Vec::new();
         s.extend(evals[0].evals.iter());
         s.extend(evals[1].evals.iter());

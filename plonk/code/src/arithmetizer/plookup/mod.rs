@@ -40,7 +40,7 @@ impl PlookupOps {
 
     /// Get an iterator over all Plookup operations
     pub fn iter() -> impl Iterator<Item = PlookupOps> {
-        [PlookupOps::Xor, PlookupOps::Or].iter().copied()
+        [PlookupOps::Xor, PlookupOps::Or].into_iter()
     }
 }
 
@@ -118,25 +118,22 @@ impl Default for TableRegistry {
 
 impl TableRegistry {
     pub fn new() -> Self {
-        let mut tables = Vec::new();
-        for op in PlookupOps::iter() {
-            let table = Table::from(op);
-            tables.push(table);
-        }
         Self {
-            tables: tables.try_into().unwrap(),
+            tables: PlookupOps::iter()
+                .map(Table::from)
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap(),
         }
     }
 
     /// Lookup the result of an operation
     pub fn lookup(&self, op: PlookupOps, a: Scalar, b: Scalar) -> Option<Scalar> {
-        let table = &self.tables[op as usize];
-        for &row in table.0.iter() {
-            if row[0] == a && row[1] == b {
-                return Some(row[2]);
-            }
-        }
-        None
+        self.tables[op as usize]
+            .0
+            .iter()
+            .find(|&&row| row[0] == a && row[1] == b)
+            .map(|&row| row[2])
     }
 
     /// Lookup the result of an operation and use it to compute the compressed vector value

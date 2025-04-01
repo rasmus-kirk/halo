@@ -81,6 +81,7 @@ impl Constraints {
         vs
     }
 
+    /// Create a booleanity constraint.
     pub fn boolean(val: &Value) -> Self {
         let mut vs = Constraints::default();
         vs[Terms::F(Slots::A)] = *val;
@@ -90,6 +91,7 @@ impl Constraints {
         vs
     }
 
+    /// Create a constraint that enforces a public input value.
     pub fn public_input(val: &Value) -> Self {
         let mut vs = Constraints::default();
         vs[Terms::F(Slots::A)] = *val;
@@ -98,6 +100,7 @@ impl Constraints {
         vs
     }
 
+    /// Create a plookup constraint.
     pub fn lookup(op: PlookupOps, lhs: &Value, rhs: &Value, out: &Value) -> Self {
         let mut vs = Constraints::default();
         vs[Terms::F(Slots::A)] = *lhs;
@@ -108,16 +111,19 @@ impl Constraints {
         vs
     }
 
+    /// Get all scalar values of the constraint.
     pub fn scalars(&self) -> [Scalar; Terms::COUNT] {
         batch_op(self.vs, Into::<Scalar>::into).try_into().unwrap()
     }
 
+    /// Get the slot scalar values of the constraint.
     pub fn ws(&self) -> [Scalar; Slots::COUNT] {
         batch_op(&self.vs[..Slots::COUNT], Into::<Scalar>::into)
             .try_into()
             .unwrap()
     }
 
+    /// Get the selector scalar values of the constraint.
     pub fn qs(&self) -> [Scalar; Selectors::COUNT] {
         batch_op(
             &self.vs[Slots::COUNT..Slots::COUNT + Selectors::COUNT],
@@ -127,14 +133,17 @@ impl Constraints {
         .unwrap()
     }
 
+    /// Get the public input scalar value of the constraint.
     pub fn pip(&self) -> Scalar {
-        self.vs[Into::<usize>::into(Terms::PublicInputs)].into()
+        self.vs[Terms::PublicInputs.index()].into()
     }
 
+    /// Check if plonk constraints are satisfied.
     pub fn is_satisfied(&self) -> bool {
         plonk_eqn(self.ws(), self.qs(), self.pip()) == Scalar::ZERO
     }
 
+    /// Check if plonkup constraints are satisfied.
     pub fn is_plonkup_satisfied(&self, zeta: Scalar, f: Scalar) -> bool {
         plonkup_eqn(zeta, self.ws(), self.qs(), self.pip(), f) == Scalar::ZERO
     }

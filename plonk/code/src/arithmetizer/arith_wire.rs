@@ -42,12 +42,12 @@ impl fmt::Display for ArithWire {
 
 impl ArithWire {
     /// Get the inputs of the gate, if the wire is a gate.
-    pub fn inputs(&self) -> Vec<WireID> {
-        match self {
-            Self::AddGate(lhs, rhs) => vec![*lhs, *rhs],
-            Self::MulGate(lhs, rhs) => vec![*lhs, *rhs],
-            Self::Lookup(_, lhs, rhs) => vec![*lhs, *rhs],
-            _ => vec![],
+    pub fn inputs(&self) -> impl Iterator<Item = WireID> {
+        match *self {
+            Self::AddGate(lhs, rhs) => vec![lhs, rhs].into_iter(),
+            Self::MulGate(lhs, rhs) => vec![lhs, rhs].into_iter(),
+            Self::Lookup(_, lhs, rhs) => vec![lhs, rhs].into_iter(),
+            _ => vec![].into_iter(),
         }
     }
 }

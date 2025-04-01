@@ -63,10 +63,12 @@ impl ArithWireCache {
         id
     }
 
+    /// Register the wire as a public input
     pub fn publicize(&mut self, id: WireID) {
         self.public_wires.insert(id);
     }
 
+    /// Check if the wire is a public input
     pub fn is_public(&self, id: WireID) -> bool {
         self.public_wires.contains(&id)
     }
@@ -105,6 +107,7 @@ impl ArithWireCache {
         self.insert_wire(wire)
     }
 
+    /// Get WireID of a constant value
     pub fn lookup_const_id(&self, val: Scalar) -> Option<WireID> {
         let wire = ArithWire::Constant(val);
         self.wires.get_by_right(&wire).copied()
@@ -138,20 +141,21 @@ impl ArithWireCache {
         comm_type: &CommutativeOps,
         wire: ArithWire,
     ) -> Result<Vec<WireID>, CacheError> {
-        let mut set = vec![];
         if let Ok(set_type) = <ArithWire as TryInto<CommutativeOps>>::try_into(wire) {
             if &set_type == comm_type {
-                for operand in wire.inputs() {
-                    let wire_ = self
-                        .wires
+                return wire.inputs().try_fold(vec![], |mut set, operand| {
+                    self.wires
                         .get_by_left(&operand)
-                        .ok_or(CacheError::OperandNotInCache)?;
-                    let xs = self.get_commutative_vec(comm_type, *wire_)?;
-                    set.push(if xs.is_empty() { vec![operand] } else { xs });
-                }
+                        .ok_or(CacheError::OperandNotInCache)
+                        .and_then(|&wire_| self.get_commutative_vec(comm_type, wire_))
+                        .map(|xs| {
+                            set.extend(if xs.is_empty() { vec![operand] } else { xs });
+                            set
+                        })
+                });
             }
         }
-        Ok(set.iter().flatten().copied().collect())
+        Ok(vec![])
     }
 
     // bit typechecking -------------------------------------------------------
@@ -177,9 +181,9 @@ impl ArithWireCache {
                 ArithWire::AddGate(_, _)
                 | ArithWire::MulGate(_, _)
                 | ArithWire::Lookup(_, _, _) => {
-                    for operand in w.inputs() {
+                    w.inputs().for_each(|operand| {
                         let _ = self.set_bit_(operand, false);
-                    }
+                    });
                     self.bit_wires.insert(id, gen_constraint);
                     Ok(())
                 }
@@ -195,9 +199,9 @@ impl ArithWireCache {
                 ArithWire::Constant(b) => b == Scalar::ZERO || b == Scalar::ONE,
                 ArithWire::AddGate(_, _)
                 | ArithWire::MulGate(_, _)
-                | ArithWire::Lookup(_, _, _) => !w.inputs().iter().any(|&operand| {
-                    !self.bit_wires.contains_key(&operand) && !self.is_bit(operand)
-                }),
+                | ArithWire::Lookup(_, _, _) => !w
+                    .inputs()
+                    .any(|operand| !self.bit_wires.contains_key(&operand) && !self.is_bit(operand)),
             },
             None => false,
         }
