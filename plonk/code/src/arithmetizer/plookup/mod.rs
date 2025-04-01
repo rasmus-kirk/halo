@@ -1,48 +1,16 @@
 mod compute;
+mod opsets;
+mod plookupops;
 
 pub use compute::PlookupEvsThunk;
+pub use opsets::*;
+pub use plookupops::PlookupOps;
 
 use crate::scheme::eqns::plookup_compress;
 
 use halo_accumulation::group::PallasScalar;
 
-use ark_ff::{AdditiveGroup, Field};
-use std::fmt::Display;
-
 type Scalar = PallasScalar;
-
-/// Operations defined for the Plookup protocol
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-#[repr(usize)]
-pub enum PlookupOps {
-    Xor,
-    Or,
-}
-
-impl From<PlookupOps> for Scalar {
-    fn from(op: PlookupOps) -> Self {
-        Scalar::from(op as u32)
-    }
-}
-
-impl Display for PlookupOps {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            PlookupOps::Xor => "XOR",
-            PlookupOps::Or => "OR",
-        };
-        write!(f, "{}", s)
-    }
-}
-
-impl PlookupOps {
-    pub const COUNT: usize = 2;
-
-    /// Get an iterator over all Plookup operations
-    pub fn iter() -> impl Iterator<Item = PlookupOps> {
-        [PlookupOps::Xor, PlookupOps::Or].into_iter()
-    }
-}
 
 /// A lookup table for a given Plookup operation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -75,61 +43,28 @@ impl Table {
     }
 }
 
-impl From<PlookupOps> for Table {
-    fn from(op: PlookupOps) -> Self {
-        match op {
-            // PlonkupOps::Xor => {
-            //     let mut rows = Vec::new();
-            //     for a in 0..2 ^ 8 {
-            //         for b in 0..2 ^ 8 {
-            //             let c = a ^ b;
-            //             rows.push([Scalar::from(a), Scalar::from(b), Scalar::from(c)]);
-            //         }
-            //     }
-            //     Table::new(rows)
-            // }
-            PlookupOps::Xor => Table::new(vec![
-                [Scalar::ZERO, Scalar::ZERO, Scalar::ZERO],
-                [Scalar::ZERO, Scalar::ONE, Scalar::ONE],
-                [Scalar::ONE, Scalar::ZERO, Scalar::ONE],
-                [Scalar::ONE, Scalar::ONE, Scalar::ZERO],
-            ]),
-            PlookupOps::Or => Table::new(vec![
-                [Scalar::ZERO, Scalar::ZERO, Scalar::ZERO],
-                [Scalar::ZERO, Scalar::ONE, Scalar::ONE],
-                [Scalar::ONE, Scalar::ZERO, Scalar::ONE],
-                [Scalar::ONE, Scalar::ONE, Scalar::ONE],
-            ]),
-        }
-    }
-}
-
 /// The collection of all lookup tables for the Plookup protocol.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TableRegistry {
-    tables: [Table; PlookupOps::COUNT],
+    tables: Vec<Table>,
 }
 
 impl Default for TableRegistry {
     fn default() -> Self {
-        Self::new()
+        Self::new::<EmptyOpSet>()
     }
 }
 
 impl TableRegistry {
-    pub fn new() -> Self {
+    pub fn new<Op: PlookupOps>() -> Self {
         Self {
-            tables: PlookupOps::iter()
-                .map(Table::from)
-                .collect::<Vec<_>>()
-                .try_into()
-                .unwrap(),
+            tables: Op::all_tables(),
         }
     }
 
     /// Lookup the result of an operation
-    pub fn lookup(&self, op: PlookupOps, a: Scalar, b: Scalar) -> Option<Scalar> {
-        self.tables[op as usize]
+    pub fn lookup<Op: PlookupOps>(&self, op: Op, a: Scalar, b: Scalar) -> Option<Scalar> {
+        self.tables[op.id()]
             .0
             .iter()
             .find(|&&row| row[0] == a && row[1] == b)
@@ -137,9 +72,15 @@ impl TableRegistry {
     }
 
     /// Lookup the result of an operation and use it to compute the compressed vector value
-    pub fn query(&self, op: PlookupOps, zeta: Scalar, a: Scalar, b: Scalar) -> Option<Scalar> {
+    pub fn query<Op: PlookupOps>(
+        &self,
+        op: Op,
+        zeta: Scalar,
+        a: Scalar,
+        b: Scalar,
+    ) -> Option<Scalar> {
         let c = self.lookup(op, a, b)?;
-        let j = op.into();
+        let j = op.to_fp();
         Some(plookup_compress(zeta, a, b, c, j))
     }
 

@@ -1,6 +1,6 @@
 use crate::{
     scheme::{Selectors, Terms},
-    utils::print_table::evals_str,
+    utils::{misc::EnumIter, print_table::evals_str},
     Coset,
 };
 
@@ -32,8 +32,8 @@ pub struct CircuitPublic {
     pub _ps: Vec<Evals>,
 
     pub pip_com: Point,
-    pub qs_coms: Vec<Point>,
-    pub ps_coms: Vec<Point>,
+    pub qs_com: Vec<Point>,
+    pub ps_com: Vec<Point>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -80,27 +80,27 @@ impl CircuitPrivate {
     // Slot Getters ---------------------------------------------
 
     pub fn a(&self) -> &Poly {
-        &self.ws[Slots::A as usize]
+        &self.ws[Slots::A.id()]
     }
 
     pub fn b(&self) -> &Poly {
-        &self.ws[Slots::B as usize]
+        &self.ws[Slots::B.id()]
     }
 
     pub fn c(&self) -> &Poly {
-        &self.ws[Slots::C as usize]
+        &self.ws[Slots::C.id()]
     }
 
     pub fn _a(&self, i: usize) -> Scalar {
-        self._ws[Slots::A as usize].evals[i]
+        self._ws[Slots::A.id()].evals[i]
     }
 
     pub fn _b(&self, i: usize) -> Scalar {
-        self._ws[Slots::B as usize].evals[i]
+        self._ws[Slots::B.id()].evals[i]
     }
 
     pub fn _c(&self, i: usize) -> Scalar {
-        self._ws[Slots::C as usize].evals[i]
+        self._ws[Slots::C.id()].evals[i]
     }
 }
 
@@ -108,82 +108,82 @@ impl CircuitPublic {
     // Selector Getters ---------------------------------------------
 
     pub fn ql(&self) -> &Poly {
-        &self.qs[Selectors::Ql as usize]
+        &self.qs[Selectors::Ql.id()]
     }
 
     pub fn qr(&self) -> &Poly {
-        &self.qs[Selectors::Qr as usize]
+        &self.qs[Selectors::Qr.id()]
     }
 
     pub fn qo(&self) -> &Poly {
-        &self.qs[Selectors::Qo as usize]
+        &self.qs[Selectors::Qo.id()]
     }
 
     pub fn qm(&self) -> &Poly {
-        &self.qs[Selectors::Qm as usize]
+        &self.qs[Selectors::Qm.id()]
     }
 
     pub fn qc(&self) -> &Poly {
-        &self.qs[Selectors::Qc as usize]
+        &self.qs[Selectors::Qc.id()]
     }
 
     pub fn qk(&self) -> &Poly {
-        &self.qs[Selectors::Qk as usize]
+        &self.qs[Selectors::Qk.id()]
     }
 
     pub fn j(&self) -> &Poly {
-        &self.qs[Selectors::J as usize]
+        &self.qs[Selectors::J.id()]
     }
 
     // Identity Permutation Getters ---------------------------------------------
 
     pub fn ia(&self) -> &Poly {
-        &self.is[Slots::A as usize]
+        &self.is[Slots::A.id()]
     }
 
     pub fn ib(&self) -> &Poly {
-        &self.is[Slots::B as usize]
+        &self.is[Slots::B.id()]
     }
 
     pub fn ic(&self) -> &Poly {
-        &self.is[Slots::C as usize]
+        &self.is[Slots::C.id()]
     }
 
     pub fn _ia(&self, i: usize) -> Scalar {
-        self._is[Slots::A as usize].evals[i]
+        self._is[Slots::A.id()].evals[i]
     }
 
     pub fn _ib(&self, i: usize) -> Scalar {
-        self._is[Slots::B as usize].evals[i]
+        self._is[Slots::B.id()].evals[i]
     }
 
     pub fn _ic(&self, i: usize) -> Scalar {
-        self._is[Slots::C as usize].evals[i]
+        self._is[Slots::C.id()].evals[i]
     }
 
     // Permutation Getters ---------------------------------------------
 
     pub fn pa(&self) -> &Poly {
-        &self.ps[Slots::A as usize]
+        &self.ps[Slots::A.id()]
     }
 
     pub fn pb(&self) -> &Poly {
-        &self.ps[Slots::B as usize]
+        &self.ps[Slots::B.id()]
     }
 
     pub fn pc(&self) -> &Poly {
-        &self.ps[Slots::C as usize]
+        &self.ps[Slots::C.id()]
     }
 
     pub fn _pa(&self, i: usize) -> Scalar {
-        self._ps[Slots::A as usize].evals[i]
+        self._ps[Slots::A.id()].evals[i]
     }
 
     pub fn _pb(&self, i: usize) -> Scalar {
-        self._ps[Slots::B as usize].evals[i]
+        self._ps[Slots::B.id()].evals[i]
     }
 
     pub fn _pc(&self, i: usize) -> Scalar {
-        self._ps[Slots::C as usize].evals[i]
+        self._ps[Slots::C.id()].evals[i]
     }
 }

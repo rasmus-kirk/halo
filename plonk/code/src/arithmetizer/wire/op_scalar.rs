@@ -1,5 +1,7 @@
 use halo_accumulation::group::PallasScalar;
 
+use crate::arithmetizer::plookup::PlookupOps;
+
 use super::{ast::WireAST, Wire};
 
 use std::{
@@ -11,11 +13,11 @@ type Scalar = PallasScalar;
 
 // Add ------------------------------------------------------------------------
 
-impl<T> Add<T> for Wire
+impl<T, Op: PlookupOps> Add<T> for Wire<Op>
 where
     T: Into<Scalar> + Copy,
 {
-    type Output = Wire;
+    type Output = Self;
 
     fn add(self, other: T) -> Self::Output {
         Wire {
@@ -28,11 +30,11 @@ where
 
 // Sub ------------------------------------------------------------------------
 
-impl<T> Sub<T> for Wire
+impl<T, Op: PlookupOps> Sub<T> for Wire<Op>
 where
     T: Into<Scalar> + Copy,
 {
-    type Output = Wire;
+    type Output = Self;
 
     fn sub(self, other: T) -> Self::Output {
         Wire {
@@ -49,11 +51,11 @@ where
 
 // Mul ------------------------------------------------------------------------
 
-impl<T> Mul<T> for Wire
+impl<T, Op: PlookupOps> Mul<T> for Wire<Op>
 where
     T: Into<Scalar> + Copy,
 {
-    type Output = Wire;
+    type Output = Self;
 
     fn mul(self, other: T) -> Self::Output {
         Wire {
@@ -70,11 +72,11 @@ where
 
 // Div ------------------------------------------------------------------------
 
-impl<T> Div<T> for Wire
+impl<T, Op: PlookupOps> Div<T> for Wire<Op>
 where
     T: Into<Scalar> + Copy,
 {
-    type Output = Wire;
+    type Output = Self;
 
     fn div(self, other: T) -> Self::Output {
         Wire {

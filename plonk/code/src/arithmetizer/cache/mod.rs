@@ -6,6 +6,7 @@ pub use errors::{BitError, CacheError};
 
 use super::{
     arith_wire::{ArithWire, CommutativeOps},
+    plookup::PlookupOps,
     WireID,
 };
 
@@ -19,30 +20,18 @@ type Scalar = PallasScalar;
 
 /// Cache of arithmetized wires.
 /// Wire reuse leads to smaller circuits.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ArithWireCache {
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct ArithWireCache<Op: PlookupOps> {
     uuid: WireID,
-    wires: BiMap<WireID, ArithWire>,
-    commutative_lookup: HashMap<CommutativeSet, WireID>,
+    wires: BiMap<WireID, ArithWire<Op>>,
+    commutative_lookup: HashMap<CommutativeSet<Op>, WireID>,
     bit_wires: HashMap<WireID, bool>,
     public_wires: HashSet<WireID>,
 }
 
-impl Default for ArithWireCache {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl ArithWireCache {
+impl<Op: PlookupOps> ArithWireCache<Op> {
     pub fn new() -> Self {
-        ArithWireCache {
-            uuid: 0,
-            wires: BiMap::new(),
-            commutative_lookup: HashMap::new(),
-            bit_wires: HashMap::new(),
-            public_wires: HashSet::new(),
-        }
+        Default::default()
     }
 
     pub fn len(&self) -> usize {
@@ -57,7 +46,7 @@ impl ArithWireCache {
     }
 
     /// Register a wire in the cache
-    fn insert_wire(&mut self, wire: ArithWire) -> WireID {
+    fn insert_wire(&mut self, wire: ArithWire<Op>) -> WireID {
         let id = self.next_id();
         self.wires.insert(id, wire);
         id
@@ -74,7 +63,7 @@ impl ArithWireCache {
     }
 
     // Get the WireID of a wire
-    pub fn get_id(&mut self, wire: ArithWire) -> WireID {
+    pub fn get_id(&mut self, wire: ArithWire<Op>) -> WireID {
         if let Some(&id) = self.wires.get_by_right(&wire) {
             return id;
         }
@@ -114,19 +103,22 @@ impl ArithWireCache {
     }
 
     /// Get ArithWire from WireID
-    pub fn to_arith(&self, id: WireID) -> Option<ArithWire> {
+    pub fn to_arith(&self, id: WireID) -> Option<ArithWire<Op>> {
         self.wires.get_by_left(&id).copied()
     }
 
     #[cfg(test)]
-    pub fn to_arith_(&self, id: WireID) -> ArithWire {
+    pub fn to_arith_(&self, id: WireID) -> ArithWire<Op> {
         self.to_arith(id).unwrap()
     }
 
     // commutative set lookup ------------------------------------------------
 
     /// Get the commutative set (leafs of a chain of a commutative operation (add / mul)).
-    pub fn get_commutative_set(&self, wire: ArithWire) -> Result<CommutativeSet, CacheError> {
+    pub fn get_commutative_set(
+        &self,
+        wire: ArithWire<Op>,
+    ) -> Result<CommutativeSet<Op>, CacheError<Op>> {
         if let Ok(set_type) = wire.try_into() {
             let set = self.get_commutative_vec(&set_type, wire)?;
             Ok(CommutativeSet::new(set, set_type))
@@ -138,10 +130,10 @@ impl ArithWireCache {
     /// Recursive helper for `get_commutative_set`.
     fn get_commutative_vec(
         &self,
-        comm_type: &CommutativeOps,
-        wire: ArithWire,
-    ) -> Result<Vec<WireID>, CacheError> {
-        if let Ok(set_type) = <ArithWire as TryInto<CommutativeOps>>::try_into(wire) {
+        comm_type: &CommutativeOps<Op>,
+        wire: ArithWire<Op>,
+    ) -> Result<Vec<WireID>, CacheError<Op>> {
+        if let Ok(set_type) = <ArithWire<Op> as TryInto<CommutativeOps<Op>>>::try_into(wire) {
             if &set_type == comm_type {
                 return wire.inputs().try_fold(vec![], |mut set, operand| {
                     self.wires
@@ -161,11 +153,11 @@ impl ArithWireCache {
     // bit typechecking -------------------------------------------------------
 
     /// Set a wire as a bit, marking it for boolean constraint generation.
-    pub fn set_bit(&mut self, id: WireID) -> Result<(), CacheError> {
+    pub fn set_bit(&mut self, id: WireID) -> Result<(), CacheError<Op>> {
         self.set_bit_(id, true)
     }
 
-    fn set_bit_(&mut self, id: WireID, gen_constraint: bool) -> Result<(), CacheError> {
+    fn set_bit_(&mut self, id: WireID, gen_constraint: bool) -> Result<(), CacheError<Op>> {
         match self.to_arith(id) {
             Some(w) => match w {
                 ArithWire::Input(_) => {
@@ -214,11 +206,13 @@ impl ArithWireCache {
 
 #[cfg(test)]
 mod tests {
+    use crate::arithmetizer::plookup::EmptyOpSet;
+
     use super::*;
 
     #[test]
     fn insert_wire() {
-        let mut cache = ArithWireCache::new();
+        let mut cache = ArithWireCache::<EmptyOpSet>::new();
         let wire = ArithWire::Constant(Scalar::ZERO);
         let id = cache.insert_wire(wire);
         assert_eq!(id, 0);
@@ -236,7 +230,7 @@ mod tests {
 
     #[test]
     fn get_const_id() {
-        let mut cache = ArithWireCache::new();
+        let mut cache = ArithWireCache::<EmptyOpSet>::new();
         let id = cache.get_const_id(Scalar::ZERO);
         assert_eq!(id, 0);
         assert_eq!(
@@ -253,7 +247,7 @@ mod tests {
 
     #[test]
     fn get_id() {
-        let mut cache = ArithWireCache::new();
+        let mut cache = ArithWireCache::<EmptyOpSet>::new();
         let id = cache.get_id(ArithWire::Constant(Scalar::ZERO));
         assert_eq!(id, 0);
         assert_eq!(

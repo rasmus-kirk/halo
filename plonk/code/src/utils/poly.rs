@@ -76,11 +76,11 @@ pub fn shift_wrap_eval(h: &Coset, evals: Evals) -> Evals {
 
 /// f(X) = p₀(X) + Xⁿp₁(X) + X²ⁿp₂(X) + ...
 pub fn split<const N: usize, C: FpConfig<N>>(
-    n: usize,
+    n: u64,
     f: &DensePolynomial<Fp<C, N>>,
 ) -> Vec<DensePolynomial<Fp<C, N>>> {
     f.coeffs
-        .chunks(n)
+        .chunks(n as usize)
         .map(DensePolynomial::from_coefficients_slice)
         .collect()
 }
@@ -118,7 +118,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::scheme::Slots;
+    use crate::{scheme::Slots, utils::misc::EnumIter};
     use ark_poly::Polynomial;
 
     use super::*;

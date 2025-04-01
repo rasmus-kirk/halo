@@ -3,20 +3,20 @@ use crate::utils::misc::map_to_alphabet;
 
 use halo_accumulation::group::PallasScalar;
 
-use std::fmt;
+use std::fmt::{self, Display};
 
 type Scalar = PallasScalar;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum ArithWire {
+pub enum ArithWire<Op: PlookupOps> {
     Input(WireID),
     Constant(Scalar),
     AddGate(WireID, WireID),
     MulGate(WireID, WireID),
-    Lookup(PlookupOps, WireID, WireID),
+    Lookup(Op, WireID, WireID),
 }
 
-impl fmt::Display for ArithWire {
+impl<Op: PlookupOps> Display for ArithWire<Op> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             ArithWire::Input(wire_id) => write!(f, "Input({})", map_to_alphabet(wire_id)),
@@ -40,7 +40,7 @@ impl fmt::Display for ArithWire {
     }
 }
 
-impl ArithWire {
+impl<Op: PlookupOps> ArithWire<Op> {
     /// Get the inputs of the gate, if the wire is a gate.
     pub fn inputs(&self) -> impl Iterator<Item = WireID> {
         match *self {
@@ -54,23 +54,20 @@ impl ArithWire {
 
 /// The types of gates that are commutative.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum CommutativeOps {
+pub enum CommutativeOps<Op: PlookupOps> {
     Add,
     Mul,
-    Lookup(PlookupOps),
+    Lookup(Op),
 }
 
-impl TryFrom<ArithWire> for CommutativeOps {
-    type Error = ArithmetizerError;
+impl<Op: PlookupOps> TryFrom<ArithWire<Op>> for CommutativeOps<Op> {
+    type Error = ArithmetizerError<Op>;
 
-    fn try_from(val: ArithWire) -> Result<Self, Self::Error> {
+    fn try_from(val: ArithWire<Op>) -> Result<Self, Self::Error> {
         match val {
             ArithWire::AddGate(_, _) => Ok(CommutativeOps::Add),
             ArithWire::MulGate(_, _) => Ok(CommutativeOps::Mul),
-            ArithWire::Lookup(op, _, _) => match op {
-                PlookupOps::Xor => Ok(CommutativeOps::Lookup(PlookupOps::Xor)),
-                PlookupOps::Or => Ok(CommutativeOps::Lookup(PlookupOps::Or)),
-            },
+            ArithWire::Lookup(op, _, _) if op.is_commutative() => Ok(CommutativeOps::Lookup(op)),
             _ => Err(ArithmetizerError::CommutativeSetTypeConversionError(val)),
         }
     }

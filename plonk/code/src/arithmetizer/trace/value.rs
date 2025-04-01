@@ -1,6 +1,6 @@
 use super::WireID;
 use crate::{
-    arithmetizer::cache::ArithWireCache,
+    arithmetizer::{cache::ArithWireCache, plookup::PlookupOps},
     utils::{misc::map_to_alphabet, print_table::print_scalar},
 };
 
@@ -36,6 +36,12 @@ pub enum Value {
     Wire(WireID, ValueType, Scalar),
 }
 
+impl Default for Value {
+    fn default() -> Self {
+        Self::ZERO
+    }
+}
+
 impl Value {
     pub const ZERO: Self = Self::AnonWire(Scalar::ZERO);
     pub const ONE: Self = Self::AnonWire(Scalar::ONE);
@@ -46,6 +52,11 @@ impl Value {
 
     pub fn new_wire(wire: WireID, value: Scalar) -> Self {
         Self::Wire(wire, ValueType::Field, value)
+    }
+
+    /// Check if the value is an anonymous wire.
+    pub fn is_anon(&self) -> bool {
+        matches!(self, Self::AnonWire(_))
     }
 
     /// Check if the value scalar is zero.
@@ -67,7 +78,7 @@ impl Value {
     }
 
     /// Set the value type of the value to bit if the wire id is a bit.
-    pub fn set_bit_type(self, cache: &ArithWireCache) -> Self {
+    pub fn set_bit_type<Op: PlookupOps>(self, cache: &ArithWireCache<Op>) -> Self {
         match self {
             Self::Wire(id, _, scalar) if cache.is_bit(id) => Self::Wire(id, ValueType::Bit, scalar),
             x => x,

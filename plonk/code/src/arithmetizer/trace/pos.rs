@@ -1,5 +1,8 @@
 use super::{ConstraintID, Coset};
-use crate::{scheme::Slots, utils::misc::to_superscript};
+use crate::{
+    scheme::Slots,
+    utils::misc::{to_superscript, EnumIter},
+};
 
 use halo_accumulation::group::PallasScalar;
 
@@ -8,7 +11,7 @@ use std::fmt;
 type Scalar = PallasScalar;
 
 /// Position in the permutation polynomial.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Pos {
     pub slot: Slots,
     pub id: ConstraintID,
@@ -17,6 +20,10 @@ pub struct Pos {
 impl Pos {
     pub fn new(slot: Slots, id: ConstraintID) -> Self {
         Self { slot, id }
+    }
+
+    pub fn id(&self) -> usize {
+        self.id as usize
     }
 
     /// Convert the position to a scalar used in the permutation polynomial.

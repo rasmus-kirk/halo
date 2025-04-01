@@ -5,7 +5,10 @@ use halo_accumulation::{
     pcdl::EvalProof,
 };
 
-use crate::scheme::{Selectors, Slots};
+use crate::{
+    scheme::{Selectors, Slots},
+    utils::misc::EnumIter,
+};
 
 #[derive(Clone)]
 pub struct ProofEvaluations {
@@ -25,59 +28,59 @@ impl ProofEvaluations {
     // Slots ------------------------------------------------------------------
 
     pub fn a(&self) -> PallasScalar {
-        self.ws[Slots::A as usize]
+        self.ws[Slots::A.id()]
     }
 
     pub fn b(&self) -> PallasScalar {
-        self.ws[Slots::B as usize]
+        self.ws[Slots::B.id()]
     }
 
     pub fn c(&self) -> PallasScalar {
-        self.ws[Slots::C as usize]
+        self.ws[Slots::C.id()]
     }
 
     // Selectors --------------------------------------------------------------
 
     pub fn ql(&self) -> PallasScalar {
-        self.qs[Selectors::Ql as usize]
+        self.qs[Selectors::Ql.id()]
     }
 
     pub fn qr(&self) -> PallasScalar {
-        self.qs[Selectors::Qr as usize]
+        self.qs[Selectors::Qr.id()]
     }
 
     pub fn qo(&self) -> PallasScalar {
-        self.qs[Selectors::Qo as usize]
+        self.qs[Selectors::Qo.id()]
     }
 
     pub fn qm(&self) -> PallasScalar {
-        self.qs[Selectors::Qm as usize]
+        self.qs[Selectors::Qm.id()]
     }
 
     pub fn qc(&self) -> PallasScalar {
-        self.qs[Selectors::Qc as usize]
+        self.qs[Selectors::Qc.id()]
     }
 
     pub fn qk(&self) -> PallasScalar {
-        self.qs[Selectors::Qk as usize]
+        self.qs[Selectors::Qk.id()]
     }
 
     pub fn j(&self) -> PallasScalar {
-        self.qs[Selectors::J as usize]
+        self.qs[Selectors::J.id()]
     }
 
     // Permutation ------------------------------------------------------------
 
     pub fn pa(&self) -> PallasScalar {
-        self.ps[Slots::A as usize]
+        self.ps[Slots::A.id()]
     }
 
     pub fn pb(&self) -> PallasScalar {
-        self.ps[Slots::B as usize]
+        self.ps[Slots::B.id()]
     }
 
     pub fn pc(&self) -> PallasScalar {
-        self.ps[Slots::C as usize]
+        self.ps[Slots::C.id()]
     }
 
     // Plookup ------------------------------------------------------

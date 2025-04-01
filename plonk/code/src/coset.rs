@@ -1,4 +1,4 @@
-use crate::utils::misc::to_superscript;
+use crate::utils::misc::{to_superscript, EnumIter};
 
 use ark_ff::{AdditiveGroup, FftField, Field};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
@@ -24,9 +24,9 @@ pub struct Coset {
 impl Default for Coset {
     fn default() -> Self {
         Coset {
-            n: 0,
-            w: Scalar::ZERO,
-            ks: Vec::new(),
+            n: Default::default(),
+            w: Default::default(),
+            ks: Default::default(),
             coset_domain: GeneralEvaluationDomain::<Scalar>::new(0).unwrap(),
             domain: GeneralEvaluationDomain::<Scalar>::new(0).unwrap(),
         }
@@ -91,8 +91,8 @@ impl Coset {
     }
 
     // Hₛ = { kₛ ωⁱ | 1 ≤ i < n }
-    pub fn h<T: Into<usize>>(&self, slot: T, i: u64) -> Scalar {
-        self.ks[slot.into()] * self.w(i)
+    pub fn h<T: EnumIter>(&self, slot: T, i: u64) -> Scalar {
+        self.ks[slot.id()] * self.w(i)
     }
 
     /// [1, n)
@@ -110,8 +110,8 @@ impl Coset {
         self.vec().iter().map(|h| k * h).collect()
     }
 
-    pub fn vec_k<T: Into<usize>>(&self, slot: T) -> Vec<Scalar> {
-        self.vec_mul(self.ks[slot.into()])
+    pub fn vec_k<T: EnumIter>(&self, slot: T) -> Vec<Scalar> {
+        self.vec_mul(self.ks[slot.id()])
     }
 }
 
@@ -119,7 +119,7 @@ impl Coset {
 mod tests {
     use std::collections::HashSet;
 
-    use crate::scheme::Slots;
+    use crate::{scheme::Slots, utils::misc::EnumIter};
 
     use super::*;
 

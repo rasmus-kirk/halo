@@ -63,9 +63,9 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     transcript.append_scalar(b"z_ev", &ev.z);
 
     // a + βb + γ
-    let cc = eqns::copy_constraint_term(|x| x, beta, gamma);
+    let cc = eqns::copy_constraint_term(Into::into, beta, gamma);
     // ε(1 + δ) + a + δb
-    let pl = eqns::plookup_term(|x| x, epsilon, delta);
+    let pl = eqns::plookup_term(Into::into, epsilon, delta);
     // f'(𝔷) = (A(𝔷) + β Sᵢ₁(𝔷) + γ) (B(𝔷) + β Sᵢ₂(𝔷) + γ) (C(𝔷) + β Sᵢ₃(𝔷) + γ)
     //         (ε(1 + δ) + f(𝔷) + δf(𝔷))(ε(1 + δ) + t(𝔷) + δt(Xω))
     let zf_ev = cc(ev.a(), ia)
@@ -90,9 +90,9 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     let f_z2_ev = (ev.z * zf_ev) - (zg_ev * ev.z_bar);
 
     // T(𝔷) = (F_GC(𝔷) + α F_CC1(𝔷) + α² F_CC2(𝔷)) / Zₕ(𝔷)
-    let t_ev = utils::geometric(ch.pow([x.h.n()]), ev.ts.clone());
+    let t_ev = utils::geometric_fp(ch.pow([x.h.n()]), ev.ts.clone());
     ensure!(
-        utils::geometric(alpha, [f_gc_ev, f_z1_ev, f_z2_ev]) == t_ev * zh_ev,
+        utils::geometric_fp(alpha, [f_gc_ev, f_z1_ev, f_z2_ev]) == t_ev * zh_ev,
         "T(𝔷) ≠ (F_GC(𝔷) + α F_CC1(𝔷) + α² F_CC2(𝔷)) / Zₕ(𝔷)"
     );
 
@@ -100,22 +100,8 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
 
     // W(𝔷) = Qₗ(𝔷) + vQᵣ(𝔷) + v²Qₒ(𝔷) + v³Qₘ(𝔷) + v⁴Q꜀(𝔷) + v⁵Qₖ(𝔷) + v⁶J(𝔷)
     //      + v⁷A(𝔷) + v⁸B(𝔷) + v⁹C(𝔷) + v¹⁰Z(𝔷)
-    let W_com = utils::geometric(
-        v,
-        x.qs_coms
-            .iter()
-            .chain(com.ws.iter())
-            .chain(std::iter::once(&com.z))
-            .cloned(),
-    );
-    let W_ev = utils::geometric(
-        v,
-        ev.qs
-            .iter()
-            .chain(ev.ws.iter())
-            .chain(std::iter::once(&ev.z))
-            .cloned(),
-    );
+    let W_com = utils::flat_geometric_fp(v, [x.qs_com.clone(), com.ws.clone(), vec![com.z]]);
+    let W_ev = utils::flat_geometric_fp(v, [ev.qs.clone(), ev.ws.clone(), vec![ev.z]]);
     pcdl::check(&W_com, x.d, &ch, &W_ev, pi.pis.W)?;
     // W'(𝔷) = Z(ω𝔷)
     pcdl::check(&com.z, x.d, &ch_w, &ev.z_bar, pi.pis.W_bar)?;

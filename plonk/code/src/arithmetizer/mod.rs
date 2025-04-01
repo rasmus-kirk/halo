@@ -8,8 +8,7 @@ mod wire;
 
 use arith_wire::ArithWire;
 pub use errors::ArithmetizerError;
-use plookup::PlookupOps;
-pub use plookup::{PlookupEvsThunk, Table};
+pub use plookup::*;
 pub use trace::{Pos, Trace};
 pub use wire::Wire;
 
@@ -29,12 +28,12 @@ type WireID = usize;
 
 /// Constructs a circuit and arithmetizes it.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Arithmetizer {
+pub struct Arithmetizer<Op: PlookupOps = EmptyOpSet> {
     inputs: usize,
-    wires: cache::ArithWireCache,
+    wires: cache::ArithWireCache<Op>,
 }
 
-impl Arithmetizer {
+impl<Op: PlookupOps> Arithmetizer<Op> {
     // constructors -------------------------------------------------------
 
     fn new(inputs: usize) -> Self {
@@ -45,7 +44,7 @@ impl Arithmetizer {
     }
 
     /// Returns `N` input wires to build a circuit.
-    pub fn build<const N: usize>() -> [Wire; N] {
+    pub fn build<const N: usize>() -> [Wire<Op>; N] {
         let cell = Rc::new(RefCell::new(Self::new(N)));
         let mut circuit = cell.borrow_mut();
         let mut wires = Vec::new();
@@ -60,9 +59,9 @@ impl Arithmetizer {
     pub fn to_circuit<T, R: Rng>(
         rng: &mut R,
         input_values: Vec<T>,
-        output_wires: &[Wire],
+        output_wires: &[Wire<Op>],
         d: Option<usize>,
-    ) -> Result<Circuit, ArithmetizerError>
+    ) -> Result<Circuit, ArithmetizerError<Op>>
     where
         T: Into<Scalar> + Copy + std::fmt::Display,
     {
@@ -135,14 +134,14 @@ impl Arithmetizer {
     }
 
     /// Plookup operations
-    pub fn lookup(&mut self, op: PlookupOps, a: WireID, b: WireID) -> WireID {
+    pub fn lookup(&mut self, op: Op, a: WireID, b: WireID) -> WireID {
         self.wires.get_id(ArithWire::Lookup(op, a, b))
     }
 
     // boolean operators --------------------------------------------------
 
     /// a : 𝔹
-    pub fn enforce_bit(&mut self, a: WireID) -> Result<(), ArithmetizerError> {
+    pub fn enforce_bit(&mut self, a: WireID) -> Result<(), ArithmetizerError<Op>> {
         self.wires.set_bit(a).map_err(ArithmetizerError::CacheError)
     }
 
@@ -175,7 +174,10 @@ impl Arithmetizer {
         self.wires.len()
     }
 
-    pub fn to_string<T: std::fmt::Display>(input_values: &[T], output_wires: &[Wire]) -> String {
+    pub fn to_string<T: std::fmt::Display>(
+        input_values: &[T],
+        output_wires: &[Wire<Op>],
+    ) -> String {
         let mut result = String::new();
         result.push_str("Arithmetizer {\n");
         input_values
@@ -192,17 +194,19 @@ impl Arithmetizer {
 
 #[cfg(test)]
 mod tests {
+    use crate::arithmetizer::plookup::EmptyOpSet;
+
     use super::*;
 
     #[test]
     fn new() {
-        let arith = Arithmetizer::new(2);
+        let arith = Arithmetizer::<EmptyOpSet>::new(2);
         assert_eq!(arith.inputs, 2);
     }
 
     #[test]
     fn build() {
-        let wires = Arithmetizer::build::<2>();
+        let wires = Arithmetizer::<EmptyOpSet>::build::<2>();
         assert_eq!(wires.len(), 2);
         assert_eq!(wires[0].id(), 0);
         assert_eq!(wires[1].id(), 1);
@@ -210,7 +214,7 @@ mod tests {
 
     #[test]
     fn get_wire_commutative() {
-        let [a, b] = Arithmetizer::build::<2>();
+        let [a, b] = Arithmetizer::<EmptyOpSet>::build::<2>();
         assert_eq!(a.id(), 0);
         assert_eq!(b.id(), 1);
         let c = &(a.clone() + b.clone());
@@ -225,7 +229,7 @@ mod tests {
 
     #[test]
     fn commutative_2() {
-        let [a, b, c] = Arithmetizer::build::<3>();
+        let [a, b, c] = Arithmetizer::<EmptyOpSet>::build::<3>();
         let f = a.clone() * b.clone() * c.clone();
         let g = c * a * b;
         assert_eq!(f.id(), g.id())
@@ -233,7 +237,7 @@ mod tests {
 
     #[test]
     fn add() {
-        let [a, b] = Arithmetizer::build::<2>();
+        let [a, b] = Arithmetizer::<EmptyOpSet>::build::<2>();
         assert_eq!(a.id(), 0);
         assert_eq!(b.id(), 1);
         let c = a.clone() + b.clone();
@@ -246,7 +250,7 @@ mod tests {
 
     #[test]
     fn mul() {
-        let [a, b] = Arithmetizer::build::<2>();
+        let [a, b] = Arithmetizer::<EmptyOpSet>::build::<2>();
         assert_eq!(a.id(), 0);
         assert_eq!(b.id(), 1);
         let c = a.clone() * b.clone();
@@ -259,7 +263,7 @@ mod tests {
 
     #[test]
     fn sub() {
-        let [a, b] = Arithmetizer::build::<2>();
+        let [a, b] = Arithmetizer::<EmptyOpSet>::build::<2>();
         assert_eq!(a.id(), 0);
         assert_eq!(b.id(), 1);
         let c = &(a.clone() - b.clone());
@@ -274,9 +278,9 @@ mod tests {
 
     #[test]
     fn add_const() {
-        let [a] = Arithmetizer::build::<1>();
+        let [a] = Arithmetizer::<EmptyOpSet>::build::<1>();
         assert_eq!(a.id(), 0);
-        let c: &Wire = &(a + 1);
+        let c = &(a + 1);
         assert_eq!(c.id(), 2);
         let wires = &c.arith().borrow().wires;
         assert_eq!(wires.to_arith_(0), ArithWire::Input(0));
@@ -285,9 +289,9 @@ mod tests {
 
     #[test]
     fn sub_const() {
-        let [a] = Arithmetizer::build::<1>();
+        let [a] = Arithmetizer::<EmptyOpSet>::build::<1>();
         assert_eq!(a.id(), 0);
-        let c: &Wire = &(a.clone() - 1);
+        let c = &(a.clone() - 1);
         assert_eq!(c.id(), 2);
         let wires = &c.arith().borrow().wires;
         assert_eq!(wires.to_arith_(a.id()), ArithWire::Input(0));
@@ -297,9 +301,9 @@ mod tests {
 
     #[test]
     fn mul_const() {
-        let [a] = Arithmetizer::build::<1>();
+        let [a] = Arithmetizer::<EmptyOpSet>::build::<1>();
         assert_eq!(a.id(), 0);
-        let c: &Wire = &(a.clone() * 1);
+        let c = &(a.clone() * 1);
         assert_eq!(c.id(), 2);
         let wires = &c.arith().borrow().wires;
         assert_eq!(wires.to_arith_(a.id()), ArithWire::Input(0));

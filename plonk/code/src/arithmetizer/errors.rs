@@ -1,19 +1,21 @@
-use super::{arith_wire::ArithWire, cache::CacheError, trace::TraceError, Wire};
+use super::{
+    arith_wire::ArithWire, cache::CacheError, plookup::PlookupOps, trace::TraceError, Wire,
+};
 
 use std::rc::Rc;
 
 #[derive(Debug)]
-pub enum ArithmetizerError {
+pub enum ArithmetizerError<Op: PlookupOps> {
     EmptyOutputWires,
     MismatchedCircuits,
     InvalidInputLength { expected: usize, got: usize },
-    EvaluatorError(TraceError),
-    CacheError(CacheError),
-    CommutativeSetTypeConversionError(ArithWire),
+    EvaluatorError(TraceError<Op>),
+    CacheError(CacheError<Op>),
+    CommutativeSetTypeConversionError(ArithWire<Op>),
 }
 
-impl ArithmetizerError {
-    pub fn validate<T>(input_values: &[T], output_wires: &[Wire]) -> Result<(), Self> {
+impl<Op: PlookupOps> ArithmetizerError<Op> {
+    pub fn validate<T>(input_values: &[T], output_wires: &[Wire<Op>]) -> Result<(), Self> {
         if output_wires.is_empty() {
             return Err(ArithmetizerError::EmptyOutputWires);
         }
@@ -40,7 +42,7 @@ impl ArithmetizerError {
     }
 }
 
-impl std::fmt::Display for ArithmetizerError {
+impl<Op: PlookupOps> std::fmt::Display for ArithmetizerError<Op> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ArithmetizerError::EmptyOutputWires => {
@@ -67,4 +69,4 @@ impl std::fmt::Display for ArithmetizerError {
     }
 }
 
-impl std::error::Error for ArithmetizerError {}
+impl<Op: PlookupOps> std::error::Error for ArithmetizerError<Op> {}

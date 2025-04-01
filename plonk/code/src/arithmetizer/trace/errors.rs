@@ -1,3 +1,5 @@
+use std::{error::Error, fmt::Display};
+
 use super::constraints::Constraints;
 use crate::{
     arithmetizer::{plookup::PlookupOps, WireID},
@@ -9,23 +11,23 @@ use halo_accumulation::group::PallasScalar;
 type Scalar = PallasScalar;
 
 #[derive(Debug)]
-pub enum TraceError {
+pub enum TraceError<Op: PlookupOps> {
     InputNotSet(WireID),
     WireNotInCache(WireID),
     ConstNotInCache(Scalar),
     FailedToEval(WireID),
     FailedToMakeCoset(u64),
     ConstraintNotSatisfied(String),
-    LookupFailed(PlookupOps, Scalar, Scalar),
+    LookupFailed(Op, Scalar, Scalar),
 }
 
-impl TraceError {
+impl<Op: PlookupOps> TraceError<Op> {
     pub fn constraint_not_satisfied(constraint: &Constraints) -> Self {
         TraceError::ConstraintNotSatisfied(constraint.to_string())
     }
 }
 
-impl std::fmt::Display for TraceError {
+impl<Op: PlookupOps> Display for TraceError<Op> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             TraceError::InputNotSet(id) => {
@@ -65,4 +67,4 @@ impl std::fmt::Display for TraceError {
     }
 }
 
-impl std::error::Error for TraceError {}
+impl<Op: PlookupOps> Error for TraceError<Op> {}
