@@ -3,7 +3,7 @@
 use super::{transcript::TranscriptProtocol, Proof};
 use crate::{
     circuit::CircuitPublic,
-    scheme::eqns::{self, plonkup_eqn_fp},
+    scheme::eqns,
     utils::{self, poly, scalar},
 };
 
@@ -51,7 +51,6 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     let ch = transcript.challenge_scalar(b"xi");
     let ch_w = ch * x.h.w(1);
     let zh_ev = scalar::zh_ev(&x.h, ch);
-    let l1_ev_ch = scalar::lagrange_basis1(&x.h, ch);
     let [ia, ib, ic] = poly::batch_evaluate(&x.is, ch).try_into().unwrap();
 
     transcript.append_scalars(b"ws_ev", &ev.ws);
@@ -65,7 +64,7 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     // a + βb + γ
     let cc = eqns::copy_constraint_term(Into::into, beta, gamma);
     // ε(1 + δ) + a + δb
-    let pl = eqns::plookup_term_fp(Into::into, epsilon, delta);
+    let pl = eqns::plookup_term(Into::into, epsilon * (Scalar::ONE + delta), delta);
     // f'(𝔷) = (A(𝔷) + β Sᵢ₁(𝔷) + γ) (B(𝔷) + β Sᵢ₂(𝔷) + γ) (C(𝔷) + β Sᵢ₃(𝔷) + γ)
     //         (ε(1 + δ) + f(𝔷) + δf(𝔷))(ε(1 + δ) + t(𝔷) + δt(Xω))
     let zf_ev = cc(ev.a(), ia)
@@ -83,11 +82,11 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
 
     // F_GC(𝔷) = A(𝔷)Qₗ(𝔷) + B(𝔷)Qᵣ(𝔷) + C(𝔷)Qₒ(𝔷) + A(𝔷)B(𝔷)Qₘ(𝔷) + Q꜀(𝔷) + PI(𝔷)
     //         + Qₖ(𝔷)(A(𝔷) + ζB(𝔷) + ζ²C(𝔷) + ζ³J(𝔷) - f(𝔷))
-    let f_gc_ev = plonkup_eqn_fp(zeta, ev.ws.clone(), ev.qs.clone(), ev.pip, ev.f());
+    let f_gc_ev = eqns::plonkup_eqn_fp(zeta, ev.ws.clone(), ev.qs.clone(), ev.pip, ev.f());
     // F_Z1(𝔷) = L₁(𝔷) (Z(𝔷) - 1)
-    let f_z1_ev = l1_ev_ch * (ev.z - Scalar::ONE);
+    let f_z1_ev = eqns::grand_product1_fp(ev.z, scalar::lagrange_basis1(&x.h, ch));
     // F_Z2(𝔷) = Z(𝔷)f'(𝔷) - g'(𝔷)Z(ω 𝔷)
-    let f_z2_ev = (ev.z * zf_ev) - (zg_ev * ev.z_bar);
+    let f_z2_ev = eqns::grand_product2(ev.z, zf_ev, zg_ev, ev.z_bar);
 
     // T(𝔷) = (F_GC(𝔷) + α F_CC1(𝔷) + α² F_CC2(𝔷)) / Zₕ(𝔷)
     let t_ev = utils::geometric_fp(ch.pow([x.h.n()]), ev.ts.clone());

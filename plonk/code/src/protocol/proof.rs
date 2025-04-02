@@ -7,7 +7,7 @@ use super::{
 use crate::{
     arithmetizer::PlookupOps,
     circuit::{CircuitPrivate, CircuitPublic},
-    scheme::eqns::{self, plonkup_eqn_fp},
+    scheme::eqns,
     utils::{
         self,
         poly::{self, deg0},
@@ -67,8 +67,9 @@ pub fn prove<R: rand::Rng, Op: PlookupOps>(
     let _cc = eqns::copy_constraint_term(Into::into, beta, gamma);
     let cc = eqns::copy_constraint_term(deg0, beta, gamma);
     // ε(1 + δ) + a + δb
-    let _pl = eqns::plookup_term_fp(Into::into, epsilon, delta);
-    let pl = eqns::plookup_term_fp(deg0, epsilon, delta);
+    let e1d = epsilon * (Scalar::ONE + delta);
+    let _pl = eqns::plookup_term(Into::into, e1d, delta);
+    let pl = eqns::plookup_term(deg0, e1d, delta);
     // f'(X) = (A(X) + β Sᵢ₁(X) + γ) (B(X) + β Sᵢ₂(X) + γ) (C(X) + β Sᵢ₃(X) + γ)
     //         (ε(1 + δ) + f(X) + δf(X)) (ε(1 + δ) + t(X) + δt(Xω))
     let zf = cc(w.a(), x.ia())
@@ -126,13 +127,14 @@ pub fn prove<R: rand::Rng, Op: PlookupOps>(
     // F_GC(X) = A(X)Qₗ(X) + B(X)Qᵣ(X) + C(X)Qₒ(X) + A(X)B(X)Qₘ(X) + Q꜀(X) + PI(X)
     //         + Qₖ(X)(A(X) + ζB(X) + ζ²C(X) + ζ³J(X) - f(X))
     info!("Round 4A - {} s", now.elapsed().as_secs_f64());
-    let f_gc = &plonkup_eqn_fp(zeta, &w.ws, &x.qs, &x.pip, &p.f);
+    let f_gc = &eqns::plonkup_eqn_fp(zeta, &w.ws, &x.qs, &x.pip, &p.f);
     // F_Z1(X) = L₁(X) (Z(X) - 1)
     info!("Round 4C - {} s", now.elapsed().as_secs_f64());
-    let f_z1 = &(poly::lagrange_basis(&x.h, 1) * (z - deg0(PallasScalar::ONE)));
+    // let f_z1 = &(poly::lagrange_basis(&x.h, 1) * (z - deg0(PallasScalar::ONE)));
+    let f_z1 = &eqns::grand_product1(&deg0(Scalar::ONE), z, &poly::lagrange_basis(&x.h, 1));
     // F_Z2(X) = Z(X)f'(X) - g'(X)Z(ω X)
     info!("Round 4D - {} s", now.elapsed().as_secs_f64());
-    let f_z2 = &((z * zf) - (zg * z_bar));
+    let f_z2 = &eqns::grand_product2(z, &zf, &zg, z_bar);
     // T(X) = (F_GC(X) + α F_C1(X) + α² F_C2(X)) / Zₕ(X)
     info!("Round 4E1 - {} s", now.elapsed().as_secs_f64());
     let tzh = utils::geometric_fp(alpha, [f_gc, f_z1, f_z2]);
