@@ -1,7 +1,7 @@
 use super::{PlookupOps, TableRegistry};
 use crate::{
     arithmetizer::trace::Constraints,
-    scheme::{eqns::plookup_compress, Selectors, Slots, Terms},
+    scheme::{eqns::plookup_compress_fp, Selectors, Slots, Terms},
     utils::{misc::batch_op, poly::shift_wrap_eval},
     Coset,
 };
@@ -54,7 +54,7 @@ impl PlookupEvsThunk {
                 let b: Scalar = constraint[Terms::F(Slots::B)].into();
                 let c: Scalar = constraint[Terms::F(Slots::C)].into();
                 let j: Scalar = constraint[Terms::Q(Selectors::J)].into();
-                plookup_compress(zeta, a, b, c, j)
+                plookup_compress_fp(zeta, a, b, c, j)
             } else {
                 default
             }

@@ -6,7 +6,7 @@ pub use compute::PlookupEvsThunk;
 pub use opsets::*;
 pub use plookupops::PlookupOps;
 
-use crate::scheme::eqns::plookup_compress;
+use crate::scheme::eqns::plookup_compress_fp;
 
 use halo_accumulation::group::PallasScalar;
 
@@ -26,7 +26,7 @@ impl Table {
         let mut res = Vec::new();
         for row in self.0.iter().copied() {
             let [a, b, c] = row;
-            let t = plookup_compress(zeta, a, b, c, j);
+            let t = plookup_compress_fp(zeta, a, b, c, j);
             res.push(t);
         }
         res
@@ -81,7 +81,7 @@ impl TableRegistry {
     ) -> Option<Scalar> {
         let c = self.lookup(op, a, b)?;
         let j = op.to_fp();
-        Some(plookup_compress(zeta, a, b, c, j))
+        Some(plookup_compress_fp(zeta, a, b, c, j))
     }
 
     /// Total number of entries in all tables
