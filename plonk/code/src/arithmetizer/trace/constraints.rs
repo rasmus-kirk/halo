@@ -2,7 +2,7 @@ use super::Value;
 use crate::{
     arithmetizer::{plookup::PlookupOps, WireID},
     scheme::{
-        eqns::{plonk_eqn, plonk_eqn_str, plonkup_eqn},
+        eqns::{plonk_eqn, plonk_eqn_str, plonkup_eqn_fp},
         Selectors, Slots, Terms,
     },
     utils::misc::{batch_op, EnumIter},
@@ -146,7 +146,7 @@ impl Constraints {
 
     /// Check if plonkup constraints are satisfied.
     pub fn is_plonkup_satisfied(&self, zeta: Scalar, f: Scalar) -> bool {
-        plonkup_eqn(zeta, self.ws(), self.qs(), self.pip(), f) == Scalar::ZERO
+        plonkup_eqn_fp(zeta, self.ws(), self.qs(), self.pip(), f) == Scalar::ZERO
     }
 
     /// Check if the constraints are structurally equal.

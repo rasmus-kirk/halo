@@ -7,7 +7,7 @@ use super::{
 use crate::{
     arithmetizer::PlookupOps,
     circuit::{CircuitPrivate, CircuitPublic},
-    scheme::eqns::{self, plonkup_eqn},
+    scheme::eqns::{self, plonkup_eqn_fp},
     utils::{
         self,
         poly::{self, deg0},
@@ -67,8 +67,8 @@ pub fn prove<R: rand::Rng, Op: PlookupOps>(
     let _cc = eqns::copy_constraint_term(Into::into, beta, gamma);
     let cc = eqns::copy_constraint_term(deg0, beta, gamma);
     // ε(1 + δ) + a + δb
-    let _pl = eqns::plookup_term(Into::into, epsilon, delta);
-    let pl = eqns::plookup_term(deg0, epsilon, delta);
+    let _pl = eqns::plookup_term_fp(Into::into, epsilon, delta);
+    let pl = eqns::plookup_term_fp(deg0, epsilon, delta);
     // f'(X) = (A(X) + β Sᵢ₁(X) + γ) (B(X) + β Sᵢ₂(X) + γ) (C(X) + β Sᵢ₃(X) + γ)
     //         (ε(1 + δ) + f(X) + δf(X)) (ε(1 + δ) + t(X) + δt(Xω))
     let zf = cc(w.a(), x.ia())
@@ -126,7 +126,7 @@ pub fn prove<R: rand::Rng, Op: PlookupOps>(
     // F_GC(X) = A(X)Qₗ(X) + B(X)Qᵣ(X) + C(X)Qₒ(X) + A(X)B(X)Qₘ(X) + Q꜀(X) + PI(X)
     //         + Qₖ(X)(A(X) + ζB(X) + ζ²C(X) + ζ³J(X) - f(X))
     info!("Round 4A - {} s", now.elapsed().as_secs_f64());
-    let f_gc = &plonkup_eqn(zeta, &w.ws, &x.qs, &x.pip, &p.f);
+    let f_gc = &plonkup_eqn_fp(zeta, &w.ws, &x.qs, &x.pip, &p.f);
     // F_Z1(X) = L₁(X) (Z(X) - 1)
     info!("Round 4C - {} s", now.elapsed().as_secs_f64());
     let f_z1 = &(poly::lagrange_basis(&x.h, 1) * (z - deg0(PallasScalar::ONE)));
@@ -232,8 +232,6 @@ pub fn prove<R: rand::Rng, Op: PlookupOps>(
     pi
 }
 
-// TODO make PlookupOps into a trait, but need to change Table to not used fixed size array but Vecs
-// TODO generalize eqns for circuit construction too; i.e. one: F arg
 // TODO generalize Coset for any field
 // TODO generalize Arithmetizer for any field
 // TODO generalize Circuit for any field; prover, verifier

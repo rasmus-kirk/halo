@@ -14,8 +14,8 @@ impl Trace {
         self.constraints
             .iter()
             .enumerate()
-            .map(|(i_, eqn)| (i_ as ConstraintID + 1, eqn))
-            .map(|(i, eqn)| {
+            .map(|(i_, eqn)| {
+                let i = i_ as ConstraintID + 1;
                 std::iter::once(format!("{}", Pos::new(Slots::A, i)))
                     .chain(Terms::iter().map(|term| {
                         let value = eqn[term];
