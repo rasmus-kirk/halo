@@ -101,26 +101,37 @@ where
 }
 
 /// ε(1 + δ) + a + δb
-pub fn plookup_term<F, T, P, Func>(one: F, into: Func, epsilon: F, delta: F) -> impl Fn(T, T) -> P
+pub fn plookup_term<F, T, P, Func>(into: Func, e1d: F, delta: F) -> impl Fn(T, T) -> P
 where
     Func: Fn(F) -> P,
     F: Add<F, Output = F> + Mul<F, Output = F> + Copy,
     T: Mul<F, Output = P>,
     P: Add<T, Output = P> + Add<P, Output = P>,
 {
-    move |a: T, b: T| into(epsilon * (one + delta)) + a + (b * delta)
+    move |a: T, b: T| into(e1d) + a + (b * delta)
 }
 
-pub fn plookup_term_fp<const N: usize, C, T, P, Func>(
-    into: Func,
-    epsilon: Fp<C, N>,
-    delta: Fp<C, N>,
-) -> impl Fn(T, T) -> P
+/// L₁ (Z - 1)
+pub fn grand_product1<F, T, P>(one: F, z: T, l1: T) -> P
 where
-    Func: Fn(Fp<C, N>) -> P,
-    C: FpConfig<N>,
-    T: Mul<Fp<C, N>, Output = P>,
-    P: Add<T, Output = P> + Add<P, Output = P>,
+    T: Sub<F, Output = P> + Mul<P, Output = P>,
 {
-    plookup_term(Fp::ONE, into, epsilon, delta)
+    l1 * (z - one)
+}
+
+pub fn grand_product1_fp<const N: usize, C: FpConfig<N>, T, P>(z: T, l1: T) -> P
+where
+    C: FpConfig<N>,
+    T: Sub<Fp<C, N>, Output = P> + Mul<P, Output = P>,
+{
+    grand_product1(Fp::ONE, z, l1)
+}
+
+/// Z f' - g' Z'
+pub fn grand_product2<T, P>(z: T, zf: T, zg: T, z_bar: T) -> P
+where
+    T: Mul<T, Output = P>,
+    P: Sub<P, Output = P>,
+{
+    (z * zf) - (zg * z_bar)
 }
