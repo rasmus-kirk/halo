@@ -1,3 +1,6 @@
+use ark_ec::short_weierstrass::SWCurveConfig;
+use ark_ff::FpConfig;
+
 use crate::arithmetizer::plookup::{BinXorOr, PlookupOps};
 
 use super::{ast::WireAST, Wire};
@@ -6,7 +9,7 @@ use std::ops::{Add, BitAnd, BitOr, BitXor, Mul, Neg, Not, Sub};
 
 // Add ------------------------------------------------------------------------
 
-impl<Op: PlookupOps> Add for Wire<Op> {
+impl<Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Add for Wire<Op, N, C, P> {
     type Output = Self;
 
     fn add(self, other: Self) -> Self::Output {
@@ -20,7 +23,7 @@ impl<Op: PlookupOps> Add for Wire<Op> {
 
 // Sub ------------------------------------------------------------------------
 
-impl<Op: PlookupOps> Sub for Wire<Op> {
+impl<Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Sub for Wire<Op, N, C, P> {
     type Output = Self;
 
     fn sub(self, other: Self) -> Self::Output {
@@ -34,7 +37,7 @@ impl<Op: PlookupOps> Sub for Wire<Op> {
 
 // Mul ------------------------------------------------------------------------
 
-impl<Op: PlookupOps> Mul for Wire<Op> {
+impl<Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Mul for Wire<Op, N, C, P> {
     type Output = Self;
 
     fn mul(self, other: Self) -> Self::Output {
@@ -48,7 +51,7 @@ impl<Op: PlookupOps> Mul for Wire<Op> {
 
 // Neg ---------------------------------------------------------
 
-impl<Op: PlookupOps> Neg for Wire<Op> {
+impl<Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Neg for Wire<Op, N, C, P> {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
@@ -62,7 +65,7 @@ impl<Op: PlookupOps> Neg for Wire<Op> {
 
 // Not -----------------------------------------------------
 
-impl<Op: PlookupOps> Not for Wire<Op> {
+impl<Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Not for Wire<Op, N, C, P> {
     type Output = Self;
 
     fn not(self) -> Self::Output {
@@ -76,7 +79,9 @@ impl<Op: PlookupOps> Not for Wire<Op> {
 
 // BitAnd -----------------------------------------------------
 
-impl<Op: PlookupOps> BitAnd for Wire<Op> {
+impl<Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> BitAnd
+    for Wire<Op, N, C, P>
+{
     type Output = Self;
 
     fn bitand(self, other: Self) -> Self::Output {
@@ -90,7 +95,7 @@ impl<Op: PlookupOps> BitAnd for Wire<Op> {
 
 // Lookup -----------------------------------------------------
 
-impl Wire<BinXorOr> {
+impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> Wire<BinXorOr, N, C, P> {
     /// Perform a lookup operation between itself and other
     pub fn lookup(self, op: BinXorOr, other: Self) -> Self {
         Wire {
@@ -107,7 +112,7 @@ impl Wire<BinXorOr> {
     }
 }
 
-impl BitOr for Wire<BinXorOr> {
+impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> BitOr for Wire<BinXorOr, N, C, P> {
     type Output = Self;
 
     fn bitor(self, other: Self) -> Self::Output {
@@ -115,7 +120,7 @@ impl BitOr for Wire<BinXorOr> {
     }
 }
 
-impl BitXor for Wire<BinXorOr> {
+impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> BitXor for Wire<BinXorOr, N, C, P> {
     type Output = Self;
 
     fn bitxor(self, other: Self) -> Self::Output {

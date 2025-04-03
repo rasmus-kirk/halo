@@ -5,10 +5,12 @@ use crate::{
     Coset,
 };
 
+use ark_ec::short_weierstrass::SWCurveConfig;
+use ark_ff::FpConfig;
 use ascii_table::{Align, AsciiTable};
 use std::fmt::{self, Display};
 
-impl Trace {
+impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> Trace<N, C, P> {
     /// Get the debugging table data for the evaluator.
     fn table_data(&self) -> Vec<Vec<String>> {
         self.constraints
@@ -18,7 +20,7 @@ impl Trace {
                 let i = i_ as ConstraintID + 1;
                 std::iter::once(format!("{}", Pos::new(Slots::A, i)))
                     .chain(Terms::iter().map(|term| {
-                        let value = eqn[term];
+                        let value = &eqn[term];
                         if term.is_slot() && value.is_anon() && value.is_zero() {
                             "".to_string()
                         } else {
@@ -35,7 +37,7 @@ impl Trace {
     }
 }
 
-impl Display for Trace {
+impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> Display for Trace<N, C, P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut ascii_table = AsciiTable::default();
         ascii_table.column(0).set_header("").set_align(Align::Left);

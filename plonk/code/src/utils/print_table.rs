@@ -1,16 +1,14 @@
-use super::misc::{to_subscript, to_superscript, EnumIter};
+use super::{
+    misc::{to_subscript, to_superscript, EnumIter},
+    Poly,
+};
 use crate::{scheme::Slots, Coset};
 
-use halo_accumulation::group::{PallasPoly, PallasScalar};
-
-use ark_ff::Field;
+use ark_ff::{Field, Fp, FpConfig};
 use ark_poly::Polynomial;
 use ascii_table::{Align, AsciiTable};
 
-type Scalar = PallasScalar;
-type Poly = PallasPoly;
-
-pub fn print_scalar(x: Scalar) -> String {
+pub fn print_scalar<const N: usize, C: FpConfig<N>>(x: Fp<C, N>) -> String {
     let s1 = format!("{}", x);
     let s2 = format!("{}", -x);
     if s2.len() < s1.len() {
@@ -25,9 +23,9 @@ fn w_str(i: u64) -> String {
 }
 
 /// Util to print Scalars formatted as elements in H otherwise just print the scalar.
-fn v_str(h: &Coset, x: Scalar) -> String {
-    if x == Scalar::ONE {
-        return Scalar::ONE.to_string();
+fn v_str<const N: usize, C: FpConfig<N>>(h: &Coset<N, C>, x: Fp<C, N>) -> String {
+    if x == Fp::ONE {
+        return Fp::<C, N>::ONE.to_string();
     }
     for slot in Slots::iter() {
         if x == h.h(slot, 1) {
@@ -48,7 +46,12 @@ fn v_str(h: &Coset, x: Scalar) -> String {
 }
 
 /// Print the evaluations of a vector of polynomials for all elements in the coset.
-pub fn evals_str(h: &Coset, fs: Vec<&Poly>, hs: Vec<String>, is_pos: Vec<bool>) -> String {
+pub fn evals_str<const N: usize, C: FpConfig<N>>(
+    h: &Coset<N, C>,
+    fs: Vec<&Poly<N, C>>,
+    hs: Vec<String>,
+    is_pos: Vec<bool>,
+) -> String {
     let data: Vec<Vec<String>> = (0..h.n() + 1)
         .map(|i| {
             let mut row = vec![w_str(i).to_string()];

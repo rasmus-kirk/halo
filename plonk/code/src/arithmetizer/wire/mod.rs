@@ -4,34 +4,44 @@ mod op_wire;
 
 use super::{plookup::PlookupOps, Arithmetizer, WireID};
 use crate::utils::misc::{if_debug, is_debug};
+use ark_ec::short_weierstrass::SWCurveConfig;
+use ark_ff::{FpConfig, MontBackend};
+use ark_pallas::{FrConfig, PallasConfig};
 use ast::WireAST;
+use educe::Educe;
 
 use std::{
     cell::RefCell,
-    fmt::{self, Display},
+    fmt::{self, Debug, Display},
     rc::Rc,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Wire<Op: PlookupOps> {
+#[derive(Educe)]
+#[educe(Clone, PartialEq)]
+pub struct Wire<
+    Op: PlookupOps,
+    const N: usize = 4,
+    C: FpConfig<N> = MontBackend<FrConfig, 4>,
+    P: SWCurveConfig = PallasConfig,
+> {
     id: WireID,
-    arith: Rc<RefCell<Arithmetizer<Op>>>,
-    ast: Option<Rc<WireAST<Op>>>,
+    arith: Rc<RefCell<Arithmetizer<Op, N, C, P>>>,
+    ast: Option<Rc<WireAST<Op, N, C>>>,
 }
 
-impl<Op: PlookupOps> Wire<Op> {
+impl<Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Wire<Op, N, C, P> {
     // constructors -------------------------------------------------------
 
     pub fn new(
         id: WireID,
-        arith: Rc<RefCell<Arithmetizer<Op>>>,
-        ast: Option<Rc<WireAST<Op>>>,
+        arith: Rc<RefCell<Arithmetizer<Op, N, C, P>>>,
+        ast: Option<Rc<WireAST<Op, N, C>>>,
     ) -> Self {
         Self { id, arith, ast }
     }
 
     /// Create a new input wire.
-    pub fn new_input(id: WireID, arith: Rc<RefCell<Arithmetizer<Op>>>) -> Self {
+    pub fn new_input(id: WireID, arith: Rc<RefCell<Arithmetizer<Op, N, C, P>>>) -> Self {
         Self::new(id, arith, if_debug(Rc::new(WireAST::Input(id))))
     }
 
@@ -43,7 +53,7 @@ impl<Op: PlookupOps> Wire<Op> {
     }
 
     /// Returns the circuit that the wire belongs to.
-    pub fn arith(&self) -> &Rc<RefCell<Arithmetizer<Op>>> {
+    pub fn arith(&self) -> &Rc<RefCell<Arithmetizer<Op, N, C, P>>> {
         &self.arith
     }
 
@@ -66,7 +76,9 @@ impl<Op: PlookupOps> Wire<Op> {
     }
 }
 
-impl<Op: PlookupOps> Display for Wire<Op> {
+impl<Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Display
+    for Wire<Op, N, C, P>
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if is_debug() {
             write!(f, "{}", self.ast.clone().unwrap())
@@ -76,18 +88,29 @@ impl<Op: PlookupOps> Display for Wire<Op> {
     }
 }
 
+impl<Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Debug for Wire<Op, N, C, P> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Wire: {}", self)
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use ark_ff::Field;
+    use halo_accumulation::group::PallasScalar;
+
     use super::*;
     use crate::{
         arithmetizer::plookup::EmptyOpSet,
         utils::misc::{map_to_alphabet, tests::on_debug},
     };
 
+    type PallasArithmetizer = Arithmetizer<EmptyOpSet, 4, MontBackend<FrConfig, 4>, PallasConfig>;
+
     #[test]
     fn new() {
         on_debug();
-        let [wire_, _] = &Arithmetizer::<EmptyOpSet>::build::<2>();
+        let [wire_, _] = &PallasArithmetizer::build::<2>();
         let arithmetizer = wire_.arith().clone();
         let wire = Wire::new_input(0, arithmetizer);
         assert_eq!(wire.id, 0);
@@ -97,7 +120,7 @@ mod tests {
     #[test]
     fn add() {
         on_debug();
-        let [a, b] = Arithmetizer::<EmptyOpSet>::build::<2>();
+        let [a, b] = PallasArithmetizer::build::<2>();
         let c = a.clone() + b.clone();
         assert_eq!(a.id, 0);
         assert_eq!(b.id, 1);
@@ -113,7 +136,7 @@ mod tests {
     #[test]
     fn sub() {
         on_debug();
-        let [a, b] = Arithmetizer::<EmptyOpSet>::build::<2>();
+        let [a, b] = PallasArithmetizer::build::<2>();
         let c = a.clone() - b.clone();
         assert_eq!(a.id, 0);
         assert_eq!(b.id, 1);
@@ -129,7 +152,7 @@ mod tests {
     #[test]
     fn mul() {
         on_debug();
-        let [a, b] = Arithmetizer::<EmptyOpSet>::build::<2>();
+        let [a, b] = PallasArithmetizer::build::<2>();
         let c = a.clone() * b.clone();
         assert_eq!(a.id, 0);
         assert_eq!(b.id, 1);
@@ -145,8 +168,8 @@ mod tests {
     #[test]
     fn add_const() {
         on_debug();
-        let [a] = Arithmetizer::build::<1>();
-        let b: Wire<EmptyOpSet> = a.clone() + 1;
+        let [a] = PallasArithmetizer::build::<1>();
+        let b = a.clone() + PallasScalar::ONE;
         assert_eq!(a.id, 0);
         assert_eq!(b.id, 2);
         assert_eq!(format!("{}", a), map_to_alphabet(0));
@@ -156,8 +179,8 @@ mod tests {
     #[test]
     fn sub_const() {
         on_debug();
-        let [a] = Arithmetizer::build::<1>();
-        let b: Wire<EmptyOpSet> = a.clone() - 1;
+        let [a] = PallasArithmetizer::build::<1>();
+        let b = a.clone() - PallasScalar::ONE;
         assert_eq!(a.id, 0);
         assert_eq!(b.id, 2);
         assert_eq!(format!("{}", a), map_to_alphabet(0));
@@ -167,8 +190,8 @@ mod tests {
     #[test]
     fn mul_const() {
         on_debug();
-        let [a] = Arithmetizer::build::<1>();
-        let b: Wire<EmptyOpSet> = a.clone() * 1;
+        let [a] = PallasArithmetizer::build::<1>();
+        let b = a.clone() * PallasScalar::ONE;
         assert_eq!(a.id, 0);
         assert_eq!(b.id, 2);
         assert_eq!(format!("{}", a), map_to_alphabet(0));

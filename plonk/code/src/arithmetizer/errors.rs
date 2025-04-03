@@ -1,21 +1,28 @@
+use ark_ec::short_weierstrass::SWCurveConfig;
+use ark_ff::FpConfig;
+
 use super::{
     arith_wire::ArithWire, cache::CacheError, plookup::PlookupOps, trace::TraceError, Wire,
 };
 
-use std::rc::Rc;
+use std::{error::Error, fmt::Debug, rc::Rc};
 
-#[derive(Debug)]
-pub enum ArithmetizerError<Op: PlookupOps> {
+pub enum ArithmetizerError<Op: PlookupOps, const N: usize, C: FpConfig<N>> {
     EmptyOutputWires,
     MismatchedCircuits,
     InvalidInputLength { expected: usize, got: usize },
-    EvaluatorError(TraceError<Op>),
-    CacheError(CacheError<Op>),
-    CommutativeSetTypeConversionError(ArithWire<Op>),
+    EvaluatorError(TraceError<Op, N, C>),
+    CacheError(CacheError<Op, N, C>),
+    CommutativeSetTypeConversionError(ArithWire<Op, N, C>),
 }
 
-impl<Op: PlookupOps> ArithmetizerError<Op> {
-    pub fn validate<T>(input_values: &[T], output_wires: &[Wire<Op>]) -> Result<(), Self> {
+impl<Op: PlookupOps, const N: usize, C: FpConfig<N>> Error for ArithmetizerError<Op, N, C> {}
+
+impl<Op: PlookupOps, const N: usize, C: FpConfig<N>> ArithmetizerError<Op, N, C> {
+    pub fn validate<T, P: SWCurveConfig>(
+        input_values: &[T],
+        output_wires: &[Wire<Op, N, C, P>],
+    ) -> Result<(), Self> {
         if output_wires.is_empty() {
             return Err(ArithmetizerError::EmptyOutputWires);
         }
@@ -42,7 +49,9 @@ impl<Op: PlookupOps> ArithmetizerError<Op> {
     }
 }
 
-impl<Op: PlookupOps> std::fmt::Display for ArithmetizerError<Op> {
+impl<Op: PlookupOps, const N: usize, C: FpConfig<N>> std::fmt::Display
+    for ArithmetizerError<Op, N, C>
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ArithmetizerError::EmptyOutputWires => {
@@ -69,4 +78,8 @@ impl<Op: PlookupOps> std::fmt::Display for ArithmetizerError<Op> {
     }
 }
 
-impl<Op: PlookupOps> std::error::Error for ArithmetizerError<Op> {}
+impl<Op: PlookupOps, const N: usize, C: FpConfig<N>> Debug for ArithmetizerError<Op, N, C> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ArithmetizerError: {}", self)
+    }
+}

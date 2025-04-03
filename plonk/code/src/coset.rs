@@ -1,52 +1,51 @@
 use crate::utils::misc::{to_superscript, EnumIter};
 
-use ark_ff::{AdditiveGroup, FftField, Field};
+use ark_ff::{AdditiveGroup, FftField, Field, Fp, FpConfig};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
-use halo_accumulation::group::PallasScalar;
+use educe::Educe;
 use rand::Rng;
-use std::fmt;
-
-type Scalar = PallasScalar;
+use std::fmt::{self, Display};
 
 /// Base coset scheme.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Coset {
+#[derive(Educe)]
+#[educe(Debug, Clone, PartialEq, Eq)]
+pub struct Coset<const N: usize, C: FpConfig<N>> {
     /// n:ℕ <=> ωⁿ = 1
     n: u64,
     /// ω:𝔽
-    w: Scalar,
+    w: Fp<C, N>,
     /// k:𝔽
-    ks: Vec<Scalar>,
-    pub coset_domain: GeneralEvaluationDomain<Scalar>,
-    pub domain: GeneralEvaluationDomain<Scalar>,
+    ks: Vec<Fp<C, N>>,
+    pub coset_domain: GeneralEvaluationDomain<Fp<C, N>>,
+    pub domain: GeneralEvaluationDomain<Fp<C, N>>,
 }
 
-impl Default for Coset {
+impl<const N: usize, C: FpConfig<N>> Default for Coset<N, C> {
     fn default() -> Self {
         Coset {
             n: Default::default(),
             w: Default::default(),
             ks: Default::default(),
-            coset_domain: GeneralEvaluationDomain::<Scalar>::new(0).unwrap(),
-            domain: GeneralEvaluationDomain::<Scalar>::new(0).unwrap(),
+            coset_domain: GeneralEvaluationDomain::<Fp<C, N>>::new(0).unwrap(),
+            domain: GeneralEvaluationDomain::<Fp<C, N>>::new(0).unwrap(),
         }
     }
 }
 
-impl fmt::Display for Coset {
+impl<const N: usize, C: FpConfig<N>> Display for Coset<N, C> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "ω{} = 1", to_superscript(self.n()))
     }
 }
 
-impl Coset {
+impl<const N: usize, C: FpConfig<N>> Coset<N, C> {
     /// m is the number of elements (excluding 1) the cylic group should have.
     /// l is the number cosets in the group. (minimum 1)
     pub fn new<R: Rng>(rng: &mut R, m: u64, l: usize) -> Option<Self> {
         assert!(l > 0);
         let n = (m + 1).next_power_of_two();
-        let w = Scalar::get_root_of_unity(n)?;
-        let domain = GeneralEvaluationDomain::<PallasScalar>::new(n as usize).unwrap();
+        let w = Fp::get_root_of_unity(n)?;
+        let domain = GeneralEvaluationDomain::<Fp<C, N>>::new(n as usize).unwrap();
         let coset_domain = domain.get_coset(w).unwrap();
         let mut nw = Coset {
             n,
@@ -55,7 +54,7 @@ impl Coset {
             domain,
             coset_domain,
         };
-        nw.ks = (1..l).fold(vec![Scalar::ONE], |mut acc, _| {
+        nw.ks = (1..l).fold(vec![Fp::ONE], |mut acc, _| {
             acc.push(nw.gen_k(rng, acc.as_slice()));
             acc
         });
@@ -63,10 +62,10 @@ impl Coset {
     }
 
     /// Generate a random k that is not in any previous cosets of `ks`
-    fn gen_k<R: Rng>(&self, rng: &mut R, ks: &[Scalar]) -> Scalar {
+    fn gen_k<R: Rng>(&self, rng: &mut R, ks: &[Fp<C, N>]) -> Fp<C, N> {
         loop {
             let k_ = rng.gen();
-            if k_ != Scalar::ZERO
+            if k_ != Fp::ZERO
                 && !self.vec().contains(&k_)
                 && !ks.iter().any(|&k| self.vec_mul(k).contains(&k_))
             {
@@ -86,12 +85,12 @@ impl Coset {
     }
 
     /// ωⁱ:𝔽
-    pub fn w(&self, i: u64) -> Scalar {
+    pub fn w(&self, i: u64) -> Fp<C, N> {
         self.w.pow([i])
     }
 
     // Hₛ = { kₛ ωⁱ | 1 ≤ i < n }
-    pub fn h<T: EnumIter>(&self, slot: T, i: u64) -> Scalar {
+    pub fn h<T: EnumIter>(&self, slot: T, i: u64) -> Fp<C, N> {
         self.ks[slot.id()] * self.w(i)
     }
 
@@ -101,16 +100,16 @@ impl Coset {
     }
 
     /// { ωⁱ | 1 ≤ i < n }
-    pub fn vec(&self) -> Vec<Scalar> {
+    pub fn vec(&self) -> Vec<Fp<C, N>> {
         self.iter().map(|i| self.w(i)).collect()
     }
 
     /// { k ωⁱ | 1 ≤ i < n }
-    pub fn vec_mul(&self, k: Scalar) -> Vec<Scalar> {
+    pub fn vec_mul(&self, k: Fp<C, N>) -> Vec<Fp<C, N>> {
         self.vec().iter().map(|h| k * h).collect()
     }
 
-    pub fn vec_k<T: EnumIter>(&self, slot: T) -> Vec<Scalar> {
+    pub fn vec_k<T: EnumIter>(&self, slot: T) -> Vec<Fp<C, N>> {
         self.vec_mul(self.ks[slot.id()])
     }
 }
@@ -119,9 +118,12 @@ impl Coset {
 mod tests {
     use std::collections::HashSet;
 
+    use super::*;
     use crate::{scheme::Slots, utils::misc::EnumIter};
 
-    use super::*;
+    use halo_accumulation::group::PallasScalar;
+
+    type Scalar = PallasScalar;
 
     #[test]
     fn coset() {

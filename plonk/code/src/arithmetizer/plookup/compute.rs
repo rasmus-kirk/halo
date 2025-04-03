@@ -1,59 +1,57 @@
-use super::{PlookupOps, TableRegistry};
+use super::TableRegistry;
 use crate::{
     arithmetizer::trace::Constraints,
     scheme::{eqns::plookup_compress_fp, Selectors, Slots, Terms},
-    utils::{misc::batch_op, poly::shift_wrap_eval},
+    utils::{misc::batch_op, poly::shift_wrap_eval, Evals, Poly},
     Coset,
 };
 
-use halo_accumulation::group::{PallasPoly, PallasScalar};
-
-use ark_ff::{AdditiveGroup, Field};
-use ark_poly::Evaluations;
-
-type Scalar = PallasScalar;
-type Poly = PallasPoly;
-type Evals = Evaluations<Scalar>;
+use ark_ff::{AdditiveGroup, Field, Fp, FpConfig};
 
 /// A struct that acts as a thunk where `compute` takes in zeta
 /// from transcript to compute the polynomials for plookup
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct PlookupEvsThunk {
-    constraints: Vec<Constraints>,
-    table: TableRegistry,
+pub struct PlookupEvsThunk<const N: usize, C: FpConfig<N>> {
+    constraints: Vec<Constraints<N, C>>,
+    table: TableRegistry<N, C>,
 }
 
-impl PlookupEvsThunk {
-    pub fn new(constraints: Vec<Constraints>, table: TableRegistry) -> Self {
+impl<const N: usize, C: FpConfig<N>> PlookupEvsThunk<N, C> {
+    pub fn new(constraints: Vec<Constraints<N, C>>, table: TableRegistry<N, C>) -> Self {
         Self { constraints, table }
     }
 
-    fn compute_t_evs<Op: PlookupOps>(&self, zeta: Scalar, h: &Coset) -> Evals {
-        let mut t = Op::iter().fold(vec![Scalar::ZERO], |mut acc, op| {
-            acc.extend(self.table.tables[op.id()].compress(zeta, op.to_fp()));
-            acc
-        });
+    fn compute_t_evs(&self, zeta: Fp<C, N>, h: &Coset<N, C>) -> Evals<N, C> {
+        let mut t =
+            self.table
+                .tables
+                .iter()
+                .enumerate()
+                .fold(vec![Fp::ZERO], |mut acc, (_j, table)| {
+                    acc.extend(table.compress(zeta, Fp::from(_j as u64)));
+                    acc
+                });
         t.sort();
         let default = t.last().unwrap();
         let extend = h.n() as usize - t.len();
         t.extend(vec![*default; extend]);
-        Evaluations::from_vec_and_domain(t, h.domain)
+        Evals::from_vec_and_domain(t, h.domain)
     }
 
     fn compute_f_evs(
         &self,
-        zeta: Scalar,
-        h: &Coset,
-        constraints: &[Constraints],
-        default: Scalar,
-    ) -> Evals {
-        let mut f: Vec<Scalar> = vec![Scalar::ZERO];
+        zeta: Fp<C, N>,
+        h: &Coset<N, C>,
+        constraints: &[Constraints<N, C>],
+        default: Fp<C, N>,
+    ) -> Evals<N, C> {
+        let mut f = vec![Fp::ZERO];
         f.extend(constraints.iter().map(|constraint| {
-            if Into::<Scalar>::into(constraint[Terms::Q(Selectors::Qk)]) == Scalar::ONE {
-                let a: Scalar = constraint[Terms::F(Slots::A)].into();
-                let b: Scalar = constraint[Terms::F(Slots::B)].into();
-                let c: Scalar = constraint[Terms::F(Slots::C)].into();
-                let j: Scalar = constraint[Terms::Q(Selectors::J)].into();
+            if Into::<Fp<C, N>>::into(constraint[Terms::Q(Selectors::Qk)]) == Fp::ONE {
+                let a: Fp<C, N> = constraint[Terms::F(Slots::A)].into();
+                let b = constraint[Terms::F(Slots::B)].into();
+                let c = constraint[Terms::F(Slots::C)].into();
+                let j = constraint[Terms::Q(Selectors::J)].into();
                 plookup_compress_fp(zeta, a, b, c, j)
             } else {
                 default
@@ -61,10 +59,10 @@ impl PlookupEvsThunk {
         }));
         let extend = h.n() as usize - f.len();
         f.extend(vec![default; extend]);
-        Evaluations::from_vec_and_domain(f, h.domain)
+        Evals::from_vec_and_domain(f, h.domain)
     }
 
-    fn split_sort(h: &Coset, s: Vec<Scalar>) -> Vec<Evals> {
+    fn split_sort(h: &Coset<N, C>, s: Vec<Fp<C, N>>) -> Vec<Evals<N, C>> {
         s.into_iter()
             .enumerate()
             .fold([vec![], vec![]], |mut hs, (i, x)| {
@@ -72,16 +70,16 @@ impl PlookupEvsThunk {
                 hs
             })
             .into_iter()
-            .map(|evals| Evaluations::from_vec_and_domain(evals, h.domain))
+            .map(|evals| Evals::from_vec_and_domain(evals, h.domain))
             .collect()
     }
 
-    pub fn compute<Op: PlookupOps>(&self, h: &Coset, zeta: Scalar) -> PlookupPolys {
+    pub fn compute(&self, h: &Coset<N, C>, zeta: Fp<C, N>) -> PlookupPolys<N, C> {
         let mut evals = vec![];
-        evals.push(self.compute_t_evs::<Op>(zeta, h));
+        evals.push(self.compute_t_evs(zeta, h));
         let default = *evals[0].evals.last().unwrap();
         evals.push(self.compute_f_evs(zeta, h, &self.constraints, default));
-        let mut s: Vec<Scalar> = Vec::new();
+        let mut s: Vec<Fp<C, N>> = Vec::new();
         s.extend(evals[0].evals.iter());
         s.extend(evals[1].evals.iter());
         s.sort();
@@ -91,23 +89,23 @@ impl PlookupEvsThunk {
     }
 }
 
-pub struct PlookupPolys {
-    pub t: Poly,
-    pub _t: Evals,
-    pub f: Poly,
-    pub _f: Evals,
-    pub h1: Poly,
-    pub _h1: Evals,
-    pub h2: Poly,
-    pub _h2: Evals,
-    pub h1_bar: Poly,
-    pub _h1_bar: Evals,
-    pub t_bar: Poly,
-    pub _t_bar: Evals,
+pub struct PlookupPolys<const N: usize, C: FpConfig<N>> {
+    pub t: Poly<N, C>,
+    pub _t: Evals<N, C>,
+    pub f: Poly<N, C>,
+    pub _f: Evals<N, C>,
+    pub h1: Poly<N, C>,
+    pub _h1: Evals<N, C>,
+    pub h2: Poly<N, C>,
+    pub _h2: Evals<N, C>,
+    pub h1_bar: Poly<N, C>,
+    pub _h1_bar: Evals<N, C>,
+    pub t_bar: Poly<N, C>,
+    pub _t_bar: Evals<N, C>,
 }
 
-impl PlookupPolys {
-    pub fn new(h: &Coset, evals: Vec<Evals>) -> Self {
+impl<const N: usize, C: FpConfig<N>> PlookupPolys<N, C> {
+    pub fn new(h: &Coset<N, C>, evals: Vec<Evals<N, C>>) -> Self {
         let _t = evals[0].clone();
         let _f = evals[1].clone();
         let _h1 = evals[2].clone();
@@ -137,7 +135,7 @@ impl PlookupPolys {
         }
     }
 
-    pub fn base_polys(&self) -> Vec<&Poly> {
+    pub fn base_polys(&self) -> Vec<&Poly<N, C>> {
         vec![&self.t, &self.f, &self.h1, &self.h2]
     }
 }
