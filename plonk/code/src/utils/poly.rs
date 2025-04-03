@@ -1,19 +1,12 @@
 use crate::Coset;
 
-use halo_accumulation::{
-    group::{PallasPoint, PallasPoly, PallasScalar},
-    pcdl,
-};
+use halo_accumulation::pcdl;
 
+use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::{AdditiveGroup, Field, Fp, FpConfig};
 use ark_poly::{univariate::DensePolynomial, DenseUVPolynomial, Evaluations, Polynomial};
 
-use super::misc::batch_op;
-
-type Poly = PallasPoly;
-type Scalar = PallasScalar;
-type Point = PallasPoint;
-type Evals = Evaluations<Scalar>;
+use super::{misc::batch_op, Evals, Point, Poly};
 
 pub fn batch_interpolate<const N: usize, C: FpConfig<N>>(
     es: Vec<Evaluations<Fp<C, N>>>,
@@ -67,7 +60,10 @@ pub fn x<const N: usize, C: FpConfig<N>>() -> DensePolynomial<Fp<C, N>> {
 
 // TODO coset needs to generalize
 /// ∀X ∈ H₀: g(X) = f(ωX)
-pub fn shift_wrap_eval(h: &Coset, evals: Evals) -> Evals {
+pub fn shift_wrap_eval<const N: usize, C: FpConfig<N>>(
+    h: &Coset<N, C>,
+    evals: Evals<N, C>,
+) -> Evals<N, C> {
     let mut evals_new = evals.evals;
     let evals_new_first = evals_new.remove(0);
     evals_new.push(evals_new_first);
@@ -87,10 +83,10 @@ pub fn split<const N: usize, C: FpConfig<N>>(
 
 // TODO Coset needs to generalize
 /// Lᵢ(X) = (ωⁱ (Xⁿ - 1)) / (n (X - ωⁱ))
-pub fn lagrange_basis(h: &Coset, i: u64) -> Poly {
+pub fn lagrange_basis<const N: usize, C: FpConfig<N>>(h: &Coset<N, C>, i: u64) -> Poly<N, C> {
     let wi = h.w(i);
-    let numerator = (xn(h.n()) + deg0(PallasScalar::ONE)) * wi;
-    let denominator = (x() - deg0(wi)) * PallasScalar::from(h.n());
+    let numerator = (xn(h.n()) + deg0(Fp::ONE)) * wi;
+    let denominator = (x() - deg0(wi)) * Fp::from(h.n());
     numerator / denominator
 }
 
@@ -109,17 +105,22 @@ where
 }
 
 // TODO pcdl needs to generalize
-pub fn batch_commit<'a, I>(ps: I, d: usize, w: Option<&Scalar>) -> Vec<Point>
+pub fn batch_commit<'a, const N: usize, C: FpConfig<N>, P: SWCurveConfig, I>(
+    ps: I,
+    d: usize,
+    w: Option<&Fp<C, N>>,
+) -> Vec<Point<P>>
 where
-    I: IntoIterator<Item = &'a Poly>,
+    I: IntoIterator<Item = &'a Fp<C, N>>,
 {
     batch_op(ps, |f| pcdl::commit(f, d, w))
 }
 
 #[cfg(test)]
 mod tests {
+    use halo_accumulation::group::PallasScalar;
+
     use crate::{scheme::Slots, utils::misc::EnumIter};
-    use ark_poly::Polynomial;
 
     use super::*;
 
@@ -145,9 +146,9 @@ mod tests {
             let l = lagrange_basis(&h, i);
             for j in h.iter() {
                 if i == j {
-                    assert_eq!(l.evaluate(&h.w(j)), Scalar::ONE);
+                    assert_eq!(l.evaluate(&h.w(j)), PallasScalar::ONE);
                 } else {
-                    assert_eq!(l.evaluate(&h.w(j)), Scalar::ZERO);
+                    assert_eq!(l.evaluate(&h.w(j)), PallasScalar::ZERO);
                 }
             }
         }

@@ -1,14 +1,10 @@
-use halo_accumulation::group::PallasScalar;
-
-use ark_ff::AdditiveGroup;
+use ark_ff::{AdditiveGroup, Fp, FpConfig};
 use std::fmt::Display;
 
 use crate::{
     arithmetizer::{plookup::PlookupOps, Table},
     utils::misc::EnumIter,
 };
-
-type Scalar = PallasScalar;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(usize)]
@@ -18,8 +14,8 @@ pub enum EmptyOpSet {
 }
 
 impl PlookupOps for EmptyOpSet {
-    fn to_table(self) -> Table {
-        Table::new(vec![[Scalar::ZERO, Scalar::ZERO, Scalar::ZERO]])
+    fn to_table<const N: usize, C: FpConfig<N>>(self) -> Table<N, C> {
+        Table::new(vec![[Fp::ZERO, Fp::ZERO, Fp::ZERO]])
     }
     fn is_commutative(&self) -> bool {
         true

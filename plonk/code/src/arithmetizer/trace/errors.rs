@@ -6,28 +6,30 @@ use crate::{
     utils::misc::map_to_alphabet,
 };
 
-use halo_accumulation::group::PallasScalar;
+use ark_ff::{Fp, FpConfig};
+use educe::Educe;
 
-type Scalar = PallasScalar;
-
-#[derive(Debug)]
-pub enum TraceError<Op: PlookupOps> {
+#[derive(Educe)]
+#[educe(Debug)]
+pub enum TraceError<Op: PlookupOps, const N: usize, C: FpConfig<N>> {
     InputNotSet(WireID),
     WireNotInCache(WireID),
-    ConstNotInCache(Scalar),
+    ConstNotInCache(Fp<C, N>),
     FailedToEval(WireID),
     FailedToMakeCoset(u64),
     ConstraintNotSatisfied(String),
-    LookupFailed(Op, Scalar, Scalar),
+    LookupFailed(Op, Fp<C, N>, Fp<C, N>),
 }
 
-impl<Op: PlookupOps> TraceError<Op> {
-    pub fn constraint_not_satisfied(constraint: &Constraints) -> Self {
+impl<Op: PlookupOps, const N: usize, C: FpConfig<N>> Error for TraceError<Op, N, C> {}
+
+impl<Op: PlookupOps, const N: usize, C: FpConfig<N>> TraceError<Op, N, C> {
+    pub fn constraint_not_satisfied(constraint: &Constraints<N, C>) -> Self {
         TraceError::ConstraintNotSatisfied(constraint.to_string())
     }
 }
 
-impl<Op: PlookupOps> Display for TraceError<Op> {
+impl<Op: PlookupOps, const N: usize, C: FpConfig<N>> Display for TraceError<Op, N, C> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             TraceError::InputNotSet(id) => {
@@ -66,5 +68,3 @@ impl<Op: PlookupOps> Display for TraceError<Op> {
         }
     }
 }
-
-impl<Op: PlookupOps> Error for TraceError<Op> {}

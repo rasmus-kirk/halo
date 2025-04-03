@@ -1,4 +1,5 @@
-use halo_accumulation::group::PallasScalar;
+use ark_ec::short_weierstrass::SWCurveConfig;
+use ark_ff::{Fp, FpConfig};
 
 use crate::arithmetizer::plookup::PlookupOps;
 
@@ -9,13 +10,12 @@ use std::{
     rc::Rc,
 };
 
-type Scalar = PallasScalar;
-
 // Add ------------------------------------------------------------------------
 
-impl<T, Op: PlookupOps> Add<T> for Wire<Op>
+impl<T, Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Add<T>
+    for Wire<Op, N, C, P>
 where
-    T: Into<Scalar> + Copy,
+    T: Into<Fp<C, N>> + Copy,
 {
     type Output = Self;
 
@@ -30,9 +30,10 @@ where
 
 // Sub ------------------------------------------------------------------------
 
-impl<T, Op: PlookupOps> Sub<T> for Wire<Op>
+impl<T, Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Sub<T>
+    for Wire<Op, N, C, P>
 where
-    T: Into<Scalar> + Copy,
+    T: Into<Fp<C, N>> + Copy,
 {
     type Output = Self;
 
@@ -51,9 +52,10 @@ where
 
 // Mul ------------------------------------------------------------------------
 
-impl<T, Op: PlookupOps> Mul<T> for Wire<Op>
+impl<T, Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Mul<T>
+    for Wire<Op, N, C, P>
 where
-    T: Into<Scalar> + Copy,
+    T: Into<Fp<C, N>> + Copy,
 {
     type Output = Self;
 
@@ -72,9 +74,10 @@ where
 
 // Div ------------------------------------------------------------------------
 
-impl<T, Op: PlookupOps> Div<T> for Wire<Op>
+impl<T, Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Div<T>
+    for Wire<Op, N, C, P>
 where
-    T: Into<Scalar> + Copy,
+    T: Into<Fp<C, N>> + Copy,
 {
     type Output = Self;
 

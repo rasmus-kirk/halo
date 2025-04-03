@@ -34,8 +34,10 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
 
         info!("A1");
         let start_time = Instant::now();
-        let output_wires =
-            &Arithmetizer::<EmptyOpSet>::synthesize::<_, 4>(rng, 2usize.pow(size as u32) - 2);
+        let output_wires = &Arithmetizer::<EmptyOpSet, 4, MontBackend<FrConfig, 4>>::synthesize::<
+            _,
+            4,
+        >(rng, 2usize.pow(size as u32) - 2);
         let rand_circuit_time = start_time.elapsed().as_secs_f32();
         info!("lens: {:?}, {:?}", output_wires.len(), output_wires[0].id());
 

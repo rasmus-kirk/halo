@@ -1,22 +1,40 @@
 use super::{plookup::PlookupOps, ArithmetizerError, WireID};
 use crate::utils::misc::map_to_alphabet;
 
-use halo_accumulation::group::PallasScalar;
+use ark_ff::{AdditiveGroup, Fp, FpConfig};
 
-use std::fmt::{self, Display};
+use educe::Educe;
+use std::fmt::{self, Debug, Display};
 
-type Scalar = PallasScalar;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum ArithWire<Op: PlookupOps> {
+#[derive(Educe)]
+#[educe(Hash, Clone, Copy, PartialEq, Eq)]
+pub enum ArithWire<Op: PlookupOps, const N: usize, C: FpConfig<N>> {
     Input(WireID),
-    Constant(Scalar),
+    Constant(Fp<C, N>),
     AddGate(WireID, WireID),
     MulGate(WireID, WireID),
     Lookup(Op, WireID, WireID),
 }
 
-impl<Op: PlookupOps> Display for ArithWire<Op> {
+impl<Op: PlookupOps, const N: usize, C: FpConfig<N>> ArithWire<Op, N, C> {
+    /// Get the inputs of the gate, if the wire is a gate.
+    pub fn inputs(&self) -> impl Iterator<Item = WireID> {
+        match *self {
+            Self::AddGate(lhs, rhs) => vec![lhs, rhs].into_iter(),
+            Self::MulGate(lhs, rhs) => vec![lhs, rhs].into_iter(),
+            Self::Lookup(_, lhs, rhs) => vec![lhs, rhs].into_iter(),
+            _ => vec![].into_iter(),
+        }
+    }
+}
+
+impl<Op: PlookupOps, const N: usize, C: FpConfig<N>> Default for ArithWire<Op, N, C> {
+    fn default() -> Self {
+        ArithWire::Constant(Fp::ZERO)
+    }
+}
+
+impl<Op: PlookupOps, const N: usize, C: FpConfig<N>> Display for ArithWire<Op, N, C> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             ArithWire::Input(wire_id) => write!(f, "Input({})", map_to_alphabet(wire_id)),
@@ -40,15 +58,9 @@ impl<Op: PlookupOps> Display for ArithWire<Op> {
     }
 }
 
-impl<Op: PlookupOps> ArithWire<Op> {
-    /// Get the inputs of the gate, if the wire is a gate.
-    pub fn inputs(&self) -> impl Iterator<Item = WireID> {
-        match *self {
-            Self::AddGate(lhs, rhs) => vec![lhs, rhs].into_iter(),
-            Self::MulGate(lhs, rhs) => vec![lhs, rhs].into_iter(),
-            Self::Lookup(_, lhs, rhs) => vec![lhs, rhs].into_iter(),
-            _ => vec![].into_iter(),
-        }
+impl<Op: PlookupOps, const N: usize, C: FpConfig<N>> Debug for ArithWire<Op, N, C> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ArithWire: {}", self)
     }
 }
 
@@ -60,10 +72,12 @@ pub enum CommutativeOps<Op: PlookupOps> {
     Lookup(Op),
 }
 
-impl<Op: PlookupOps> TryFrom<ArithWire<Op>> for CommutativeOps<Op> {
-    type Error = ArithmetizerError<Op>;
+impl<Op: PlookupOps, const N: usize, C: FpConfig<N>> TryFrom<ArithWire<Op, N, C>>
+    for CommutativeOps<Op>
+{
+    type Error = ArithmetizerError<Op, N, C>;
 
-    fn try_from(val: ArithWire<Op>) -> Result<Self, Self::Error> {
+    fn try_from(val: ArithWire<Op, N, C>) -> Result<Self, Self::Error> {
         match val {
             ArithWire::AddGate(_, _) => Ok(CommutativeOps::Add),
             ArithWire::MulGate(_, _) => Ok(CommutativeOps::Mul),

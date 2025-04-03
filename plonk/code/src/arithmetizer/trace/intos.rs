@@ -6,27 +6,27 @@ use crate::{
     },
     circuit::{Circuit, CircuitPrivate, CircuitPublic},
     scheme::{Selectors, Slots, Terms},
-    utils::{misc::EnumIter, poly::batch_interpolate},
+    utils::{misc::EnumIter, poly::batch_interpolate, Poly},
 };
 
-use halo_accumulation::{
-    group::{PallasPoint, PallasPoly},
-    pcdl,
-};
+use ark_ec::short_weierstrass::SWCurveConfig;
+use ark_ff::FpConfig;
+use halo_accumulation::{group::PallasPoint, pcdl};
 
 use ark_poly::Polynomial;
 use std::collections::HashMap;
 
-type Poly = PallasPoly;
-pub type TraceDeconstructed = (
+pub type TraceDeconstructed<const N: usize, C: FpConfig<N>> = (
     usize,
-    Vec<Constraints>,
+    Vec<Constraints<N, C>>,
     [Vec<Pos>; Slots::COUNT],
-    TableRegistry,
+    TableRegistry<N, C>,
 );
 
-impl From<TraceDeconstructed> for Trace {
-    fn from((d, constraints, permutation_vals, table): TraceDeconstructed) -> Self {
+impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> From<TraceDeconstructed<N, C>>
+    for Trace<N, C, P>
+{
+    fn from((d, constraints, permutation_vals, table): TraceDeconstructed<N, C>) -> Self {
         let mut permutation = HashMap::new();
         for (slot_i, perms) in permutation_vals.iter().enumerate() {
             let slot = Slots::un_id(slot_i);
@@ -35,19 +35,20 @@ impl From<TraceDeconstructed> for Trace {
                 permutation.insert(Pos::new(slot, i), *pos);
             }
         }
-        Trace {
+        Self {
             d,
             h: Default::default(),
             evals: Default::default(),
             constraints,
             permutation,
             table,
+            _marker: std::marker::PhantomData,
         }
     }
 }
 
-impl From<Trace> for Circuit {
-    fn from(eval: Trace) -> Self {
+impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> From<Trace<N, C, P>> for Circuit<N, C, P> {
+    fn from(eval: Trace<N, C, P>) -> Self {
         let d = eval.d;
         let _ts = eval.gate_polys();
         let (_is, _ps) = eval.copy_constraints();
@@ -67,7 +68,7 @@ impl From<Trace> for Circuit {
         ts.iter()
             .chain(ps.iter())
             .chain(is.iter())
-            .for_each(|p: &Poly| assert!(p.degree() <= d));
+            .for_each(|p: &Poly<N, C>| assert!(p.degree() <= d));
 
         let pip = ts[Terms::PublicInputs.id()].clone();
         let ws = ts[..Slots::COUNT].to_vec();
@@ -95,8 +96,8 @@ impl From<Trace> for Circuit {
     }
 }
 
-impl From<Circuit> for Trace {
-    fn from((x, w): Circuit) -> Self {
+impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> From<Circuit<N, C, P>> for Trace<N, C, P> {
+    fn from((x, w): Circuit<N, C, P>) -> Self {
         let h = &x.h;
         let (expected_constraints, m) = h
             .iter()
@@ -110,7 +111,7 @@ impl From<Circuit> for Trace {
                         .try_into()
                         .unwrap(),
                 );
-                if c == Constraints::default() {
+                if c == Constraints::<N, C>::default() {
                     Err((acc, i))
                 } else {
                     acc.push(c);

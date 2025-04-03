@@ -5,7 +5,6 @@ use super::{
     transcript::TranscriptProtocol,
 };
 use crate::{
-    arithmetizer::PlookupOps,
     circuit::{CircuitPrivate, CircuitPublic},
     scheme::eqns,
     utils::{
@@ -14,24 +13,20 @@ use crate::{
     },
 };
 
-use halo_accumulation::{
-    group::PallasScalar,
-    pcdl::{self, Instance},
-};
+use halo_accumulation::pcdl::{self, Instance};
 
-use ark_ff::Field;
+use ark_ec::short_weierstrass::SWCurveConfig;
+use ark_ff::{Field, Fp, FpConfig};
 use ark_poly::{Evaluations, Polynomial};
 use log::{debug, info};
 use merlin::Transcript;
 use std::time::Instant;
 
-type Scalar = PallasScalar;
-
-pub fn prove<R: rand::Rng, Op: PlookupOps>(
+pub fn prove<R: rand::Rng, const N: usize, C: FpConfig<N>, P: SWCurveConfig>(
     rng: &mut R,
-    x: &CircuitPublic,
-    w: &CircuitPrivate,
-) -> Proof {
+    x: &CircuitPublic<N, C, P>,
+    w: &CircuitPrivate<N, C>,
+) -> Proof<N, C> {
     let mut transcript = Transcript::new(b"protocol");
     transcript.domain_sep();
     // -------------------- Round 1 --------------------
@@ -46,7 +41,7 @@ pub fn prove<R: rand::Rng, Op: PlookupOps>(
     let now = Instant::now();
     // ζ = H(transcript)
     let zeta = transcript.challenge_scalar(b"zeta");
-    let p = &w.plookup.compute::<Op>(&x.h, zeta);
+    let p = &w.plookup.compute(&x.h, zeta);
     info!("Round 2 took {} s", now.elapsed().as_secs_f64());
 
     // -------------------- Round 3 --------------------
@@ -67,7 +62,7 @@ pub fn prove<R: rand::Rng, Op: PlookupOps>(
     let _cc = eqns::copy_constraint_term(Into::into, beta, gamma);
     let cc = eqns::copy_constraint_term(deg0, beta, gamma);
     // ε(1 + δ) + a + δb
-    let e1d = epsilon * (Scalar::ONE + delta);
+    let e1d = epsilon * (Fp::ONE + delta);
     let _pl = eqns::plookup_term(Into::into, e1d, delta);
     let pl = eqns::plookup_term(deg0, e1d, delta);
     // f'(X) = (A(X) + β Sᵢ₁(X) + γ) (B(X) + β Sᵢ₂(X) + γ) (C(X) + β Sᵢ₃(X) + γ)
@@ -102,7 +97,7 @@ pub fn prove<R: rand::Rng, Op: PlookupOps>(
     // Z(ω) = 1
     // Z(ωⁱ) = Z(ωᶦ⁻¹) f'(ωᶦ⁻¹) / g'(ωᶦ⁻¹)
     info!("Round 3 - A - {} s", now.elapsed().as_secs_f64());
-    let z_points = x.h.iter().fold(vec![Scalar::ONE; 2], |mut acc, _i| {
+    let z_points = x.h.iter().fold(vec![Fp::ONE; 2], |mut acc, _i| {
         let i = _i as usize;
         acc.push(acc[i] * _zf(i) / _zg(i));
         acc
@@ -131,7 +126,7 @@ pub fn prove<R: rand::Rng, Op: PlookupOps>(
     // F_Z1(X) = L₁(X) (Z(X) - 1)
     info!("Round 4C - {} s", now.elapsed().as_secs_f64());
     // let f_z1 = &(poly::lagrange_basis(&x.h, 1) * (z - deg0(PallasScalar::ONE)));
-    let f_z1 = &eqns::grand_product1(&deg0(Scalar::ONE), z, &poly::lagrange_basis(&x.h, 1));
+    let f_z1 = &eqns::grand_product1(&deg0(Fp::ONE), z, &poly::lagrange_basis(&x.h, 1));
     // F_Z2(X) = Z(X)f'(X) - g'(X)Z(ω X)
     info!("Round 4D - {} s", now.elapsed().as_secs_f64());
     let f_z2 = &eqns::grand_product2(z, &zf, &zg, z_bar);
@@ -234,6 +229,7 @@ pub fn prove<R: rand::Rng, Op: PlookupOps>(
     pi
 }
 
+// TODO extract zf and zg to eqns? maybe? use e1d as argument
 // TODO generalize Coset for any field
 // TODO generalize Arithmetizer for any field
 // TODO generalize Circuit for any field; prover, verifier

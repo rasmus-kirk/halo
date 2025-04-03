@@ -1,12 +1,8 @@
-use halo_accumulation::group::PallasScalar;
-
-use ark_ff::Field;
 #[cfg(test)]
-use ark_ff::{BigInteger, Fp, FpConfig, PrimeField};
+use ark_ff::{BigInteger, PrimeField};
+use ark_ff::{Field, Fp, FpConfig};
 
 use crate::Coset;
-
-type Scalar = PallasScalar;
 
 #[cfg(test)]
 /// Compute the bitwise XOR of two scalars
@@ -39,18 +35,16 @@ pub fn bitxor<const N: usize, C: FpConfig<N>>(lhs: Fp<C, N>, rhs: Fp<C, N>) -> F
 //         .fold(T::ZERO, |acc, (i, p_i)| acc + a.pow([i as u64]) * p_i)
 // }
 
-// TODO coset needs to generalize
 /// Y = L₁(X) = (Xⁿ - 1) / (n (X - 1))
-pub fn lagrange_basis1(h: &Coset, x: Scalar) -> Scalar {
+pub fn lagrange_basis1<const N: usize, C: FpConfig<N>>(h: &Coset<N, C>, x: Fp<C, N>) -> Fp<C, N> {
     let n = h.n();
     let w = h.w(1);
-    w * (x.pow([n]) - Scalar::ONE) / (Scalar::from(n) * (x - w))
+    w * (x.pow([n]) - Fp::ONE) / (Fp::from(n) * (x - w))
 }
 
-// TODO coset needs to generalize
 /// Y = Zₕ(X) = Xⁿ - 1
-pub fn zh_ev(h: &Coset, x: Scalar) -> Scalar {
-    x.pow([h.n()]) - Scalar::ONE
+pub fn zh_ev<const N: usize, C: FpConfig<N>>(h: &Coset<N, C>, x: Fp<C, N>) -> Fp<C, N> {
+    x.pow([h.n()]) - Fp::ONE
 }
 
 #[cfg(test)]
@@ -62,6 +56,7 @@ mod tests {
     };
 
     use ark_poly::Polynomial;
+    use halo_accumulation::group::PallasScalar;
     use rand::Rng;
 
     #[test]
@@ -72,7 +67,7 @@ mod tests {
         let h = h_opt.unwrap();
         let l1 = lagrange_basis(&h, 1);
         for _ in 0..100 {
-            let x: Scalar = rng.gen();
+            let x: PallasScalar = rng.gen();
             assert_eq!(lagrange_basis1(&h, x), l1.evaluate(&x));
         }
     }

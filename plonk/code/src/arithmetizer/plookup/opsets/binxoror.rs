@@ -3,12 +3,8 @@ use crate::{
     utils::misc::EnumIter,
 };
 
-use halo_accumulation::group::PallasScalar;
-
-use ark_ff::{AdditiveGroup, Field};
+use ark_ff::{AdditiveGroup, Field, Fp, FpConfig};
 use std::fmt::Display;
-
-type Scalar = PallasScalar;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(usize)]
@@ -19,19 +15,19 @@ pub enum BinXorOr {
 }
 
 impl PlookupOps for BinXorOr {
-    fn to_table(self) -> Table {
+    fn to_table<const N: usize, C: FpConfig<N>>(self) -> Table<N, C> {
         match self {
             BinXorOr::Xor => Table::new(vec![
-                [Scalar::ZERO, Scalar::ZERO, Scalar::ZERO],
-                [Scalar::ZERO, Scalar::ONE, Scalar::ONE],
-                [Scalar::ONE, Scalar::ZERO, Scalar::ONE],
-                [Scalar::ONE, Scalar::ONE, Scalar::ZERO],
+                [Fp::ZERO, Fp::ZERO, Fp::ZERO],
+                [Fp::ZERO, Fp::ONE, Fp::ONE],
+                [Fp::ONE, Fp::ZERO, Fp::ONE],
+                [Fp::ONE, Fp::ONE, Fp::ZERO],
             ]),
             BinXorOr::Or => Table::new(vec![
-                [Scalar::ZERO, Scalar::ZERO, Scalar::ZERO],
-                [Scalar::ZERO, Scalar::ONE, Scalar::ONE],
-                [Scalar::ONE, Scalar::ZERO, Scalar::ONE],
-                [Scalar::ONE, Scalar::ONE, Scalar::ONE],
+                [Fp::ZERO, Fp::ZERO, Fp::ZERO],
+                [Fp::ZERO, Fp::ONE, Fp::ONE],
+                [Fp::ONE, Fp::ZERO, Fp::ONE],
+                [Fp::ONE, Fp::ONE, Fp::ONE],
             ]),
         }
     }

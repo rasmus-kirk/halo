@@ -68,7 +68,9 @@ where
     ps.into_iter().map(op).collect()
 }
 
-pub trait EnumIter: Sized + Ord + Display + Copy + Default + Debug {
+pub trait EnumIter:
+    Sized + Ord + Display + Copy + Default + Debug + Eq + PartialEq + Ord + PartialOrd
+{
     const COUNT: usize;
     fn iter() -> impl Iterator<Item = Self>;
     fn id(self) -> usize;

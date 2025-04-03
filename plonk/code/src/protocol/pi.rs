@@ -1,9 +1,7 @@
 #![allow(non_snake_case)]
 
-use halo_accumulation::{
-    group::{PallasPoint, PallasScalar},
-    pcdl::EvalProof,
-};
+use ark_ff::{Fp, FpConfig};
+use halo_accumulation::{group::PallasPoint, pcdl::EvalProof};
 
 use crate::{
     scheme::{Selectors, Slots},
@@ -11,93 +9,93 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct ProofEvaluations {
-    pub ws: Vec<PallasScalar>,
-    pub qs: Vec<PallasScalar>,
-    pub pip: PallasScalar,
-    pub ps: Vec<PallasScalar>,
-    pub z: PallasScalar,
-    pub ts: Vec<PallasScalar>,
-    pub pls: Vec<PallasScalar>,
-    pub z_bar: PallasScalar,
-    pub t_bar: PallasScalar,
-    pub h1_bar: PallasScalar,
+pub struct ProofEvaluations<const N: usize, C: FpConfig<N>> {
+    pub ws: Vec<Fp<C, N>>,
+    pub qs: Vec<Fp<C, N>>,
+    pub pip: Fp<C, N>,
+    pub ps: Vec<Fp<C, N>>,
+    pub z: Fp<C, N>,
+    pub ts: Vec<Fp<C, N>>,
+    pub pls: Vec<Fp<C, N>>,
+    pub z_bar: Fp<C, N>,
+    pub t_bar: Fp<C, N>,
+    pub h1_bar: Fp<C, N>,
 }
 
-impl ProofEvaluations {
+impl<const N: usize, C: FpConfig<N>> ProofEvaluations<N, C> {
     // Slots ------------------------------------------------------------------
 
-    pub fn a(&self) -> PallasScalar {
+    pub fn a(&self) -> Fp<C, N> {
         self.ws[Slots::A.id()]
     }
 
-    pub fn b(&self) -> PallasScalar {
+    pub fn b(&self) -> Fp<C, N> {
         self.ws[Slots::B.id()]
     }
 
-    pub fn c(&self) -> PallasScalar {
+    pub fn c(&self) -> Fp<C, N> {
         self.ws[Slots::C.id()]
     }
 
     // Selectors --------------------------------------------------------------
 
-    pub fn ql(&self) -> PallasScalar {
+    pub fn ql(&self) -> Fp<C, N> {
         self.qs[Selectors::Ql.id()]
     }
 
-    pub fn qr(&self) -> PallasScalar {
+    pub fn qr(&self) -> Fp<C, N> {
         self.qs[Selectors::Qr.id()]
     }
 
-    pub fn qo(&self) -> PallasScalar {
+    pub fn qo(&self) -> Fp<C, N> {
         self.qs[Selectors::Qo.id()]
     }
 
-    pub fn qm(&self) -> PallasScalar {
+    pub fn qm(&self) -> Fp<C, N> {
         self.qs[Selectors::Qm.id()]
     }
 
-    pub fn qc(&self) -> PallasScalar {
+    pub fn qc(&self) -> Fp<C, N> {
         self.qs[Selectors::Qc.id()]
     }
 
-    pub fn qk(&self) -> PallasScalar {
+    pub fn qk(&self) -> Fp<C, N> {
         self.qs[Selectors::Qk.id()]
     }
 
-    pub fn j(&self) -> PallasScalar {
+    pub fn j(&self) -> Fp<C, N> {
         self.qs[Selectors::J.id()]
     }
 
     // Permutation ------------------------------------------------------------
 
-    pub fn pa(&self) -> PallasScalar {
+    pub fn pa(&self) -> Fp<C, N> {
         self.ps[Slots::A.id()]
     }
 
-    pub fn pb(&self) -> PallasScalar {
+    pub fn pb(&self) -> Fp<C, N> {
         self.ps[Slots::B.id()]
     }
 
-    pub fn pc(&self) -> PallasScalar {
+    pub fn pc(&self) -> Fp<C, N> {
         self.ps[Slots::C.id()]
     }
 
     // Plookup ------------------------------------------------------
 
-    pub fn t(&self) -> PallasScalar {
+    pub fn t(&self) -> Fp<C, N> {
         self.pls[0]
     }
 
-    pub fn f(&self) -> PallasScalar {
+    pub fn f(&self) -> Fp<C, N> {
         self.pls[1]
     }
 
-    pub fn h1(&self) -> PallasScalar {
+    pub fn h1(&self) -> Fp<C, N> {
         self.pls[2]
     }
 
-    pub fn h2(&self) -> PallasScalar {
+    pub fn h2(&self) -> Fp<C, N> {
         self.pls[3]
     }
 }
@@ -116,8 +114,8 @@ pub struct EvalProofs {
 }
 
 #[derive(Clone)]
-pub struct Proof {
-    pub ev: ProofEvaluations,
+pub struct Proof<const N: usize, C: FpConfig<N>> {
+    pub ev: ProofEvaluations<N, C>,
     pub com: ProofCommitments,
     pub pis: EvalProofs,
 }

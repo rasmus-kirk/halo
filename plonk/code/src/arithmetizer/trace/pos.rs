@@ -4,11 +4,9 @@ use crate::{
     utils::misc::{to_superscript, EnumIter},
 };
 
-use halo_accumulation::group::PallasScalar;
+use ark_ff::{Fp, FpConfig};
 
 use std::fmt;
-
-type Scalar = PallasScalar;
 
 /// Position in the permutation polynomial.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -27,11 +25,14 @@ impl Pos {
     }
 
     /// Convert the position to a scalar used in the permutation polynomial.
-    pub fn to_scalar(self, scheme: &Coset) -> Scalar {
+    pub fn to_scalar<const N: usize, C: FpConfig<N>>(self, scheme: &Coset<N, C>) -> Fp<C, N> {
         scheme.h(self.slot, self.id)
     }
 
-    pub fn from_scalar(scalar: Scalar, scheme: &Coset) -> Option<Self> {
+    pub fn from_scalar<const N: usize, C: FpConfig<N>>(
+        scalar: Fp<C, N>,
+        scheme: &Coset<N, C>,
+    ) -> Option<Self> {
         for slot in Slots::iter() {
             for (i_, &x) in scheme.vec_k(slot).iter().enumerate() {
                 let i = (i_ + 1) as u64;

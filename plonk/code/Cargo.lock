@@ -894,6 +894,7 @@ dependencies = [
  "ascii_table",
  "bimap",
  "criterion",
+ "educe",
  "env_logger",
  "field-matrix-utils",
  "halo-accumulation",

@@ -2,27 +2,24 @@ mod compute;
 mod opsets;
 mod plookupops;
 
+use ark_ff::{Fp, FpConfig};
 pub use compute::PlookupEvsThunk;
 pub use opsets::*;
 pub use plookupops::PlookupOps;
 
 use crate::scheme::eqns::plookup_compress_fp;
 
-use halo_accumulation::group::PallasScalar;
-
-type Scalar = PallasScalar;
-
 /// A lookup table for a given Plookup operation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Table(Vec<[Scalar; 3]>);
+pub struct Table<const N: usize, C: FpConfig<N>>(Vec<[Fp<C, N>; 3]>);
 
-impl Table {
-    pub fn new(table: Vec<[Scalar; 3]>) -> Self {
+impl<const N: usize, C: FpConfig<N>> Table<N, C> {
+    pub fn new(table: Vec<[Fp<C, N>; 3]>) -> Self {
         Self(table)
     }
 
     /// Compress table to the table vector
-    pub fn compress(&self, zeta: Scalar, j: Scalar) -> Vec<Scalar> {
+    pub fn compress(&self, zeta: Fp<C, N>, j: Fp<C, N>) -> Vec<Fp<C, N>> {
         let mut res = Vec::new();
         for row in self.0.iter().copied() {
             let [a, b, c] = row;
@@ -45,17 +42,17 @@ impl Table {
 
 /// The collection of all lookup tables for the Plookup protocol.
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct TableRegistry {
-    tables: Vec<Table>,
+pub struct TableRegistry<const N: usize, C: FpConfig<N>> {
+    tables: Vec<Table<N, C>>,
 }
 
-impl Default for TableRegistry {
+impl<const N: usize, C: FpConfig<N>> Default for TableRegistry<N, C> {
     fn default() -> Self {
         Self::new::<EmptyOpSet>()
     }
 }
 
-impl TableRegistry {
+impl<const N: usize, C: FpConfig<N>> TableRegistry<N, C> {
     pub fn new<Op: PlookupOps>() -> Self {
         Self {
             tables: Op::all_tables(),
@@ -63,7 +60,7 @@ impl TableRegistry {
     }
 
     /// Lookup the result of an operation
-    pub fn lookup<Op: PlookupOps>(&self, op: Op, a: Scalar, b: Scalar) -> Option<Scalar> {
+    pub fn lookup<Op: PlookupOps>(&self, op: Op, a: Fp<C, N>, b: Fp<C, N>) -> Option<Fp<C, N>> {
         self.tables[op.id()]
             .0
             .iter()
@@ -75,10 +72,10 @@ impl TableRegistry {
     pub fn query<Op: PlookupOps>(
         &self,
         op: Op,
-        zeta: Scalar,
-        a: Scalar,
-        b: Scalar,
-    ) -> Option<Scalar> {
+        zeta: Fp<C, N>,
+        a: Fp<C, N>,
+        b: Fp<C, N>,
+    ) -> Option<Fp<C, N>> {
         let c = self.lookup(op, a, b)?;
         let j = op.to_fp();
         Some(plookup_compress_fp(zeta, a, b, c, j))

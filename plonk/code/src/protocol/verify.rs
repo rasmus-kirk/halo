@@ -7,15 +7,17 @@ use crate::{
     utils::{self, poly, scalar},
 };
 
-use halo_accumulation::{group::PallasScalar, pcdl};
+use halo_accumulation::pcdl;
 
 use anyhow::{ensure, Result};
-use ark_ff::Field;
+use ark_ec::short_weierstrass::SWCurveConfig;
+use ark_ff::{Field, Fp, FpConfig};
 use merlin::Transcript;
 
-type Scalar = PallasScalar;
-
-pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
+pub fn verify<const N: usize, C: FpConfig<N>, P: SWCurveConfig>(
+    x: &CircuitPublic<N, C, P>,
+    pi: Proof<N, C>,
+) -> Result<()> {
     let ev = &pi.ev;
     let com = &pi.com;
     let mut transcript = Transcript::new(b"protocol");
@@ -64,7 +66,7 @@ pub fn verify(x: &CircuitPublic, pi: Proof) -> Result<()> {
     // a + βb + γ
     let cc = eqns::copy_constraint_term(Into::into, beta, gamma);
     // ε(1 + δ) + a + δb
-    let pl = eqns::plookup_term(Into::into, epsilon * (Scalar::ONE + delta), delta);
+    let pl = eqns::plookup_term(Into::into, epsilon * (Fp::ONE + delta), delta);
     // f'(𝔷) = (A(𝔷) + β Sᵢ₁(𝔷) + γ) (B(𝔷) + β Sᵢ₂(𝔷) + γ) (C(𝔷) + β Sᵢ₃(𝔷) + γ)
     //         (ε(1 + δ) + f(𝔷) + δf(𝔷))(ε(1 + δ) + t(𝔷) + δt(Xω))
     let zf_ev = cc(ev.a(), ia)
