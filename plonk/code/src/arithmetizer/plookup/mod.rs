@@ -1,12 +1,12 @@
 mod compute;
-mod opsets;
+pub mod opsets;
 mod plookupops;
 
 pub use compute::PlookupEvsThunk;
-pub use opsets::*;
 pub use plookupops::PlookupOps;
 
 use crate::scheme::eqns::plookup_compress_fp;
+use opsets::EmptyOpSet;
 
 use ark_ec::short_weierstrass::SWCurveConfig;
 use educe::Educe;

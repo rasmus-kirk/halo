@@ -11,6 +11,7 @@ use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_pallas::PallasConfig;
 use educe::Educe;
 pub use errors::ArithmetizerError;
+use plookup::opsets::{BinXorOr, EmptyOpSet};
 pub use plookup::*;
 pub use trace::{Pos, Trace};
 pub use wire::Wire;
@@ -28,8 +29,11 @@ use std::{cell::RefCell, rc::Rc};
 /// A unique identifier for a wire in the circuit.
 type WireID = usize;
 
-/// Constructs a circuit and arithmetizes it.
+pub type PallasArithmetizer<Op: PlookupOps = EmptyOpSet> = Arithmetizer<Op, PallasConfig>;
+pub type PallasEmptyArith = PallasArithmetizer<EmptyOpSet>;
+pub type PallasBitArith = PallasArithmetizer<BinXorOr>;
 
+/// Constructs a circuit and arithmetizes it.
 #[derive(Educe)]
 #[educe(Debug, Clone, PartialEq)]
 pub struct Arithmetizer<Op: PlookupOps = EmptyOpSet, P: SWCurveConfig = PallasConfig> {
@@ -203,7 +207,7 @@ impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
 mod tests {
     use halo_accumulation::group::PallasScalar;
 
-    use crate::arithmetizer::plookup::EmptyOpSet;
+    use crate::arithmetizer::plookup::opsets::EmptyOpSet;
 
     use super::*;
 
