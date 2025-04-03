@@ -20,19 +20,17 @@ use super::{
 
 use crate::{
     scheme::{Slots, Terms, MAX_BLIND_TERMS},
-    utils::misc::EnumIter,
+    utils::{misc::EnumIter, Evals, Scalar},
     Coset,
 };
 
 use ark_ec::short_weierstrass::SWCurveConfig;
-use ark_ff::{AdditiveGroup, Field, Fp, FpConfig};
+use ark_ff::{AdditiveGroup, Field};
 use ark_poly::Evaluations;
 use log::info;
-use rand::Rng;
+use rand::{distributions::Standard, prelude::Distribution, Rng};
 use std::collections::HashMap;
 use value::Value;
-
-type Evals<const N: usize, C: FpConfig<N>> = Evaluations<Fp<C, N>>;
 
 /// A unique identifier for a constraint in the circuit.
 type ConstraintID = u64;
@@ -41,24 +39,27 @@ type ConstraintID = u64;
 /// computes the circuit polynomials and permutation polynomials.
 #[derive(Educe)]
 #[educe(Default, Debug, Clone)]
-pub struct Trace<const N: usize, C: FpConfig<N>, P: SWCurveConfig> {
-    h: Coset<N, C>,
+pub struct Trace<P: SWCurveConfig> {
+    h: Coset<P>,
     d: usize,
-    evals: HashMap<WireID, Value<N, C>>,
+    evals: HashMap<WireID, Value<P>>,
     permutation: HashMap<Pos, Pos>,
-    constraints: Vec<Constraints<N, C>>,
-    table: TableRegistry<N, C>,
+    constraints: Vec<Constraints<P>>,
+    table: TableRegistry<P>,
     _marker: std::marker::PhantomData<P>,
 }
 
-impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> Trace<N, C, P> {
+impl<P: SWCurveConfig> Trace<P> {
     pub fn new<R: Rng, Op: PlookupOps>(
         rng: &mut R,
         d: Option<usize>,
-        wires: &ArithWireCache<Op, N, C>,
-        input_values: Vec<Fp<C, N>>,
+        wires: &ArithWireCache<Op, P>,
+        input_values: Vec<Scalar<P>>,
         output_wires: Vec<WireID>,
-    ) -> Result<Self, TraceError<Op, N, C>> {
+    ) -> Result<Self, TraceError<Op, P>>
+    where
+        Standard: Distribution<Scalar<P>>,
+    {
         let mut eval: Self = Trace {
             table: TableRegistry::new::<Op>(),
             ..Default::default()
@@ -99,9 +100,9 @@ impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> Trace<N, C, P> {
     /// Look up for the wire's evaluation, otherwise start the evaluating.
     fn resolve<Op: PlookupOps>(
         &mut self,
-        wires: &ArithWireCache<Op, N, C>,
+        wires: &ArithWireCache<Op, P>,
         wire: WireID,
-    ) -> Result<Value<N, C>, TraceError<Op, N, C>> {
+    ) -> Result<Value<P>, TraceError<Op, P>> {
         match self.evals.get(&wire) {
             Some(val) => Ok(*val),
             None => self.eval(wires, wire),
@@ -111,9 +112,9 @@ impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> Trace<N, C, P> {
     /// Compute the values and constraints for the wire and all its dependencies.
     fn eval<Op: PlookupOps>(
         &mut self,
-        wires: &ArithWireCache<Op, N, C>,
+        wires: &ArithWireCache<Op, P>,
         wire: WireID,
-    ) -> Result<Value<N, C>, TraceError<Op, N, C>> {
+    ) -> Result<Value<P>, TraceError<Op, P>> {
         let mut stack = vec![wire];
         while let Some(wire) = stack.pop() {
             if self.evals.contains_key(&wire) {
@@ -143,10 +144,10 @@ impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> Trace<N, C, P> {
     fn eval_helper<Op: PlookupOps>(
         &self,
         stack: &mut Vec<WireID>,
-        wires: &ArithWireCache<Op, N, C>,
+        wires: &ArithWireCache<Op, P>,
         wire: WireID,
-        arith_wire: ArithWire<Op, N, C>,
-    ) -> Result<Option<(Constraints<N, C>, Value<N, C>)>, TraceError<Op, N, C>> {
+        arith_wire: ArithWire<Op, P>,
+    ) -> Result<Option<(Constraints<P>, Value<P>)>, TraceError<Op, P>> {
         match arith_wire {
             ArithWire::Input(id) => Err(TraceError::InputNotSet(id)),
             ArithWire::Constant(scalar) => {
@@ -184,10 +185,10 @@ impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> Trace<N, C, P> {
     /// Compute the output value of a gate operation.
     fn compute_output<Op: PlookupOps>(
         &self,
-        arith_wire: &ArithWire<Op, N, C>,
-        lhs_val: Value<N, C>,
-        rhs_val: Value<N, C>,
-    ) -> Value<N, C> {
+        arith_wire: &ArithWire<Op, P>,
+        lhs_val: Value<P>,
+        rhs_val: Value<P>,
+    ) -> Value<P> {
         match arith_wire {
             ArithWire::AddGate(_, _) => lhs_val + rhs_val,
             ArithWire::MulGate(_, _) => lhs_val * rhs_val,
@@ -198,11 +199,11 @@ impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> Trace<N, C, P> {
 
     /// Compute the constraint for a gate operation.
     fn compute_constraint<Op: PlookupOps>(
-        arith_wire: &ArithWire<Op, N, C>,
-        lhs_val: Value<N, C>,
-        rhs_val: Value<N, C>,
-        out_val: Value<N, C>,
-    ) -> Constraints<N, C> {
+        arith_wire: &ArithWire<Op, P>,
+        lhs_val: Value<P>,
+        rhs_val: Value<P>,
+        out_val: Value<P>,
+    ) -> Constraints<P> {
         match arith_wire {
             ArithWire::AddGate(_, _) => Constraints::add(lhs_val, rhs_val, out_val),
             ArithWire::MulGate(_, _) => Constraints::mul(lhs_val, rhs_val, out_val),
@@ -212,17 +213,17 @@ impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> Trace<N, C, P> {
     }
 
     /// Get the value of a wire if it is computed
-    pub fn get(&self, wire: WireID) -> Option<Value<N, C>> {
+    pub fn get(&self, wire: WireID) -> Option<Value<P>> {
         self.evals.get(&wire).cloned()
     }
 
     /// Check and construct if the wire has a boolean constraint.
     fn bool_constraint<Op: PlookupOps>(
         &mut self,
-        wires: &ArithWireCache<Op, N, C>,
+        wires: &ArithWireCache<Op, P>,
         wire: WireID,
-        value: Value<N, C>,
-    ) -> Result<(), TraceError<Op, N, C>> {
+        value: Value<P>,
+    ) -> Result<(), TraceError<Op, P>> {
         if value.is_bit() && wires.is_bool_constraint(wire) {
             let bool_constraint = Constraints::boolean(value);
             if !bool_constraint.is_satisfied() {
@@ -236,10 +237,10 @@ impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> Trace<N, C, P> {
     /// Check and construct if the wire has a public input constraint.
     fn public_constraint<Op: PlookupOps>(
         &mut self,
-        wires: &ArithWireCache<Op, N, C>,
+        wires: &ArithWireCache<Op, P>,
         wire: WireID,
-        value: Value<N, C>,
-    ) -> Result<(), TraceError<Op, N, C>> {
+        value: Value<P>,
+    ) -> Result<(), TraceError<Op, P>> {
         if wires.is_public(wire) {
             let pub_constraint = Constraints::public_input(value);
             if !pub_constraint.is_satisfied() {
@@ -254,11 +255,11 @@ impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> Trace<N, C, P> {
     pub fn lookup_value<Op: PlookupOps>(
         &self,
         op: Op,
-        a: Value<N, C>,
-        b: Value<N, C>,
-    ) -> Result<Value<N, C>, TraceError<Op, N, C>> {
-        let a = a.into();
-        let b = b.into();
+        a: Value<P>,
+        b: Value<P>,
+    ) -> Result<Value<P>, TraceError<Op, P>> {
+        let a = a.to_fp();
+        let b = b.to_fp();
         if let Some(c) = self.table.lookup(op, a, b) {
             Ok(Value::AnonWire(c))
         } else {
@@ -299,24 +300,24 @@ impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> Trace<N, C, P> {
     // Poly construction -------------------------------------------------------
 
     /// Compute the circuit polynomials.
-    fn gate_polys(&self) -> Vec<Evals<N, C>> {
+    fn gate_polys(&self) -> Vec<Evals<P>> {
         let extend = self.h.n() as usize - self.constraints.len();
         Terms::iter()
             .map(|term| {
                 let mut evals = self
                     .constraints
                     .iter()
-                    .map(|eqn| eqn[term].into())
-                    .collect::<Vec<Fp<C, N>>>();
-                evals.insert(0, Fp::ZERO);
-                evals.extend(vec![Fp::ZERO; extend]);
+                    .map(|eqn| eqn[term].to_fp())
+                    .collect::<Vec<Scalar<P>>>();
+                evals.insert(0, Scalar::<P>::ZERO);
+                evals.extend(vec![Scalar::<P>::ZERO; extend]);
                 Evaluations::from_vec_and_domain(evals, self.h.domain)
             })
             .collect()
     }
 
     /// Compute the permutation and identity permutation polynomials.
-    fn copy_constraints(&self) -> (Vec<Evals<N, C>>, Vec<Evals<N, C>>) {
+    fn copy_constraints(&self) -> (Vec<Evals<P>>, Vec<Evals<P>>) {
         Slots::iter()
             .map(|slot| {
                 self.h
@@ -333,8 +334,8 @@ impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> Trace<N, C, P> {
                     .unzip::<_, _, Vec<_>, Vec<_>>()
             })
             .map(|(id_evs, ss_evs)| {
-                let to_evals = |mut evals: Vec<Fp<C, N>>| {
-                    evals.insert(0, Fp::ONE);
+                let to_evals = |mut evals: Vec<Scalar<P>>| {
+                    evals.insert(0, Scalar::<P>::ONE);
                     Evaluations::from_vec_and_domain(evals, self.h.domain)
                 };
                 (to_evals(id_evs), to_evals(ss_evs))
@@ -345,8 +346,7 @@ impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> Trace<N, C, P> {
 
 #[cfg(test)]
 mod tests {
-    use ark_ff::MontBackend;
-    use ark_pallas::{FrConfig, PallasConfig};
+    use ark_pallas::PallasConfig;
     use halo_accumulation::group::PallasScalar;
 
     use crate::{
@@ -362,7 +362,7 @@ mod tests {
     #[test]
     fn evaluator_values() {
         let rng = &mut rand::thread_rng();
-        let [x, y] = Arithmetizer::<EmptyOpSet, 4, MontBackend<FrConfig, 4>>::build::<2>();
+        let [x, y] = Arithmetizer::<EmptyOpSet, PallasConfig>::build::<2>();
         let input_values = vec![1, 2];
         let output_wires = &[(x.clone() * x) * 3 + (y * 5) - 47];
         // build circuit
@@ -449,8 +449,8 @@ mod tests {
         assert!(eval == expected_eval);
         // structural equality
 
-        let c: Circuit<4, MontBackend<FrConfig, 4>, PallasConfig> = eval.into();
-        let eval2: Trace<4, MontBackend<FrConfig, 4>, PallasConfig> = c.into();
+        let c: Circuit<PallasConfig> = eval.into();
+        let eval2: Trace<PallasConfig> = c.into();
         assert!(eval2 == expected_eval);
         // plonk structural equality
     }

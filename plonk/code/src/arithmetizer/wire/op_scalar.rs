@@ -1,7 +1,6 @@
 use ark_ec::short_weierstrass::SWCurveConfig;
-use ark_ff::{Fp, FpConfig};
 
-use crate::arithmetizer::plookup::PlookupOps;
+use crate::{arithmetizer::plookup::PlookupOps, utils::Scalar};
 
 use super::{ast::WireAST, Wire};
 
@@ -12,10 +11,9 @@ use std::{
 
 // Add ------------------------------------------------------------------------
 
-impl<T, Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Add<T>
-    for Wire<Op, N, C, P>
+impl<Op: PlookupOps, P: SWCurveConfig, T> Add<T> for Wire<Op, P>
 where
-    T: Into<Fp<C, N>> + Copy,
+    T: Into<Scalar<P>> + Copy,
 {
     type Output = Self;
 
@@ -30,10 +28,9 @@ where
 
 // Sub ------------------------------------------------------------------------
 
-impl<T, Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Sub<T>
-    for Wire<Op, N, C, P>
+impl<Op: PlookupOps, P: SWCurveConfig, T> Sub<T> for Wire<Op, P>
 where
-    T: Into<Fp<C, N>> + Copy,
+    T: Into<Scalar<P>> + Copy,
 {
     type Output = Self;
 
@@ -52,10 +49,9 @@ where
 
 // Mul ------------------------------------------------------------------------
 
-impl<T, Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Mul<T>
-    for Wire<Op, N, C, P>
+impl<Op: PlookupOps, P: SWCurveConfig, T> Mul<T> for Wire<Op, P>
 where
-    T: Into<Fp<C, N>> + Copy,
+    T: Into<Scalar<P>> + Copy,
 {
     type Output = Self;
 
@@ -74,10 +70,9 @@ where
 
 // Div ------------------------------------------------------------------------
 
-impl<T, Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Div<T>
-    for Wire<Op, N, C, P>
+impl<Op: PlookupOps, P: SWCurveConfig, T> Div<T> for Wire<Op, P>
 where
-    T: Into<Fp<C, N>> + Copy,
+    T: Into<Scalar<P>> + Copy,
 {
     type Output = Self;
 

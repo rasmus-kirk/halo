@@ -5,8 +5,6 @@ mod op_wire;
 use super::{plookup::PlookupOps, Arithmetizer, WireID};
 use crate::utils::misc::{if_debug, is_debug};
 use ark_ec::short_weierstrass::SWCurveConfig;
-use ark_ff::{FpConfig, MontBackend};
-use ark_pallas::{FrConfig, PallasConfig};
 use ast::WireAST;
 use educe::Educe;
 
@@ -18,30 +16,25 @@ use std::{
 
 #[derive(Educe)]
 #[educe(Clone, PartialEq)]
-pub struct Wire<
-    Op: PlookupOps,
-    const N: usize = 4,
-    C: FpConfig<N> = MontBackend<FrConfig, 4>,
-    P: SWCurveConfig = PallasConfig,
-> {
+pub struct Wire<Op: PlookupOps, P: SWCurveConfig> {
     id: WireID,
-    arith: Rc<RefCell<Arithmetizer<Op, N, C, P>>>,
-    ast: Option<Rc<WireAST<Op, N, C>>>,
+    arith: Rc<RefCell<Arithmetizer<Op, P>>>,
+    ast: Option<Rc<WireAST<Op, P>>>,
 }
 
-impl<Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Wire<Op, N, C, P> {
+impl<Op: PlookupOps, P: SWCurveConfig> Wire<Op, P> {
     // constructors -------------------------------------------------------
 
     pub fn new(
         id: WireID,
-        arith: Rc<RefCell<Arithmetizer<Op, N, C, P>>>,
-        ast: Option<Rc<WireAST<Op, N, C>>>,
+        arith: Rc<RefCell<Arithmetizer<Op, P>>>,
+        ast: Option<Rc<WireAST<Op, P>>>,
     ) -> Self {
         Self { id, arith, ast }
     }
 
     /// Create a new input wire.
-    pub fn new_input(id: WireID, arith: Rc<RefCell<Arithmetizer<Op, N, C, P>>>) -> Self {
+    pub fn new_input(id: WireID, arith: Rc<RefCell<Arithmetizer<Op, P>>>) -> Self {
         Self::new(id, arith, if_debug(Rc::new(WireAST::Input(id))))
     }
 
@@ -53,7 +46,7 @@ impl<Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Wire<Op, 
     }
 
     /// Returns the circuit that the wire belongs to.
-    pub fn arith(&self) -> &Rc<RefCell<Arithmetizer<Op, N, C, P>>> {
+    pub fn arith(&self) -> &Rc<RefCell<Arithmetizer<Op, P>>> {
         &self.arith
     }
 
@@ -76,9 +69,7 @@ impl<Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Wire<Op, 
     }
 }
 
-impl<Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Display
-    for Wire<Op, N, C, P>
-{
+impl<Op: PlookupOps, P: SWCurveConfig> Display for Wire<Op, P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if is_debug() {
             write!(f, "{}", self.ast.clone().unwrap())
@@ -88,7 +79,7 @@ impl<Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Display
     }
 }
 
-impl<Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Debug for Wire<Op, N, C, P> {
+impl<Op: PlookupOps, P: SWCurveConfig> Debug for Wire<Op, P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Wire: {}", self)
     }
@@ -97,6 +88,7 @@ impl<Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Debug for
 #[cfg(test)]
 mod tests {
     use ark_ff::Field;
+    use ark_pallas::PallasConfig;
     use halo_accumulation::group::PallasScalar;
 
     use super::*;
@@ -105,14 +97,15 @@ mod tests {
         utils::misc::{map_to_alphabet, tests::on_debug},
     };
 
-    type PallasArithmetizer = Arithmetizer<EmptyOpSet, 4, MontBackend<FrConfig, 4>, PallasConfig>;
+    type PallasArithmetizer = Arithmetizer<EmptyOpSet, PallasConfig>;
+    type PallasWire = Wire<EmptyOpSet, PallasConfig>;
 
     #[test]
     fn new() {
         on_debug();
         let [wire_, _] = &PallasArithmetizer::build::<2>();
         let arithmetizer = wire_.arith().clone();
-        let wire = Wire::new_input(0, arithmetizer);
+        let wire = PallasWire::new_input(0, arithmetizer);
         assert_eq!(wire.id, 0);
         assert_eq!(format!("{}", wire), map_to_alphabet(0));
     }

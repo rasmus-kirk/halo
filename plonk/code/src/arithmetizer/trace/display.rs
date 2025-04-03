@@ -6,11 +6,10 @@ use crate::{
 };
 
 use ark_ec::short_weierstrass::SWCurveConfig;
-use ark_ff::FpConfig;
 use ascii_table::{Align, AsciiTable};
 use std::fmt::{self, Display};
 
-impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> Trace<N, C, P> {
+impl<P: SWCurveConfig> Trace<P> {
     /// Get the debugging table data for the evaluator.
     fn table_data(&self) -> Vec<Vec<String>> {
         self.constraints
@@ -37,7 +36,7 @@ impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> Trace<N, C, P> {
     }
 }
 
-impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> Display for Trace<N, C, P> {
+impl<P: SWCurveConfig> Display for Trace<P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut ascii_table = AsciiTable::default();
         ascii_table.column(0).set_header("").set_align(Align::Left);

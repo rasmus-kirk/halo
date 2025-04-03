@@ -1,17 +1,17 @@
 use super::Table;
-use crate::utils::misc::EnumIter;
+use crate::utils::{misc::EnumIter, Scalar};
 
-use ark_ff::{Fp, FpConfig};
+use ark_ec::short_weierstrass::SWCurveConfig;
 
 use std::hash::Hash;
 
 pub trait PlookupOps: EnumIter + Hash {
-    fn to_table<const N: usize, C: FpConfig<N>>(self) -> Table<N, C>;
-    fn all_tables<const N: usize, C: FpConfig<N>>() -> Vec<Table<N, C>> {
+    fn to_table<P: SWCurveConfig>(self) -> Table<P>;
+    fn all_tables<P: SWCurveConfig>() -> Vec<Table<P>> {
         Self::iter().map(|op| op.to_table()).collect()
     }
-    fn to_fp<const N: usize, C: FpConfig<N>>(self) -> Fp<C, N> {
-        Fp::from(self.id() as u64)
+    fn to_fp<P: SWCurveConfig>(self) -> Scalar<P> {
+        Scalar::<P>::from(self.id() as u64)
     }
     fn is_commutative(&self) -> bool;
 }

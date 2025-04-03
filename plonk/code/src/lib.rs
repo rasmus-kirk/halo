@@ -17,14 +17,13 @@ mod tests {
     use super::*;
     use anyhow::Result;
     use arithmetizer::Arithmetizer;
-    use ark_ff::MontBackend;
-    use ark_pallas::{FrConfig, PallasConfig};
+    use ark_pallas::PallasConfig;
     use circuit::poly_evaluations_to_string;
     use log::debug;
     use protocol;
 
-    type PallasArithmetizer = Arithmetizer<EmptyOpSet, 4, MontBackend<FrConfig, 4>, PallasConfig>;
-    type BitXorArithmetizer = Arithmetizer<BinXorOr, 4, MontBackend<FrConfig, 4>, PallasConfig>;
+    type PallasArithmetizer = Arithmetizer<EmptyOpSet, PallasConfig>;
+    type BitXorArithmetizer = Arithmetizer<BinXorOr, PallasConfig>;
 
     #[test]
     fn circuit_canonical() -> Result<()> {

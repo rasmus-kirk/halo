@@ -1,9 +1,10 @@
 use crate::{
     arithmetizer::{plookup::plookupops::PlookupOps, Table},
-    utils::misc::EnumIter,
+    utils::{misc::EnumIter, Scalar},
 };
 
-use ark_ff::{AdditiveGroup, Field, Fp, FpConfig};
+use ark_ec::short_weierstrass::SWCurveConfig;
+use ark_ff::{AdditiveGroup, Field};
 use std::fmt::Display;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -15,19 +16,19 @@ pub enum BinXorOr {
 }
 
 impl PlookupOps for BinXorOr {
-    fn to_table<const N: usize, C: FpConfig<N>>(self) -> Table<N, C> {
+    fn to_table<P: SWCurveConfig>(self) -> Table<P> {
         match self {
             BinXorOr::Xor => Table::new(vec![
-                [Fp::ZERO, Fp::ZERO, Fp::ZERO],
-                [Fp::ZERO, Fp::ONE, Fp::ONE],
-                [Fp::ONE, Fp::ZERO, Fp::ONE],
-                [Fp::ONE, Fp::ONE, Fp::ZERO],
+                [Scalar::<P>::ZERO, Scalar::<P>::ZERO, Scalar::<P>::ZERO],
+                [Scalar::<P>::ZERO, Scalar::<P>::ONE, Scalar::<P>::ONE],
+                [Scalar::<P>::ONE, Scalar::<P>::ZERO, Scalar::<P>::ONE],
+                [Scalar::<P>::ONE, Scalar::<P>::ONE, Scalar::<P>::ZERO],
             ]),
             BinXorOr::Or => Table::new(vec![
-                [Fp::ZERO, Fp::ZERO, Fp::ZERO],
-                [Fp::ZERO, Fp::ONE, Fp::ONE],
-                [Fp::ONE, Fp::ZERO, Fp::ONE],
-                [Fp::ONE, Fp::ONE, Fp::ONE],
+                [Scalar::<P>::ZERO, Scalar::<P>::ZERO, Scalar::<P>::ZERO],
+                [Scalar::<P>::ZERO, Scalar::<P>::ONE, Scalar::<P>::ONE],
+                [Scalar::<P>::ONE, Scalar::<P>::ZERO, Scalar::<P>::ONE],
+                [Scalar::<P>::ONE, Scalar::<P>::ONE, Scalar::<P>::ONE],
             ]),
         }
     }

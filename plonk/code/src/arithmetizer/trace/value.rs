@@ -1,10 +1,11 @@
 use super::WireID;
 use crate::{
     arithmetizer::{cache::ArithWireCache, plookup::PlookupOps},
-    utils::{misc::map_to_alphabet, print_table::print_scalar},
+    utils::{misc::map_to_alphabet, print_table::print_scalar, Scalar},
 };
 
-use ark_ff::{AdditiveGroup, Field, Fp, FpConfig};
+use ark_ec::short_weierstrass::SWCurveConfig;
+use ark_ff::{AdditiveGroup, Field};
 use educe::Educe;
 use std::{
     fmt,
@@ -30,26 +31,40 @@ impl fmt::Display for ValueType {
 ///
 #[derive(Educe)]
 #[educe(Debug, Hash, Clone, Copy, PartialEq, Eq)]
-pub enum Value<const N: usize, C: FpConfig<N>> {
-    AnonWire(Fp<C, N>),
-    Wire(WireID, ValueType, Fp<C, N>),
+pub enum Value<P: SWCurveConfig> {
+    AnonWire(Scalar<P>),
+    Wire(WireID, ValueType, Scalar<P>),
 }
 
-impl<const N: usize, C: FpConfig<N>> Default for Value<N, C> {
+impl<P: SWCurveConfig> Default for Value<P> {
     fn default() -> Self {
         Self::ZERO
     }
 }
 
-impl<const N: usize, C: FpConfig<N>> Value<N, C> {
-    pub const ZERO: Self = Self::AnonWire(Fp::ZERO);
-    pub const ONE: Self = Self::AnonWire(Fp::ONE);
+impl<P: SWCurveConfig> Value<P> {
+    pub const ZERO: Self = Self::AnonWire(Scalar::<P>::ZERO);
+    pub const ONE: Self = Self::AnonWire(Scalar::<P>::ONE);
 
-    pub fn neg_one() -> Self {
-        Self::AnonWire(-Fp::ONE)
+    pub fn to_fp(self) -> Scalar<P> {
+        match self {
+            Self::AnonWire(scalar) => scalar,
+            Self::Wire(_, _, scalar) => scalar,
+        }
     }
 
-    pub fn new_wire(wire: WireID, value: Fp<C, N>) -> Self {
+    pub fn to_fp_ref(&self) -> Scalar<P> {
+        match self {
+            Self::AnonWire(scalar) => *scalar,
+            Self::Wire(_, _, scalar) => *scalar,
+        }
+    }
+
+    pub fn neg_one() -> Self {
+        Self::AnonWire(-Scalar::<P>::ONE)
+    }
+
+    pub fn new_wire(wire: WireID, value: Scalar<P>) -> Self {
         Self::Wire(wire, ValueType::Field, value)
     }
 
@@ -60,7 +75,7 @@ impl<const N: usize, C: FpConfig<N>> Value<N, C> {
 
     /// Check if the value scalar is zero.
     pub fn is_zero(&self) -> bool {
-        Into::<Fp<C, N>>::into(self) == Fp::ZERO
+        self.to_fp() == Scalar::<P>::ZERO
     }
 
     /// Check if the value is a bit type.
@@ -77,7 +92,7 @@ impl<const N: usize, C: FpConfig<N>> Value<N, C> {
     }
 
     /// Set the value type of the value to bit if the wire id is a bit.
-    pub fn set_bit_type<Op: PlookupOps>(self, cache: &ArithWireCache<Op, N, C>) -> Self {
+    pub fn set_bit_type<Op: PlookupOps>(self, cache: &ArithWireCache<Op, P>) -> Self {
         match self {
             Self::Wire(id, _, scalar) if cache.is_bit(id) => Self::Wire(id, ValueType::Bit, scalar),
             x => x,
@@ -85,22 +100,7 @@ impl<const N: usize, C: FpConfig<N>> Value<N, C> {
     }
 }
 
-impl<const N: usize, C: FpConfig<N>> From<Value<N, C>> for Fp<C, N> {
-    fn from(value: Value<N, C>) -> Self {
-        match value {
-            Value::AnonWire(scalar) => scalar,
-            Value::Wire(_, _, scalar) => scalar,
-        }
-    }
-}
-
-impl<const N: usize, C: FpConfig<N>> From<&Value<N, C>> for Fp<C, N> {
-    fn from(value: &Value<N, C>) -> Self {
-        Into::<Fp<C, N>>::into(value)
-    }
-}
-
-impl<const N: usize, C: FpConfig<N>> Neg for Value<N, C> {
+impl<P: SWCurveConfig> Neg for Value<P> {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
@@ -111,32 +111,32 @@ impl<const N: usize, C: FpConfig<N>> Neg for Value<N, C> {
     }
 }
 
-impl<const N: usize, C: FpConfig<N>> Add for Value<N, C> {
-    type Output = Value<N, C>;
+impl<P: SWCurveConfig> Add for Value<P> {
+    type Output = Value<P>;
 
     fn add(self, other: Self) -> Self::Output {
-        Value::AnonWire(Into::<Fp<C, N>>::into(self) + Into::<Fp<C, N>>::into(other))
+        Value::AnonWire(self.to_fp() + other.to_fp())
     }
 }
 
-impl<const N: usize, C: FpConfig<N>> Mul for Value<N, C> {
-    type Output = Value<N, C>;
+impl<P: SWCurveConfig> Mul for Value<P> {
+    type Output = Value<P>;
 
     fn mul(self, other: Self) -> Self::Output {
-        Value::AnonWire(Into::<Fp<C, N>>::into(self) * Into::<Fp<C, N>>::into(other))
+        Value::AnonWire(self.to_fp() * other.to_fp())
     }
 }
 
-impl<const N: usize, C: FpConfig<N>> fmt::Display for Value<N, C> {
+impl<P: SWCurveConfig> fmt::Display for Value<P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
-            Value::AnonWire(scalar) => write!(f, "{}", print_scalar(scalar)),
+            Value::AnonWire(scalar) => write!(f, "{}", print_scalar::<P>(scalar)),
             Value::Wire(wire_id, val_type, scalar) => {
                 write!(
                     f,
                     "{} {}:{}",
                     map_to_alphabet(wire_id),
-                    print_scalar(scalar),
+                    print_scalar::<P>(scalar),
                     val_type
                 )
             }

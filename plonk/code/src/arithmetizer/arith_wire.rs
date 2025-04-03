@@ -1,22 +1,22 @@
 use super::{plookup::PlookupOps, ArithmetizerError, WireID};
-use crate::utils::misc::map_to_alphabet;
+use crate::utils::{misc::map_to_alphabet, Scalar};
 
-use ark_ff::{AdditiveGroup, Fp, FpConfig};
-
+use ark_ec::short_weierstrass::SWCurveConfig;
+use ark_ff::AdditiveGroup;
 use educe::Educe;
 use std::fmt::{self, Debug, Display};
 
 #[derive(Educe)]
 #[educe(Hash, Clone, Copy, PartialEq, Eq)]
-pub enum ArithWire<Op: PlookupOps, const N: usize, C: FpConfig<N>> {
+pub enum ArithWire<Op: PlookupOps, P: SWCurveConfig> {
     Input(WireID),
-    Constant(Fp<C, N>),
+    Constant(Scalar<P>),
     AddGate(WireID, WireID),
     MulGate(WireID, WireID),
     Lookup(Op, WireID, WireID),
 }
 
-impl<Op: PlookupOps, const N: usize, C: FpConfig<N>> ArithWire<Op, N, C> {
+impl<Op: PlookupOps, P: SWCurveConfig> ArithWire<Op, P> {
     /// Get the inputs of the gate, if the wire is a gate.
     pub fn inputs(&self) -> impl Iterator<Item = WireID> {
         match *self {
@@ -28,13 +28,13 @@ impl<Op: PlookupOps, const N: usize, C: FpConfig<N>> ArithWire<Op, N, C> {
     }
 }
 
-impl<Op: PlookupOps, const N: usize, C: FpConfig<N>> Default for ArithWire<Op, N, C> {
+impl<Op: PlookupOps, P: SWCurveConfig> Default for ArithWire<Op, P> {
     fn default() -> Self {
-        ArithWire::Constant(Fp::ZERO)
+        ArithWire::Constant(Scalar::<P>::ZERO)
     }
 }
 
-impl<Op: PlookupOps, const N: usize, C: FpConfig<N>> Display for ArithWire<Op, N, C> {
+impl<Op: PlookupOps, P: SWCurveConfig> Display for ArithWire<Op, P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             ArithWire::Input(wire_id) => write!(f, "Input({})", map_to_alphabet(wire_id)),
@@ -58,7 +58,7 @@ impl<Op: PlookupOps, const N: usize, C: FpConfig<N>> Display for ArithWire<Op, N
     }
 }
 
-impl<Op: PlookupOps, const N: usize, C: FpConfig<N>> Debug for ArithWire<Op, N, C> {
+impl<Op: PlookupOps, P: SWCurveConfig> Debug for ArithWire<Op, P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "ArithWire: {}", self)
     }
@@ -72,12 +72,10 @@ pub enum CommutativeOps<Op: PlookupOps> {
     Lookup(Op),
 }
 
-impl<Op: PlookupOps, const N: usize, C: FpConfig<N>> TryFrom<ArithWire<Op, N, C>>
-    for CommutativeOps<Op>
-{
-    type Error = ArithmetizerError<Op, N, C>;
+impl<Op: PlookupOps, P: SWCurveConfig> TryFrom<ArithWire<Op, P>> for CommutativeOps<Op> {
+    type Error = ArithmetizerError<Op, P>;
 
-    fn try_from(val: ArithWire<Op, N, C>) -> Result<Self, Self::Error> {
+    fn try_from(val: ArithWire<Op, P>) -> Result<Self, Self::Error> {
         match val {
             ArithWire::AddGate(_, _) => Ok(CommutativeOps::Add),
             ArithWire::MulGate(_, _) => Ok(CommutativeOps::Mul),

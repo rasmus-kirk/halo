@@ -2,11 +2,12 @@ use std::ops::{Add, Mul};
 
 use ark_ec::short_weierstrass::{Projective, SWCurveConfig};
 
-use ark_ff::{Field, Fp, FpConfig};
+use ark_ff::Field;
 use ark_poly::{univariate::DensePolynomial, Evaluations};
 
-pub type Poly<const N: usize, C: FpConfig<N>> = DensePolynomial<Fp<C, N>>;
-pub type Evals<const N: usize, C: FpConfig<N>> = Evaluations<Fp<C, N>>;
+pub type Scalar<P: SWCurveConfig> = P::ScalarField;
+pub type Poly<P: SWCurveConfig> = DensePolynomial<P::ScalarField>;
+pub type Evals<P: SWCurveConfig> = Evaluations<P::ScalarField>;
 pub type Point<P: SWCurveConfig> = Projective<P>;
 
 // /// Y = x₀y₀ + x₁y₁ + x₂y₂ + ...
@@ -48,24 +49,22 @@ where
     geometric(one, a, pss.into_iter().flat_map(|ps| ps.into_iter()))
 }
 
-pub fn geometric_fp<const N: usize, C, T, U, I>(a: Fp<C, N>, ps: I) -> U
+pub fn geometric_fp<P: SWCurveConfig, T, U, I>(a: Scalar<P>, ps: I) -> U
 where
     I: IntoIterator<Item = T>,
-    C: FpConfig<N>,
     U: Default + Add<U, Output = U>,
-    T: Mul<Fp<C, N>, Output = U>,
+    T: Mul<Scalar<P>, Output = U>,
 {
-    geometric(Fp::ONE, a, ps)
+    geometric(Scalar::<P>::ONE, a, ps)
 }
 
-pub fn flat_geometric_fp<const N: usize, const M: usize, C, T, U, I>(a: Fp<C, N>, pss: [I; M]) -> U
+pub fn flat_geometric_fp<const M: usize, P: SWCurveConfig, T, U, I>(a: Scalar<P>, pss: [I; M]) -> U
 where
     I: IntoIterator<Item = T>,
-    C: FpConfig<N>,
     U: Default + Add<U, Output = U>,
-    T: Mul<Fp<C, N>, Output = U>,
+    T: Mul<Scalar<P>, Output = U>,
 {
-    flat_geometric(Fp::ONE, a, pss)
+    flat_geometric(Scalar::<P>::ONE, a, pss)
 }
 
 // /// f(x₀,y₀) f(x₁,y₁) f(x₂,y₂) ...
