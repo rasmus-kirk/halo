@@ -6,27 +6,24 @@ use crate::{
     },
     circuit::{Circuit, CircuitPrivate, CircuitPublic},
     scheme::{Selectors, Slots, Terms},
-    utils::{misc::EnumIter, poly::batch_interpolate, Poly},
+    utils::{misc::EnumIter, poly::batch_interpolate, Evals, Point, Poly},
 };
 
 use ark_ec::short_weierstrass::SWCurveConfig;
-use ark_ff::FpConfig;
-use halo_accumulation::{group::PallasPoint, pcdl};
-
 use ark_poly::Polynomial;
+use halo_accumulation::pcdl;
+
 use std::collections::HashMap;
 
-pub type TraceDeconstructed<const N: usize, C: FpConfig<N>> = (
+pub type TraceDeconstructed<P: SWCurveConfig> = (
     usize,
-    Vec<Constraints<N, C>>,
+    Vec<Constraints<P>>,
     [Vec<Pos>; Slots::COUNT],
-    TableRegistry<N, C>,
+    TableRegistry<P>,
 );
 
-impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> From<TraceDeconstructed<N, C>>
-    for Trace<N, C, P>
-{
-    fn from((d, constraints, permutation_vals, table): TraceDeconstructed<N, C>) -> Self {
+impl<P: SWCurveConfig> From<TraceDeconstructed<P>> for Trace<P> {
+    fn from((d, constraints, permutation_vals, table): TraceDeconstructed<P>) -> Self {
         let mut permutation = HashMap::new();
         for (slot_i, perms) in permutation_vals.iter().enumerate() {
             let slot = Slots::un_id(slot_i);
@@ -47,33 +44,33 @@ impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> From<TraceDeconstructed<N
     }
 }
 
-impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> From<Trace<N, C, P>> for Circuit<N, C, P> {
-    fn from(eval: Trace<N, C, P>) -> Self {
+impl<P: SWCurveConfig> From<Trace<P>> for Circuit<P> {
+    fn from(eval: Trace<P>) -> Self {
         let d = eval.d;
         let _ts = eval.gate_polys();
         let (_is, _ps) = eval.copy_constraints();
-        let ts = batch_interpolate(_ts.clone());
-        let is = batch_interpolate(_is.clone());
-        let ps = batch_interpolate(_ps.clone());
+        let ts: Vec<Poly<P>> = batch_interpolate(_ts.clone());
+        let is: Vec<Poly<P>> = batch_interpolate(_is.clone());
+        let ps: Vec<Poly<P>> = batch_interpolate(_ps.clone());
 
-        let pip_com = pcdl::commit(&ts[Terms::PublicInputs.id()], d, None);
-        let qs_com: Vec<PallasPoint> = ts[Slots::COUNT..Slots::COUNT + Selectors::COUNT]
+        let pip_com: Point<P> = pcdl::commit(&ts[Terms::PublicInputs.id()], d, None);
+        let qs_com: Vec<Point<P>> = ts[Slots::COUNT..Slots::COUNT + Selectors::COUNT]
             .iter()
             .map(|q| pcdl::commit(q, eval.d, None))
             .collect();
-        let ps_com: Vec<PallasPoint> = (0..Slots::COUNT)
+        let ps_com: Vec<Point<P>> = (0..Slots::COUNT)
             .map(|i| pcdl::commit(&ps[i], eval.d, None))
             .collect();
 
         ts.iter()
             .chain(ps.iter())
             .chain(is.iter())
-            .for_each(|p: &Poly<N, C>| assert!(p.degree() <= d));
+            .for_each(|p: &Poly<P>| assert!(p.degree() <= d));
 
-        let pip = ts[Terms::PublicInputs.id()].clone();
-        let ws = ts[..Slots::COUNT].to_vec();
-        let _ws = _ts[..Slots::COUNT].to_vec();
-        let qs = ts[Slots::COUNT..Slots::COUNT + Selectors::COUNT].to_vec();
+        let pip: Poly<P> = ts[Terms::PublicInputs.id()].clone();
+        let ws: Vec<Poly<P>> = ts[..Slots::COUNT].to_vec();
+        let _ws: Vec<Evals<P>> = _ts[..Slots::COUNT].to_vec();
+        let qs: Vec<Poly<P>> = ts[Slots::COUNT..Slots::COUNT + Selectors::COUNT].to_vec();
         let x = CircuitPublic {
             d: eval.d,
             h: eval.h,
@@ -96,8 +93,8 @@ impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> From<Trace<N, C, P>> for 
     }
 }
 
-impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> From<Circuit<N, C, P>> for Trace<N, C, P> {
-    fn from((x, w): Circuit<N, C, P>) -> Self {
+impl<P: SWCurveConfig> From<Circuit<P>> for Trace<P> {
+    fn from((x, w): Circuit<P>) -> Self {
         let h = &x.h;
         let (expected_constraints, m) = h
             .iter()
@@ -111,7 +108,7 @@ impl<const N: usize, C: FpConfig<N>, P: SWCurveConfig> From<Circuit<N, C, P>> fo
                         .try_into()
                         .unwrap(),
                 );
-                if c == Constraints::<N, C>::default() {
+                if c == Constraints::default() {
                     Err((acc, i))
                 } else {
                     acc.push(c);

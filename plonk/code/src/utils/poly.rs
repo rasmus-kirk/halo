@@ -3,37 +3,37 @@ use crate::Coset;
 use halo_accumulation::pcdl;
 
 use ark_ec::short_weierstrass::SWCurveConfig;
-use ark_ff::{AdditiveGroup, Field, Fp, FpConfig};
+use ark_ff::{AdditiveGroup, Field};
 use ark_poly::{univariate::DensePolynomial, DenseUVPolynomial, Evaluations, Polynomial};
 
-use super::{misc::batch_op, Evals, Point, Poly};
+use super::{misc::batch_op, Evals, Point, Poly, Scalar};
 
-pub fn batch_interpolate<const N: usize, C: FpConfig<N>>(
-    es: Vec<Evaluations<Fp<C, N>>>,
-) -> Vec<DensePolynomial<Fp<C, N>>> {
+pub fn batch_interpolate<P: SWCurveConfig>(
+    es: Vec<Evaluations<Scalar<P>>>,
+) -> Vec<DensePolynomial<Scalar<P>>> {
     batch_op(es, |e| e.interpolate())
 }
 
 /// f(X) = v
-pub fn deg0<const N: usize, C: FpConfig<N>>(v: Fp<C, N>) -> DensePolynomial<Fp<C, N>> {
+pub fn deg0<P: SWCurveConfig>(v: Scalar<P>) -> DensePolynomial<Scalar<P>> {
     DensePolynomial::from_coefficients_slice(&[v])
 }
 
 /// f(X) = vXⁿ
-pub fn vxn<const N: usize, C: FpConfig<N>>(v: &Fp<C, N>, n: u64) -> DensePolynomial<Fp<C, N>> {
-    let mut coeffs = vec![Fp::ZERO; n as usize];
+pub fn vxn<P: SWCurveConfig>(v: &Scalar<P>, n: u64) -> DensePolynomial<Scalar<P>> {
+    let mut coeffs = vec![Scalar::<P>::ZERO; n as usize];
     coeffs.push(*v);
     DensePolynomial::from_coefficients_slice(&coeffs)
 }
 
 /// f(X) = Xⁿ
-pub fn xn<const N: usize, C: FpConfig<N>>(n: u64) -> DensePolynomial<Fp<C, N>> {
-    vxn(&Fp::ONE, n)
+pub fn xn<P: SWCurveConfig>(n: u64) -> DensePolynomial<Scalar<P>> {
+    vxn::<P>(&Scalar::<P>::ONE, n)
 }
 
 /// f(X) = X
-pub fn x<const N: usize, C: FpConfig<N>>() -> DensePolynomial<Fp<C, N>> {
-    vxn(&Fp::ONE, 1)
+pub fn x<P: SWCurveConfig>() -> DensePolynomial<Scalar<P>> {
+    vxn::<P>(&Scalar::<P>::ONE, 1)
 }
 
 // /// ∀X ∈ H₀: g(X) = f(aX)
@@ -58,12 +58,8 @@ pub fn x<const N: usize, C: FpConfig<N>>() -> DensePolynomial<Fp<C, N>> {
 //     coset_scale(h, f, h.w(1))
 // }
 
-// TODO coset needs to generalize
 /// ∀X ∈ H₀: g(X) = f(ωX)
-pub fn shift_wrap_eval<const N: usize, C: FpConfig<N>>(
-    h: &Coset<N, C>,
-    evals: Evals<N, C>,
-) -> Evals<N, C> {
+pub fn shift_wrap_eval<P: SWCurveConfig>(h: &Coset<P>, evals: Evals<P>) -> Evals<P> {
     let mut evals_new = evals.evals;
     let evals_new_first = evals_new.remove(0);
     evals_new.push(evals_new_first);
@@ -71,22 +67,21 @@ pub fn shift_wrap_eval<const N: usize, C: FpConfig<N>>(
 }
 
 /// f(X) = p₀(X) + Xⁿp₁(X) + X²ⁿp₂(X) + ...
-pub fn split<const N: usize, C: FpConfig<N>>(
+pub fn split<P: SWCurveConfig>(
     n: u64,
-    f: &DensePolynomial<Fp<C, N>>,
-) -> Vec<DensePolynomial<Fp<C, N>>> {
+    f: &DensePolynomial<Scalar<P>>,
+) -> Vec<DensePolynomial<Scalar<P>>> {
     f.coeffs
         .chunks(n as usize)
         .map(DensePolynomial::from_coefficients_slice)
         .collect()
 }
 
-// TODO Coset needs to generalize
 /// Lᵢ(X) = (ωⁱ (Xⁿ - 1)) / (n (X - ωⁱ))
-pub fn lagrange_basis<const N: usize, C: FpConfig<N>>(h: &Coset<N, C>, i: u64) -> Poly<N, C> {
+pub fn lagrange_basis<P: SWCurveConfig>(h: &Coset<P>, i: u64) -> Poly<P> {
     let wi = h.w(i);
-    let numerator = (xn(h.n()) + deg0(Fp::ONE)) * wi;
-    let denominator = (x() - deg0(wi)) * Fp::from(h.n());
+    let numerator = (xn::<P>(h.n()) + deg0::<P>(Scalar::<P>::ONE)) * wi;
+    let denominator = (x::<P>() - deg0::<P>(wi)) * Scalar::<P>::from(h.n());
     numerator / denominator
 }
 
@@ -96,28 +91,27 @@ pub fn lagrange_basis<const N: usize, C: FpConfig<N>>(h: &Coset<N, C>, i: u64) -
 //     xn_poly(h.n()) - deg0(&Scalar::ONE)
 // }
 
-pub fn batch_evaluate<'a, const N: usize, C, I>(ps: I, x: Fp<C, N>) -> Vec<Fp<C, N>>
+pub fn batch_evaluate<'a, P: SWCurveConfig, I>(ps: I, x: Scalar<P>) -> Vec<Scalar<P>>
 where
-    C: FpConfig<N>,
-    I: IntoIterator<Item = &'a DensePolynomial<Fp<C, N>>>,
+    I: IntoIterator<Item = &'a DensePolynomial<Scalar<P>>>,
 {
     batch_op(ps, |f| f.evaluate(&x))
 }
 
-// TODO pcdl needs to generalize
-pub fn batch_commit<'a, const N: usize, C: FpConfig<N>, P: SWCurveConfig, I>(
+pub fn batch_commit<'a, P: SWCurveConfig, I>(
     ps: I,
     d: usize,
-    w: Option<&Fp<C, N>>,
+    w: Option<&Scalar<P>>,
 ) -> Vec<Point<P>>
 where
-    I: IntoIterator<Item = &'a Fp<C, N>>,
+    I: IntoIterator<Item = &'a Scalar<P>>,
 {
     batch_op(ps, |f| pcdl::commit(f, d, w))
 }
 
 #[cfg(test)]
 mod tests {
+    use ark_pallas::PallasConfig;
     use halo_accumulation::group::PallasScalar;
 
     use crate::{scheme::Slots, utils::misc::EnumIter};
@@ -139,7 +133,7 @@ mod tests {
     #[test]
     fn lagrange() {
         let rng = &mut rand::thread_rng();
-        let h_opt = Coset::new(rng, 5, Slots::COUNT);
+        let h_opt = Coset::<PallasConfig>::new(rng, 5, Slots::COUNT);
         assert!(h_opt.is_some());
         let h = h_opt.unwrap();
         for i in h.iter() {

@@ -1,10 +1,13 @@
+use ark_ec::short_weierstrass::SWCurveConfig;
+
 use super::{ConstraintID, Coset};
 use crate::{
     scheme::Slots,
-    utils::misc::{to_superscript, EnumIter},
+    utils::{
+        misc::{to_superscript, EnumIter},
+        Scalar,
+    },
 };
-
-use ark_ff::{Fp, FpConfig};
 
 use std::fmt;
 
@@ -25,14 +28,11 @@ impl Pos {
     }
 
     /// Convert the position to a scalar used in the permutation polynomial.
-    pub fn to_scalar<const N: usize, C: FpConfig<N>>(self, scheme: &Coset<N, C>) -> Fp<C, N> {
+    pub fn to_scalar<P: SWCurveConfig>(self, scheme: &Coset<P>) -> Scalar<P> {
         scheme.h(self.slot, self.id)
     }
 
-    pub fn from_scalar<const N: usize, C: FpConfig<N>>(
-        scalar: Fp<C, N>,
-        scheme: &Coset<N, C>,
-    ) -> Option<Self> {
+    pub fn from_scalar<P: SWCurveConfig>(scalar: Scalar<P>, scheme: &Coset<P>) -> Option<Self> {
         for slot in Slots::iter() {
             for (i_, &x) in scheme.vec_k(slot).iter().enumerate() {
                 let i = (i_ + 1) as u64;

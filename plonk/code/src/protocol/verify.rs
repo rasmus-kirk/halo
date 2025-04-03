@@ -4,20 +4,17 @@ use super::{transcript::TranscriptProtocol, Proof};
 use crate::{
     circuit::CircuitPublic,
     scheme::eqns,
-    utils::{self, poly, scalar},
+    utils::{self, poly, scalar, Scalar},
 };
 
 use halo_accumulation::pcdl;
 
 use anyhow::{ensure, Result};
 use ark_ec::short_weierstrass::SWCurveConfig;
-use ark_ff::{Field, Fp, FpConfig};
+use ark_ff::Field;
 use merlin::Transcript;
 
-pub fn verify<const N: usize, C: FpConfig<N>, P: SWCurveConfig>(
-    x: &CircuitPublic<N, C, P>,
-    pi: Proof<N, C>,
-) -> Result<()> {
+pub fn verify<P: SWCurveConfig>(x: &CircuitPublic<P>, pi: Proof<P>) -> Result<()> {
     let ev = &pi.ev;
     let com = &pi.com;
     let mut transcript = Transcript::new(b"protocol");
@@ -50,9 +47,9 @@ pub fn verify<const N: usize, C: FpConfig<N>, P: SWCurveConfig>(
 
     // -------------------- Round 5 --------------------
 
-    let ch = transcript.challenge_scalar(b"xi");
+    let ch: Scalar<P> = transcript.challenge_scalar(b"xi");
     let ch_w = ch * x.h.w(1);
-    let zh_ev = scalar::zh_ev(&x.h, ch);
+    let zh_ev = scalar::zh_ev(x.h.n(), ch);
     let [ia, ib, ic] = poly::batch_evaluate(&x.is, ch).try_into().unwrap();
 
     transcript.append_scalars(b"ws_ev", &ev.ws);
@@ -66,7 +63,7 @@ pub fn verify<const N: usize, C: FpConfig<N>, P: SWCurveConfig>(
     // a + βb + γ
     let cc = eqns::copy_constraint_term(Into::into, beta, gamma);
     // ε(1 + δ) + a + δb
-    let pl = eqns::plookup_term(Into::into, epsilon * (Fp::ONE + delta), delta);
+    let pl = eqns::plookup_term(Into::into, epsilon * (Scalar::<P>::ONE + delta), delta);
     // f'(𝔷) = (A(𝔷) + β Sᵢ₁(𝔷) + γ) (B(𝔷) + β Sᵢ₂(𝔷) + γ) (C(𝔷) + β Sᵢ₃(𝔷) + γ)
     //         (ε(1 + δ) + f(𝔷) + δf(𝔷))(ε(1 + δ) + t(𝔷) + δt(Xω))
     let zf_ev = cc(ev.a(), ia)
@@ -86,7 +83,7 @@ pub fn verify<const N: usize, C: FpConfig<N>, P: SWCurveConfig>(
     //         + Qₖ(𝔷)(A(𝔷) + ζB(𝔷) + ζ²C(𝔷) + ζ³J(𝔷) - f(𝔷))
     let f_gc_ev = eqns::plonkup_eqn_fp(zeta, ev.ws.clone(), ev.qs.clone(), ev.pip, ev.f());
     // F_Z1(𝔷) = L₁(𝔷) (Z(𝔷) - 1)
-    let f_z1_ev = eqns::grand_product1_fp(ev.z, scalar::lagrange_basis1(&x.h, ch));
+    let f_z1_ev = eqns::grand_product1_fp(ev.z, scalar::lagrange_basis1(x.h.n(), x.h.w(1), ch));
     // F_Z2(𝔷) = Z(𝔷)f'(𝔷) - g'(𝔷)Z(ω 𝔷)
     let f_z2_ev = eqns::grand_product2(ev.z, zf_ev, zg_ev, ev.z_bar);
 

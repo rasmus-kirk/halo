@@ -1,9 +1,10 @@
-use ark_ff::{AdditiveGroup, Fp, FpConfig};
+use ark_ec::short_weierstrass::SWCurveConfig;
+use ark_ff::AdditiveGroup;
 use std::fmt::Display;
 
 use crate::{
     arithmetizer::{plookup::PlookupOps, Table},
-    utils::misc::EnumIter,
+    utils::{misc::EnumIter, Scalar},
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -14,8 +15,12 @@ pub enum EmptyOpSet {
 }
 
 impl PlookupOps for EmptyOpSet {
-    fn to_table<const N: usize, C: FpConfig<N>>(self) -> Table<N, C> {
-        Table::new(vec![[Fp::ZERO, Fp::ZERO, Fp::ZERO]])
+    fn to_table<P: SWCurveConfig>(self) -> Table<P> {
+        Table::new(vec![[
+            Scalar::<P>::ZERO,
+            Scalar::<P>::ZERO,
+            Scalar::<P>::ZERO,
+        ]])
     }
     fn is_commutative(&self) -> bool {
         true

@@ -1,7 +1,8 @@
 use super::Terms;
-use crate::utils::{geometric, misc::EnumIter};
+use crate::utils::{geometric, misc::EnumIter, Scalar};
 
-use ark_ff::{Field, Fp, FpConfig};
+use ark_ec::short_weierstrass::SWCurveConfig;
+use ark_ff::Field;
 use std::{
     fmt::Debug,
     ops::{Add, Mul, Sub},
@@ -39,13 +40,18 @@ where
     geometric(one, zeta, [a, b, c, j])
 }
 
-pub fn plookup_compress_fp<const N: usize, C, U, T>(zeta: Fp<C, N>, a: T, b: T, c: T, j: T) -> U
+pub fn plookup_compress_fp<U, T, P: SWCurveConfig>(
+    zeta: P::ScalarField,
+    a: T,
+    b: T,
+    c: T,
+    j: T,
+) -> U
 where
-    C: FpConfig<N>,
     U: Add<U, Output = U> + Default,
-    T: Mul<Fp<C, N>, Output = U>,
+    T: Mul<P::ScalarField, Output = U>,
 {
-    plookup_compress(Fp::ONE, zeta, a, b, c, j)
+    plookup_compress(P::ScalarField::ONE, zeta, a, b, c, j)
 }
 
 /// aQₗ + bQᵣ + cQₒ + abQₘ + Q꜀ + PI + Qₖ(a + ζb + ζ²c + ζ³j - f)
@@ -68,8 +74,8 @@ where
     eqn1 + qk * (plookup_compress(one, zeta, a, b, c, j) - f)
 }
 
-pub fn plonkup_eqn_fp<const N: usize, C: FpConfig<N>, T, U, I1, I2>(
-    zeta: Fp<C, N>,
+pub fn plonkup_eqn_fp<P: SWCurveConfig, T, U, I1, I2>(
+    zeta: Scalar<P>,
     ws: I1,
     qs: I2,
     pip: T,
@@ -79,14 +85,14 @@ where
     I1: IntoIterator<Item = T> + Clone,
     I2: IntoIterator<Item = T> + Clone,
     U: Add<T, Output = U> + Add<U, Output = U> + Sub<T, Output = U> + Mul<T, Output = U> + Default,
-    T: Mul<Fp<C, N>, Output = U>
-        + Mul<Fp<C, N>, Output = U>
+    T: Mul<Scalar<P>, Output = U>
+        + Mul<Scalar<P>, Output = U>
         + Mul<T, Output = U>
         + Mul<U, Output = U>
         + Debug
         + Copy,
 {
-    plonkup_eqn(Fp::ONE, zeta, ws, qs, pip, f)
+    plonkup_eqn(Scalar::<P>::ONE, zeta, ws, qs, pip, f)
 }
 
 /// a + βb + γ
@@ -119,12 +125,11 @@ where
     l1 * (z - one)
 }
 
-pub fn grand_product1_fp<const N: usize, C, T, U>(z: T, l1: T) -> U
+pub fn grand_product1_fp<P: SWCurveConfig, T, U>(z: T, l1: T) -> U
 where
-    C: FpConfig<N>,
-    T: Sub<Fp<C, N>, Output = U> + Mul<U, Output = U>,
+    T: Sub<Scalar<P>, Output = U> + Mul<U, Output = U>,
 {
-    grand_product1(Fp::ONE, z, l1)
+    grand_product1(Scalar::<P>::ONE, z, l1)
 }
 
 /// Z f' - g' Z'

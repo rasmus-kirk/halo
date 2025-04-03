@@ -2,7 +2,7 @@ mod compute;
 mod opsets;
 mod plookupops;
 
-use ark_ff::{Fp, FpConfig};
+use ark_ec::short_weierstrass::SWCurveConfig;
 pub use compute::PlookupEvsThunk;
 pub use opsets::*;
 pub use plookupops::PlookupOps;
@@ -11,19 +11,19 @@ use crate::scheme::eqns::plookup_compress_fp;
 
 /// A lookup table for a given Plookup operation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Table<const N: usize, C: FpConfig<N>>(Vec<[Fp<C, N>; 3]>);
+pub struct Table<P: SWCurveConfig>(Vec<[P::ScalarField; 3]>);
 
-impl<const N: usize, C: FpConfig<N>> Table<N, C> {
-    pub fn new(table: Vec<[Fp<C, N>; 3]>) -> Self {
+impl<P: SWCurveConfig> Table<P> {
+    pub fn new(table: Vec<[P::ScalarField; 3]>) -> Self {
         Self(table)
     }
 
     /// Compress table to the table vector
-    pub fn compress(&self, zeta: Fp<C, N>, j: Fp<C, N>) -> Vec<Fp<C, N>> {
+    pub fn compress(&self, zeta: P::ScalarField, j: P::ScalarField) -> Vec<P::ScalarField> {
         let mut res = Vec::new();
         for row in self.0.iter().copied() {
             let [a, b, c] = row;
-            let t = plookup_compress_fp(zeta, a, b, c, j);
+            let t = plookup_compress_fp::<_, _, P>(zeta, a, b, c, j);
             res.push(t);
         }
         res
@@ -42,17 +42,17 @@ impl<const N: usize, C: FpConfig<N>> Table<N, C> {
 
 /// The collection of all lookup tables for the Plookup protocol.
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct TableRegistry<const N: usize, C: FpConfig<N>> {
-    tables: Vec<Table<N, C>>,
+pub struct TableRegistry<P: SWCurveConfig> {
+    tables: Vec<Table<P>>,
 }
 
-impl<const N: usize, C: FpConfig<N>> Default for TableRegistry<N, C> {
+impl<P: SWCurveConfig> Default for TableRegistry<P> {
     fn default() -> Self {
         Self::new::<EmptyOpSet>()
     }
 }
 
-impl<const N: usize, C: FpConfig<N>> TableRegistry<N, C> {
+impl<P: SWCurveConfig> TableRegistry<P> {
     pub fn new<Op: PlookupOps>() -> Self {
         Self {
             tables: Op::all_tables(),
@@ -60,7 +60,12 @@ impl<const N: usize, C: FpConfig<N>> TableRegistry<N, C> {
     }
 
     /// Lookup the result of an operation
-    pub fn lookup<Op: PlookupOps>(&self, op: Op, a: Fp<C, N>, b: Fp<C, N>) -> Option<Fp<C, N>> {
+    pub fn lookup<Op: PlookupOps>(
+        &self,
+        op: Op,
+        a: P::ScalarField,
+        b: P::ScalarField,
+    ) -> Option<P::ScalarField> {
         self.tables[op.id()]
             .0
             .iter()
@@ -72,13 +77,13 @@ impl<const N: usize, C: FpConfig<N>> TableRegistry<N, C> {
     pub fn query<Op: PlookupOps>(
         &self,
         op: Op,
-        zeta: Fp<C, N>,
-        a: Fp<C, N>,
-        b: Fp<C, N>,
-    ) -> Option<Fp<C, N>> {
+        zeta: P::ScalarField,
+        a: P::ScalarField,
+        b: P::ScalarField,
+    ) -> Option<P::ScalarField> {
         let c = self.lookup(op, a, b)?;
-        let j = op.to_fp();
-        Some(plookup_compress_fp(zeta, a, b, c, j))
+        let j = op.to_fp::<P>();
+        Some(plookup_compress_fp::<_, _, P>(zeta, a, b, c, j))
     }
 
     /// Total number of entries in all tables

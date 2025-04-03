@@ -2,67 +2,66 @@ use super::TableRegistry;
 use crate::{
     arithmetizer::trace::Constraints,
     scheme::{eqns::plookup_compress_fp, Selectors, Slots, Terms},
-    utils::{misc::batch_op, poly::shift_wrap_eval, Evals, Poly},
+    utils::{misc::batch_op, poly::shift_wrap_eval, Evals, Poly, Scalar},
     Coset,
 };
 
-use ark_ff::{AdditiveGroup, Field, Fp, FpConfig};
+use ark_ec::short_weierstrass::SWCurveConfig;
+use ark_ff::{AdditiveGroup, Field};
 
 /// A struct that acts as a thunk where `compute` takes in zeta
 /// from transcript to compute the polynomials for plookup
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct PlookupEvsThunk<const N: usize, C: FpConfig<N>> {
-    constraints: Vec<Constraints<N, C>>,
-    table: TableRegistry<N, C>,
+pub struct PlookupEvsThunk<P: SWCurveConfig> {
+    constraints: Vec<Constraints<P>>,
+    table: TableRegistry<P>,
 }
 
-impl<const N: usize, C: FpConfig<N>> PlookupEvsThunk<N, C> {
-    pub fn new(constraints: Vec<Constraints<N, C>>, table: TableRegistry<N, C>) -> Self {
+impl<P: SWCurveConfig> PlookupEvsThunk<P> {
+    pub fn new(constraints: Vec<Constraints<P>>, table: TableRegistry<P>) -> Self {
         Self { constraints, table }
     }
 
-    fn compute_t_evs(&self, zeta: Fp<C, N>, h: &Coset<N, C>) -> Evals<N, C> {
-        let mut t =
-            self.table
-                .tables
-                .iter()
-                .enumerate()
-                .fold(vec![Fp::ZERO], |mut acc, (_j, table)| {
-                    acc.extend(table.compress(zeta, Fp::from(_j as u64)));
-                    acc
-                });
+    fn compute_t_evs(&self, zeta: Scalar<P>, h: &Coset<P>) -> Evals<P> {
+        let mut t = self.table.tables.iter().enumerate().fold(
+            vec![Scalar::<P>::ZERO],
+            |mut acc, (_j, table)| {
+                acc.extend(table.compress(zeta, Scalar::<P>::from(_j as u64)));
+                acc
+            },
+        );
         t.sort();
         let default = t.last().unwrap();
         let extend = h.n() as usize - t.len();
         t.extend(vec![*default; extend]);
-        Evals::from_vec_and_domain(t, h.domain)
+        Evals::<P>::from_vec_and_domain(t, h.domain)
     }
 
     fn compute_f_evs(
         &self,
-        zeta: Fp<C, N>,
-        h: &Coset<N, C>,
-        constraints: &[Constraints<N, C>],
-        default: Fp<C, N>,
-    ) -> Evals<N, C> {
-        let mut f = vec![Fp::ZERO];
+        zeta: Scalar<P>,
+        h: &Coset<P>,
+        constraints: &[Constraints<P>],
+        default: Scalar<P>,
+    ) -> Evals<P> {
+        let mut f = vec![Scalar::<P>::ZERO];
         f.extend(constraints.iter().map(|constraint| {
-            if Into::<Fp<C, N>>::into(constraint[Terms::Q(Selectors::Qk)]) == Fp::ONE {
-                let a: Fp<C, N> = constraint[Terms::F(Slots::A)].into();
-                let b = constraint[Terms::F(Slots::B)].into();
-                let c = constraint[Terms::F(Slots::C)].into();
-                let j = constraint[Terms::Q(Selectors::J)].into();
-                plookup_compress_fp(zeta, a, b, c, j)
+            if constraint[Terms::Q(Selectors::Qk)].to_fp() == Scalar::<P>::ONE {
+                let a = constraint[Terms::F(Slots::A)].to_fp();
+                let b = constraint[Terms::F(Slots::B)].to_fp();
+                let c = constraint[Terms::F(Slots::C)].to_fp();
+                let j = constraint[Terms::Q(Selectors::J)].to_fp();
+                plookup_compress_fp::<_, _, P>(zeta, a, b, c, j)
             } else {
                 default
             }
         }));
         let extend = h.n() as usize - f.len();
         f.extend(vec![default; extend]);
-        Evals::from_vec_and_domain(f, h.domain)
+        Evals::<P>::from_vec_and_domain(f, h.domain)
     }
 
-    fn split_sort(h: &Coset<N, C>, s: Vec<Fp<C, N>>) -> Vec<Evals<N, C>> {
+    fn split_sort(h: &Coset<P>, s: Vec<Scalar<P>>) -> Vec<Evals<P>> {
         s.into_iter()
             .enumerate()
             .fold([vec![], vec![]], |mut hs, (i, x)| {
@@ -70,16 +69,16 @@ impl<const N: usize, C: FpConfig<N>> PlookupEvsThunk<N, C> {
                 hs
             })
             .into_iter()
-            .map(|evals| Evals::from_vec_and_domain(evals, h.domain))
+            .map(|evals| Evals::<P>::from_vec_and_domain(evals, h.domain))
             .collect()
     }
 
-    pub fn compute(&self, h: &Coset<N, C>, zeta: Fp<C, N>) -> PlookupPolys<N, C> {
+    pub fn compute(&self, h: &Coset<P>, zeta: Scalar<P>) -> PlookupPolys<P> {
         let mut evals = vec![];
         evals.push(self.compute_t_evs(zeta, h));
         let default = *evals[0].evals.last().unwrap();
         evals.push(self.compute_f_evs(zeta, h, &self.constraints, default));
-        let mut s: Vec<Fp<C, N>> = Vec::new();
+        let mut s: Vec<Scalar<P>> = Vec::new();
         s.extend(evals[0].evals.iter());
         s.extend(evals[1].evals.iter());
         s.sort();
@@ -89,23 +88,23 @@ impl<const N: usize, C: FpConfig<N>> PlookupEvsThunk<N, C> {
     }
 }
 
-pub struct PlookupPolys<const N: usize, C: FpConfig<N>> {
-    pub t: Poly<N, C>,
-    pub _t: Evals<N, C>,
-    pub f: Poly<N, C>,
-    pub _f: Evals<N, C>,
-    pub h1: Poly<N, C>,
-    pub _h1: Evals<N, C>,
-    pub h2: Poly<N, C>,
-    pub _h2: Evals<N, C>,
-    pub h1_bar: Poly<N, C>,
-    pub _h1_bar: Evals<N, C>,
-    pub t_bar: Poly<N, C>,
-    pub _t_bar: Evals<N, C>,
+pub struct PlookupPolys<P: SWCurveConfig> {
+    pub t: Poly<P>,
+    pub _t: Evals<P>,
+    pub f: Poly<P>,
+    pub _f: Evals<P>,
+    pub h1: Poly<P>,
+    pub _h1: Evals<P>,
+    pub h2: Poly<P>,
+    pub _h2: Evals<P>,
+    pub h1_bar: Poly<P>,
+    pub _h1_bar: Evals<P>,
+    pub t_bar: Poly<P>,
+    pub _t_bar: Evals<P>,
 }
 
-impl<const N: usize, C: FpConfig<N>> PlookupPolys<N, C> {
-    pub fn new(h: &Coset<N, C>, evals: Vec<Evals<N, C>>) -> Self {
+impl<P: SWCurveConfig> PlookupPolys<P> {
+    pub fn new(h: &Coset<P>, evals: Vec<Evals<P>>) -> Self {
         let _t = evals[0].clone();
         let _f = evals[1].clone();
         let _h1 = evals[2].clone();
@@ -135,7 +134,7 @@ impl<const N: usize, C: FpConfig<N>> PlookupPolys<N, C> {
         }
     }
 
-    pub fn base_polys(&self) -> Vec<&Poly<N, C>> {
+    pub fn base_polys(&self) -> Vec<&Poly<P>> {
         vec![&self.t, &self.f, &self.h1, &self.h2]
     }
 }

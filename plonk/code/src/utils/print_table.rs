@@ -1,14 +1,15 @@
 use super::{
     misc::{to_subscript, to_superscript, EnumIter},
-    Poly,
+    Poly, Scalar,
 };
 use crate::{scheme::Slots, Coset};
 
-use ark_ff::{Field, Fp, FpConfig};
+use ark_ec::short_weierstrass::SWCurveConfig;
+use ark_ff::Field;
 use ark_poly::Polynomial;
 use ascii_table::{Align, AsciiTable};
 
-pub fn print_scalar<const N: usize, C: FpConfig<N>>(x: Fp<C, N>) -> String {
+pub fn print_scalar<P: SWCurveConfig>(x: Scalar<P>) -> String {
     let s1 = format!("{}", x);
     let s2 = format!("{}", -x);
     if s2.len() < s1.len() {
@@ -23,9 +24,9 @@ fn w_str(i: u64) -> String {
 }
 
 /// Util to print Scalars formatted as elements in H otherwise just print the scalar.
-fn v_str<const N: usize, C: FpConfig<N>>(h: &Coset<N, C>, x: Fp<C, N>) -> String {
-    if x == Fp::ONE {
-        return Fp::<C, N>::ONE.to_string();
+fn v_str<P: SWCurveConfig>(h: &Coset<P>, x: Scalar<P>) -> String {
+    if x == Scalar::<P>::ONE {
+        return Scalar::<P>::ONE.to_string();
     }
     for slot in Slots::iter() {
         if x == h.h(slot, 1) {
@@ -42,13 +43,13 @@ fn v_str<const N: usize, C: FpConfig<N>>(h: &Coset<N, C>, x: Fp<C, N>) -> String
             }
         }
     }
-    print_scalar(x)
+    print_scalar::<P>(x)
 }
 
 /// Print the evaluations of a vector of polynomials for all elements in the coset.
-pub fn evals_str<const N: usize, C: FpConfig<N>>(
-    h: &Coset<N, C>,
-    fs: Vec<&Poly<N, C>>,
+pub fn evals_str<P: SWCurveConfig>(
+    h: &Coset<P>,
+    fs: Vec<&Poly<P>>,
     hs: Vec<String>,
     is_pos: Vec<bool>,
 ) -> String {
@@ -60,7 +61,7 @@ pub fn evals_str<const N: usize, C: FpConfig<N>>(
                 if is_pos[j] {
                     v_str(h, y)
                 } else {
-                    print_scalar(y)
+                    print_scalar::<P>(y)
                 }
             }));
             row

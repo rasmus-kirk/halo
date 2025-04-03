@@ -1,18 +1,19 @@
+use crate::utils::Scalar;
+
 use super::{plookup::PlookupOps, Arithmetizer, Wire};
 
 use ark_ec::short_weierstrass::SWCurveConfig;
-use ark_ff::{Fp, FpConfig};
 
 use log::info;
-use rand::Rng;
+use rand::{distributions::Standard, prelude::Distribution, Rng};
 
-impl<Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Arithmetizer<Op, N, C, P> {
-    pub fn synthesize<R: Rng, const M: usize>(
-        rng: &mut R,
-        degree: usize,
-    ) -> [Wire<Op, N, C, P>; 1] {
+impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
+    pub fn synthesize<R: Rng, const M: usize>(rng: &mut R, degree: usize) -> [Wire<Op, P>; 1]
+    where
+        Standard: Distribution<Scalar<P>>,
+    {
         info!("[A]: Remaining stack - {:?}", stacker::remaining_stack());
-        let wires: Vec<Wire<Op, N, C, P>> = Self::build::<M>().into();
+        let wires: Vec<Wire<Op, P>> = Self::build::<M>().into();
 
         let mut cur = wires[rng.gen_range(0..M)].clone();
 
@@ -28,7 +29,7 @@ impl<Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Arithmeti
                     _ => unreachable!(),
                 }
             } else {
-                let constant: Fp<C, N> = rng.gen();
+                let constant: Scalar<P> = rng.gen();
                 match branch {
                     4 | 5 => cur * constant,
                     6 | 7 => cur + constant,

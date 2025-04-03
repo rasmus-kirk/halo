@@ -5,10 +5,14 @@ use crate::{
         eqns::{plonk_eqn, plonk_eqn_str, plonkup_eqn_fp},
         Selectors, Slots, Terms,
     },
-    utils::misc::{batch_op, EnumIter},
+    utils::{
+        misc::{batch_op, EnumIter},
+        Scalar,
+    },
 };
 
-use ark_ff::{AdditiveGroup, Fp, FpConfig};
+use ark_ec::short_weierstrass::SWCurveConfig;
+use ark_ff::AdditiveGroup;
 use bimap::BiMap;
 use educe::Educe;
 use std::{
@@ -20,11 +24,11 @@ use std::{
 
 #[derive(Educe)]
 #[educe(Clone, Copy, PartialEq, Eq)]
-pub struct Constraints<const N: usize, C: FpConfig<N>> {
-    pub vs: [Value<N, C>; Terms::COUNT],
+pub struct Constraints<P: SWCurveConfig> {
+    pub vs: [Value<P>; Terms::COUNT],
 }
 
-impl<const N: usize, C: FpConfig<N>> Default for Constraints<N, C> {
+impl<P: SWCurveConfig> Default for Constraints<P> {
     fn default() -> Self {
         Self {
             vs: [Value::ZERO; Terms::COUNT],
@@ -32,48 +36,48 @@ impl<const N: usize, C: FpConfig<N>> Default for Constraints<N, C> {
     }
 }
 
-impl<const N: usize, C: FpConfig<N>> Index<Terms> for Constraints<N, C> {
-    type Output = Value<N, C>;
+impl<P: SWCurveConfig> Index<Terms> for Constraints<P> {
+    type Output = Value<P>;
 
     fn index(&self, index: Terms) -> &Self::Output {
         &self.vs[index.id()]
     }
 }
 
-impl<const N: usize, C: FpConfig<N>> IndexMut<Terms> for Constraints<N, C> {
+impl<P: SWCurveConfig> IndexMut<Terms> for Constraints<P> {
     fn index_mut(&mut self, index: Terms) -> &mut Self::Output {
         &mut self.vs[index.id()]
     }
 }
 
-impl<const N: usize, C: FpConfig<N>> Display for Constraints<N, C> {
+impl<P: SWCurveConfig> Display for Constraints<P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", plonk_eqn_str(self.vs.map(|v| v.to_string())))
     }
 }
 
-impl<const N: usize, C: FpConfig<N>> Debug for Constraints<N, C> {
+impl<P: SWCurveConfig> Debug for Constraints<P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Constraint: {}", self)
     }
 }
 
-impl<const N: usize, C: FpConfig<N>> Constraints<N, C> {
-    pub fn new(vs: [Value<N, C>; Terms::COUNT]) -> Self {
+impl<P: SWCurveConfig> Constraints<P> {
+    pub fn new(vs: [Value<P>; Terms::COUNT]) -> Self {
         Self { vs }
     }
 
     /// Create a constraint that enforces a constant value.
-    pub fn constant(const_wire: Value<N, C>) -> Self {
+    pub fn constant(const_wire: Value<P>) -> Self {
         let mut vs: Self = Default::default();
         vs[Terms::F(Slots::A)] = const_wire;
         vs[Terms::Q(Selectors::Ql)] = Value::ONE;
-        vs[Terms::Q(Selectors::Qc)] = Value::AnonWire(-Into::<Fp<C, N>>::into(const_wire));
+        vs[Terms::Q(Selectors::Qc)] = Value::AnonWire(-const_wire.to_fp());
         vs
     }
 
     /// Create a constraint that enforces the sum of two values.
-    pub fn add(lhs: Value<N, C>, rhs: Value<N, C>, out: Value<N, C>) -> Self {
+    pub fn add(lhs: Value<P>, rhs: Value<P>, out: Value<P>) -> Self {
         let mut vs: Self = Default::default();
         vs[Terms::F(Slots::A)] = lhs;
         vs[Terms::F(Slots::B)] = rhs;
@@ -85,7 +89,7 @@ impl<const N: usize, C: FpConfig<N>> Constraints<N, C> {
     }
 
     /// Create a constraint that enforces the product of two values.
-    pub fn mul(lhs: Value<N, C>, rhs: Value<N, C>, out: Value<N, C>) -> Self {
+    pub fn mul(lhs: Value<P>, rhs: Value<P>, out: Value<P>) -> Self {
         let mut vs: Self = Default::default();
         vs[Terms::F(Slots::A)] = lhs;
         vs[Terms::F(Slots::B)] = rhs;
@@ -96,7 +100,7 @@ impl<const N: usize, C: FpConfig<N>> Constraints<N, C> {
     }
 
     /// Create a booleanity constraint.
-    pub fn boolean(val: Value<N, C>) -> Self {
+    pub fn boolean(val: Value<P>) -> Self {
         let mut vs: Self = Default::default();
         vs[Terms::F(Slots::A)] = val;
         vs[Terms::F(Slots::B)] = val;
@@ -106,7 +110,7 @@ impl<const N: usize, C: FpConfig<N>> Constraints<N, C> {
     }
 
     /// Create a constraint that enforces a public input value.
-    pub fn public_input(val: Value<N, C>) -> Self {
+    pub fn public_input(val: Value<P>) -> Self {
         let mut vs: Self = Default::default();
         vs[Terms::F(Slots::A)] = val;
         vs[Terms::Q(Selectors::Ql)] = Value::ONE;
@@ -115,58 +119,52 @@ impl<const N: usize, C: FpConfig<N>> Constraints<N, C> {
     }
 
     /// Create a plookup constraint.
-    pub fn lookup<Op: PlookupOps>(
-        op: Op,
-        lhs: Value<N, C>,
-        rhs: Value<N, C>,
-        out: Value<N, C>,
-    ) -> Self {
+    pub fn lookup<Op: PlookupOps>(op: Op, lhs: Value<P>, rhs: Value<P>, out: Value<P>) -> Self {
         let mut vs: Self = Default::default();
         vs[Terms::F(Slots::A)] = lhs;
         vs[Terms::F(Slots::B)] = rhs;
         vs[Terms::F(Slots::C)] = out;
         vs[Terms::Q(Selectors::Qk)] = Value::ONE;
-        vs[Terms::Q(Selectors::J)] = Value::AnonWire(op.to_fp());
+        vs[Terms::Q(Selectors::J)] = Value::AnonWire(op.to_fp::<P>());
         vs
     }
 
     /// Get all scalar values of the constraint.
-    pub fn scalars(&self) -> [Fp<C, N>; Terms::COUNT] {
-        batch_op(self.vs, Into::<Fp<C, N>>::into)
-            .try_into()
-            .unwrap()
+    pub fn scalars(&self) -> [Scalar<P>; Terms::COUNT] {
+        batch_op(self.vs, |x| x.to_fp()).try_into().unwrap()
     }
 
     /// Get the slot scalar values of the constraint.
-    pub fn ws(&self) -> [Fp<C, N>; Slots::COUNT] {
-        batch_op(&self.vs[..Slots::COUNT], Into::<Fp<C, N>>::into)
+    pub fn ws(&self) -> [Scalar<P>; Slots::COUNT] {
+        batch_op(&self.vs[..Slots::COUNT], |x| x.to_fp())
             .try_into()
             .unwrap()
     }
 
     /// Get the selector scalar values of the constraint.
-    pub fn qs(&self) -> [Fp<C, N>; Selectors::COUNT] {
+    pub fn qs(&self) -> [Scalar<P>; Selectors::COUNT] {
         batch_op(
             &self.vs[Slots::COUNT..Slots::COUNT + Selectors::COUNT],
-            Into::<Fp<C, N>>::into,
+            |x| x.to_fp(),
         )
         .try_into()
         .unwrap()
     }
 
     /// Get the public input scalar value of the constraint.
-    pub fn pip(&self) -> Fp<C, N> {
-        self.vs[Terms::PublicInputs.id()].into()
+    pub fn pip(&self) -> Scalar<P> {
+        self.vs[Terms::PublicInputs.id()].to_fp()
     }
 
     /// Check if plonk constraints are satisfied.
     pub fn is_satisfied(&self) -> bool {
-        plonk_eqn(self.ws(), self.qs(), self.pip()) == Fp::ZERO
+        plonk_eqn(self.ws(), self.qs(), self.pip()) == Scalar::<P>::ZERO
     }
 
     /// Check if plonkup constraints are satisfied.
-    pub fn is_plonkup_satisfied(&self, zeta: Fp<C, N>, f: Fp<C, N>) -> bool {
-        plonkup_eqn_fp(zeta, self.ws(), self.qs(), self.pip(), f) == Fp::ZERO
+    pub fn is_plonkup_satisfied(&self, zeta: Scalar<P>, f: Scalar<P>) -> bool {
+        plonkup_eqn_fp::<P, _, _, _, _>(zeta, self.ws(), self.qs(), self.pip(), f)
+            == Scalar::<P>::ZERO
     }
 
     /// Check if the constraints are structurally equal.
@@ -175,8 +173,8 @@ impl<const N: usize, C: FpConfig<N>> Constraints<N, C> {
     /// Renames that must be respected are in `enforced_map`
     pub fn structural_eq(&self, other: &Self, enforced_map: &mut BiMap<WireID, WireID>) -> bool {
         for term in Terms::iter() {
-            let lhs_scalar: Fp<C, N> = self[term].into();
-            let rhs_scalar: Fp<C, N> = other[term].into();
+            let lhs_scalar: Scalar<P> = self[term].to_fp();
+            let rhs_scalar: Scalar<P> = other[term].to_fp();
             if lhs_scalar != rhs_scalar {
                 return false;
             }
@@ -209,6 +207,7 @@ mod tests {
     };
 
     use ark_ff::Field;
+    use ark_pallas::PallasConfig;
     use halo_accumulation::group::PallasScalar;
     use rand::Rng;
 
@@ -219,7 +218,7 @@ mod tests {
         let rng = &mut rand::thread_rng();
         for _ in 0..N {
             let scalar: PallasScalar = rng.gen();
-            let eqn_values = Constraints::constant(Value::new_wire(0, scalar));
+            let eqn_values = Constraints::<PallasConfig>::constant(Value::new_wire(0, scalar));
             assert!(eqn_values[Terms::F(Slots::A)] == Value::new_wire(0, scalar));
             assert_eq!(
                 eqn_values[Terms::Q(Selectors::Qc)],
@@ -234,9 +233,9 @@ mod tests {
         let rng = &mut rand::thread_rng();
         for _ in 0..N {
             let r1: PallasScalar = rng.gen();
-            let a = Value::new_wire(0, r1);
+            let a: Value<PallasConfig> = Value::new_wire(0, r1);
             let b = Value::new_wire(1, rng.gen());
-            let c = Value::new_wire(2, (a + b).into());
+            let c = Value::new_wire(2, (a + b).to_fp());
             let eqn_values = Constraints::add(a, b, c);
             assert_eq!(eqn_values[Terms::F(Slots::A)], a);
             assert_eq!(eqn_values[Terms::F(Slots::B)], b);
@@ -250,9 +249,9 @@ mod tests {
         let rng = &mut rand::thread_rng();
         for _ in 0..N {
             let r1: PallasScalar = rng.gen();
-            let a = Value::new_wire(0, r1);
+            let a: Value<PallasConfig> = Value::new_wire(0, r1);
             let b = Value::new_wire(1, rng.gen());
-            let c = Value::new_wire(2, (a * b).into());
+            let c = Value::new_wire(2, (a * b).to_fp());
             let eqn_values = Constraints::mul(a, b, c);
             assert_eq!(eqn_values[Terms::F(Slots::A)], a);
             assert_eq!(eqn_values[Terms::F(Slots::B)], b);
@@ -266,7 +265,7 @@ mod tests {
         let rng = &mut rand::thread_rng();
         for _ in 0..N {
             let bit: bool = rng.gen();
-            let a = Value::new_wire(
+            let a: Value<PallasConfig> = Value::new_wire(
                 0,
                 if bit {
                     PallasScalar::ONE
@@ -288,7 +287,7 @@ mod tests {
                     break;
                 }
             }
-            let a = Value::new_wire(0, val);
+            let a: Value<PallasConfig> = Value::new_wire(0, val);
             let eqn_values = Constraints::boolean(a);
             assert_eq!(eqn_values[Terms::F(Slots::A)], a);
             assert_eq!(eqn_values[Terms::F(Slots::B)], a);
@@ -301,7 +300,7 @@ mod tests {
         let rng = &mut rand::thread_rng();
         for _ in 0..N {
             let scalar: PallasScalar = rng.gen();
-            let eqn_values = Constraints::public_input(Value::new_wire(0, scalar));
+            let eqn_values = Constraints::<PallasConfig>::public_input(Value::new_wire(0, scalar));
             assert_eq!(eqn_values[Terms::F(Slots::A)], Value::new_wire(0, scalar));
             assert_eq!(eqn_values[Terms::PublicInputs], -Value::new_wire(0, scalar));
             assert!(eqn_values.is_satisfied());
@@ -310,13 +309,13 @@ mod tests {
 
     #[test]
     fn lookup() {
-        let table = TableRegistry::new::<BinXorOr>();
+        let table = TableRegistry::<PallasConfig>::new::<BinXorOr>();
         let rng = &mut rand::thread_rng();
         for _ in 0..N {
             let a_ = PallasScalar::from(rng.gen_range(0..2));
             let b_ = PallasScalar::from(rng.gen_range(0..2));
-            let c_ = bitxor(a_, b_);
-            let a = Value::new_wire(0, a_);
+            let c_ = bitxor::<PallasConfig>(a_, b_);
+            let a = Value::<PallasConfig>::new_wire(0, a_);
             let b = Value::new_wire(1, b_);
             let c = Value::new_wire(2, c_);
             let op = BinXorOr::Xor;
@@ -335,7 +334,7 @@ mod tests {
 
     #[test]
     fn structural_eq() {
-        let c1 = Constraints::constant(Value::new_wire(0, PallasScalar::ZERO));
+        let c1 = Constraints::<PallasConfig>::constant(Value::new_wire(0, PallasScalar::ZERO));
         let c2 = Constraints::constant(Value::new_wire(1, PallasScalar::ZERO));
         let hmap = &mut BiMap::new();
         assert!(c1.structural_eq(&c2, hmap));
@@ -343,7 +342,7 @@ mod tests {
         assert_eq!(hmap.get_by_left(&0), Some(&1));
 
         let c1 = Constraints::add(
-            Value::new_wire(0, PallasScalar::ONE),
+            Value::<PallasConfig>::new_wire(0, PallasScalar::ONE),
             Value::new_wire(1, 2.into()),
             Value::new_wire(2, 3.into()),
         );
@@ -360,7 +359,7 @@ mod tests {
         assert_eq!(hmap.get_by_left(&2), Some(&0));
 
         let c1 = Constraints::mul(
-            Value::new_wire(0, PallasScalar::from(2)),
+            Value::<PallasConfig>::new_wire(0, PallasScalar::from(2)),
             Value::new_wire(1, 3.into()),
             Value::new_wire(2, 6.into()),
         );
@@ -377,7 +376,7 @@ mod tests {
         assert_eq!(hmap.get_by_left(&2), Some(&0));
 
         let c1 = Constraints::mul(
-            Value::new_wire(0, PallasScalar::from(2)),
+            Value::<PallasConfig>::new_wire(0, PallasScalar::from(2)),
             Value::new_wire(1, 3.into()),
             Value::new_wire(2, 6.into()),
         );

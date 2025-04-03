@@ -1,23 +1,26 @@
 use std::{error::Error, fmt::Display};
 
-use crate::arithmetizer::{arith_wire::ArithWire, plookup::PlookupOps};
+use crate::{
+    arithmetizer::{arith_wire::ArithWire, plookup::PlookupOps},
+    utils::Scalar,
+};
 
-use ark_ff::{Fp, FpConfig};
+use ark_ec::short_weierstrass::SWCurveConfig;
 
 use educe::Educe;
 
 #[derive(Educe)]
 #[educe(Debug)]
-pub enum CacheError<Op: PlookupOps, const N: usize, C: FpConfig<N>> {
+pub enum CacheError<Op: PlookupOps, P: SWCurveConfig> {
     WireIDNotInCache,
     OperandNotInCache,
-    InvalidCommutativeOperator(ArithWire<Op, N, C>),
-    TypeError(TypeError<N, C>),
+    InvalidCommutativeOperator(ArithWire<Op, P>),
+    TypeError(TypeError<P>),
 }
 
-impl<Op: PlookupOps, const N: usize, C: FpConfig<N>> Error for CacheError<Op, N, C> {}
+impl<Op: PlookupOps, P: SWCurveConfig> Error for CacheError<Op, P> {}
 
-impl<Op: PlookupOps, const N: usize, C: FpConfig<N>> Display for CacheError<Op, N, C> {
+impl<Op: PlookupOps, P: SWCurveConfig> Display for CacheError<Op, P> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             CacheError::WireIDNotInCache => write!(f, "Cache: WireID not in cache"),
@@ -32,13 +35,13 @@ impl<Op: PlookupOps, const N: usize, C: FpConfig<N>> Display for CacheError<Op, 
 
 #[derive(Educe)]
 #[educe(Debug)]
-pub enum TypeError<const N: usize, C: FpConfig<N>> {
-    BitErrors(BitError<N, C>),
+pub enum TypeError<P: SWCurveConfig> {
+    BitErrors(BitError<P>),
 }
 
-impl<const N: usize, C: FpConfig<N>> Error for TypeError<N, C> {}
+impl<P: SWCurveConfig> Error for TypeError<P> {}
 
-impl<const N: usize, C: FpConfig<N>> std::fmt::Display for TypeError<N, C> {
+impl<P: SWCurveConfig> std::fmt::Display for TypeError<P> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             TypeError::BitErrors(e) => write!(f, "Bit Type error: {}", e),
@@ -48,11 +51,11 @@ impl<const N: usize, C: FpConfig<N>> std::fmt::Display for TypeError<N, C> {
 
 #[derive(Educe)]
 #[educe(Debug)]
-pub enum BitError<const N: usize, C: FpConfig<N>> {
-    ScalarIsNotBit(Fp<C, N>),
+pub enum BitError<P: SWCurveConfig> {
+    ScalarIsNotBit(Scalar<P>),
 }
 
-impl<const N: usize, C: FpConfig<N>> std::fmt::Display for BitError<N, C> {
+impl<P: SWCurveConfig> std::fmt::Display for BitError<P> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             BitError::ScalarIsNotBit(scalar) => {
@@ -62,10 +65,10 @@ impl<const N: usize, C: FpConfig<N>> std::fmt::Display for BitError<N, C> {
     }
 }
 
-impl<Op: PlookupOps, const N: usize, C: FpConfig<N>> From<BitError<N, C>> for CacheError<Op, N, C> {
-    fn from(e: BitError<N, C>) -> Self {
+impl<Op: PlookupOps, P: SWCurveConfig> From<BitError<P>> for CacheError<Op, P> {
+    fn from(e: BitError<P>) -> Self {
         Self::TypeError(TypeError::BitErrors(e))
     }
 }
 
-impl<const N: usize, C: FpConfig<N>> Error for BitError<N, C> {}
+impl<P: SWCurveConfig> Error for BitError<P> {}

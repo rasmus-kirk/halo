@@ -8,18 +8,21 @@ mod wire;
 
 use arith_wire::ArithWire;
 use ark_ec::short_weierstrass::SWCurveConfig;
-use ark_pallas::{FrConfig, PallasConfig};
+use ark_pallas::PallasConfig;
 use educe::Educe;
 pub use errors::ArithmetizerError;
 pub use plookup::*;
 pub use trace::{Pos, Trace};
 pub use wire::Wire;
 
-use crate::{circuit::Circuit, utils::misc::map_to_alphabet};
+use crate::{
+    circuit::Circuit,
+    utils::{misc::map_to_alphabet, Scalar},
+};
 
-use ark_ff::{Field, Fp, FpConfig, MontBackend};
+use ark_ff::Field;
 use log::debug;
-use rand::Rng;
+use rand::{distributions::Standard, prelude::Distribution, Rng};
 use std::{cell::RefCell, rc::Rc};
 
 /// A unique identifier for a wire in the circuit.
@@ -29,35 +32,30 @@ type WireID = usize;
 
 #[derive(Educe)]
 #[educe(Debug, Clone, PartialEq)]
-pub struct Arithmetizer<
-    Op: PlookupOps = EmptyOpSet,
-    const N: usize = 4,
-    C: FpConfig<N> = MontBackend<FrConfig, 4>,
-    P: SWCurveConfig = PallasConfig,
-> {
+pub struct Arithmetizer<Op: PlookupOps = EmptyOpSet, P: SWCurveConfig = PallasConfig> {
     inputs: usize,
-    wires: cache::ArithWireCache<Op, N, C>,
+    wires: cache::ArithWireCache<Op, P>,
     _marker: std::marker::PhantomData<P>,
 }
 
-impl<Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Arithmetizer<Op, N, C, P> {
+impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
     // constructors -------------------------------------------------------
 
     fn new(inputs: usize) -> Self {
         Self {
             inputs,
-            wires: cache::ArithWireCache::<Op, N, C>::new(),
+            wires: cache::ArithWireCache::<Op, P>::new(),
             _marker: std::marker::PhantomData,
         }
     }
 
     /// Returns `N` input wires to build a circuit.
-    pub fn build<const M: usize>() -> [Wire<Op, N, C, P>; M] {
+    pub fn build<const M: usize>() -> [Wire<Op, P>; M] {
         let cell = Rc::new(RefCell::new(Self::new(M)));
         let mut circuit = cell.borrow_mut();
         let mut wires = Vec::new();
         for i in 0..M {
-            let id = circuit.wires.get_id(ArithWire::<Op, N, C>::Input(i));
+            let id = circuit.wires.get_id(ArithWire::<Op, P>::Input(i));
             wires.push(Wire::new_input(id, cell.clone()));
         }
         wires.try_into().unwrap()
@@ -67,21 +65,22 @@ impl<Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Arithmeti
     pub fn to_circuit<R: Rng, T>(
         rng: &mut R,
         input_values: Vec<T>,
-        output_wires: &[Wire<Op, N, C, P>],
+        output_wires: &[Wire<Op, P>],
         d: Option<usize>,
-    ) -> Result<Circuit<N, C, P>, ArithmetizerError<Op, N, C>>
+    ) -> Result<Circuit<P>, ArithmetizerError<Op, P>>
     where
-        Fp<C, N>: From<T>,
+        Scalar<P>: From<T>,
+        Standard: Distribution<Scalar<P>>,
     {
-        ArithmetizerError::validate::<T, P>(&input_values, output_wires)?;
+        ArithmetizerError::validate(&input_values, output_wires)?;
         let wires = &output_wires[0].arith().borrow().wires;
-        let input_scalars = input_values.into_iter().map(Fp::from).collect();
+        let input_scalars = input_values.into_iter().map(Scalar::<P>::from).collect();
         let output_ids = output_wires.iter().map(Wire::id).collect();
         Trace::new(rng, d, wires, input_scalars, output_ids)
             .map_err(ArithmetizerError::EvaluatorError)
             .map(|t| {
                 debug!("\n{}", t);
-                Into::<Circuit<N, C, P>>::into(t)
+                Into::<Circuit<P>>::into(t)
             })
     }
 
@@ -103,27 +102,27 @@ impl<Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Arithmeti
 
     /// a - b : 𝔽
     pub fn sub(&mut self, a: WireID, b: WireID) -> WireID {
-        let neg_one = self.wires.get_const_id(-Fp::ONE);
+        let neg_one = self.wires.get_const_id(-Scalar::<P>::ONE);
         let b_ = self.mul(b, neg_one);
         self.add(a, b_)
     }
 
     /// a + b : 𝔽
-    pub fn add_const(&mut self, a: WireID, b: Fp<C, N>) -> WireID {
+    pub fn add_const(&mut self, a: WireID, b: Scalar<P>) -> WireID {
         let right = self.wires.get_const_id(b);
         let gate = ArithWire::AddGate(a, right);
         self.wires.get_id(gate)
     }
 
     /// a - b : 𝔽
-    pub fn sub_const(&mut self, a: WireID, b: Fp<C, N>) -> WireID {
+    pub fn sub_const(&mut self, a: WireID, b: Scalar<P>) -> WireID {
         let right = self.wires.get_const_id(-b);
         let gate = ArithWire::AddGate(a, right);
         self.wires.get_id(gate)
     }
 
     /// a b : 𝔽
-    pub fn mul_const(&mut self, a: WireID, b: Fp<C, N>) -> WireID {
+    pub fn mul_const(&mut self, a: WireID, b: Scalar<P>) -> WireID {
         let right = self.wires.get_const_id(b);
         let gate = ArithWire::MulGate(a, right);
         self.wires.get_id(gate)
@@ -131,12 +130,12 @@ impl<Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Arithmeti
 
     /// -a : 𝔽
     pub fn neg(&mut self, a: WireID) -> WireID {
-        self.mul_const(a, -Fp::ONE)
+        self.mul_const(a, -Scalar::<P>::ONE)
     }
 
     /// a / b : 𝔽
-    pub fn div_const(&mut self, a: WireID, b: Fp<C, N>) -> WireID {
-        let right = self.wires.get_const_id(Fp::ONE / b);
+    pub fn div_const(&mut self, a: WireID, b: Scalar<P>) -> WireID {
+        let right = self.wires.get_const_id(Scalar::<P>::ONE / b);
         let gate = ArithWire::MulGate(a, right);
         self.wires.get_id(gate)
     }
@@ -149,13 +148,13 @@ impl<Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Arithmeti
     // boolean operators --------------------------------------------------
 
     /// a : 𝔹
-    pub fn enforce_bit(&mut self, a: WireID) -> Result<(), ArithmetizerError<Op, N, C>> {
+    pub fn enforce_bit(&mut self, a: WireID) -> Result<(), ArithmetizerError<Op, P>> {
         self.wires.set_bit(a).map_err(ArithmetizerError::CacheError)
     }
 
     /// ¬a
     pub fn not(&mut self, a: WireID) -> WireID {
-        let one = self.wires.get_const_id(Fp::ONE);
+        let one = self.wires.get_const_id(Scalar::<P>::ONE);
         self.sub(one, a)
     }
 
@@ -184,7 +183,7 @@ impl<Op: PlookupOps, const N: usize, C: FpConfig<N>, P: SWCurveConfig> Arithmeti
 
     pub fn to_string<T: std::fmt::Display>(
         input_values: &[T],
-        output_wires: &[Wire<Op, N, C, P>],
+        output_wires: &[Wire<Op, P>],
     ) -> String {
         let mut result = String::new();
         result.push_str("Arithmetizer {\n");
@@ -210,13 +209,13 @@ mod tests {
 
     #[test]
     fn new() {
-        let arith = Arithmetizer::<EmptyOpSet, 4, MontBackend<FrConfig, 4>>::new(2);
+        let arith = Arithmetizer::<EmptyOpSet, PallasConfig>::new(2);
         assert_eq!(arith.inputs, 2);
     }
 
     #[test]
     fn build() {
-        let wires = Arithmetizer::<EmptyOpSet, 4, MontBackend<FrConfig, 4>>::build::<2>();
+        let wires = Arithmetizer::<EmptyOpSet, PallasConfig>::build::<2>();
         assert_eq!(wires.len(), 2);
         assert_eq!(wires[0].id(), 0);
         assert_eq!(wires[1].id(), 1);
@@ -224,7 +223,7 @@ mod tests {
 
     #[test]
     fn get_wire_commutative() {
-        let [a, b] = Arithmetizer::<EmptyOpSet, 4, MontBackend<FrConfig, 4>>::build::<2>();
+        let [a, b] = Arithmetizer::<EmptyOpSet, PallasConfig>::build::<2>();
         assert_eq!(a.id(), 0);
         assert_eq!(b.id(), 1);
         let c = &(a.clone() + b.clone());
@@ -239,7 +238,7 @@ mod tests {
 
     #[test]
     fn commutative_2() {
-        let [a, b, c] = Arithmetizer::<EmptyOpSet, 4, MontBackend<FrConfig, 4>>::build::<3>();
+        let [a, b, c] = Arithmetizer::<EmptyOpSet, PallasConfig>::build::<3>();
         let f = a.clone() * b.clone() * c.clone();
         let g = c * a * b;
         assert_eq!(f.id(), g.id())
@@ -247,7 +246,7 @@ mod tests {
 
     #[test]
     fn add() {
-        let [a, b] = Arithmetizer::<EmptyOpSet, 4, MontBackend<FrConfig, 4>>::build::<2>();
+        let [a, b] = Arithmetizer::<EmptyOpSet, PallasConfig>::build::<2>();
         assert_eq!(a.id(), 0);
         assert_eq!(b.id(), 1);
         let c = a.clone() + b.clone();
@@ -260,7 +259,7 @@ mod tests {
 
     #[test]
     fn mul() {
-        let [a, b] = Arithmetizer::<EmptyOpSet, 4, MontBackend<FrConfig, 4>>::build::<2>();
+        let [a, b] = Arithmetizer::<EmptyOpSet, PallasConfig>::build::<2>();
         assert_eq!(a.id(), 0);
         assert_eq!(b.id(), 1);
         let c = a.clone() * b.clone();
@@ -273,7 +272,7 @@ mod tests {
 
     #[test]
     fn sub() {
-        let [a, b] = Arithmetizer::<EmptyOpSet, 4, MontBackend<FrConfig, 4>>::build::<2>();
+        let [a, b] = Arithmetizer::<EmptyOpSet, PallasConfig>::build::<2>();
         assert_eq!(a.id(), 0);
         assert_eq!(b.id(), 1);
         let c = &(a.clone() - b.clone());
@@ -288,7 +287,7 @@ mod tests {
 
     #[test]
     fn add_const() {
-        let [a] = Arithmetizer::<EmptyOpSet, 4, MontBackend<FrConfig, 4>>::build::<1>();
+        let [a] = Arithmetizer::<EmptyOpSet, PallasConfig>::build::<1>();
         assert_eq!(a.id(), 0);
         let c = &(a + 1);
         assert_eq!(c.id(), 2);
@@ -299,7 +298,7 @@ mod tests {
 
     #[test]
     fn sub_const() {
-        let [a] = Arithmetizer::<EmptyOpSet, 4, MontBackend<FrConfig, 4>>::build::<1>();
+        let [a] = Arithmetizer::<EmptyOpSet, PallasConfig>::build::<1>();
         assert_eq!(a.id(), 0);
         let c = &(a.clone() - 1);
         assert_eq!(c.id(), 2);
@@ -311,7 +310,7 @@ mod tests {
 
     #[test]
     fn mul_const() {
-        let [a] = Arithmetizer::<EmptyOpSet, 4, MontBackend<FrConfig, 4>>::build::<1>();
+        let [a] = Arithmetizer::<EmptyOpSet, PallasConfig>::build::<1>();
         assert_eq!(a.id(), 0);
         let c = &(a.clone() * 1);
         assert_eq!(c.id(), 2);
