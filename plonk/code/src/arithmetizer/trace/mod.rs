@@ -26,7 +26,6 @@ use crate::{
 
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::{AdditiveGroup, Field};
-use ark_poly::Evaluations;
 use log::info;
 use rand::{distributions::Standard, prelude::Distribution, Rng};
 use std::collections::HashMap;
@@ -311,7 +310,7 @@ impl<P: SWCurveConfig> Trace<P> {
                     .collect::<Vec<Scalar<P>>>();
                 evals.insert(0, Scalar::<P>::ZERO);
                 evals.extend(vec![Scalar::<P>::ZERO; extend]);
-                Evaluations::from_vec_and_domain(evals, self.h.domain)
+                Evals::<P>::from_vec_and_domain(evals, self.h.domain)
             })
             .collect()
     }
@@ -336,7 +335,7 @@ impl<P: SWCurveConfig> Trace<P> {
             .map(|(id_evs, ss_evs)| {
                 let to_evals = |mut evals: Vec<Scalar<P>>| {
                     evals.insert(0, Scalar::<P>::ONE);
-                    Evaluations::from_vec_and_domain(evals, self.h.domain)
+                    Evals::<P>::from_vec_and_domain(evals, self.h.domain)
                 };
                 (to_evals(id_evs), to_evals(ss_evs))
             })

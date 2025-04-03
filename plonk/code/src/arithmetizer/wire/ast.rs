@@ -6,13 +6,15 @@ use crate::{
 
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::Field;
+use educe::Educe;
 use std::{
     fmt::{self, Debug, Display},
     rc::Rc,
 };
 
 /// An abstract syntax tree representing a wire.
-#[derive(Clone, PartialEq)]
+#[derive(Educe)]
+#[educe(Clone, PartialEq)]
 pub enum WireAST<Op: PlookupOps, P: SWCurveConfig> {
     Input(WireID),
     Constant(Scalar<P>),

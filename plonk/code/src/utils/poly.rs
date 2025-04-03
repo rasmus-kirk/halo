@@ -4,35 +4,33 @@ use halo_accumulation::pcdl;
 
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::{AdditiveGroup, Field};
-use ark_poly::{univariate::DensePolynomial, DenseUVPolynomial, Evaluations, Polynomial};
+use ark_poly::{DenseUVPolynomial, Polynomial};
 
 use super::{misc::batch_op, Evals, Point, Poly, Scalar};
 
-pub fn batch_interpolate<P: SWCurveConfig>(
-    es: Vec<Evaluations<Scalar<P>>>,
-) -> Vec<DensePolynomial<Scalar<P>>> {
+pub fn batch_interpolate<P: SWCurveConfig>(es: Vec<Evals<P>>) -> Vec<Poly<P>> {
     batch_op(es, |e| e.interpolate())
 }
 
 /// f(X) = v
-pub fn deg0<P: SWCurveConfig>(v: Scalar<P>) -> DensePolynomial<Scalar<P>> {
-    DensePolynomial::from_coefficients_slice(&[v])
+pub fn deg0<P: SWCurveConfig>(v: Scalar<P>) -> Poly<P> {
+    Poly::<P>::from_coefficients_slice(&[v])
 }
 
 /// f(X) = vXⁿ
-pub fn vxn<P: SWCurveConfig>(v: &Scalar<P>, n: u64) -> DensePolynomial<Scalar<P>> {
+pub fn vxn<P: SWCurveConfig>(v: &Scalar<P>, n: u64) -> Poly<P> {
     let mut coeffs = vec![Scalar::<P>::ZERO; n as usize];
     coeffs.push(*v);
-    DensePolynomial::from_coefficients_slice(&coeffs)
+    Poly::<P>::from_coefficients_slice(&coeffs)
 }
 
 /// f(X) = Xⁿ
-pub fn xn<P: SWCurveConfig>(n: u64) -> DensePolynomial<Scalar<P>> {
+pub fn xn<P: SWCurveConfig>(n: u64) -> Poly<P> {
     vxn::<P>(&Scalar::<P>::ONE, n)
 }
 
 /// f(X) = X
-pub fn x<P: SWCurveConfig>() -> DensePolynomial<Scalar<P>> {
+pub fn x<P: SWCurveConfig>() -> Poly<P> {
     vxn::<P>(&Scalar::<P>::ONE, 1)
 }
 
@@ -50,7 +48,7 @@ pub fn x<P: SWCurveConfig>() -> DensePolynomial<Scalar<P>> {
 //     evals_new.insert(0, evals_new_last);
 
 //     // Step 3: Perform inverse FFT to interpolate the new polynomial g(X)
-//     Evaluations::from_vec_and_domain(evals_new, h.domain).interpolate()
+//     Evals::<P>::from_vec_and_domain(evals_new, h.domain).interpolate()
 // }
 
 // /// ∀X ∈ H₀: g(X) = f(ωX)
@@ -63,17 +61,14 @@ pub fn shift_wrap_eval<P: SWCurveConfig>(h: &Coset<P>, evals: Evals<P>) -> Evals
     let mut evals_new = evals.evals;
     let evals_new_first = evals_new.remove(0);
     evals_new.push(evals_new_first);
-    Evaluations::from_vec_and_domain(evals_new, h.domain)
+    Evals::<P>::from_vec_and_domain(evals_new, h.domain)
 }
 
 /// f(X) = p₀(X) + Xⁿp₁(X) + X²ⁿp₂(X) + ...
-pub fn split<P: SWCurveConfig>(
-    n: u64,
-    f: &DensePolynomial<Scalar<P>>,
-) -> Vec<DensePolynomial<Scalar<P>>> {
+pub fn split<P: SWCurveConfig>(n: u64, f: &Poly<P>) -> Vec<Poly<P>> {
     f.coeffs
         .chunks(n as usize)
-        .map(DensePolynomial::from_coefficients_slice)
+        .map(Poly::<P>::from_coefficients_slice)
         .collect()
 }
 
@@ -93,7 +88,7 @@ pub fn lagrange_basis<P: SWCurveConfig>(h: &Coset<P>, i: u64) -> Poly<P> {
 
 pub fn batch_evaluate<'a, P: SWCurveConfig, I>(ps: I, x: Scalar<P>) -> Vec<Scalar<P>>
 where
-    I: IntoIterator<Item = &'a DensePolynomial<Scalar<P>>>,
+    I: IntoIterator<Item = &'a Poly<P>>,
 {
     batch_op(ps, |f| f.evaluate(&x))
 }

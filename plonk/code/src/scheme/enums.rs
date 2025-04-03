@@ -5,11 +5,14 @@ use crate::utils::misc::EnumIter;
 /// Used to determine degree of root of unity along with number of constraints.
 pub const MAX_BLIND_TERMS: u64 = 0;
 
+use educe::Educe;
+
 /// Enum of slots in the constraint system; private polynomials.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Educe)]
+#[educe(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(usize)]
 pub enum Slots {
-    #[default]
+    #[educe(Default)]
     A,
     B,
     C,
@@ -39,11 +42,12 @@ impl Slots {
     }
 }
 
-/// Enum of selectors in the constraint system; public polynomials.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// Enum of selectors in the constraint system; public polynomials.'
+#[derive(Educe)]
+#[educe(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(usize)]
 pub enum Selectors {
-    #[default]
+    #[educe(Default)]
     Ql,
     Qr,
     Qo,
@@ -85,7 +89,8 @@ impl fmt::Display for Selectors {
 }
 
 /// Enum of slots and selectors in the constraint system.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Educe)]
+#[educe(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Terms {
     F(Slots),
     Q(Selectors),

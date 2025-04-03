@@ -20,7 +20,7 @@ pub fn bitxor<P: SWCurveConfig>(lhs: Scalar<P>, rhs: Scalar<P>) -> Scalar<P> {
 // /// Compute the Evaluation struct for a Vec of Vec of Scalars
 // pub fn batch_compute_evals(h: &Coset, ys: Vec<Vec<Scalar>>) -> Vec<Evals> {
 //     batch_op(ys, |evals| {
-//         Evaluations::from_vec_and_domain(evals, h.domain)
+//         Evals::<P>::from_vec_and_domain(evals, h.domain)
 //     })
 // }
 

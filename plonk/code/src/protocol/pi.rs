@@ -8,7 +8,10 @@ use crate::{
     utils::{misc::EnumIter, Point, Scalar},
 };
 
-#[derive(Clone)]
+use educe::Educe;
+
+#[derive(Educe)]
+#[educe(Clone)]
 pub struct ProofEvaluations<P: SWCurveConfig> {
     pub ws: Vec<Scalar<P>>,
     pub qs: Vec<Scalar<P>>,
@@ -100,20 +103,23 @@ impl<P: SWCurveConfig> ProofEvaluations<P> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Educe)]
+#[educe(Clone)]
 pub struct ProofCommitments<P: SWCurveConfig> {
     pub ws: Vec<Point<P>>,
     pub z: Point<P>,
     pub ts: Vec<Point<P>>,
 }
 
-#[derive(Clone)]
+#[derive(Educe)]
+#[educe(Clone)]
 pub struct EvalProofs {
     pub W: EvalProof,
     pub W_bar: EvalProof,
 }
 
-#[derive(Clone)]
+#[derive(Educe)]
+#[educe(Clone)]
 pub struct Proof<P: SWCurveConfig> {
     pub ev: ProofEvaluations<P>,
     pub com: ProofCommitments<P>,

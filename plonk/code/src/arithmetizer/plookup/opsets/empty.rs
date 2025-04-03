@@ -7,10 +7,13 @@ use crate::{
     utils::{misc::EnumIter, Scalar},
 };
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+use educe::Educe;
+
+#[derive(Educe)]
+#[educe(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(usize)]
 pub enum EmptyOpSet {
-    #[default]
+    #[educe(Default)]
     UnitTable,
 }
 

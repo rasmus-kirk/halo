@@ -2,15 +2,18 @@ mod compute;
 mod opsets;
 mod plookupops;
 
-use ark_ec::short_weierstrass::SWCurveConfig;
 pub use compute::PlookupEvsThunk;
 pub use opsets::*;
 pub use plookupops::PlookupOps;
 
 use crate::scheme::eqns::plookup_compress_fp;
 
+use ark_ec::short_weierstrass::SWCurveConfig;
+use educe::Educe;
+
 /// A lookup table for a given Plookup operation.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Educe)]
+#[educe(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Table<P: SWCurveConfig>(Vec<[P::ScalarField; 3]>);
 
 impl<P: SWCurveConfig> Table<P> {
@@ -41,7 +44,8 @@ impl<P: SWCurveConfig> Table<P> {
 }
 
 /// The collection of all lookup tables for the Plookup protocol.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Educe)]
+#[educe(Debug, PartialEq, Eq, Clone)]
 pub struct TableRegistry<P: SWCurveConfig> {
     tables: Vec<Table<P>>,
 }
