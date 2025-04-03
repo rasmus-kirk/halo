@@ -5,12 +5,14 @@ use crate::{
 
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::{AdditiveGroup, Field};
+use educe::Educe;
 use std::fmt::Display;
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Educe)]
+#[educe(Default, Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(usize)]
 pub enum BinXorOr {
-    #[default]
+    #[educe(Default)]
     Xor,
     Or,
 }

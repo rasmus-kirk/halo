@@ -9,10 +9,12 @@ use crate::{
     },
 };
 
+use educe::Educe;
 use std::fmt;
 
 /// Position in the permutation polynomial.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Educe)]
+#[educe(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Pos {
     pub slot: Slots,
     pub id: ConstraintID,

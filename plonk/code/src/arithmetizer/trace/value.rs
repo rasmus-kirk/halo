@@ -12,7 +12,8 @@ use std::{
     ops::{Add, Mul, Neg},
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Educe)]
+#[educe(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ValueType {
     Bit,
     Field,

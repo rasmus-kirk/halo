@@ -8,10 +8,12 @@ use crate::{
 
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::{AdditiveGroup, Field};
+use educe::Educe;
 
 /// A struct that acts as a thunk where `compute` takes in zeta
 /// from transcript to compute the polynomials for plookup
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Educe)]
+#[educe(Debug, PartialEq, Eq, Clone)]
 pub struct PlookupEvsThunk<P: SWCurveConfig> {
     constraints: Vec<Constraints<P>>,
     table: TableRegistry<P>,

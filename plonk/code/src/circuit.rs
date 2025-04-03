@@ -1,14 +1,16 @@
 use ark_ec::short_weierstrass::SWCurveConfig;
 
+use super::{arithmetizer::PlookupEvsThunk, scheme::Slots};
 use crate::{
     scheme::{Selectors, Terms},
     utils::{misc::EnumIter, print_table::evals_str, Evals, Point, Poly, Scalar},
     Coset,
 };
 
-use super::{arithmetizer::PlookupEvsThunk, scheme::Slots};
+use educe::Educe;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Educe)]
+#[educe(Clone, Debug, PartialEq, Eq)]
 pub struct CircuitPublic<P: SWCurveConfig> {
     pub d: usize,
     // coset scheme
