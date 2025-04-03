@@ -8,7 +8,7 @@ use log::info;
 use rand::{distributions::Standard, prelude::Distribution, Rng};
 
 impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
-    pub fn synthesize<R: Rng, const M: usize>(rng: &mut R, degree: usize) -> [Wire<Op, P>; 1]
+    pub fn synthesize<const M: usize, R: Rng>(rng: &mut R, degree: usize) -> [Wire<Op, P>; 1]
     where
         Standard: Distribution<Scalar<P>>,
     {

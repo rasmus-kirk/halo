@@ -1,6 +1,6 @@
 use ark_ec::short_weierstrass::SWCurveConfig;
 
-use crate::arithmetizer::plookup::{BinXorOr, PlookupOps};
+use crate::arithmetizer::plookup::{opsets::BinXorOr, PlookupOps};
 
 use super::{ast::WireAST, Wire};
 

@@ -211,7 +211,7 @@ mod tests {
     use ark_pallas::PallasConfig;
     use halo_accumulation::group::PallasScalar;
 
-    use crate::arithmetizer::plookup::EmptyOpSet;
+    use crate::arithmetizer::plookup::opsets::EmptyOpSet;
 
     use super::*;
 

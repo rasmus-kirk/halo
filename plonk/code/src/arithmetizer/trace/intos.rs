@@ -1,7 +1,7 @@
 use super::{value::Value, ConstraintID, Constraints, Pos, Trace};
 use crate::{
     arithmetizer::{
-        plookup::{EmptyOpSet, TableRegistry},
+        plookup::{opsets::EmptyOpSet, TableRegistry},
         PlookupEvsThunk,
     },
     circuit::{Circuit, CircuitPrivate, CircuitPublic},

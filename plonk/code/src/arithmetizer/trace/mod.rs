@@ -350,7 +350,7 @@ mod tests {
 
     use crate::{
         arithmetizer::{
-            plookup::EmptyOpSet,
+            plookup::opsets::EmptyOpSet,
             {Arithmetizer, Wire},
         },
         circuit::Circuit,

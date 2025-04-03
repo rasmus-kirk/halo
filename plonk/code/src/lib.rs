@@ -10,33 +10,28 @@ pub use coset::Coset;
 #[cfg(test)]
 mod tests {
     use crate::{
-        arithmetizer::{BinXorOr, EmptyOpSet},
+        arithmetizer::{PallasBitArith, PallasEmptyArith},
         utils::misc::tests::on_debug,
     };
 
     use super::*;
     use anyhow::Result;
-    use arithmetizer::Arithmetizer;
-    use ark_pallas::PallasConfig;
     use circuit::poly_evaluations_to_string;
     use log::debug;
     use protocol;
-
-    type PallasArithmetizer = Arithmetizer<EmptyOpSet, PallasConfig>;
-    type BitXorArithmetizer = Arithmetizer<BinXorOr, PallasConfig>;
 
     #[test]
     fn circuit_canonical() -> Result<()> {
         on_debug();
         let rng = &mut rand::thread_rng();
-        let [x, y] = PallasArithmetizer::build();
+        let [x, y] = PallasEmptyArith::build();
         let input_values = vec![1, 2];
         let output_wires = &[(x.clone() * x) * 3 + (y * 5) - 47];
         debug!(
             "{}",
-            PallasArithmetizer::to_string(&input_values, output_wires)
+            PallasEmptyArith::to_string(&input_values, output_wires)
         );
-        let (x, w) = &PallasArithmetizer::to_circuit(rng, input_values, output_wires, None)?;
+        let (x, w) = &PallasEmptyArith::to_circuit(rng, input_values, output_wires, None)?;
         debug!("{}", poly_evaluations_to_string(x, w));
         // let _ = plonk::proof(rng, x, w);
         let pi = protocol::prove(rng, x, w);
@@ -49,14 +44,14 @@ mod tests {
     fn circuit_bool() -> Result<()> {
         on_debug();
         let rng = &mut rand::thread_rng();
-        let [x, y] = BitXorArithmetizer::build();
+        let [x, y] = PallasBitArith::build();
         let input_values = vec![1, 0];
         let output_wires = &[(x.clone() ^ (y | x).is_bit()).is_public()];
         debug!(
             "\n{}",
-            BitXorArithmetizer::to_string(&input_values, output_wires)
+            PallasBitArith::to_string(&input_values, output_wires)
         );
-        let (x, w) = &BitXorArithmetizer::to_circuit(rng, input_values, output_wires, None)?;
+        let (x, w) = &PallasBitArith::to_circuit(rng, input_values, output_wires, None)?;
         debug!("\n{}", poly_evaluations_to_string(x, w));
         let pi = protocol::prove(rng, x, w);
         protocol::verify(x, pi)?;
@@ -68,13 +63,13 @@ mod tests {
     fn circuit_synthesize() -> Result<()> {
         on_debug();
         let rng = &mut rand::thread_rng();
-        let output_wires = &PallasArithmetizer::synthesize::<_, 2>(rng, 4);
+        let output_wires = &PallasEmptyArith::synthesize::<2, _>(rng, 4);
         let input_values = vec![3, 4];
         debug!(
             "{}",
-            PallasArithmetizer::to_string(&input_values, output_wires)
+            PallasEmptyArith::to_string(&input_values, output_wires)
         );
-        let (x, w) = &PallasArithmetizer::to_circuit(rng, input_values, output_wires, None)?;
+        let (x, w) = &PallasEmptyArith::to_circuit(rng, input_values, output_wires, None)?;
         debug!("{}", poly_evaluations_to_string(x, w));
         let pi = protocol::prove(rng, x, w);
         protocol::verify(x, pi)?;

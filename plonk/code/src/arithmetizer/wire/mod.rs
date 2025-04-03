@@ -88,24 +88,20 @@ impl<Op: PlookupOps, P: SWCurveConfig> Debug for Wire<Op, P> {
 #[cfg(test)]
 mod tests {
     use ark_ff::Field;
-    use ark_pallas::PallasConfig;
     use halo_accumulation::group::PallasScalar;
 
     use super::*;
     use crate::{
-        arithmetizer::plookup::EmptyOpSet,
+        arithmetizer::PallasEmptyArith,
         utils::misc::{map_to_alphabet, tests::on_debug},
     };
-
-    type PallasArithmetizer = Arithmetizer<EmptyOpSet, PallasConfig>;
-    type PallasWire = Wire<EmptyOpSet, PallasConfig>;
 
     #[test]
     fn new() {
         on_debug();
-        let [wire_, _] = &PallasArithmetizer::build::<2>();
+        let [wire_, _] = &PallasEmptyArith::build::<2>();
         let arithmetizer = wire_.arith().clone();
-        let wire = PallasWire::new_input(0, arithmetizer);
+        let wire = Wire::new_input(0, arithmetizer);
         assert_eq!(wire.id, 0);
         assert_eq!(format!("{}", wire), map_to_alphabet(0));
     }
@@ -113,7 +109,7 @@ mod tests {
     #[test]
     fn add() {
         on_debug();
-        let [a, b] = PallasArithmetizer::build::<2>();
+        let [a, b] = PallasEmptyArith::build::<2>();
         let c = a.clone() + b.clone();
         assert_eq!(a.id, 0);
         assert_eq!(b.id, 1);
@@ -129,7 +125,7 @@ mod tests {
     #[test]
     fn sub() {
         on_debug();
-        let [a, b] = PallasArithmetizer::build::<2>();
+        let [a, b] = PallasEmptyArith::build::<2>();
         let c = a.clone() - b.clone();
         assert_eq!(a.id, 0);
         assert_eq!(b.id, 1);
@@ -145,7 +141,7 @@ mod tests {
     #[test]
     fn mul() {
         on_debug();
-        let [a, b] = PallasArithmetizer::build::<2>();
+        let [a, b] = PallasEmptyArith::build::<2>();
         let c = a.clone() * b.clone();
         assert_eq!(a.id, 0);
         assert_eq!(b.id, 1);
@@ -161,7 +157,7 @@ mod tests {
     #[test]
     fn add_const() {
         on_debug();
-        let [a] = PallasArithmetizer::build::<1>();
+        let [a] = PallasEmptyArith::build::<1>();
         let b = a.clone() + PallasScalar::ONE;
         assert_eq!(a.id, 0);
         assert_eq!(b.id, 2);
@@ -172,7 +168,7 @@ mod tests {
     #[test]
     fn sub_const() {
         on_debug();
-        let [a] = PallasArithmetizer::build::<1>();
+        let [a] = PallasEmptyArith::build::<1>();
         let b = a.clone() - PallasScalar::ONE;
         assert_eq!(a.id, 0);
         assert_eq!(b.id, 2);
@@ -183,7 +179,7 @@ mod tests {
     #[test]
     fn mul_const() {
         on_debug();
-        let [a] = PallasArithmetizer::build::<1>();
+        let [a] = PallasEmptyArith::build::<1>();
         let b = a.clone() * PallasScalar::ONE;
         assert_eq!(a.id, 0);
         assert_eq!(b.id, 2);

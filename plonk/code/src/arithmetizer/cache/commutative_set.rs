@@ -19,7 +19,7 @@ impl<Op: PlookupOps> CommutativeSet<Op> {
 #[cfg(test)]
 mod tests {
 
-    use crate::arithmetizer::plookup::EmptyOpSet;
+    use crate::arithmetizer::plookup::opsets::EmptyOpSet;
 
     use super::*;
 

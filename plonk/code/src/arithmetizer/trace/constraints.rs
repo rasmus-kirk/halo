@@ -202,7 +202,7 @@ impl<P: SWCurveConfig> Constraints<P> {
 mod tests {
     use super::*;
     use crate::{
-        arithmetizer::plookup::{BinXorOr, TableRegistry},
+        arithmetizer::plookup::{opsets::BinXorOr, TableRegistry},
         utils::scalar::bitxor,
     };
 
