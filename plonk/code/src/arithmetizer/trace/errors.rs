@@ -1,31 +1,35 @@
+use std::{error::Error, fmt::Display};
+
 use super::constraints::Constraints;
 use crate::{
     arithmetizer::{plookup::PlookupOps, WireID},
-    utils::misc::map_to_alphabet,
+    utils::{misc::map_to_alphabet, Scalar},
 };
 
-use halo_accumulation::group::PallasScalar;
+use ark_ec::short_weierstrass::SWCurveConfig;
+use educe::Educe;
 
-type Scalar = PallasScalar;
-
-#[derive(Debug)]
-pub enum TraceError {
+#[derive(Educe)]
+#[educe(Debug)]
+pub enum TraceError<Op: PlookupOps, P: SWCurveConfig> {
     InputNotSet(WireID),
     WireNotInCache(WireID),
-    ConstNotInCache(Scalar),
+    ConstNotInCache(Scalar<P>),
     FailedToEval(WireID),
     FailedToMakeCoset(u64),
     ConstraintNotSatisfied(String),
-    LookupFailed(PlookupOps, Scalar, Scalar),
+    LookupFailed(Op, Scalar<P>, Scalar<P>),
 }
 
-impl TraceError {
-    pub fn constraint_not_satisfied(constraint: &Constraints) -> Self {
+impl<Op: PlookupOps, P: SWCurveConfig> Error for TraceError<Op, P> {}
+
+impl<Op: PlookupOps, P: SWCurveConfig> TraceError<Op, P> {
+    pub fn constraint_not_satisfied(constraint: &Constraints<P>) -> Self {
         TraceError::ConstraintNotSatisfied(constraint.to_string())
     }
 }
 
-impl std::fmt::Display for TraceError {
+impl<Op: PlookupOps, P: SWCurveConfig> Display for TraceError<Op, P> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             TraceError::InputNotSet(id) => {
@@ -64,5 +68,3 @@ impl std::fmt::Display for TraceError {
         }
     }
 }
-
-impl std::error::Error for TraceError {}

@@ -1,10 +1,11 @@
 use super::{ConstraintID, Pos, Trace};
 use crate::{arithmetizer::WireID, utils::misc::pair_app};
 
+use ark_ec::short_weierstrass::SWCurveConfig;
 use bimap::BiMap;
 use std::collections::HashMap;
 
-impl Trace {
+impl<P: SWCurveConfig> Trace<P> {
     fn eq_constraints(&self, other: &Self, enforced_map: &mut BiMap<WireID, WireID>) -> bool {
         if other.constraints.len() != self.constraints.len() {
             return false;
@@ -19,8 +20,8 @@ impl Trace {
 
     fn get_mapped_permutation(&self, enforced_map: &BiMap<WireID, WireID>) -> HashMap<Pos, Pos> {
         HashMap::<Pos, Pos>::from_iter(self.permutation.iter().map(pair_app(|pos: &Pos| {
-            let new_id = enforced_map.get_by_left(&(pos.id as usize));
-            let id = *new_id.unwrap_or(&(pos.id as usize)) as ConstraintID;
+            let new_id = enforced_map.get_by_left(&(pos.id()));
+            let id = *new_id.unwrap_or(&(pos.id())) as ConstraintID;
             Pos::new(pos.slot, id)
         })))
     }
@@ -38,7 +39,7 @@ impl Trace {
     }
 }
 
-impl PartialEq for Trace {
+impl<P: SWCurveConfig> PartialEq for Trace<P> {
     fn eq(&self, other: &Self) -> bool {
         let enforced_map = &mut BiMap::new();
         self.eq_constraints(other, enforced_map)
@@ -46,5 +47,3 @@ impl PartialEq for Trace {
             && self.d == other.d
     }
 }
-
-impl Eq for Trace {}

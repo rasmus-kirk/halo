@@ -4,45 +4,36 @@ mod errors;
 pub use commutative_set::CommutativeSet;
 pub use errors::{BitError, CacheError};
 
+use crate::utils::Scalar;
+
 use super::{
     arith_wire::{ArithWire, CommutativeOps},
+    plookup::PlookupOps,
     WireID,
 };
 
-use halo_accumulation::group::PallasScalar;
-
+use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::{AdditiveGroup, Field};
 use bimap::BiMap;
+use educe::Educe;
 use std::collections::{HashMap, HashSet};
-
-type Scalar = PallasScalar;
 
 /// Cache of arithmetized wires.
 /// Wire reuse leads to smaller circuits.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ArithWireCache {
+///
+#[derive(Educe)]
+#[educe(Default, Clone, PartialEq)]
+pub struct ArithWireCache<Op: PlookupOps, P: SWCurveConfig> {
     uuid: WireID,
-    wires: BiMap<WireID, ArithWire>,
-    commutative_lookup: HashMap<CommutativeSet, WireID>,
+    wires: BiMap<WireID, ArithWire<Op, P>>,
+    commutative_lookup: HashMap<CommutativeSet<Op>, WireID>,
     bit_wires: HashMap<WireID, bool>,
     public_wires: HashSet<WireID>,
 }
 
-impl Default for ArithWireCache {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl ArithWireCache {
+impl<Op: PlookupOps, P: SWCurveConfig> ArithWireCache<Op, P> {
     pub fn new() -> Self {
-        ArithWireCache {
-            uuid: 0,
-            wires: BiMap::new(),
-            commutative_lookup: HashMap::new(),
-            bit_wires: HashMap::new(),
-            public_wires: HashSet::new(),
-        }
+        Default::default()
     }
 
     pub fn len(&self) -> usize {
@@ -57,22 +48,24 @@ impl ArithWireCache {
     }
 
     /// Register a wire in the cache
-    fn insert_wire(&mut self, wire: ArithWire) -> WireID {
+    fn insert_wire(&mut self, wire: ArithWire<Op, P>) -> WireID {
         let id = self.next_id();
         self.wires.insert(id, wire);
         id
     }
 
+    /// Register the wire as a public input
     pub fn publicize(&mut self, id: WireID) {
         self.public_wires.insert(id);
     }
 
+    /// Check if the wire is a public input
     pub fn is_public(&self, id: WireID) -> bool {
         self.public_wires.contains(&id)
     }
 
     // Get the WireID of a wire
-    pub fn get_id(&mut self, wire: ArithWire) -> WireID {
+    pub fn get_id(&mut self, wire: ArithWire<Op, P>) -> WireID {
         if let Some(&id) = self.wires.get_by_right(&wire) {
             return id;
         }
@@ -97,7 +90,7 @@ impl ArithWireCache {
     }
 
     /// Get WireID of a constant value
-    pub fn get_const_id(&mut self, val: Scalar) -> WireID {
+    pub fn get_const_id(&mut self, val: Scalar<P>) -> WireID {
         let wire = ArithWire::Constant(val);
         if let Some(&id) = self.wires.get_by_right(&wire) {
             return id;
@@ -105,25 +98,29 @@ impl ArithWireCache {
         self.insert_wire(wire)
     }
 
-    pub fn lookup_const_id(&self, val: Scalar) -> Option<WireID> {
+    /// Get WireID of a constant value
+    pub fn lookup_const_id(&self, val: Scalar<P>) -> Option<WireID> {
         let wire = ArithWire::Constant(val);
         self.wires.get_by_right(&wire).copied()
     }
 
     /// Get ArithWire from WireID
-    pub fn to_arith(&self, id: WireID) -> Option<ArithWire> {
+    pub fn to_arith(&self, id: WireID) -> Option<ArithWire<Op, P>> {
         self.wires.get_by_left(&id).copied()
     }
 
     #[cfg(test)]
-    pub fn to_arith_(&self, id: WireID) -> ArithWire {
+    pub fn to_arith_(&self, id: WireID) -> ArithWire<Op, P> {
         self.to_arith(id).unwrap()
     }
 
     // commutative set lookup ------------------------------------------------
 
     /// Get the commutative set (leafs of a chain of a commutative operation (add / mul)).
-    pub fn get_commutative_set(&self, wire: ArithWire) -> Result<CommutativeSet, CacheError> {
+    pub fn get_commutative_set(
+        &self,
+        wire: ArithWire<Op, P>,
+    ) -> Result<CommutativeSet<Op>, CacheError<Op, P>> {
         if let Ok(set_type) = wire.try_into() {
             let set = self.get_commutative_vec(&set_type, wire)?;
             Ok(CommutativeSet::new(set, set_type))
@@ -135,33 +132,34 @@ impl ArithWireCache {
     /// Recursive helper for `get_commutative_set`.
     fn get_commutative_vec(
         &self,
-        comm_type: &CommutativeOps,
-        wire: ArithWire,
-    ) -> Result<Vec<WireID>, CacheError> {
-        let mut set = vec![];
-        if let Ok(set_type) = <ArithWire as TryInto<CommutativeOps>>::try_into(wire) {
+        comm_type: &CommutativeOps<Op>,
+        wire: ArithWire<Op, P>,
+    ) -> Result<Vec<WireID>, CacheError<Op, P>> {
+        if let Ok(set_type) = <ArithWire<Op, P> as TryInto<CommutativeOps<Op>>>::try_into(wire) {
             if &set_type == comm_type {
-                for operand in wire.inputs() {
-                    let wire_ = self
-                        .wires
+                return wire.inputs().try_fold(vec![], |mut set, operand| {
+                    self.wires
                         .get_by_left(&operand)
-                        .ok_or(CacheError::OperandNotInCache)?;
-                    let xs = self.get_commutative_vec(comm_type, *wire_)?;
-                    set.push(if xs.is_empty() { vec![operand] } else { xs });
-                }
+                        .ok_or(CacheError::OperandNotInCache)
+                        .and_then(|&wire_| self.get_commutative_vec(comm_type, wire_))
+                        .map(|xs| {
+                            set.extend(if xs.is_empty() { vec![operand] } else { xs });
+                            set
+                        })
+                });
             }
         }
-        Ok(set.iter().flatten().copied().collect())
+        Ok(vec![])
     }
 
     // bit typechecking -------------------------------------------------------
 
     /// Set a wire as a bit, marking it for boolean constraint generation.
-    pub fn set_bit(&mut self, id: WireID) -> Result<(), CacheError> {
+    pub fn set_bit(&mut self, id: WireID) -> Result<(), CacheError<Op, P>> {
         self.set_bit_(id, true)
     }
 
-    fn set_bit_(&mut self, id: WireID, gen_constraint: bool) -> Result<(), CacheError> {
+    fn set_bit_(&mut self, id: WireID, gen_constraint: bool) -> Result<(), CacheError<Op, P>> {
         match self.to_arith(id) {
             Some(w) => match w {
                 ArithWire::Input(_) => {
@@ -169,7 +167,7 @@ impl ArithWireCache {
                     Ok(())
                 }
                 ArithWire::Constant(b) => {
-                    if b != Scalar::ZERO && b != Scalar::ONE {
+                    if b != Scalar::<P>::ZERO && b != Scalar::<P>::ONE {
                         return Err(BitError::ScalarIsNotBit(b).into());
                     }
                     Ok(())
@@ -177,9 +175,9 @@ impl ArithWireCache {
                 ArithWire::AddGate(_, _)
                 | ArithWire::MulGate(_, _)
                 | ArithWire::Lookup(_, _, _) => {
-                    for operand in w.inputs() {
+                    w.inputs().for_each(|operand| {
                         let _ = self.set_bit_(operand, false);
-                    }
+                    });
                     self.bit_wires.insert(id, gen_constraint);
                     Ok(())
                 }
@@ -192,12 +190,12 @@ impl ArithWireCache {
         match self.to_arith(id) {
             Some(w) => match w {
                 ArithWire::Input(_) => self.bit_wires.contains_key(&id),
-                ArithWire::Constant(b) => b == Scalar::ZERO || b == Scalar::ONE,
+                ArithWire::Constant(b) => b == Scalar::<P>::ZERO || b == Scalar::<P>::ONE,
                 ArithWire::AddGate(_, _)
                 | ArithWire::MulGate(_, _)
-                | ArithWire::Lookup(_, _, _) => !w.inputs().iter().any(|&operand| {
-                    !self.bit_wires.contains_key(&operand) && !self.is_bit(operand)
-                }),
+                | ArithWire::Lookup(_, _, _) => !w
+                    .inputs()
+                    .any(|operand| !self.bit_wires.contains_key(&operand) && !self.is_bit(operand)),
             },
             None => false,
         }
@@ -210,57 +208,62 @@ impl ArithWireCache {
 
 #[cfg(test)]
 mod tests {
+    use ark_pallas::PallasConfig;
+    use halo_accumulation::group::PallasScalar;
+
+    use crate::arithmetizer::plookup::opsets::EmptyOpSet;
+
     use super::*;
 
     #[test]
     fn insert_wire() {
-        let mut cache = ArithWireCache::new();
-        let wire = ArithWire::Constant(Scalar::ZERO);
+        let mut cache = ArithWireCache::<EmptyOpSet, PallasConfig>::new();
+        let wire = ArithWire::Constant(PallasScalar::ZERO);
         let id = cache.insert_wire(wire);
         assert_eq!(id, 0);
         assert_eq!(
             cache.wires.get_by_left(&0),
-            Some(&ArithWire::Constant(Scalar::ZERO))
+            Some(&ArithWire::Constant(PallasScalar::ZERO))
         );
         let id = cache.insert_wire(wire);
         assert_eq!(id, 1);
         assert_eq!(
             cache.wires.get_by_left(&1),
-            Some(&ArithWire::Constant(Scalar::ZERO))
+            Some(&ArithWire::Constant(PallasScalar::ZERO))
         );
     }
 
     #[test]
     fn get_const_id() {
-        let mut cache = ArithWireCache::new();
-        let id = cache.get_const_id(Scalar::ZERO);
+        let mut cache = ArithWireCache::<EmptyOpSet, PallasConfig>::new();
+        let id = cache.get_const_id(PallasScalar::ZERO);
         assert_eq!(id, 0);
         assert_eq!(
             cache.wires.get_by_left(&0),
-            Some(&ArithWire::Constant(Scalar::ZERO))
+            Some(&ArithWire::Constant(PallasScalar::ZERO))
         );
-        let id = cache.get_const_id(Scalar::ZERO);
+        let id = cache.get_const_id(PallasScalar::ZERO);
         assert_eq!(id, 0);
         assert_eq!(
             cache.wires.get_by_left(&0),
-            Some(&ArithWire::Constant(Scalar::ZERO))
+            Some(&ArithWire::Constant(PallasScalar::ZERO))
         );
     }
 
     #[test]
     fn get_id() {
-        let mut cache = ArithWireCache::new();
-        let id = cache.get_id(ArithWire::Constant(Scalar::ZERO));
+        let mut cache = ArithWireCache::<EmptyOpSet, PallasConfig>::new();
+        let id = cache.get_id(ArithWire::Constant(PallasScalar::ZERO));
         assert_eq!(id, 0);
         assert_eq!(
             cache.wires.get_by_left(&0),
-            Some(&ArithWire::Constant(Scalar::ZERO))
+            Some(&ArithWire::Constant(PallasScalar::ZERO))
         );
-        let id = cache.get_id(ArithWire::Constant(Scalar::ZERO));
+        let id = cache.get_id(ArithWire::Constant(PallasScalar::ZERO));
         assert_eq!(id, 0);
         assert_eq!(
             cache.wires.get_by_left(&0),
-            Some(&ArithWire::Constant(Scalar::ZERO))
+            Some(&ArithWire::Constant(PallasScalar::ZERO))
         );
     }
 }

@@ -1,138 +1,134 @@
 use super::{value::Value, ConstraintID, Constraints, Pos, Trace};
 use crate::{
-    arithmetizer::{plookup::TableRegistry, PlookupEvsThunk},
+    arithmetizer::{
+        plookup::{opsets::EmptyOpSet, TableRegistry},
+        PlookupEvsThunk,
+    },
     circuit::{Circuit, CircuitPrivate, CircuitPublic},
-    scheme::Slots,
-    utils::poly::batch_interpolate,
+    scheme::{Selectors, Slots, Terms},
+    utils::{misc::EnumIter, poly::batch_interpolate, Evals, Point, Poly},
 };
 
-use halo_accumulation::{
-    group::{PallasPoint, PallasPoly},
-    pcdl,
-};
-
+use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_poly::Polynomial;
+use halo_accumulation::pcdl;
+
 use std::collections::HashMap;
 
-type Poly = PallasPoly;
+pub type TraceDeconstructed<P: SWCurveConfig> = (
+    usize,
+    Vec<Constraints<P>>,
+    [Vec<Pos>; Slots::COUNT],
+    TableRegistry<P>,
+);
 
-impl
-    From<(
-        usize,
-        Vec<Constraints>,
-        [Vec<Pos>; Slots::COUNT],
-        TableRegistry,
-    )> for Trace
-{
-    fn from(
-        (d, constraints, permutation_vals, table): (
-            usize,
-            Vec<Constraints>,
-            [Vec<Pos>; Slots::COUNT],
-            TableRegistry,
-        ),
-    ) -> Self {
+impl<P: SWCurveConfig> From<TraceDeconstructed<P>> for Trace<P> {
+    fn from((d, constraints, permutation_vals, table): TraceDeconstructed<P>) -> Self {
         let mut permutation = HashMap::new();
         for (slot_i, perms) in permutation_vals.iter().enumerate() {
-            let slot = Slots::from(slot_i);
+            let slot = Slots::un_id(slot_i);
             for (i_, pos) in perms.iter().enumerate() {
                 let i = (i_ + 1) as ConstraintID;
                 permutation.insert(Pos::new(slot, i), *pos);
             }
         }
-        Trace {
+        Self {
             d,
             h: Default::default(),
             evals: Default::default(),
             constraints,
             permutation,
             table,
+            _marker: std::marker::PhantomData,
         }
     }
 }
 
-impl From<Trace> for Circuit {
-    fn from(eval: Trace) -> Self {
+impl<P: SWCurveConfig> From<Trace<P>> for Circuit<P> {
+    fn from(eval: Trace<P>) -> Self {
         let d = eval.d;
-        let (ws_cache, qs_cache, pip_cache) = eval.gate_polys();
-        let (is_cache, ps_cache) = eval.copy_constraints();
-        let ws = batch_interpolate(ws_cache.clone());
-        let qs = batch_interpolate(qs_cache);
-        let pip = pip_cache.interpolate();
-        let is = batch_interpolate(is_cache.clone());
-        let ps = batch_interpolate(ps_cache.clone());
+        let _ts = eval.gate_polys();
+        let (_is, _ps) = eval.copy_constraints();
+        let ts: Vec<Poly<P>> = batch_interpolate(_ts.clone());
+        let is: Vec<Poly<P>> = batch_interpolate(_is.clone());
+        let ps: Vec<Poly<P>> = batch_interpolate(_ps.clone());
 
-        let pip_com = pcdl::commit(&pip, d, None);
-        let qs_coms: Vec<PallasPoint> = qs.iter().map(|q| pcdl::commit(q, eval.d, None)).collect();
-        let ps_coms: Vec<PallasPoint> = (0..Slots::COUNT)
+        let pip_com: Point<P> = pcdl::commit(&ts[Terms::PublicInputs.id()], d, None);
+        let qs_com: Vec<Point<P>> = ts[Slots::COUNT..Slots::COUNT + Selectors::COUNT]
+            .iter()
+            .map(|q| pcdl::commit(q, eval.d, None))
+            .collect();
+        let ps_com: Vec<Point<P>> = (0..Slots::COUNT)
             .map(|i| pcdl::commit(&ps[i], eval.d, None))
             .collect();
 
-        ws.iter()
-            .chain(qs.iter())
+        ts.iter()
             .chain(ps.iter())
-            .for_each(|p: &Poly| assert!(p.degree() <= d));
+            .chain(is.iter())
+            .for_each(|p: &Poly<P>| assert!(p.degree() <= d));
 
+        let pip: Poly<P> = ts[Terms::PublicInputs.id()].clone();
+        let ws: Vec<Poly<P>> = ts[..Slots::COUNT].to_vec();
+        let _ws: Vec<Evals<P>> = _ts[..Slots::COUNT].to_vec();
+        let qs: Vec<Poly<P>> = ts[Slots::COUNT..Slots::COUNT + Selectors::COUNT].to_vec();
         let x = CircuitPublic {
             d: eval.d,
             h: eval.h,
-            pip_com,
-            qs_coms,
-            ps_coms,
-            pip,
             qs,
+            pip,
             is,
-            is_cache,
+            _is,
             ps,
-            ps_cache,
+            _ps,
+            pip_com,
+            qs_com,
+            ps_com,
         };
         let w = CircuitPrivate {
             ws,
-            ws_cache,
+            _ws,
             plookup: PlookupEvsThunk::new(eval.constraints, eval.table),
         };
         (x, w)
     }
 }
 
-impl From<Circuit> for Trace {
-    fn from((x, w): Circuit) -> Self {
+impl<P: SWCurveConfig> From<Circuit<P>> for Trace<P> {
+    fn from((x, w): Circuit<P>) -> Self {
         let h = &x.h;
-        let mut m = h.n();
-        let mut expected_constraints: Vec<Constraints> = vec![];
-        for i in 1..m {
-            let wi = &h.w(i);
-            let polys =
-                w.ws.iter()
-                    .chain(x.qs.iter())
-                    .chain(std::iter::once(&x.pip));
-            let vs = polys
-                .map(|p| Value::AnonWire(p.evaluate(wi)))
-                .collect::<Vec<Value>>()
-                .try_into()
-                .unwrap();
-            let c = Constraints::new(vs);
-            if c == Constraints::default() {
-                m = i;
-                break;
-            }
-            expected_constraints.push(Constraints::new(vs));
-            // construct Constraints
-        }
+        let (expected_constraints, m) = h
+            .iter()
+            .try_fold((vec![], h.n()), |(mut acc, m), i| {
+                let c = Constraints::new(
+                    w.ws.iter()
+                        .chain(x.qs.iter())
+                        .chain(std::iter::once(&x.pip))
+                        .map(|p| Value::AnonWire(p.evaluate(&h.w(i))))
+                        .collect::<Vec<_>>()
+                        .try_into()
+                        .unwrap(),
+                );
+                if c == Constraints::default() {
+                    Err((acc, i))
+                } else {
+                    acc.push(c);
+                    Ok((acc, m))
+                }
+            })
+            .unwrap_or_else(|res| res);
 
         let mut expected_permutation: [Vec<Pos>; Slots::COUNT] = [vec![], vec![], vec![]];
-        for i in 1..m {
+        (1..m).for_each(|i| {
             let wi = &h.w(i);
-            for slot in Slots::iter() {
-                let y = x.ps[slot as usize].evaluate(wi);
-                if let Some(pos) = Pos::from_scalar(y, h) {
-                    expected_permutation[slot as usize].push(pos);
+            Slots::iter().for_each(|slot| {
+                if let Some(pos) = Pos::from_scalar(x.ps[slot.id()].evaluate(wi), h) {
+                    expected_permutation[slot.id()].push(pos);
                 }
-            }
-            // if not exceeded then the permutation evaluations are valid
-        }
+            });
+        });
 
-        let table = TableRegistry::new();
+        // TODO use IVC table eventually
+        let table = TableRegistry::new::<EmptyOpSet>();
         (x.d, expected_constraints, expected_permutation, table).into()
     }
 }

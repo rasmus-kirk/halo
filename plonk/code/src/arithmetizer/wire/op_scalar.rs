@@ -1,4 +1,6 @@
-use halo_accumulation::group::PallasScalar;
+use ark_ec::short_weierstrass::SWCurveConfig;
+
+use crate::{arithmetizer::plookup::PlookupOps, utils::Scalar};
 
 use super::{ast::WireAST, Wire};
 
@@ -7,15 +9,13 @@ use std::{
     rc::Rc,
 };
 
-type Scalar = PallasScalar;
-
 // Add ------------------------------------------------------------------------
 
-impl<T> Add<T> for Wire
+impl<Op: PlookupOps, P: SWCurveConfig, T> Add<T> for Wire<Op, P>
 where
-    T: Into<Scalar> + Copy,
+    T: Into<Scalar<P>> + Copy,
 {
-    type Output = Wire;
+    type Output = Self;
 
     fn add(self, other: T) -> Self::Output {
         Wire {
@@ -28,11 +28,11 @@ where
 
 // Sub ------------------------------------------------------------------------
 
-impl<T> Sub<T> for Wire
+impl<Op: PlookupOps, P: SWCurveConfig, T> Sub<T> for Wire<Op, P>
 where
-    T: Into<Scalar> + Copy,
+    T: Into<Scalar<P>> + Copy,
 {
-    type Output = Wire;
+    type Output = Self;
 
     fn sub(self, other: T) -> Self::Output {
         Wire {
@@ -49,11 +49,11 @@ where
 
 // Mul ------------------------------------------------------------------------
 
-impl<T> Mul<T> for Wire
+impl<Op: PlookupOps, P: SWCurveConfig, T> Mul<T> for Wire<Op, P>
 where
-    T: Into<Scalar> + Copy,
+    T: Into<Scalar<P>> + Copy,
 {
-    type Output = Wire;
+    type Output = Self;
 
     fn mul(self, other: T) -> Self::Output {
         Wire {
@@ -70,11 +70,11 @@ where
 
 // Div ------------------------------------------------------------------------
 
-impl<T> Div<T> for Wire
+impl<Op: PlookupOps, P: SWCurveConfig, T> Div<T> for Wire<Op, P>
 where
-    T: Into<Scalar> + Copy,
+    T: Into<Scalar<P>> + Copy,
 {
-    type Output = Wire;
+    type Output = Self;
 
     fn div(self, other: T) -> Self::Output {
         Wire {
