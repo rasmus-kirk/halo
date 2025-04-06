@@ -113,16 +113,10 @@ where
     let f_gc = &EqnsF::<P>::plonkup_eqn(zeta, &w.ws, &x.qs, &x.pip, &p.f);
     info!("Round 4C - {} s", now.elapsed().as_secs_f64());
     // F_Z1(X) = L₁(X) (Z(X) - 1)
-    let fcc_z1 = &eqns::grand_product1(
-        deg0::<P>(Scalar::<P>::ONE),
-        zcc,
-        &poly::lagrange_basis(&x.h, 1),
-    );
-    let fpl_z1 = &eqns::grand_product1(
-        deg0::<P>(Scalar::<P>::ONE),
-        zpl,
-        &poly::lagrange_basis(&x.h, 1),
-    );
+    let onepoly = &deg0::<P>(Scalar::<P>::ONE);
+    let l1poly = &poly::lagrange_basis(&x.h, 1);
+    let fcc_z1 = &eqns::grand_product1(onepoly, zcc, l1poly);
+    let fpl_z1 = &eqns::grand_product1(onepoly, zpl, l1poly);
     info!("Round 4D - {} s", now.elapsed().as_secs_f64());
     // F_Z2(X) = Z(X)f'(X) - g'(X)Z(ω X)
     let fcc_z2 = &eqns::grand_product2(zcc, &zfcc, &zgcc, zcc_bar);
