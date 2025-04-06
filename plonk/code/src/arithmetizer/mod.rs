@@ -30,7 +30,7 @@ use std::{cell::RefCell, rc::Rc};
 /// A unique identifier for a wire in the circuit.
 type WireID = usize;
 
-pub type PallasArithmetizer<Op: PlookupOps = EmptyOpSet> = Arithmetizer<Op, PallasConfig>;
+pub type PallasArithmetizer<Op = EmptyOpSet> = Arithmetizer<Op, PallasConfig>;
 pub type PallasEmptyArith = PallasArithmetizer<EmptyOpSet>;
 pub type PallasBitArith = PallasArithmetizer<BinXorOr>;
 

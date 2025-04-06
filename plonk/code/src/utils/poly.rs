@@ -4,7 +4,7 @@ use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::{AdditiveGroup, Field};
 use ark_poly::{DenseUVPolynomial, Polynomial};
 
-use super::{misc::batch_op, Evals, Point, Poly, Scalar};
+use super::{misc::batch_op, Evals, Poly, Scalar};
 
 pub fn batch_interpolate<P: SWCurveConfig>(es: Vec<Evals<P>>) -> Vec<Poly<P>> {
     batch_op(es, |e| e.interpolate())

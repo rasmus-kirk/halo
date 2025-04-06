@@ -12,11 +12,10 @@ use crate::{
 
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_poly::Polynomial;
-use halo_accumulation::pcdl;
 
 use std::collections::HashMap;
 
-pub type TraceDeconstructed<P: SWCurveConfig> = (
+pub type TraceDeconstructed<P> = (
     usize,
     Vec<Constraints<P>>,
     [Vec<Pos>; Slots::COUNT],

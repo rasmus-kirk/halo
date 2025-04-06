@@ -7,11 +7,12 @@ use super::{
 use crate::{
     circuit::{CircuitPrivate, CircuitPublic},
     pcs::PCS,
+    protocol::grandproduct::GrandProduct,
     scheme::eqns,
     utils::{
         self,
         poly::{self, deg0},
-        Evals, Point, Poly, Scalar,
+        Poly, Scalar,
     },
 };
 
@@ -35,7 +36,7 @@ where
     // -------------------- Round 1 --------------------
 
     let now = Instant::now();
-    let ws_coms: Vec<Point<P>> = PCST::batch_commit(&w.ws, x.d, None);
+    let ws_coms = PCST::batch_commit(&w.ws, x.d, None);
     transcript.append_points(b"abc", &ws_coms);
     info!("Round 1 took {} s", now.elapsed().as_secs_f64());
 
@@ -97,22 +98,16 @@ where
             * _pl(p._h2[i], p._h1_bar[i])
     };
 
-    // Z(ω) = 1
-    // Z(ωⁱ) = Z(ωᶦ⁻¹) f'(ωᶦ⁻¹) / g'(ωᶦ⁻¹)
+    // Z(1) = 1, Z(ω) = 1, Z(ωⁱ) = Z(ωᶦ⁻¹) f'(ωᶦ⁻¹) / g'(ωᶦ⁻¹)
     info!("Round 3 - A - {} s", now.elapsed().as_secs_f64());
-    let z_points = x.h.iter().fold(vec![Scalar::<P>::ONE; 2], |mut acc, _i| {
-        let i = _i as usize;
-        acc.push(acc[i] * _zf(i) / _zg(i));
-        acc
-    });
+    let z_cache = GrandProduct::<P>::evals(&x.h, _zf, _zg);
     info!("Round 3 - B - {} s", now.elapsed().as_secs_f64());
-    let z_cache = Evals::<P>::from_vec_and_domain(z_points, x.h.domain);
     let z = &z_cache.clone().interpolate();
     info!("Round 3 - C - {} s", now.elapsed().as_secs_f64());
     // Z(ω X)
     let z_bar = &poly::shift_wrap_eval(&x.h, z_cache).interpolate();
     info!("Round 3 - D - {} s", now.elapsed().as_secs_f64());
-    let z_com: Point<P> = PCST::commit(z, x.d, None);
+    let z_com = PCST::commit(z, x.d, None);
     transcript.append_point(b"z", &z_com);
     info!("Round 3 took {} s", now.elapsed().as_secs_f64());
 
@@ -131,7 +126,7 @@ where
     info!("Round 4C - {} s", now.elapsed().as_secs_f64());
     // let f_z1 = &(poly::lagrange_basis(&x.h, 1) * (z - deg0(PallasScalar::ONE)));
     let f_z1 = &eqns::grand_product1(
-        &deg0::<P>(Scalar::<P>::ONE),
+        deg0::<P>(Scalar::<P>::ONE),
         z,
         &poly::lagrange_basis(&x.h, 1),
     );
@@ -140,13 +135,13 @@ where
     let f_z2 = &eqns::grand_product2(z, &zf, &zg, z_bar);
     // T(X) = (F_GC(X) + α F_C1(X) + α² F_C2(X)) / Zₕ(X)
     info!("Round 4E1 - {} s", now.elapsed().as_secs_f64());
-    let tzh: Poly<P> = utils::geometric_fp::<P, &Poly<P>, Poly<P>, _>(alpha, [f_gc, f_z1, f_z2]);
+    let tzh = utils::geometric_fp::<P, &Poly<P>, Poly<P>, _>(alpha, [f_gc, f_z1, f_z2]);
     info!("Round 4E2 - {} s", now.elapsed().as_secs_f64());
     let (t, _) = tzh.divide_by_vanishing_poly(x.h.coset_domain);
     info!("Round 4E3 - {} s", now.elapsed().as_secs_f64());
     let ts = &poly::split::<P>(x.h.n(), &t);
     info!("Round 4F - {} s", now.elapsed().as_secs_f64());
-    let ts_coms: Vec<Point<P>> = PCST::batch_commit(ts, x.d, None);
+    let ts_coms = PCST::batch_commit(ts, x.d, None);
     info!("Round 4G - {} s", now.elapsed().as_secs_f64());
 
     transcript.append_points(b"t", &ts_coms);
@@ -156,7 +151,7 @@ where
 
     let now = Instant::now();
     // 𝔷 = H(transcript)
-    let ch: Scalar<P> = transcript.challenge_scalar(b"xi");
+    let ch = transcript.challenge_scalar(b"xi");
     let ch_bar = &(ch * x.h.w(1));
     let z_bar_ev = z_bar.evaluate(&ch);
 
@@ -183,7 +178,8 @@ where
 
     // W(X) = Qₗ(X) + vQᵣ(X) + v²Qₒ(X) + v³Qₘ(X) + v⁴Q꜀(X) + v⁵Qₖ(X) + v⁶J(X)
     //      + v⁷A(X) + v⁸B(X) + v⁹C(X) + v¹⁰Z(X)
-    let W: Poly<P> = utils::flat_geometric_fp::<3, P, _, _, _>(v, [&x.qs, &w.ws, &vec![z.clone()]]);
+    let W =
+        utils::flat_geometric_fp::<3, P, &Poly<P>, Poly<P>, _>(v, [&x.qs, &w.ws, &vec![z.clone()]]);
     // WARNING: Possible soundness issue; include plookup polynomials
 
     let (_, _, _, _, W_pi) = PCST::open(rng, W, x.d, &ch, None);

@@ -8,7 +8,11 @@ const SECONDS: u64 = 2;
 
 use ark_std::test_rng;
 use log::info;
-use plonk::{arithmetizer::PallasEmptyArith, protocol};
+use plonk::{
+    arithmetizer::{PallasBitArith, PallasEmptyArith},
+    pcs::PCSPallas,
+    protocol,
+};
 
 // const WARMUP: Duration = Duration::from_millis(100);
 const MIN: usize = 4;
@@ -32,21 +36,26 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
 
         info!("A1");
         let start_time = Instant::now();
-        let output_wires = &PallasEmptyArith::synthesize::<4, _>(rng, 2usize.pow(size as u32) - 2);
+        let output_wires = &PallasBitArith::synthesize::<4, _>(rng, 2usize.pow(size as u32) - 2);
         let rand_circuit_time = start_time.elapsed().as_secs_f32();
         info!("lens: {:?}, {:?}", output_wires.len(), output_wires[0].id());
 
         info!("A2");
         let start_time = Instant::now();
-        let (x, w) =
-            &PallasEmptyArith::to_circuit(rng, input_values, output_wires, Some(d)).unwrap();
+        let (x, w) = &PallasBitArith::to_circuit::<_, _, PCSPallas>(
+            rng,
+            input_values,
+            output_wires,
+            Some(d),
+        )
+        .unwrap();
         let to_circuit_time = start_time.elapsed().as_secs_f32();
 
         info!("A3");
         circuits.push((size, x.clone(), w.clone()));
 
         let start_time = Instant::now();
-        let new_pi = protocol::prove(rng, &x, &w);
+        let new_pi = protocol::prove::<_, PallasConfig, PCSPallas>(rng, &x, &w);
         let new_p_time = start_time.elapsed().as_secs_f32();
         info!("D");
         // new_pis.push(new_pi.clone());
