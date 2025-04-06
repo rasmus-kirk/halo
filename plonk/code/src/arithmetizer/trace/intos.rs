@@ -22,8 +22,8 @@ pub type TraceDeconstructed<P> = (
     TableRegistry<P>,
 );
 
-impl<P: SWCurveConfig, PCST: PCS<P>> From<TraceDeconstructed<P>> for Trace<P, PCST> {
-    fn from((d, constraints, permutation_vals, table): TraceDeconstructed<P>) -> Self {
+impl<P: SWCurveConfig> Trace<P> {
+    pub fn reconstruct((d, constraints, permutation_vals, table): TraceDeconstructed<P>) -> Self {
         let mut permutation = HashMap::new();
         for (slot_i, perms) in permutation_vals.iter().enumerate() {
             let slot = Slots::un_id(slot_i);
@@ -39,16 +39,13 @@ impl<P: SWCurveConfig, PCST: PCS<P>> From<TraceDeconstructed<P>> for Trace<P, PC
             constraints,
             permutation,
             table,
-            _marker: std::marker::PhantomData,
         }
     }
-}
 
-impl<P: SWCurveConfig, PCST: PCS<P>> From<Trace<P, PCST>> for Circuit<P> {
-    fn from(eval: Trace<P, PCST>) -> Self {
-        let d = eval.d;
-        let _ts = eval.gate_polys();
-        let (_is, _ps) = eval.copy_constraints();
+    pub fn to_circuit<PCST: PCS<P>>(self) -> Circuit<P> {
+        let d = self.d;
+        let _ts = self.gate_polys();
+        let (_is, _ps) = self.copy_constraints();
         let ts: Vec<Poly<P>> = batch_interpolate::<P>(_ts.clone());
         let is: Vec<Poly<P>> = batch_interpolate::<P>(_is.clone());
         let ps: Vec<Poly<P>> = batch_interpolate::<P>(_ps.clone());
@@ -56,10 +53,10 @@ impl<P: SWCurveConfig, PCST: PCS<P>> From<Trace<P, PCST>> for Circuit<P> {
         let pip_com: Point<P> = PCST::commit(&ts[Terms::PublicInputs.id()], d, None);
         let qs_com: Vec<Point<P>> = ts[Slots::COUNT..Slots::COUNT + Selectors::COUNT]
             .iter()
-            .map(|q| PCST::commit(q, eval.d, None))
+            .map(|q| PCST::commit(q, self.d, None))
             .collect();
         let ps_com: Vec<Point<P>> = (0..Slots::COUNT)
-            .map(|i| PCST::commit(&ps[i], eval.d, None))
+            .map(|i| PCST::commit(&ps[i], self.d, None))
             .collect();
 
         ts.iter()
@@ -72,8 +69,8 @@ impl<P: SWCurveConfig, PCST: PCS<P>> From<Trace<P, PCST>> for Circuit<P> {
         let _ws: Vec<Evals<P>> = _ts[..Slots::COUNT].to_vec();
         let qs: Vec<Poly<P>> = ts[Slots::COUNT..Slots::COUNT + Selectors::COUNT].to_vec();
         let x = CircuitPublic {
-            d: eval.d,
-            h: eval.h,
+            d: self.d,
+            h: self.h,
             qs,
             pip,
             is,
@@ -87,14 +84,12 @@ impl<P: SWCurveConfig, PCST: PCS<P>> From<Trace<P, PCST>> for Circuit<P> {
         let w = CircuitPrivate {
             ws,
             _ws,
-            plookup: PlookupEvsThunk::new(eval.constraints, eval.table),
+            plookup: PlookupEvsThunk::new(self.constraints, self.table),
         };
         (x, w)
     }
-}
 
-impl<P: SWCurveConfig, PCST: PCS<P>> From<Circuit<P>> for Trace<P, PCST> {
-    fn from((x, w): Circuit<P>) -> Self {
+    pub fn from_circuit((x, w): Circuit<P>) -> Self {
         let h = &x.h;
         let (expected_constraints, m) = h
             .iter()
@@ -129,6 +124,6 @@ impl<P: SWCurveConfig, PCST: PCS<P>> From<Circuit<P>> for Trace<P, PCST> {
 
         // TODO use IVC table eventually
         let table = TableRegistry::new::<EmptyOpSet>();
-        (x.d, expected_constraints, expected_permutation, table).into()
+        Trace::reconstruct((x.d, expected_constraints, expected_permutation, table))
     }
 }

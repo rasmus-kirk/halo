@@ -5,7 +5,7 @@ mod plookupops;
 pub use compute::PlookupEvsThunk;
 pub use plookupops::PlookupOps;
 
-use crate::scheme::eqns::plookup_compress_fp;
+use crate::scheme::eqns::EqnsF;
 use opsets::EmptyOpSet;
 
 use ark_ec::short_weierstrass::SWCurveConfig;
@@ -26,7 +26,7 @@ impl<P: SWCurveConfig> Table<P> {
         let mut res = Vec::new();
         for row in self.0.iter().copied() {
             let [a, b, c] = row;
-            let t = plookup_compress_fp::<_, _, P>(zeta, a, b, c, j);
+            let t = EqnsF::<P>::plookup_compress(zeta, a, b, c, j);
             res.push(t);
         }
         res
@@ -87,7 +87,7 @@ impl<P: SWCurveConfig> TableRegistry<P> {
     ) -> Option<P::ScalarField> {
         let c = self.lookup(op, a, b)?;
         let j = op.to_fp::<P>();
-        Some(plookup_compress_fp::<_, _, P>(zeta, a, b, c, j))
+        Some(EqnsF::<P>::plookup_compress(zeta, a, b, c, j))
     }
 
     /// Total number of entries in all tables

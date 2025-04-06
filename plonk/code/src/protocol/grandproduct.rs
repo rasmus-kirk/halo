@@ -19,8 +19,8 @@ impl<P: SWCurveConfig> GrandProduct<P> {
         F: Fn(usize) -> Scalar<P>,
         G: Fn(usize) -> Scalar<P>,
     {
-        let zf_vals: Vec<_> = h.iter_usize().map(|i| f(i)).collect();
-        let mut zg_vals: Vec<_> = h.iter_usize().map(|i| g(i)).collect();
+        let zf_vals: Vec<_> = h.iter_usize().map(f).collect();
+        let mut zg_vals: Vec<_> = h.iter_usize().map(g).collect();
         Self::batch_inverse(&mut zg_vals);
         let ratios = zf_vals
             .into_iter()
@@ -34,7 +34,7 @@ impl<P: SWCurveConfig> GrandProduct<P> {
             .collect::<Vec<_>>();
         let points = [Scalar::<P>::ONE; 2]
             .into_iter()
-            .chain(points_rest.into_iter())
+            .chain(points_rest)
             .collect();
         Evals::<P>::from_vec_and_domain(points, h.domain)
     }

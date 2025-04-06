@@ -32,28 +32,6 @@ pub fn x<P: SWCurveConfig>() -> Poly<P> {
     vxn::<P>(&Scalar::<P>::ONE, 1)
 }
 
-// /// ∀X ∈ H₀: g(X) = f(aX)
-// pub fn coset_scale(h: &Coset, f: &Poly, a: Scalar) -> Poly {
-//     // Step 1: Get the coset domain scaled by `a`
-//     let coset_domain = h
-//         .coset_domain
-//         .get_coset(h.coset_domain.coset_offset() * a)
-//         .unwrap();
-
-//     // Step 2: Perform FFT on `f` over the coset domain {a * ωᶦ}
-//     let mut evals_new = coset_domain.fft(&f.coeffs);
-//     let evals_new_last = evals_new.pop().unwrap();
-//     evals_new.insert(0, evals_new_last);
-
-//     // Step 3: Perform inverse FFT to interpolate the new polynomial g(X)
-//     Evals::<P>::from_vec_and_domain(evals_new, h.domain).interpolate()
-// }
-
-// /// ∀X ∈ H₀: g(X) = f(ωX)
-// pub fn coset_scale_omega(h: &Coset, f: &Poly) -> Poly {
-//     coset_scale(h, f, h.w(1))
-// }
-
 /// ∀X ∈ H₀: g(X) = f(ωX)
 pub fn shift_wrap_eval<P: SWCurveConfig>(h: &Coset<P>, evals: Evals<P>) -> Evals<P> {
     let mut evals_new = evals.evals;
@@ -78,12 +56,6 @@ pub fn lagrange_basis<P: SWCurveConfig>(h: &Coset<P>, i: u64) -> Poly<P> {
     numerator / denominator
 }
 
-// /// Zₕ(X) = Xⁿ - 1
-// /// such that ∀X ∈ H₀: Zₕ(X) = 0
-// pub fn zh_poly(h: &Coset) -> Poly {
-//     xn_poly(h.n()) - deg0(&Scalar::ONE)
-// }
-
 pub fn batch_evaluate<'a, P: SWCurveConfig, I>(ps: I, x: Scalar<P>) -> Vec<Scalar<P>>
 where
     I: IntoIterator<Item = &'a Poly<P>>,
@@ -99,18 +71,6 @@ mod tests {
     use crate::{scheme::Slots, utils::misc::EnumIter};
 
     use super::*;
-
-    // #[test]
-    // fn zh() {
-    //     let rng = &mut rand::thread_rng();
-    //     let h_opt = Coset::new(rng, 5, Slots::COUNT);
-    //     assert!(h_opt.is_some());
-    //     let h = h_opt.unwrap();
-    //     let zh = zh_poly(&h);
-    //     for i in h.iter() {
-    //         assert_eq!(zh.evaluate(&h.w(i)), Scalar::ZERO);
-    //     }
-    // }
 
     #[test]
     fn lagrange() {

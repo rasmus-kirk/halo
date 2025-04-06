@@ -40,7 +40,6 @@ pub type PallasBitArith = PallasArithmetizer<BinXorOr>;
 pub struct Arithmetizer<Op: PlookupOps = EmptyOpSet, P: SWCurveConfig = PallasConfig> {
     inputs: usize,
     wires: cache::ArithWireCache<Op, P>,
-    _marker: std::marker::PhantomData<P>,
 }
 
 impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
@@ -50,7 +49,6 @@ impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
         Self {
             inputs,
             wires: cache::ArithWireCache::<Op, P>::new(),
-            _marker: std::marker::PhantomData,
         }
     }
 
@@ -81,11 +79,11 @@ impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
         let wires = &output_wires[0].arith().borrow().wires;
         let input_scalars = input_values.into_iter().map(Scalar::<P>::from).collect();
         let output_ids = output_wires.iter().map(Wire::id).collect();
-        Trace::<P, PCST>::new(rng, d, wires, input_scalars, output_ids)
+        Trace::<P>::new(rng, d, wires, input_scalars, output_ids)
             .map_err(ArithmetizerError::EvaluatorError)
             .map(|t| {
                 debug!("\n{}", t);
-                Into::<Circuit<P>>::into(t)
+                t.to_circuit::<PCST>()
             })
     }
 
