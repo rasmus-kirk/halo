@@ -52,7 +52,7 @@ where
 
     // -------------------- Round 5 --------------------
 
-    let ch: Scalar<P> = transcript.challenge_scalar(b"xi");
+    let ch = transcript.challenge_scalar(b"xi");
     let ch_w = ch * x.h.w(1);
     let zh_ev = scalar::zh_ev::<P>(x.h.n(), ch);
     let [ia, ib, ic] = poly::batch_evaluate::<P, _>(&x.is, ch).try_into().unwrap();

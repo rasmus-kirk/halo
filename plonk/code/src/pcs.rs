@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+
 use crate::utils::{misc::batch_op, Point, Poly, Scalar};
 use anyhow::Result;
 use ark_ec::short_weierstrass::SWCurveConfig;

@@ -1,7 +1,6 @@
 #![allow(non_snake_case)]
 
 use ark_ec::short_weierstrass::SWCurveConfig;
-use halo_accumulation::pcdl::EvalProof;
 
 use crate::{
     pcs::PCS,

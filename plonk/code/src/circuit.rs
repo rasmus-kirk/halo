@@ -40,7 +40,7 @@ pub struct CircuitPrivate<P: SWCurveConfig> {
     pub plookup: PlookupEvsThunk<P>,
 }
 
-pub type Circuit<P: SWCurveConfig> = (CircuitPublic<P>, CircuitPrivate<P>);
+pub type Circuit<P> = (CircuitPublic<P>, CircuitPrivate<P>);
 
 pub fn poly_evaluations_to_string<P: SWCurveConfig>(
     x: &CircuitPublic<P>,

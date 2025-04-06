@@ -109,6 +109,10 @@ impl<P: SWCurveConfig> Coset<P> {
         1..self.n
     }
 
+    pub fn iter_usize(&self) -> impl Iterator<Item = usize> {
+        1..self.n as usize
+    }
+
     /// { ωⁱ | 1 ≤ i < n }
     pub fn vec(&self) -> Vec<Scalar<P>> {
         self.iter().map(|i| self.w(i)).collect()
