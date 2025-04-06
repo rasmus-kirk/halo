@@ -19,7 +19,6 @@ use super::{
 };
 
 use crate::{
-    pcs::PCS,
     scheme::{Slots, Terms, MAX_BLIND_TERMS},
     utils::{misc::EnumIter, Evals, Scalar},
     Coset,
@@ -39,17 +38,16 @@ type ConstraintID = u64;
 /// computes the circuit polynomials and permutation polynomials.
 #[derive(Educe)]
 #[educe(Default, Debug, Clone)]
-pub struct Trace<P: SWCurveConfig, PCST: PCS<P>> {
+pub struct Trace<P: SWCurveConfig> {
     h: Coset<P>,
     d: usize,
     evals: HashMap<WireID, Value<P>>,
     permutation: HashMap<Pos, Pos>,
     constraints: Vec<Constraints<P>>,
     table: TableRegistry<P>,
-    _marker: std::marker::PhantomData<PCST>,
 }
 
-impl<P: SWCurveConfig, PCST: PCS<P>> Trace<P, PCST> {
+impl<P: SWCurveConfig> Trace<P> {
     pub fn new<R: Rng, Op: PlookupOps>(
         rng: &mut R,
         d: Option<usize>,
@@ -141,6 +139,7 @@ impl<P: SWCurveConfig, PCST: PCS<P>> Trace<P, PCST> {
     }
 
     // Compute constraint and value for a wire, and update the stack used in eval.
+    #[allow(clippy::type_complexity)]
     fn eval_helper<Op: PlookupOps>(
         &self,
         stack: &mut Vec<WireID>,
@@ -351,7 +350,6 @@ mod tests {
 
     use crate::{
         arithmetizer::{plookup::opsets::EmptyOpSet, Arithmetizer, Wire},
-        circuit::Circuit,
         pcs::PCSPallas,
     };
 
@@ -366,15 +364,14 @@ mod tests {
         // build circuit
 
         let circuit = output_wires[0].arith().borrow();
-        let input_scalars: Vec<PallasScalar> =
-            input_values.into_iter().map(PallasScalar::from).collect();
+        let input_scalars = input_values.into_iter().map(PallasScalar::from).collect();
         let output_ids = output_wires.iter().map(Wire::id).collect();
         let d = (1 << 10) - 1;
         let eval_res = Trace::new(rng, Some(d), &circuit.wires, input_scalars, output_ids);
         assert!(eval_res.is_ok());
         // construct evaluator
 
-        let eval: Trace<PallasConfig, PCSPallas> = eval_res.unwrap();
+        let eval = eval_res.unwrap();
         let expected_constraints = vec![
             Constraints::mul(
                 Value::new_wire(0, PallasScalar::ONE),
@@ -437,18 +434,17 @@ mod tests {
                 Pos::new(Slots::C, 8),
             ],
         ];
-        let expected_eval: Trace<PallasConfig, PCSPallas> = (
+        let expected_eval = Trace::reconstruct((
             d,
             expected_constraints.clone(),
             expected_permutation.clone(),
             TableRegistry::new::<EmptyOpSet>(),
-        )
-            .into();
+        ));
         assert!(eval == expected_eval);
         // structural equality
 
-        let c: Circuit<PallasConfig> = eval.into();
-        let eval2: Trace<PallasConfig, PCSPallas> = c.into();
+        let c = eval.to_circuit::<PCSPallas>();
+        let eval2 = Trace::from_circuit(c);
         assert!(eval2 == expected_eval);
         // plonk structural equality
     }

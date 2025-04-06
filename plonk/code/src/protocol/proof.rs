@@ -8,11 +8,11 @@ use crate::{
     circuit::{CircuitPrivate, CircuitPublic},
     pcs::PCS,
     protocol::grandproduct::GrandProduct,
-    scheme::eqns,
+    scheme::eqns::{self, EqnsF},
     utils::{
         self,
         poly::{self, deg0},
-        Poly, Scalar,
+        Scalar,
     },
 };
 
@@ -120,8 +120,7 @@ where
     // F_GC(X) = A(X)Qₗ(X) + B(X)Qᵣ(X) + C(X)Qₒ(X) + A(X)B(X)Qₘ(X) + Q꜀(X) + PI(X)
     //         + Qₖ(X)(A(X) + ζB(X) + ζ²C(X) + ζ³J(X) - f(X))
     info!("Round 4A - {} s", now.elapsed().as_secs_f64());
-    let f_gc =
-        &eqns::plonkup_eqn_fp::<P, &Poly<P>, Poly<P>, _, _>(zeta, &w.ws, &x.qs, &x.pip, &p.f);
+    let f_gc = &EqnsF::<P>::plonkup_eqn(zeta, &w.ws, &x.qs, &x.pip, &p.f);
     // F_Z1(X) = L₁(X) (Z(X) - 1)
     info!("Round 4C - {} s", now.elapsed().as_secs_f64());
     // let f_z1 = &(poly::lagrange_basis(&x.h, 1) * (z - deg0(PallasScalar::ONE)));
@@ -135,7 +134,7 @@ where
     let f_z2 = &eqns::grand_product2(z, &zf, &zg, z_bar);
     // T(X) = (F_GC(X) + α F_C1(X) + α² F_C2(X)) / Zₕ(X)
     info!("Round 4E1 - {} s", now.elapsed().as_secs_f64());
-    let tzh = utils::geometric_fp::<P, &Poly<P>, Poly<P>, _>(alpha, [f_gc, f_z1, f_z2]);
+    let tzh = EqnsF::<P>::geometric_fp(alpha, [f_gc, f_z1, f_z2]);
     info!("Round 4E2 - {} s", now.elapsed().as_secs_f64());
     let (t, _) = tzh.divide_by_vanishing_poly(x.h.coset_domain);
     info!("Round 4E3 - {} s", now.elapsed().as_secs_f64());
@@ -178,8 +177,7 @@ where
 
     // W(X) = Qₗ(X) + vQᵣ(X) + v²Qₒ(X) + v³Qₘ(X) + v⁴Q꜀(X) + v⁵Qₖ(X) + v⁶J(X)
     //      + v⁷A(X) + v⁸B(X) + v⁹C(X) + v¹⁰Z(X)
-    let W =
-        utils::flat_geometric_fp::<3, P, &Poly<P>, Poly<P>, _>(v, [&x.qs, &w.ws, &vec![z.clone()]]);
+    let W = EqnsF::<P>::flat_geometric_fp(v, [&x.qs, &w.ws, &vec![z.clone()]]);
     // WARNING: Possible soundness issue; include plookup polynomials
 
     let (_, _, _, _, W_pi) = PCST::open(rng, W, x.d, &ch, None);

@@ -1,6 +1,5 @@
 use std::time::{Duration, Instant};
 
-use ark_pallas::PallasConfig;
 use criterion::{criterion_group, criterion_main, Criterion};
 
 const SAMPLE_SIZE: usize = 10;
@@ -8,11 +7,7 @@ const SECONDS: u64 = 2;
 
 use ark_std::test_rng;
 use log::info;
-use plonk::{
-    arithmetizer::{PallasBitArith, PallasEmptyArith},
-    pcs::PCSPallas,
-    protocol,
-};
+use plonk::{arithmetizer::PallasBitArith, pcs::PCSPallas, protocol};
 
 // const WARMUP: Duration = Duration::from_millis(100);
 const MIN: usize = 4;
@@ -55,7 +50,7 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
         circuits.push((size, x.clone(), w.clone()));
 
         let start_time = Instant::now();
-        let new_pi = protocol::prove::<_, PallasConfig, PCSPallas>(rng, &x, &w);
+        let new_pi = protocol::prove::<_, _, PCSPallas>(rng, &x, &w);
         let new_p_time = start_time.elapsed().as_secs_f32();
         info!("D");
         // new_pis.push(new_pi.clone());

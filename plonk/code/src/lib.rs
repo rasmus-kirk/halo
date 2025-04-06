@@ -18,7 +18,6 @@ mod tests {
 
     use super::*;
     use anyhow::Result;
-    use ark_pallas::PallasConfig;
     use circuit::poly_evaluations_to_string;
     use log::debug;
     use protocol;
@@ -42,7 +41,7 @@ mod tests {
         )?;
         debug!("{}", poly_evaluations_to_string(x, w));
         // let _ = plonk::proof(rng, x, w);
-        let pi = protocol::prove::<_, PallasConfig, PCSPallas>(rng, x, w);
+        let pi = protocol::prove::<_, _, PCSPallas>(rng, x, w);
         protocol::verify(x, pi)?;
 
         Ok(())
@@ -62,7 +61,7 @@ mod tests {
         let (x, w) =
             &PallasBitArith::to_circuit::<_, _, PCSPallas>(rng, input_values, output_wires, None)?;
         debug!("\n{}", poly_evaluations_to_string(x, w));
-        let pi = protocol::prove::<_, PallasConfig, PCSPallas>(rng, x, w);
+        let pi = protocol::prove::<_, _, PCSPallas>(rng, x, w);
         protocol::verify(x, pi)?;
 
         Ok(())
@@ -85,7 +84,7 @@ mod tests {
             None,
         )?;
         debug!("{}", poly_evaluations_to_string(x, w));
-        let pi = protocol::prove::<_, PallasConfig, PCSPallas>(rng, x, w);
+        let pi = protocol::prove::<_, _, PCSPallas>(rng, x, w);
         protocol::verify(x, pi)?;
 
         Ok(())

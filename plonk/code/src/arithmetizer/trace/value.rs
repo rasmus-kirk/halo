@@ -54,7 +54,7 @@ impl<P: SWCurveConfig> Value<P> {
         }
     }
 
-    pub fn to_fp_ref(&self) -> Scalar<P> {
+    pub fn ref_to_fp(&self) -> Scalar<P> {
         match self {
             Self::AnonWire(scalar) => *scalar,
             Self::Wire(_, _, scalar) => *scalar,
