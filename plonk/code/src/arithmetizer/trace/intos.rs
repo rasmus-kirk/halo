@@ -5,6 +5,7 @@ use crate::{
         PlookupEvsThunk,
     },
     circuit::{Circuit, CircuitPrivate, CircuitPublic},
+    pcs::PCS,
     scheme::{Selectors, Slots, Terms},
     utils::{misc::EnumIter, poly::batch_interpolate, Evals, Point, Poly},
 };
@@ -22,7 +23,7 @@ pub type TraceDeconstructed<P: SWCurveConfig> = (
     TableRegistry<P>,
 );
 
-impl<P: SWCurveConfig> From<TraceDeconstructed<P>> for Trace<P> {
+impl<P: SWCurveConfig, PCST: PCS<P>> From<TraceDeconstructed<P>> for Trace<P, PCST> {
     fn from((d, constraints, permutation_vals, table): TraceDeconstructed<P>) -> Self {
         let mut permutation = HashMap::new();
         for (slot_i, perms) in permutation_vals.iter().enumerate() {
@@ -44,22 +45,22 @@ impl<P: SWCurveConfig> From<TraceDeconstructed<P>> for Trace<P> {
     }
 }
 
-impl<P: SWCurveConfig> From<Trace<P>> for Circuit<P> {
-    fn from(eval: Trace<P>) -> Self {
+impl<P: SWCurveConfig, PCST: PCS<P>> From<Trace<P, PCST>> for Circuit<P> {
+    fn from(eval: Trace<P, PCST>) -> Self {
         let d = eval.d;
         let _ts = eval.gate_polys();
         let (_is, _ps) = eval.copy_constraints();
-        let ts: Vec<Poly<P>> = batch_interpolate(_ts.clone());
-        let is: Vec<Poly<P>> = batch_interpolate(_is.clone());
-        let ps: Vec<Poly<P>> = batch_interpolate(_ps.clone());
+        let ts: Vec<Poly<P>> = batch_interpolate::<P>(_ts.clone());
+        let is: Vec<Poly<P>> = batch_interpolate::<P>(_is.clone());
+        let ps: Vec<Poly<P>> = batch_interpolate::<P>(_ps.clone());
 
-        let pip_com: Point<P> = pcdl::commit(&ts[Terms::PublicInputs.id()], d, None);
+        let pip_com: Point<P> = PCST::commit(&ts[Terms::PublicInputs.id()], d, None);
         let qs_com: Vec<Point<P>> = ts[Slots::COUNT..Slots::COUNT + Selectors::COUNT]
             .iter()
-            .map(|q| pcdl::commit(q, eval.d, None))
+            .map(|q| PCST::commit(q, eval.d, None))
             .collect();
         let ps_com: Vec<Point<P>> = (0..Slots::COUNT)
-            .map(|i| pcdl::commit(&ps[i], eval.d, None))
+            .map(|i| PCST::commit(&ps[i], eval.d, None))
             .collect();
 
         ts.iter()
@@ -93,7 +94,7 @@ impl<P: SWCurveConfig> From<Trace<P>> for Circuit<P> {
     }
 }
 
-impl<P: SWCurveConfig> From<Circuit<P>> for Trace<P> {
+impl<P: SWCurveConfig, PCST: PCS<P>> From<Circuit<P>> for Trace<P, PCST> {
     fn from((x, w): Circuit<P>) -> Self {
         let h = &x.h;
         let (expected_constraints, m) = h

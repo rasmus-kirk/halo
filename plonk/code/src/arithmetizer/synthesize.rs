@@ -4,7 +4,6 @@ use super::{plookup::PlookupOps, Arithmetizer, Wire};
 
 use ark_ec::short_weierstrass::SWCurveConfig;
 
-use log::info;
 use rand::{distributions::Standard, prelude::Distribution, Rng};
 
 impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
@@ -12,7 +11,6 @@ impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
     where
         Standard: Distribution<Scalar<P>>,
     {
-        info!("[A]: Remaining stack - {:?}", stacker::remaining_stack());
         let wires: Vec<Wire<Op, P>> = Self::build::<M>().into();
 
         let mut cur = wires[rng.gen_range(0..M)].clone();
@@ -37,7 +35,6 @@ impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
                 }
             };
         }
-        info!("[B]: Remaining stack - {:?}", stacker::remaining_stack());
 
         [cur]
     }

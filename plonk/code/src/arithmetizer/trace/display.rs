@@ -1,5 +1,6 @@
 use super::{ConstraintID, Pos, Trace};
 use crate::{
+    pcs::PCS,
     scheme::{Slots, Terms},
     utils::misc::EnumIter,
     Coset,
@@ -9,7 +10,7 @@ use ark_ec::short_weierstrass::SWCurveConfig;
 use ascii_table::{Align, AsciiTable};
 use std::fmt::{self, Display};
 
-impl<P: SWCurveConfig> Trace<P> {
+impl<P: SWCurveConfig, PCST: PCS<P>> Trace<P, PCST> {
     /// Get the debugging table data for the evaluator.
     fn table_data(&self) -> Vec<Vec<String>> {
         self.constraints
@@ -36,7 +37,7 @@ impl<P: SWCurveConfig> Trace<P> {
     }
 }
 
-impl<P: SWCurveConfig> Display for Trace<P> {
+impl<P: SWCurveConfig, PCST: PCS<P>> Display for Trace<P, PCST> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut ascii_table = AsciiTable::default();
         ascii_table.column(0).set_header("").set_align(Align::Left);

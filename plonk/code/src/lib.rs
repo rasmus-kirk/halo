@@ -1,6 +1,7 @@
 pub mod arithmetizer;
 pub mod circuit;
 pub mod coset;
+pub mod pcs;
 pub mod protocol;
 mod scheme;
 mod utils;
@@ -11,11 +12,13 @@ pub use coset::Coset;
 mod tests {
     use crate::{
         arithmetizer::{PallasBitArith, PallasEmptyArith},
+        pcs::PCSPallas,
         utils::misc::tests::on_debug,
     };
 
     use super::*;
     use anyhow::Result;
+    use ark_pallas::PallasConfig;
     use circuit::poly_evaluations_to_string;
     use log::debug;
     use protocol;
@@ -31,10 +34,15 @@ mod tests {
             "{}",
             PallasEmptyArith::to_string(&input_values, output_wires)
         );
-        let (x, w) = &PallasEmptyArith::to_circuit(rng, input_values, output_wires, None)?;
+        let (x, w) = &PallasEmptyArith::to_circuit::<_, _, PCSPallas>(
+            rng,
+            input_values,
+            output_wires,
+            None,
+        )?;
         debug!("{}", poly_evaluations_to_string(x, w));
         // let _ = plonk::proof(rng, x, w);
-        let pi = protocol::prove(rng, x, w);
+        let pi = protocol::prove::<_, PallasConfig, PCSPallas>(rng, x, w);
         protocol::verify(x, pi)?;
 
         Ok(())
@@ -51,9 +59,10 @@ mod tests {
             "\n{}",
             PallasBitArith::to_string(&input_values, output_wires)
         );
-        let (x, w) = &PallasBitArith::to_circuit(rng, input_values, output_wires, None)?;
+        let (x, w) =
+            &PallasBitArith::to_circuit::<_, _, PCSPallas>(rng, input_values, output_wires, None)?;
         debug!("\n{}", poly_evaluations_to_string(x, w));
-        let pi = protocol::prove(rng, x, w);
+        let pi = protocol::prove::<_, PallasConfig, PCSPallas>(rng, x, w);
         protocol::verify(x, pi)?;
 
         Ok(())
@@ -69,9 +78,14 @@ mod tests {
             "{}",
             PallasEmptyArith::to_string(&input_values, output_wires)
         );
-        let (x, w) = &PallasEmptyArith::to_circuit(rng, input_values, output_wires, None)?;
+        let (x, w) = &PallasEmptyArith::to_circuit::<_, _, PCSPallas>(
+            rng,
+            input_values,
+            output_wires,
+            None,
+        )?;
         debug!("{}", poly_evaluations_to_string(x, w));
-        let pi = protocol::prove(rng, x, w);
+        let pi = protocol::prove::<_, PallasConfig, PCSPallas>(rng, x, w);
         protocol::verify(x, pi)?;
 
         Ok(())

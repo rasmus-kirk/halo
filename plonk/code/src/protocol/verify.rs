@@ -3,18 +3,23 @@
 use super::{transcript::TranscriptProtocol, Proof};
 use crate::{
     circuit::CircuitPublic,
+    pcs::PCS,
     scheme::eqns,
     utils::{self, poly, scalar, Scalar},
 };
-
-use halo_accumulation::pcdl;
 
 use anyhow::{ensure, Result};
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::Field;
 use merlin::Transcript;
 
-pub fn verify<P: SWCurveConfig>(x: &CircuitPublic<P>, pi: Proof<P>) -> Result<()> {
+pub fn verify<P: SWCurveConfig, PCST: PCS<P>>(
+    x: &CircuitPublic<P>,
+    pi: Proof<P, PCST>,
+) -> Result<()>
+where
+    Transcript: TranscriptProtocol<P>,
+{
     let ev = &pi.ev;
     let com = &pi.com;
     let mut transcript = Transcript::new(b"protocol");
@@ -49,8 +54,8 @@ pub fn verify<P: SWCurveConfig>(x: &CircuitPublic<P>, pi: Proof<P>) -> Result<()
 
     let ch: Scalar<P> = transcript.challenge_scalar(b"xi");
     let ch_w = ch * x.h.w(1);
-    let zh_ev = scalar::zh_ev(x.h.n(), ch);
-    let [ia, ib, ic] = poly::batch_evaluate(&x.is, ch).try_into().unwrap();
+    let zh_ev = scalar::zh_ev::<P>(x.h.n(), ch);
+    let [ia, ib, ic] = poly::batch_evaluate::<P, _>(&x.is, ch).try_into().unwrap();
 
     transcript.append_scalars(b"ws_ev", &ev.ws);
     transcript.append_scalars(b"qs_ev", &ev.qs);
@@ -81,16 +86,20 @@ pub fn verify<P: SWCurveConfig>(x: &CircuitPublic<P>, pi: Proof<P>) -> Result<()
 
     // F_GC(𝔷) = A(𝔷)Qₗ(𝔷) + B(𝔷)Qᵣ(𝔷) + C(𝔷)Qₒ(𝔷) + A(𝔷)B(𝔷)Qₘ(𝔷) + Q꜀(𝔷) + PI(𝔷)
     //         + Qₖ(𝔷)(A(𝔷) + ζB(𝔷) + ζ²C(𝔷) + ζ³J(𝔷) - f(𝔷))
-    let f_gc_ev = eqns::plonkup_eqn_fp(zeta, ev.ws.clone(), ev.qs.clone(), ev.pip, ev.f());
+    let f_gc_ev =
+        eqns::plonkup_eqn_fp::<P, _, _, _, _>(zeta, ev.ws.clone(), ev.qs.clone(), ev.pip, ev.f());
     // F_Z1(𝔷) = L₁(𝔷) (Z(𝔷) - 1)
-    let f_z1_ev = eqns::grand_product1_fp(ev.z, scalar::lagrange_basis1(x.h.n(), x.h.w(1), ch));
+    let f_z1_ev = eqns::grand_product1_fp::<P, _, _>(
+        ev.z,
+        scalar::lagrange_basis1::<P>(x.h.n(), x.h.w(1), ch),
+    );
     // F_Z2(𝔷) = Z(𝔷)f'(𝔷) - g'(𝔷)Z(ω 𝔷)
     let f_z2_ev = eqns::grand_product2(ev.z, zf_ev, zg_ev, ev.z_bar);
 
     // T(𝔷) = (F_GC(𝔷) + α F_CC1(𝔷) + α² F_CC2(𝔷)) / Zₕ(𝔷)
-    let t_ev = utils::geometric_fp(ch.pow([x.h.n()]), ev.ts.clone());
+    let t_ev = utils::geometric_fp::<P, _, _, _>(ch.pow([x.h.n()]), ev.ts.clone());
     ensure!(
-        utils::geometric_fp(alpha, [f_gc_ev, f_z1_ev, f_z2_ev]) == t_ev * zh_ev,
+        utils::geometric_fp::<P, _, _, _>(alpha, [f_gc_ev, f_z1_ev, f_z2_ev]) == t_ev * zh_ev,
         "T(𝔷) ≠ (F_GC(𝔷) + α F_CC1(𝔷) + α² F_CC2(𝔷)) / Zₕ(𝔷)"
     );
 
@@ -98,11 +107,15 @@ pub fn verify<P: SWCurveConfig>(x: &CircuitPublic<P>, pi: Proof<P>) -> Result<()
 
     // W(𝔷) = Qₗ(𝔷) + vQᵣ(𝔷) + v²Qₒ(𝔷) + v³Qₘ(𝔷) + v⁴Q꜀(𝔷) + v⁵Qₖ(𝔷) + v⁶J(𝔷)
     //      + v⁷A(𝔷) + v⁸B(𝔷) + v⁹C(𝔷) + v¹⁰Z(𝔷)
-    let W_com = utils::flat_geometric_fp(v, [x.qs_com.clone(), com.ws.clone(), vec![com.z]]);
-    let W_ev = utils::flat_geometric_fp(v, [ev.qs.clone(), ev.ws.clone(), vec![ev.z]]);
-    pcdl::check(&W_com, x.d, &ch, &W_ev, pi.pis.W)?;
+    let W_com = utils::flat_geometric_fp::<3, P, _, _, _>(
+        v,
+        [x.qs_com.clone(), com.ws.clone(), vec![com.z]],
+    );
+    let W_ev =
+        utils::flat_geometric_fp::<3, P, _, _, _>(v, [ev.qs.clone(), ev.ws.clone(), vec![ev.z]]);
+    PCST::check(&W_com, x.d, &ch, &W_ev, pi.pis.W)?;
     // W'(𝔷) = Z(ω𝔷)
-    pcdl::check(&com.z, x.d, &ch_w, &ev.z_bar, pi.pis.W_bar)?;
+    PCST::check(&com.z, x.d, &ch_w, &ev.z_bar, pi.pis.W_bar)?;
 
     Ok(())
 }
