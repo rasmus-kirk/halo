@@ -6,6 +6,7 @@ use super::{
 };
 use crate::{
     circuit::{CircuitPrivate, CircuitPublic},
+    pcs::PCS,
     scheme::eqns,
     utils::{
         self,
@@ -14,8 +15,6 @@ use crate::{
     },
 };
 
-use halo_accumulation::pcdl::{self, Instance};
-
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::Field;
 use ark_poly::Polynomial;
@@ -23,17 +22,20 @@ use log::{debug, info};
 use merlin::Transcript;
 use std::time::Instant;
 
-pub fn prove<R: rand::Rng, P: SWCurveConfig>(
+pub fn prove<R: rand::Rng, P: SWCurveConfig, PCST: PCS<P>>(
     rng: &mut R,
     x: &CircuitPublic<P>,
     w: &CircuitPrivate<P>,
-) -> Proof<P> {
+) -> Proof<P, PCST>
+where
+    Transcript: TranscriptProtocol<P>,
+{
     let mut transcript = Transcript::new(b"protocol");
     transcript.domain_sep();
     // -------------------- Round 1 --------------------
 
     let now = Instant::now();
-    let ws_coms: Vec<Point<P>> = poly::batch_commit(&w.ws, x.d, None);
+    let ws_coms: Vec<Point<P>> = PCST::batch_commit(&w.ws, x.d, None);
     transcript.append_points(b"abc", &ws_coms);
     info!("Round 1 took {} s", now.elapsed().as_secs_f64());
 
@@ -61,11 +63,11 @@ pub fn prove<R: rand::Rng, P: SWCurveConfig>(
 
     // a + βb + γ
     let _cc = eqns::copy_constraint_term(Into::into, beta, gamma);
-    let cc = eqns::copy_constraint_term(deg0, beta, gamma);
+    let cc = eqns::copy_constraint_term(deg0::<P>, beta, gamma);
     // ε(1 + δ) + a + δb
     let e1d = epsilon * (Scalar::<P>::ONE + delta);
     let _pl = eqns::plookup_term(Into::into, e1d, delta);
-    let pl = eqns::plookup_term(deg0, e1d, delta);
+    let pl = eqns::plookup_term(deg0::<P>, e1d, delta);
     // f'(X) = (A(X) + β Sᵢ₁(X) + γ) (B(X) + β Sᵢ₂(X) + γ) (C(X) + β Sᵢ₃(X) + γ)
     //         (ε(1 + δ) + f(X) + δf(X)) (ε(1 + δ) + t(X) + δt(Xω))
     let zf = cc(w.a(), x.ia())
@@ -110,7 +112,7 @@ pub fn prove<R: rand::Rng, P: SWCurveConfig>(
     // Z(ω X)
     let z_bar = &poly::shift_wrap_eval(&x.h, z_cache).interpolate();
     info!("Round 3 - D - {} s", now.elapsed().as_secs_f64());
-    let z_com: Point<P> = pcdl::commit(z, x.d, None);
+    let z_com: Point<P> = PCST::commit(z, x.d, None);
     transcript.append_point(b"z", &z_com);
     info!("Round 3 took {} s", now.elapsed().as_secs_f64());
 
@@ -123,23 +125,28 @@ pub fn prove<R: rand::Rng, P: SWCurveConfig>(
     // F_GC(X) = A(X)Qₗ(X) + B(X)Qᵣ(X) + C(X)Qₒ(X) + A(X)B(X)Qₘ(X) + Q꜀(X) + PI(X)
     //         + Qₖ(X)(A(X) + ζB(X) + ζ²C(X) + ζ³J(X) - f(X))
     info!("Round 4A - {} s", now.elapsed().as_secs_f64());
-    let f_gc = &eqns::plonkup_eqn_fp(zeta, &w.ws, &x.qs, &x.pip, &p.f);
+    let f_gc =
+        &eqns::plonkup_eqn_fp::<P, &Poly<P>, Poly<P>, _, _>(zeta, &w.ws, &x.qs, &x.pip, &p.f);
     // F_Z1(X) = L₁(X) (Z(X) - 1)
     info!("Round 4C - {} s", now.elapsed().as_secs_f64());
     // let f_z1 = &(poly::lagrange_basis(&x.h, 1) * (z - deg0(PallasScalar::ONE)));
-    let f_z1 = &eqns::grand_product1(&deg0(Scalar::<P>::ONE), z, &poly::lagrange_basis(&x.h, 1));
+    let f_z1 = &eqns::grand_product1(
+        &deg0::<P>(Scalar::<P>::ONE),
+        z,
+        &poly::lagrange_basis(&x.h, 1),
+    );
     // F_Z2(X) = Z(X)f'(X) - g'(X)Z(ω X)
     info!("Round 4D - {} s", now.elapsed().as_secs_f64());
     let f_z2 = &eqns::grand_product2(z, &zf, &zg, z_bar);
     // T(X) = (F_GC(X) + α F_C1(X) + α² F_C2(X)) / Zₕ(X)
     info!("Round 4E1 - {} s", now.elapsed().as_secs_f64());
-    let tzh = utils::geometric_fp(alpha, [f_gc, f_z1, f_z2]);
+    let tzh: Poly<P> = utils::geometric_fp::<P, &Poly<P>, Poly<P>, _>(alpha, [f_gc, f_z1, f_z2]);
     info!("Round 4E2 - {} s", now.elapsed().as_secs_f64());
     let (t, _) = tzh.divide_by_vanishing_poly(x.h.coset_domain);
     info!("Round 4E3 - {} s", now.elapsed().as_secs_f64());
-    let ts = &poly::split(x.h.n(), &t);
+    let ts = &poly::split::<P>(x.h.n(), &t);
     info!("Round 4F - {} s", now.elapsed().as_secs_f64());
-    let ts_coms: Vec<Point<P>> = poly::batch_commit(ts, x.d, None);
+    let ts_coms: Vec<Point<P>> = PCST::batch_commit(ts, x.d, None);
     info!("Round 4G - {} s", now.elapsed().as_secs_f64());
 
     transcript.append_points(b"t", &ts_coms);
@@ -153,13 +160,13 @@ pub fn prove<R: rand::Rng, P: SWCurveConfig>(
     let ch_bar = &(ch * x.h.w(1));
     let z_bar_ev = z_bar.evaluate(&ch);
 
-    let ws_ev = poly::batch_evaluate(&w.ws, ch);
-    let qs_ev = poly::batch_evaluate(&x.qs, ch);
+    let ws_ev = poly::batch_evaluate::<P, _>(&w.ws, ch);
+    let qs_ev = poly::batch_evaluate::<P, _>(&x.qs, ch);
     let pip_ev = x.pip.evaluate(&ch);
-    let ps_ev = poly::batch_evaluate(&x.ps, ch);
-    let ts_ev = poly::batch_evaluate(ts, ch);
+    let ps_ev = poly::batch_evaluate::<P, _>(&x.ps, ch);
+    let ts_ev = poly::batch_evaluate::<P, _>(ts, ch);
     let z_ev = z.evaluate(&ch);
-    let pl_evs = poly::batch_evaluate(p.base_polys(), ch);
+    let pl_evs = poly::batch_evaluate::<P, _>(p.base_polys(), ch);
     let pl_h1_bar_ev = p.h1_bar.evaluate(&ch);
     let pl_t_bar_ev = p.t_bar.evaluate(&ch);
 
@@ -176,14 +183,14 @@ pub fn prove<R: rand::Rng, P: SWCurveConfig>(
 
     // W(X) = Qₗ(X) + vQᵣ(X) + v²Qₒ(X) + v³Qₘ(X) + v⁴Q꜀(X) + v⁵Qₖ(X) + v⁶J(X)
     //      + v⁷A(X) + v⁸B(X) + v⁹C(X) + v¹⁰Z(X)
-    let W: Poly<P> = utils::flat_geometric_fp(v, [&x.qs, &w.ws, &vec![z.clone()]]);
+    let W: Poly<P> = utils::flat_geometric_fp::<3, P, _, _, _>(v, [&x.qs, &w.ws, &vec![z.clone()]]);
     // WARNING: Possible soundness issue; include plookup polynomials
 
-    let (_, _, _, _, W_pi) = Instance::open(rng, W, x.d, &ch, None).into_tuple();
+    let (_, _, _, _, W_pi) = PCST::open(rng, W, x.d, &ch, None);
 
     // W'(X) = Z(ωX)
     let W_bar = z.clone();
-    let (_, _, _, _, W_bar_pi) = Instance::open(rng, W_bar, x.d, ch_bar, None).into_tuple();
+    let (_, _, _, _, W_bar_pi) = PCST::open(rng, W_bar, x.d, ch_bar, None);
 
     debug!(
         "\n{}",

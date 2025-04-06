@@ -19,6 +19,7 @@ use super::{
 };
 
 use crate::{
+    pcs::PCS,
     scheme::{Slots, Terms, MAX_BLIND_TERMS},
     utils::{misc::EnumIter, Evals, Scalar},
     Coset,
@@ -38,17 +39,17 @@ type ConstraintID = u64;
 /// computes the circuit polynomials and permutation polynomials.
 #[derive(Educe)]
 #[educe(Default, Debug, Clone)]
-pub struct Trace<P: SWCurveConfig> {
+pub struct Trace<P: SWCurveConfig, PCST: PCS<P>> {
     h: Coset<P>,
     d: usize,
     evals: HashMap<WireID, Value<P>>,
     permutation: HashMap<Pos, Pos>,
     constraints: Vec<Constraints<P>>,
     table: TableRegistry<P>,
-    _marker: std::marker::PhantomData<P>,
+    _marker: std::marker::PhantomData<PCST>,
 }
 
-impl<P: SWCurveConfig> Trace<P> {
+impl<P: SWCurveConfig, PCST: PCS<P>> Trace<P, PCST> {
     pub fn new<R: Rng, Op: PlookupOps>(
         rng: &mut R,
         d: Option<usize>,
@@ -349,11 +350,9 @@ mod tests {
     use halo_accumulation::group::PallasScalar;
 
     use crate::{
-        arithmetizer::{
-            plookup::opsets::EmptyOpSet,
-            {Arithmetizer, Wire},
-        },
+        arithmetizer::{plookup::opsets::EmptyOpSet, Arithmetizer, Wire},
         circuit::Circuit,
+        pcs::PCSPallas,
     };
 
     use super::*;
@@ -375,7 +374,7 @@ mod tests {
         assert!(eval_res.is_ok());
         // construct evaluator
 
-        let eval = eval_res.unwrap();
+        let eval: Trace<PallasConfig, PCSPallas> = eval_res.unwrap();
         let expected_constraints = vec![
             Constraints::mul(
                 Value::new_wire(0, PallasScalar::ONE),
@@ -438,7 +437,7 @@ mod tests {
                 Pos::new(Slots::C, 8),
             ],
         ];
-        let expected_eval = (
+        let expected_eval: Trace<PallasConfig, PCSPallas> = (
             d,
             expected_constraints.clone(),
             expected_permutation.clone(),
@@ -449,7 +448,7 @@ mod tests {
         // structural equality
 
         let c: Circuit<PallasConfig> = eval.into();
-        let eval2: Trace<PallasConfig> = c.into();
+        let eval2: Trace<PallasConfig, PCSPallas> = c.into();
         assert!(eval2 == expected_eval);
         // plonk structural equality
     }

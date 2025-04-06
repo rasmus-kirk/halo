@@ -18,6 +18,7 @@ pub use wire::Wire;
 
 use crate::{
     circuit::Circuit,
+    pcs::PCS,
     utils::{misc::map_to_alphabet, Scalar},
 };
 
@@ -66,7 +67,7 @@ impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
     }
 
     /// Compute the circuit R where R(x,w) = ⊤.
-    pub fn to_circuit<R: Rng, T>(
+    pub fn to_circuit<R: Rng, T, PCST: PCS<P>>(
         rng: &mut R,
         input_values: Vec<T>,
         output_wires: &[Wire<Op, P>],
@@ -80,7 +81,7 @@ impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
         let wires = &output_wires[0].arith().borrow().wires;
         let input_scalars = input_values.into_iter().map(Scalar::<P>::from).collect();
         let output_ids = output_wires.iter().map(Wire::id).collect();
-        Trace::new(rng, d, wires, input_scalars, output_ids)
+        Trace::<P, PCST>::new(rng, d, wires, input_scalars, output_ids)
             .map_err(ArithmetizerError::EvaluatorError)
             .map(|t| {
                 debug!("\n{}", t);

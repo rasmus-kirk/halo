@@ -1,11 +1,11 @@
 use super::{ConstraintID, Pos, Trace};
-use crate::{arithmetizer::WireID, utils::misc::pair_app};
+use crate::{arithmetizer::WireID, pcs::PCS, utils::misc::pair_app};
 
 use ark_ec::short_weierstrass::SWCurveConfig;
 use bimap::BiMap;
 use std::collections::HashMap;
 
-impl<P: SWCurveConfig> Trace<P> {
+impl<P: SWCurveConfig, PCST: PCS<P>> Trace<P, PCST> {
     fn eq_constraints(&self, other: &Self, enforced_map: &mut BiMap<WireID, WireID>) -> bool {
         if other.constraints.len() != self.constraints.len() {
             return false;
@@ -39,7 +39,7 @@ impl<P: SWCurveConfig> Trace<P> {
     }
 }
 
-impl<P: SWCurveConfig> PartialEq for Trace<P> {
+impl<P: SWCurveConfig, PCST: PCS<P>> PartialEq for Trace<P, PCST> {
     fn eq(&self, other: &Self) -> bool {
         let enforced_map = &mut BiMap::new();
         self.eq_constraints(other, enforced_map)

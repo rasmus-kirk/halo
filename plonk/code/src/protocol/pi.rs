@@ -4,6 +4,7 @@ use ark_ec::short_weierstrass::SWCurveConfig;
 use halo_accumulation::pcdl::EvalProof;
 
 use crate::{
+    pcs::PCS,
     scheme::{Selectors, Slots},
     utils::{misc::EnumIter, Point, Scalar},
 };
@@ -113,15 +114,15 @@ pub struct ProofCommitments<P: SWCurveConfig> {
 
 #[derive(Educe)]
 #[educe(Clone)]
-pub struct EvalProofs {
-    pub W: EvalProof,
-    pub W_bar: EvalProof,
+pub struct EvalProofs<P: SWCurveConfig, PCST: PCS<P>> {
+    pub W: PCST::EvalProof,
+    pub W_bar: PCST::EvalProof,
 }
 
 #[derive(Educe)]
 #[educe(Clone)]
-pub struct Proof<P: SWCurveConfig> {
+pub struct Proof<P: SWCurveConfig, PCST: PCS<P>> {
     pub ev: ProofEvaluations<P>,
     pub com: ProofCommitments<P>,
-    pub pis: EvalProofs,
+    pub pis: EvalProofs<P, PCST>,
 }

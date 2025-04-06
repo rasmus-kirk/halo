@@ -1,7 +1,5 @@
 use crate::Coset;
 
-use halo_accumulation::pcdl;
-
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::{AdditiveGroup, Field};
 use ark_poly::{DenseUVPolynomial, Polynomial};
@@ -91,17 +89,6 @@ where
     I: IntoIterator<Item = &'a Poly<P>>,
 {
     batch_op(ps, |f| f.evaluate(&x))
-}
-
-pub fn batch_commit<'a, P: SWCurveConfig, I>(
-    ps: I,
-    d: usize,
-    w: Option<&Scalar<P>>,
-) -> Vec<Point<P>>
-where
-    I: IntoIterator<Item = &'a Scalar<P>>,
-{
-    batch_op(ps, |f| pcdl::commit(f, d, w))
 }
 
 #[cfg(test)]
