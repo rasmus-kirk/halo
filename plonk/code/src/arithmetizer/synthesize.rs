@@ -15,7 +15,7 @@ impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
 
         let mut cur = wires[rng.gen_range(0..M)].clone();
 
-        while cur.arith().borrow().cache_len() < degree + M {
+        while cur.arith().borrow().cache_len() < degree + M - 1 {
             let branch = rng.gen_range(0..8);
             cur = if branch < 4 {
                 let rng_input = wires[rng.gen_range(0..M)].clone();
