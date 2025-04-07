@@ -29,21 +29,28 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
     // let mut new_pis = Vec::new();
 
     // let mut circuits = Vec::new();
+    const SERIES_COUNT: usize = 5;
     const SAMPLE_SIZE: usize = 6;
-    let mut data: Vec<Vec<f32>> = Vec::with_capacity((MAX - MIN + 1) * 4);
-    for _ in 0..(MAX - MIN + 1) * 4 {
+    let mut data: Vec<Vec<f32>> = Vec::with_capacity((MAX - MIN + 1) * SERIES_COUNT);
+    for _ in 0..(MAX - MIN + 1) * SERIES_COUNT {
         data.push(Vec::with_capacity(SAMPLE_SIZE))
     }
     for i in 0..SAMPLE_SIZE {
         println!("Sample {} / {}", i + 1, SAMPLE_SIZE);
-        println!("|‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|");
-        println!("| n  | gen_circ (s) | to_circ (s)  | Prover (s)   | Verifier (s) |");
-        println!("|====|==============|==============|==============|==============|");
+        println!(
+            "|‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|"
+        );
+        println!(
+            "| n  | gen_circ (s) | to_circ (s)  | Prover (s)   | Verifier (s) | Succ Ver (s) |"
+        );
+        println!(
+            "|====|==============|==============|==============|==============|==============|"
+        );
         for size in MIN..MAX + 1 {
             let d = 2usize.pow(size as u32) - 1;
             let input_values = vec![3, 4, 5, 6];
 
-            let off = (size - MIN) * 4;
+            let off = (size - MIN) * SERIES_COUNT;
             info!("A1");
             let start_time = Instant::now();
             let output_wires = &PallasBitArith::synthesize::<4, _>(rng, d);
@@ -67,23 +74,31 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
             // circuits.push((size, x.clone(), w.clone()));
 
             let start_time = Instant::now();
-            let new_pi = protocol::prove::<_, _, PCSPallas>(rng, &x, &w);
+            let pi = protocol::prove::<_, _, PCSPallas>(rng, &x, &w);
             let new_p_time = start_time.elapsed().as_secs_f32();
             data[off + 2].push(new_p_time);
             info!("D");
             // new_pis.push(new_pi.clone());
 
+            let new_pi = pi.clone();
             let start_time = Instant::now();
-            protocol::verify(&x, new_pi).unwrap();
+            protocol::verify(false, &x, new_pi).unwrap();
             let new_v_time = start_time.elapsed().as_secs_f32();
             data[off + 3].push(new_v_time);
 
+            let start_time = Instant::now();
+            protocol::verify(true, &x, pi).unwrap();
+            let new_v_succ_time = start_time.elapsed().as_secs_f32();
+            data[off + 4].push(new_v_succ_time);
+
             println!(
-                "| {:02} | {:>12.8} | {:>12.8} | {:>12.8} | {:>12.8} |",
-                size, rand_circuit_time, to_circuit_time, new_p_time, new_v_time
+                "| {:02} | {:>12.8} | {:>12.8} | {:>12.8} | {:>12.8} | {:>12.8} |",
+                size, rand_circuit_time, to_circuit_time, new_p_time, new_v_time, new_v_succ_time
             );
         }
-        println!("|____|______________|______________|______________|______________|");
+        println!(
+            "|____|______________|______________|______________|______________|______________|"
+        );
     }
 
     let sqrt_size = (SAMPLE_SIZE as f32).sqrt();
@@ -96,7 +111,7 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
             let error = variance.sqrt() / sqrt_size;
             [mean, error]
         })
-        .chunks(8)
+        .chunks(SERIES_COUNT * 2)
         .into_iter()
         .map(|chunk| chunk.collect())
         .collect();
@@ -171,6 +186,8 @@ fn write_csv(data: &Vec<Vec<f32>>) -> Result<()> {
         "Prover_err",
         "Verifier",
         "Verifier_err",
+        "SuccVerifier",
+        "SuccVerifier_err",
     ])?;
     for (i, row) in data.into_iter().enumerate() {
         let n = i + MIN;

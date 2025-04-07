@@ -25,7 +25,7 @@ use crate::{
 };
 
 use ark_ec::short_weierstrass::SWCurveConfig;
-use ark_ff::{AdditiveGroup, Field};
+use ark_ff::AdditiveGroup;
 use log::info;
 use rand::{distributions::Standard, prelude::Distribution, Rng};
 use std::collections::HashMap;
@@ -316,35 +316,33 @@ impl<P: SWCurveConfig> Trace<P> {
     }
 
     /// Compute the permutation and identity permutation polynomials.
-    fn copy_constraints(&self) -> (Vec<Evals<P>>, Vec<Evals<P>>) {
+    fn copy_constraints(&self) -> Vec<Evals<P>> {
         Slots::iter()
             .map(|slot| {
-                self.h
+                let mut evals: Vec<Scalar<P>> = self
+                    .h
                     .iter()
                     .map(|id| {
                         let pos = Pos::new(slot, id);
-                        let perm = self
-                            .permutation
+                        self.permutation
                             .get(&pos)
                             .unwrap_or(&pos)
-                            .to_scalar(&self.h);
-                        (pos.to_scalar(&self.h), perm)
+                            .to_scalar(&self.h)
                     })
-                    .unzip::<_, _, Vec<_>, Vec<_>>()
+                    .collect();
+                evals = [self.h.ks[slot as usize]]
+                    .into_iter()
+                    .chain(evals)
+                    .collect::<Vec<Scalar<P>>>();
+                Evals::<P>::from_vec_and_domain(evals, self.h.domain)
             })
-            .map(|(id_evs, ss_evs)| {
-                let to_evals = |mut evals: Vec<Scalar<P>>| {
-                    evals.insert(0, Scalar::<P>::ONE);
-                    Evals::<P>::from_vec_and_domain(evals, self.h.domain)
-                };
-                (to_evals(id_evs), to_evals(ss_evs))
-            })
-            .unzip()
+            .collect()
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use ark_ff::Field;
     use ark_pallas::PallasConfig;
     use halo_accumulation::group::PallasScalar;
 

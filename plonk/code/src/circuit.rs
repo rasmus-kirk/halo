@@ -21,7 +21,6 @@ pub struct CircuitPublic<P: SWCurveConfig> {
     pub pip: Poly<P>,
     // identity permutation polynomial
     pub is: Vec<Poly<P>>,
-    pub _is: Vec<Evals<P>>,
     // permutation polynomial
     pub ps: Vec<Poly<P>>,
     pub _ps: Vec<Evals<P>>,
@@ -52,6 +51,7 @@ pub fn poly_evaluations_to_string<P: SWCurveConfig>(
             .chain(x.qs.iter())
             .chain(std::iter::once(&x.pip))
             .chain(x.ps.iter())
+            .chain(x.is.iter())
             .collect();
     for line in evals_str(
         &x.h,
@@ -59,10 +59,11 @@ pub fn poly_evaluations_to_string<P: SWCurveConfig>(
         Terms::iter()
             .map(|t| t.to_string())
             .chain(Slots::iter().map(|slot| slot.perm_string().to_string()))
+            .chain(Slots::iter().map(|slot| slot.perm_string().to_string() + "id"))
             .collect::<Vec<String>>(),
         [false; Terms::COUNT]
             .iter()
-            .chain([true; Slots::COUNT].iter())
+            .chain([true; Slots::COUNT * 2].iter())
             .cloned()
             .collect(),
     )
@@ -148,15 +149,15 @@ impl<P: SWCurveConfig> CircuitPublic<P> {
     }
 
     pub fn _ia(&self, i: usize) -> Scalar<P> {
-        self._is[Slots::A.id()].evals[i]
+        self.h.ks[Slots::A.id()] * self.h.w(i as u64)
     }
 
     pub fn _ib(&self, i: usize) -> Scalar<P> {
-        self._is[Slots::B.id()].evals[i]
+        self.h.ks[Slots::B.id()] * self.h.w(i as u64)
     }
 
     pub fn _ic(&self, i: usize) -> Scalar<P> {
-        self._is[Slots::C.id()].evals[i]
+        self.h.ks[Slots::C.id()] * self.h.w(i as u64)
     }
 
     // Permutation Getters ---------------------------------------------

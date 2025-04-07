@@ -7,7 +7,11 @@ use crate::{
     circuit::{Circuit, CircuitPrivate, CircuitPublic},
     pcs::PCS,
     scheme::{Selectors, Slots, Terms},
-    utils::{misc::EnumIter, poly::batch_interpolate, Evals, Point, Poly},
+    utils::{
+        misc::EnumIter,
+        poly::{self, batch_interpolate},
+        Evals, Point, Poly,
+    },
 };
 
 use ark_ec::short_weierstrass::SWCurveConfig;
@@ -45,9 +49,11 @@ impl<P: SWCurveConfig> Trace<P> {
     pub fn to_circuit<PCST: PCS<P>>(self) -> Circuit<P> {
         let d = self.d;
         let _ts = self.gate_polys();
-        let (_is, _ps) = self.copy_constraints();
+        let _ps = self.copy_constraints();
         let ts: Vec<Poly<P>> = batch_interpolate::<P>(_ts.clone());
-        let is: Vec<Poly<P>> = batch_interpolate::<P>(_is.clone());
+        let is: Vec<Poly<P>> = Slots::iter()
+            .map(|slot| poly::x::<P>() * self.h.ks[slot as usize])
+            .collect();
         let ps: Vec<Poly<P>> = batch_interpolate::<P>(_ps.clone());
 
         let pip_com: Point<P> = PCST::commit(&ts[Terms::PublicInputs.id()], d, None);
@@ -74,7 +80,6 @@ impl<P: SWCurveConfig> Trace<P> {
             qs,
             pip,
             is,
-            _is,
             ps,
             _ps,
             pip_com,

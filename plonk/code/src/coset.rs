@@ -19,7 +19,7 @@ pub struct Coset<P: SWCurveConfig> {
     /// ω:𝔽
     w: Scalar<P>,
     /// k:𝔽
-    ks: Vec<Scalar<P>>,
+    pub ks: Vec<Scalar<P>>,
     pub coset_domain: GeneralEvaluationDomain<Scalar<P>>,
     pub domain: GeneralEvaluationDomain<Scalar<P>>,
 }
