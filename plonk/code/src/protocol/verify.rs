@@ -5,7 +5,7 @@ use crate::{
     circuit::CircuitPublic,
     pcs::PCS,
     scheme::eqns::{self, EqnsF},
-    utils::{poly, scalar, Scalar},
+    utils::{scalar, Scalar},
 };
 
 use anyhow::{ensure, Result};
@@ -14,6 +14,7 @@ use ark_ff::Field;
 use merlin::Transcript;
 
 pub fn verify<P: SWCurveConfig, PCST: PCS<P>>(
+    succint: bool,
     x: &CircuitPublic<P>,
     pi: Proof<P, PCST>,
 ) -> Result<()>
@@ -56,7 +57,7 @@ where
     let ch = transcript.challenge_scalar(b"xi");
     let ch_w = ch * x.h.w(1);
     let zh_ev = scalar::zh_ev::<P>(x.h.n(), ch);
-    let [ia, ib, ic] = poly::batch_evaluate::<P, _>(&x.is, ch).try_into().unwrap();
+    let [ia, ib, ic] = [ch, x.h.ks[1] * ch, x.h.ks[2] * ch];
 
     transcript.append_scalars(b"ws_ev", &ev.ws);
     transcript.append_scalars(b"qs_ev", &ev.qs);
@@ -112,11 +113,11 @@ where
     );
     let W_ev =
         EqnsF::<P>::flat_geometric_fp(v, [ev.qs.clone(), ev.ws.clone(), vec![ev.zcc, ev.zpl]]);
-    PCST::check(&W_com, x.d, &ch, &W_ev, pi.pis.W)?;
+    PCST::check(succint, &W_com, x.d, &ch, &W_ev, pi.pis.W)?;
     // W'(𝔷) = ZCC(ω𝔷) + vZPL(ω𝔷)
     let W_bar_com = EqnsF::<P>::geometric_fp(v, [com.zcc, com.zpl]);
     let W_bar_ev = EqnsF::<P>::geometric_fp(v, [ev.zcc_bar, ev.zpl_bar]);
-    PCST::check(&W_bar_com, x.d, &ch_w, &W_bar_ev, pi.pis.W_bar)?;
+    PCST::check(succint, &W_bar_com, x.d, &ch_w, &W_bar_ev, pi.pis.W_bar)?;
 
     Ok(())
 }

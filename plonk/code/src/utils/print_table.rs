@@ -5,7 +5,6 @@ use super::{
 use crate::{scheme::Slots, Coset};
 
 use ark_ec::short_weierstrass::SWCurveConfig;
-use ark_ff::Field;
 use ark_poly::Polynomial;
 use ascii_table::{Align, AsciiTable};
 
@@ -25,21 +24,16 @@ fn w_str(i: u64) -> String {
 
 /// Util to print Scalars formatted as elements in H otherwise just print the scalar.
 fn v_str<P: SWCurveConfig>(h: &Coset<P>, x: Scalar<P>) -> String {
-    if x == Scalar::<P>::ONE {
-        return Scalar::<P>::ONE.to_string();
-    }
     for slot in Slots::iter() {
-        if x == h.h(slot, 1) {
-            return format!("k{}", to_subscript(slot as u64));
+        for (i, w) in h.ks.iter().enumerate() {
+            if x == *w {
+                return format!("k{}", to_subscript(i as u64));
+            }
         }
         for (i_, w) in h.vec_k(slot).into_iter().enumerate() {
             let i = (i_ + 1) as u64;
             if x == w {
-                return if slot.id() == 0 {
-                    w_str(i)
-                } else {
-                    format!("k{} ω{}", to_subscript(slot as u64), to_superscript(i))
-                };
+                return format!("k{}ω{}", to_subscript(slot as u64), to_superscript(i));
             }
         }
     }

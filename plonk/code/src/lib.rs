@@ -42,7 +42,7 @@ mod tests {
         debug!("{}", poly_evaluations_to_string(x, w));
         // let _ = plonk::proof(rng, x, w);
         let pi = protocol::prove::<_, _, PCSPallas>(rng, x, w);
-        protocol::verify(x, pi)?;
+        protocol::verify(false, x, pi)?;
 
         Ok(())
     }
@@ -62,7 +62,7 @@ mod tests {
             &PallasBitArith::to_circuit::<_, _, PCSPallas>(rng, input_values, output_wires, None)?;
         debug!("\n{}", poly_evaluations_to_string(x, w));
         let pi = protocol::prove::<_, _, PCSPallas>(rng, x, w);
-        protocol::verify(x, pi)?;
+        protocol::verify(false, x, pi)?;
 
         Ok(())
     }
@@ -85,7 +85,7 @@ mod tests {
         )?;
         debug!("{}", poly_evaluations_to_string(x, w));
         let pi = protocol::prove::<_, _, PCSPallas>(rng, x, w);
-        protocol::verify(x, pi)?;
+        protocol::verify(false, x, pi)?;
 
         Ok(())
     }

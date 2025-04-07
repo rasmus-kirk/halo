@@ -12,6 +12,7 @@ pub trait PCS<P: SWCurveConfig> {
 
     fn commit(f: &Poly<P>, d: usize, w: Option<&Scalar<P>>) -> Point<P>;
     fn check(
+        succint: bool,
         C: &Point<P>,
         d: usize,
         z: &Scalar<P>,
@@ -47,12 +48,17 @@ impl PCS<PallasConfig> for PCSPallas {
     }
 
     fn check(
+        succint: bool,
         C: &Point<PallasConfig>,
         d: usize,
         z: &Scalar<PallasConfig>,
         v: &Scalar<PallasConfig>,
         pi: EvalProof,
     ) -> Result<()> {
+        if succint {
+            let _ = pcdl::succinct_check(*C, d, z, v, pi)?;
+            return Ok(());
+        }
         pcdl::check(C, d, z, v, pi)
     }
 
