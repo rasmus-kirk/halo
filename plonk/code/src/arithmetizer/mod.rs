@@ -39,7 +39,7 @@ pub type PallasBitArith = PallasArithmetizer<BinXorOr>;
 #[educe(Debug, Clone, PartialEq)]
 pub struct Arithmetizer<Op: PlookupOps = EmptyOpSet, P: SWCurveConfig = PallasConfig> {
     inputs: usize,
-    wires: cache::ArithWireCache<Op, P>,
+    pub(crate) wires: cache::ArithWireCache<Op, P>,
 }
 
 impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {

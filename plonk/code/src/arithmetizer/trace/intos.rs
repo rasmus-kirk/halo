@@ -52,7 +52,7 @@ impl<P: SWCurveConfig> Trace<P> {
         let _ps = self.copy_constraints();
         let ts: Vec<Poly<P>> = batch_interpolate::<P>(_ts.clone());
         let is: Vec<Poly<P>> = Slots::iter()
-            .map(|slot| poly::x::<P>() * self.h.ks[slot as usize])
+            .map(|slot| poly::x::<P>() * self.h.k(slot))
             .collect();
         let ps: Vec<Poly<P>> = batch_interpolate::<P>(_ps.clone());
 

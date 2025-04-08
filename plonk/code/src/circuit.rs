@@ -149,15 +149,15 @@ impl<P: SWCurveConfig> CircuitPublic<P> {
     }
 
     pub fn _ia(&self, i: usize) -> Scalar<P> {
-        self.h.ks[Slots::A.id()] * self.h.w(i as u64)
+        self.h.h(Slots::A, i as u64)
     }
 
     pub fn _ib(&self, i: usize) -> Scalar<P> {
-        self.h.ks[Slots::B.id()] * self.h.w(i as u64)
+        self.h.h(Slots::B, i as u64)
     }
 
     pub fn _ic(&self, i: usize) -> Scalar<P> {
-        self.h.ks[Slots::C.id()] * self.h.w(i as u64)
+        self.h.h(Slots::C, i as u64)
     }
 
     // Permutation Getters ---------------------------------------------

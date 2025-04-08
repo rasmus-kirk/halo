@@ -19,7 +19,7 @@ pub struct Coset<P: SWCurveConfig> {
     /// ω:𝔽
     w: Scalar<P>,
     /// k:𝔽
-    pub ks: Vec<Scalar<P>>,
+    ks: Vec<Scalar<P>>,
     pub coset_domain: GeneralEvaluationDomain<Scalar<P>>,
     pub domain: GeneralEvaluationDomain<Scalar<P>>,
 }
@@ -102,6 +102,16 @@ impl<P: SWCurveConfig> Coset<P> {
     // Hₛ = { kₛ ωⁱ | 1 ≤ i < n }
     pub fn h<T: EnumIter>(&self, slot: T, i: u64) -> Scalar<P> {
         self.ks[slot.id()] * self.w(i)
+    }
+
+    // kᵢ
+    pub fn k<T: EnumIter>(&self, slot: T) -> Scalar<P> {
+        self.ks[slot.id()]
+    }
+
+    // { kᵢ }
+    pub fn k_iter(&self) -> impl Iterator<Item = &Scalar<P>> {
+        self.ks.iter()
     }
 
     /// [1, n)

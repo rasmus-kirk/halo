@@ -1,6 +1,7 @@
 pub mod arithmetizer;
 pub mod circuit;
 pub mod coset;
+mod gadgets;
 pub mod pcs;
 pub mod protocol;
 mod scheme;

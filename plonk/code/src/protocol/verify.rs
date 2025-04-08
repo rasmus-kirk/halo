@@ -4,7 +4,10 @@ use super::{transcript::TranscriptProtocol, Proof};
 use crate::{
     circuit::CircuitPublic,
     pcs::PCS,
-    scheme::eqns::{self, EqnsF},
+    scheme::{
+        eqns::{self, EqnsF},
+        Slots,
+    },
     utils::{scalar, Scalar},
 };
 
@@ -57,7 +60,7 @@ where
     let ch = transcript.challenge_scalar(b"xi");
     let ch_w = ch * x.h.w(1);
     let zh_ev = scalar::zh_ev::<P>(x.h.n(), ch);
-    let [ia, ib, ic] = [ch, x.h.ks[1] * ch, x.h.ks[2] * ch];
+    let [ia, ib, ic] = [ch, x.h.k(Slots::B) * ch, x.h.k(Slots::C) * ch];
 
     transcript.append_scalars(b"ws_ev", &ev.ws);
     transcript.append_scalars(b"qs_ev", &ev.qs);
