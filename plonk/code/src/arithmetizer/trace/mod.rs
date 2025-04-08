@@ -330,7 +330,7 @@ impl<P: SWCurveConfig> Trace<P> {
                             .to_scalar(&self.h)
                     })
                     .collect();
-                evals = [self.h.ks[slot as usize]]
+                evals = [self.h.k(slot)]
                     .into_iter()
                     .chain(evals)
                     .collect::<Vec<Scalar<P>>>();

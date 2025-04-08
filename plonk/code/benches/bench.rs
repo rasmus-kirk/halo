@@ -17,7 +17,7 @@ use log::info;
 use plonk::{arithmetizer::PallasBitArith, pcs::PCSPallas, protocol};
 
 // const WARMUP: Duration = Duration::from_millis(100);
-const MIN: usize = 13;
+const MIN: usize = 4;
 const MAX: usize = 20;
 
 pub fn plonk_proof_verify(c: &mut Criterion) {
@@ -30,7 +30,7 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
 
     // let mut circuits = Vec::new();
     const SERIES_COUNT: usize = 5;
-    const SAMPLE_SIZE: usize = 6;
+    const SAMPLE_SIZE: usize = 10;
     let mut data: Vec<Vec<f32>> = Vec::with_capacity((MAX - MIN + 1) * SERIES_COUNT);
     for _ in 0..(MAX - MIN + 1) * SERIES_COUNT {
         data.push(Vec::with_capacity(SAMPLE_SIZE))

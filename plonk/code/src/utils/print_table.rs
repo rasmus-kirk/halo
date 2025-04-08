@@ -25,7 +25,7 @@ fn w_str(i: u64) -> String {
 /// Util to print Scalars formatted as elements in H otherwise just print the scalar.
 fn v_str<P: SWCurveConfig>(h: &Coset<P>, x: Scalar<P>) -> String {
     for slot in Slots::iter() {
-        for (i, w) in h.ks.iter().enumerate() {
+        for (i, w) in h.k_iter().enumerate() {
             if x == *w {
                 return format!("k{}", to_subscript(i as u64));
             }
