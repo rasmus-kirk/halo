@@ -19,7 +19,10 @@ where
 
     fn add(self, other: T) -> Self::Output {
         Wire {
-            id: self.arith.borrow_mut().add_const(self.id, other.into()),
+            id: self
+                .arith
+                .borrow_mut()
+                .wire_add_const(self.id, other.into()),
             arith: Rc::clone(&self.arith),
             ast: self.ast.map(|ast| WireAST::add_const(ast, other.into())),
         }
@@ -40,7 +43,7 @@ where
                 .arith
                 .clone()
                 .borrow_mut()
-                .sub_const(self.id, other.into()),
+                .wire_sub_const(self.id, other.into()),
             arith: self.arith,
             ast: self.ast.map(|ast| WireAST::sub_const(ast, other.into())),
         }
@@ -61,7 +64,7 @@ where
                 .arith
                 .clone()
                 .borrow_mut()
-                .mul_const(self.id, other.into()),
+                .wire_mul_const(self.id, other.into()),
             arith: self.arith,
             ast: self.ast.map(|ast| WireAST::mul_const(ast, other.into())),
         }
@@ -82,7 +85,7 @@ where
                 .arith
                 .clone()
                 .borrow_mut()
-                .div_const(self.id, other.into()),
+                .wire_div_const(self.id, other.into()),
             arith: self.arith,
             ast: self.ast.map(|ast| WireAST::div_const(ast, other.into())),
         }

@@ -89,81 +89,81 @@ impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
 
     // operators ----------------------------------------------------------
 
-    pub fn publicize(&mut self, id: WireID) {
+    pub fn wire_publicize(&mut self, id: WireID) {
         self.wires.publicize(id);
     }
 
     /// a + b : 𝔽
-    pub fn add(&mut self, a: WireID, b: WireID) -> WireID {
+    pub fn wire_add(&mut self, a: WireID, b: WireID) -> WireID {
         self.wires.get_id(ArithWire::AddGate(a, b))
     }
 
     /// a b : 𝔽
-    pub fn mul(&mut self, a: WireID, b: WireID) -> WireID {
+    pub fn wire_mul(&mut self, a: WireID, b: WireID) -> WireID {
         self.wires.get_id(ArithWire::MulGate(a, b))
     }
 
     /// a - b : 𝔽
-    pub fn sub(&mut self, a: WireID, b: WireID) -> WireID {
+    pub fn wire_sub(&mut self, a: WireID, b: WireID) -> WireID {
         let neg_one = self.wires.get_const_id(-Scalar::<P>::ONE);
-        let b_ = self.mul(b, neg_one);
-        self.add(a, b_)
+        let b_ = self.wire_mul(b, neg_one);
+        self.wire_add(a, b_)
     }
 
     /// a + b : 𝔽
-    pub fn add_const(&mut self, a: WireID, b: Scalar<P>) -> WireID {
+    pub fn wire_add_const(&mut self, a: WireID, b: Scalar<P>) -> WireID {
         let right = self.wires.get_const_id(b);
         let gate = ArithWire::AddGate(a, right);
         self.wires.get_id(gate)
     }
 
     /// a - b : 𝔽
-    pub fn sub_const(&mut self, a: WireID, b: Scalar<P>) -> WireID {
+    pub fn wire_sub_const(&mut self, a: WireID, b: Scalar<P>) -> WireID {
         let right = self.wires.get_const_id(-b);
         let gate = ArithWire::AddGate(a, right);
         self.wires.get_id(gate)
     }
 
     /// a b : 𝔽
-    pub fn mul_const(&mut self, a: WireID, b: Scalar<P>) -> WireID {
+    pub fn wire_mul_const(&mut self, a: WireID, b: Scalar<P>) -> WireID {
         let right = self.wires.get_const_id(b);
         let gate = ArithWire::MulGate(a, right);
         self.wires.get_id(gate)
     }
 
     /// -a : 𝔽
-    pub fn neg(&mut self, a: WireID) -> WireID {
-        self.mul_const(a, -Scalar::<P>::ONE)
+    pub fn wire_neg(&mut self, a: WireID) -> WireID {
+        self.wire_mul_const(a, -Scalar::<P>::ONE)
     }
 
     /// a / b : 𝔽
-    pub fn div_const(&mut self, a: WireID, b: Scalar<P>) -> WireID {
+    pub fn wire_div_const(&mut self, a: WireID, b: Scalar<P>) -> WireID {
         let right = self.wires.get_const_id(Scalar::<P>::ONE / b);
         let gate = ArithWire::MulGate(a, right);
         self.wires.get_id(gate)
     }
 
     /// Plookup operations
-    pub fn lookup(&mut self, op: Op, a: WireID, b: WireID) -> WireID {
+    pub fn wire_lookup(&mut self, op: Op, a: WireID, b: WireID) -> WireID {
         self.wires.get_id(ArithWire::Lookup(op, a, b))
     }
 
     // boolean operators --------------------------------------------------
 
     /// a : 𝔹
-    pub fn enforce_bit(&mut self, a: WireID) -> Result<(), ArithmetizerError<Op, P>> {
+    pub fn wire_bool(&mut self, a: WireID) -> Result<(), ArithmetizerError<Op, P>> {
         self.wires.set_bit(a).map_err(ArithmetizerError::CacheError)
     }
 
     /// ¬a
-    pub fn not(&mut self, a: WireID) -> WireID {
+    pub fn wire_not(&mut self, a: WireID) -> WireID {
         let one = self.wires.get_const_id(Scalar::<P>::ONE);
-        self.sub(one, a)
+        self.wire_sub(one, a)
     }
 
     /// a ∧ b : 𝔹
-    pub fn and(&mut self, a: WireID, b: WireID) -> WireID {
-        self.mul(a, b)
+    pub fn wire_and(&mut self, a: WireID, b: WireID) -> WireID {
+        self.wire_mul(a, b)
     }
 
     /// a ∨ b : 𝔹
@@ -172,10 +172,10 @@ impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
     /// 1 - (1 - a - b + a b)
     /// 1 - 1 + a + b - a b
     /// a + b - a b
-    pub fn or(&mut self, a: WireID, b: WireID) -> WireID {
-        let a_plus_b = self.add(a, b);
-        let a_b = self.mul(a, b);
-        self.sub(a_plus_b, a_b)
+    pub fn wire_or(&mut self, a: WireID, b: WireID) -> WireID {
+        let a_plus_b = self.wire_add(a, b);
+        let a_b = self.wire_mul(a, b);
+        self.wire_sub(a_plus_b, a_b)
     }
 
     // utils --------------------------------------------------------------
