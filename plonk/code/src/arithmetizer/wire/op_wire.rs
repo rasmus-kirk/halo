@@ -1,9 +1,7 @@
-use ark_ec::short_weierstrass::SWCurveConfig;
-
+use super::{ast::WireAST, Wire};
 use crate::arithmetizer::plookup::{opsets::BinXorOr, PlookupOps};
 
-use super::{ast::WireAST, Wire};
-
+use ark_ec::short_weierstrass::SWCurveConfig;
 use std::ops::{Add, BitAnd, BitOr, BitXor, Mul, Neg, Not, Sub};
 
 // Add ------------------------------------------------------------------------
@@ -13,7 +11,7 @@ impl<Op: PlookupOps, P: SWCurveConfig> Add for Wire<Op, P> {
 
     fn add(self, other: Self) -> Self::Output {
         Wire {
-            id: self.arith.clone().borrow_mut().add(self.id, other.id),
+            id: self.arith.clone().borrow_mut().wire_add(self.id, other.id),
             arith: self.arith,
             ast: self.ast.map(|ast| WireAST::add(ast, other.ast.unwrap())),
         }
@@ -27,7 +25,7 @@ impl<Op: PlookupOps, P: SWCurveConfig> Sub for Wire<Op, P> {
 
     fn sub(self, other: Self) -> Self::Output {
         Wire {
-            id: self.arith.clone().borrow_mut().sub(self.id, other.id),
+            id: self.arith.clone().borrow_mut().wire_sub(self.id, other.id),
             arith: self.arith,
             ast: self.ast.map(|ast| WireAST::sub(ast, other.ast.unwrap())),
         }
@@ -41,7 +39,7 @@ impl<Op: PlookupOps, P: SWCurveConfig> Mul for Wire<Op, P> {
 
     fn mul(self, other: Self) -> Self::Output {
         Wire {
-            id: self.arith.clone().borrow_mut().mul(self.id, other.id),
+            id: self.arith.clone().borrow_mut().wire_mul(self.id, other.id),
             arith: self.arith,
             ast: self.ast.map(|ast| WireAST::mul(ast, other.ast.unwrap())),
         }
@@ -55,7 +53,7 @@ impl<Op: PlookupOps, P: SWCurveConfig> Neg for Wire<Op, P> {
 
     fn neg(self) -> Self::Output {
         Wire {
-            id: self.arith.clone().borrow_mut().neg(self.id),
+            id: self.arith.clone().borrow_mut().wire_neg(self.id),
             arith: self.arith,
             ast: self.ast.map(WireAST::neg),
         }
@@ -69,7 +67,7 @@ impl<Op: PlookupOps, P: SWCurveConfig> Not for Wire<Op, P> {
 
     fn not(self) -> Self::Output {
         Wire {
-            id: self.arith.clone().borrow_mut().not(self.id),
+            id: self.arith.clone().borrow_mut().wire_not(self.id),
             arith: self.arith,
             ast: self.ast.map(WireAST::not),
         }
@@ -83,7 +81,7 @@ impl<Op: PlookupOps, P: SWCurveConfig> BitAnd for Wire<Op, P> {
 
     fn bitand(self, other: Self) -> Self::Output {
         Wire {
-            id: self.arith.clone().borrow_mut().and(self.id, other.id),
+            id: self.arith.clone().borrow_mut().wire_and(self.id, other.id),
             arith: self.arith,
             ast: self.ast.map(|ast| WireAST::and(ast, other.ast.unwrap())),
         }
@@ -100,7 +98,7 @@ impl<P: SWCurveConfig> Wire<BinXorOr, P> {
                 .arith
                 .clone()
                 .borrow_mut()
-                .lookup(op, self.id, other.id),
+                .wire_lookup(op, self.id, other.id),
             arith: self.arith,
             ast: self
                 .ast
