@@ -55,7 +55,7 @@ impl<Op: PlookupOps, P: SWCurveConfig> Wire<Op, P> {
     /// Requires that the wire is a bit
     pub fn is_bit(&self) -> Self {
         let mut arith = self.arith().borrow_mut();
-        if let Err(e) = arith.enforce_bit(self.id) {
+        if let Err(e) = arith.wire_bool(self.id) {
             panic!("Failed to enforce bit: {}", e);
         }
         self.clone()
@@ -64,7 +64,7 @@ impl<Op: PlookupOps, P: SWCurveConfig> Wire<Op, P> {
     /// Publicize the wire's value to Q꜀.
     pub fn is_public(&self) -> Self {
         let mut arith = self.arith().borrow_mut();
-        arith.publicize(self.id);
+        arith.wire_publicize(self.id);
         self.clone()
     }
 }

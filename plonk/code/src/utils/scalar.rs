@@ -17,24 +17,6 @@ pub fn bitxor<P: SWCurveConfig>(lhs: Scalar<P>, rhs: Scalar<P>) -> Scalar<P> {
     Scalar::<P>::from_bigint(BigInteger::from_bits_be(&zs)).unwrap()
 }
 
-// /// Compute the Evaluation struct for a Vec of Vec of Scalars
-// pub fn batch_compute_evals(h: &Coset, ys: Vec<Vec<Scalar>>) -> Vec<Evals> {
-//     batch_op(ys, |evals| {
-//         Evals::<P>::from_vec_and_domain(evals, h.domain)
-//     })
-// }
-
-// /// Y = p₀ + a₁p₁ + a₂p₂ + ...
-// pub fn linear_comb_right<I, T: AdditiveGroup + AddAssign>(a: &Scalar, ps: I) -> T
-// where
-//     I: IntoIterator<Item = T>,
-//     Scalar: Mul<T, Output = T>,
-// {
-//     ps.into_iter()
-//         .enumerate()
-//         .fold(T::ZERO, |acc, (i, p_i)| acc + a.pow([i as u64]) * p_i)
-// }
-
 /// Y = L₁(X) = (Xⁿ - 1) / (n (X - 1))
 pub fn lagrange_basis1<P: SWCurveConfig>(n: u64, w: Scalar<P>, x: Scalar<P>) -> Scalar<P> {
     w * (x.pow([n]) - Scalar::<P>::ONE) / (Scalar::<P>::from(n) * (x - w))

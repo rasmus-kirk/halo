@@ -2,7 +2,7 @@ use super::Value;
 use crate::{
     arithmetizer::{plookup::PlookupOps, WireID},
     scheme::{
-        eqns::{plonk_eqn, plonk_eqn_str, plonkup_eqn_fp},
+        eqns::{plonk_eqn, plonk_eqn_str, EqnsF},
         Selectors, Slots, Terms,
     },
     utils::{
@@ -163,8 +163,7 @@ impl<P: SWCurveConfig> Constraints<P> {
 
     /// Check if plonkup constraints are satisfied.
     pub fn is_plonkup_satisfied(&self, zeta: Scalar<P>, f: Scalar<P>) -> bool {
-        plonkup_eqn_fp::<P, _, _, _, _>(zeta, self.ws(), self.qs(), self.pip(), f)
-            == Scalar::<P>::ZERO
+        EqnsF::<P>::plonkup_eqn(zeta, self.ws(), self.qs(), self.pip(), f) == Scalar::<P>::ZERO
     }
 
     /// Check if the constraints are structurally equal.

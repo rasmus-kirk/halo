@@ -25,7 +25,7 @@ use crate::{
 };
 
 use ark_ec::short_weierstrass::SWCurveConfig;
-use ark_ff::{AdditiveGroup, Field};
+use ark_ff::AdditiveGroup;
 use log::info;
 use rand::{distributions::Standard, prelude::Distribution, Rng};
 use std::collections::HashMap;
@@ -45,7 +45,6 @@ pub struct Trace<P: SWCurveConfig> {
     permutation: HashMap<Pos, Pos>,
     constraints: Vec<Constraints<P>>,
     table: TableRegistry<P>,
-    _marker: std::marker::PhantomData<P>,
 }
 
 impl<P: SWCurveConfig> Trace<P> {
@@ -140,6 +139,7 @@ impl<P: SWCurveConfig> Trace<P> {
     }
 
     // Compute constraint and value for a wire, and update the stack used in eval.
+    #[allow(clippy::type_complexity)]
     fn eval_helper<Op: PlookupOps>(
         &self,
         stack: &mut Vec<WireID>,
@@ -316,44 +316,39 @@ impl<P: SWCurveConfig> Trace<P> {
     }
 
     /// Compute the permutation and identity permutation polynomials.
-    fn copy_constraints(&self) -> (Vec<Evals<P>>, Vec<Evals<P>>) {
+    fn copy_constraints(&self) -> Vec<Evals<P>> {
         Slots::iter()
             .map(|slot| {
-                self.h
+                let mut evals: Vec<Scalar<P>> = self
+                    .h
                     .iter()
                     .map(|id| {
                         let pos = Pos::new(slot, id);
-                        let perm = self
-                            .permutation
+                        self.permutation
                             .get(&pos)
                             .unwrap_or(&pos)
-                            .to_scalar(&self.h);
-                        (pos.to_scalar(&self.h), perm)
+                            .to_scalar(&self.h)
                     })
-                    .unzip::<_, _, Vec<_>, Vec<_>>()
+                    .collect();
+                evals = [self.h.k(slot)]
+                    .into_iter()
+                    .chain(evals)
+                    .collect::<Vec<Scalar<P>>>();
+                Evals::<P>::from_vec_and_domain(evals, self.h.domain)
             })
-            .map(|(id_evs, ss_evs)| {
-                let to_evals = |mut evals: Vec<Scalar<P>>| {
-                    evals.insert(0, Scalar::<P>::ONE);
-                    Evals::<P>::from_vec_and_domain(evals, self.h.domain)
-                };
-                (to_evals(id_evs), to_evals(ss_evs))
-            })
-            .unzip()
+            .collect()
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use ark_ff::Field;
     use ark_pallas::PallasConfig;
     use halo_accumulation::group::PallasScalar;
 
     use crate::{
-        arithmetizer::{
-            plookup::opsets::EmptyOpSet,
-            {Arithmetizer, Wire},
-        },
-        circuit::Circuit,
+        arithmetizer::{plookup::opsets::EmptyOpSet, Arithmetizer, Wire},
+        pcs::PCSPallas,
     };
 
     use super::*;
@@ -367,8 +362,7 @@ mod tests {
         // build circuit
 
         let circuit = output_wires[0].arith().borrow();
-        let input_scalars: Vec<PallasScalar> =
-            input_values.into_iter().map(PallasScalar::from).collect();
+        let input_scalars = input_values.into_iter().map(PallasScalar::from).collect();
         let output_ids = output_wires.iter().map(Wire::id).collect();
         let d = (1 << 10) - 1;
         let eval_res = Trace::new(rng, Some(d), &circuit.wires, input_scalars, output_ids);
@@ -438,18 +432,17 @@ mod tests {
                 Pos::new(Slots::C, 8),
             ],
         ];
-        let expected_eval = (
+        let expected_eval = Trace::reconstruct((
             d,
             expected_constraints.clone(),
             expected_permutation.clone(),
             TableRegistry::new::<EmptyOpSet>(),
-        )
-            .into();
+        ));
         assert!(eval == expected_eval);
         // structural equality
 
-        let c: Circuit<PallasConfig> = eval.into();
-        let eval2: Trace<PallasConfig> = c.into();
+        let c = eval.to_circuit::<PCSPallas>();
+        let eval2 = Trace::from_circuit(c);
         assert!(eval2 == expected_eval);
         // plonk structural equality
     }

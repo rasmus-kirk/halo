@@ -104,9 +104,23 @@ impl<P: SWCurveConfig> Coset<P> {
         self.ks[slot.id()] * self.w(i)
     }
 
+    // kᵢ
+    pub fn k<T: EnumIter>(&self, slot: T) -> Scalar<P> {
+        self.ks[slot.id()]
+    }
+
+    // { kᵢ }
+    pub fn k_iter(&self) -> impl Iterator<Item = &Scalar<P>> {
+        self.ks.iter()
+    }
+
     /// [1, n)
     pub fn iter(&self) -> impl Iterator<Item = u64> {
         1..self.n
+    }
+
+    pub fn iter_usize(&self) -> impl Iterator<Item = usize> {
+        1..self.n as usize
     }
 
     /// { ωⁱ | 1 ≤ i < n }

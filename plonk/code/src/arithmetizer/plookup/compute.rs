@@ -1,7 +1,7 @@
 use super::TableRegistry;
 use crate::{
     arithmetizer::trace::Constraints,
-    scheme::{eqns::plookup_compress_fp, Selectors, Slots, Terms},
+    scheme::{eqns::EqnsF, Selectors, Slots, Terms},
     utils::{misc::batch_op, poly::shift_wrap_eval, Evals, Poly, Scalar},
     Coset,
 };
@@ -53,7 +53,7 @@ impl<P: SWCurveConfig> PlookupEvsThunk<P> {
                 let b = constraint[Terms::F(Slots::B)].to_fp();
                 let c = constraint[Terms::F(Slots::C)].to_fp();
                 let j = constraint[Terms::Q(Selectors::J)].to_fp();
-                plookup_compress_fp::<_, _, P>(zeta, a, b, c, j)
+                EqnsF::<P>::plookup_compress(zeta, a, b, c, j)
             } else {
                 default
             }
