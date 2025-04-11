@@ -6,8 +6,10 @@ use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
 use ark_ff::PrimeField;
+use ark_pallas::PallasConfig;
 use ark_poly::DenseUVPolynomial;
 use ark_poly::Polynomial;
+use ark_serialize::CanonicalDeserialize;
 use ark_serialize::CanonicalSerialize;
 use ark_std::{UniformRand, Zero};
 use rand::Rng;
@@ -16,13 +18,12 @@ use crate::pp::PublicParams;
 use crate::{
     group::{construct_powers, point_dot, rho_1, PallasPoint, PallasPoly, PallasScalar},
     pcdl::{self, Instance},
-    pp::S,
 };
 
 // -------------------- Accumulation Data Structures --------------------
 
 /// acc in the paper
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, CanonicalSerialize, CanonicalDeserialize)]
 pub struct Accumulator {
     pub(crate) q: Instance,
     pub pi_V: AccumulatorHiding,
@@ -43,7 +44,7 @@ impl Accumulator {
 }
 
 /// pi_V in the paper, used for hiding only
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, CanonicalSerialize, CanonicalDeserialize)]
 pub struct AccumulatorHiding {
     pub(crate) h: PallasPoly,
     pub(crate) U: PallasPoint,
@@ -108,7 +109,7 @@ impl From<Accumulator> for Instance {
 
 /// Setup
 pub fn setup(n: usize) -> Result<()> {
-    PublicParams::set_pp(n)
+    PublicParams::<PallasConfig>::set_pp(n)
 }
 
 /// D: Degree of the underlying polynomials
@@ -119,6 +120,8 @@ pub fn common_subroutine(
 ) -> Result<(PallasPoint, usize, PallasScalar, AccumulatedHPolys)> {
     let m = qs.len();
     let d = qs.first().context("No instances given")?.d;
+
+    let pp = PublicParams::get_pp();
 
     // 1. Parse avk as (rk, ck^(1)_(PC)), and rk as (⟨group⟩ = (G, q, G), S, H, D).
     let mut hs = AccumulatedHPolys::with_capacity(m);
@@ -159,7 +162,7 @@ pub fn common_subroutine(
     let z = rho_1![C, hs.alpha.unwrap()];
 
     // 10. Randomize C : C_bar := C + ω · S ∈ G.
-    let C_bar = C + S * w;
+    let C_bar = C + pp.S * w;
 
     // 11. Output (C_bar, d, z, h(X)).
     Ok((C_bar, d, z, hs))

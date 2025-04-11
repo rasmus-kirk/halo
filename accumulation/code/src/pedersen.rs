@@ -1,9 +1,10 @@
 #![allow(non_snake_case)]
 
-use crate::group::{point_dot_affine, PallasAffine, PallasPoint, PallasScalar};
-use crate::pp::S;
+use crate::{group::{point_dot_affine, PallasAffine, PallasPoint, PallasScalar}, pp::PublicParams};
 
 pub fn commit(w: Option<&PallasScalar>, Gs: &[PallasAffine], ms: &[PallasScalar]) -> PallasPoint {
+    let pp = PublicParams::get_pp();
+    
     assert!(
         Gs.len() >= ms.len(),
         "ms must be larger than Gs: (Gs: {}), (ms: {})",
@@ -13,7 +14,7 @@ pub fn commit(w: Option<&PallasScalar>, Gs: &[PallasAffine], ms: &[PallasScalar]
 
     let acc = point_dot_affine(ms, Gs);
     if let Some(w) = w {
-        S * w + acc
+        pp.S * w + acc
     } else {
         acc
     }
@@ -58,8 +59,8 @@ mod tests {
     #[test]
     fn test_homomorphism_property() {
         let mut rng = ark_std::test_rng();
-        let ms_len = 2; // Number of message elements
-        let tests = 10; // Number of tests run
+        let ms_len = 2;
+        let tests = 10;
 
         for _ in 0..tests {
             test_single_homomorphism(&mut rng, ms_len);

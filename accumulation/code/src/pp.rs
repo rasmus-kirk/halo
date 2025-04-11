@@ -1,78 +1,23 @@
 #![allow(non_snake_case)]
 
 use crate::consts::*;
-use crate::group::{PallasAffine, PallasPoint};
-use crate::wrappers::WrappedPoint;
+use crate::group::{Affine, Point};
+use crate::wrappers::{PastaConfig, WrappedPoint};
 use anyhow::{bail, Result};
-use ark_ff::BigInt;
-use ark_pallas::Affine;
-use ark_pallas::{Fq, Projective};
 use bincode::config::standard;
-use std::sync::OnceLock;
 
-macro_rules! mk_proj {
-    ($x:tt, $y:tt, $z:tt) => {
-        Projective::new_unchecked(
-            Fq::new_unchecked(BigInt::new($x)),
-            Fq::new_unchecked(BigInt::new($y)),
-            Fq::new_unchecked(BigInt::new($z)),
-        )
-    };
-}
-
-pub(crate) const S: Projective = mk_proj!(
-    [
-        10511358259169183486,
-        2074067763166240952,
-        17611644572363664036,
-        341020441001484065
-    ],
-    [
-        12835947837332599666,
-        6255076945129827893,
-        5160699941501430743,
-        674756274627950377
-    ],
-    [
-        3780891978758094845,
-        11037255111966004397,
-        18446744073709551615,
-        4611686018427387903
-    ]
-);
-pub(crate) const H: Projective = mk_proj!(
-    [
-        7341486867992484987,
-        4586814896141457814,
-        12027446952718021701,
-        3769587512575455815
-    ],
-    [
-        17315885811818124458,
-        13643165659743018808,
-        30407301326549650,
-        915560932831355023
-    ],
-    [
-        3780891978758094845,
-        11037255111966004397,
-        18446744073709551615,
-        4611686018427387903
-    ]
-);
-
-static PP: OnceLock<PublicParams> = OnceLock::new();
-include!(concat!(env!("OUT_DIR"), "/pp_paths.rs"));
+include!(concat!(env!("OUT_DIR"), "/pallas/pp_paths.rs"));
+include!(concat!(env!("OUT_DIR"), "/vesta/pp_paths.rs"));
 
 #[derive(Debug)]
-pub struct PublicParams {
-    pub S: PallasPoint,
-    pub H: PallasPoint,
+pub struct PublicParams<P: PastaConfig> {
+    pub S: Point<P>,
+    pub H: Point<P>,
     pub D: usize,
-    pub Gs: Vec<PallasAffine>,
+    pub Gs: Vec<Affine<P>>,
 }
 
-impl PublicParams {
+impl<P: PastaConfig> PublicParams<P> {
     pub fn len(&self) -> usize {
         self.Gs.len()
     }
@@ -88,11 +33,11 @@ impl PublicParams {
 
         let mut gs = Vec::with_capacity(n);
         let mut m = n;
-        for bytes in G_PATHS.iter().take(G_BLOCKS_NO) {
+        for bytes in P::get_g_data().iter().take(G_BLOCKS_NO) {
             let (raw_gs, _): (Vec<WrappedPoint>, usize) =
                 bincode::decode_from_slice(bytes, standard()).unwrap();
-            let mut converted_gs: Vec<Affine> =
-                raw_gs.into_iter().take(m).map(|x| x.into()).collect();
+            let mut converted_gs: Vec<Affine<P>> =
+                raw_gs.into_iter().take(m).map(|x| P::unwrap_affine(x)).collect();
             gs.append(&mut converted_gs);
 
             if let Some(new_m) = m.checked_sub(G_BLOCKS_SIZE) {
@@ -101,17 +46,19 @@ impl PublicParams {
                 break;
             }
         }
+        let ((S, H), _): ((WrappedPoint, WrappedPoint), usize) =
+            bincode::decode_from_slice(SH_PATH_PALLAS, standard()).unwrap();
 
         PublicParams {
-            S,
-            H,
+            S: P::unwrap_projective(S),
+            H: P::unwrap_projective(H),
             D: n - 1,
             Gs: gs,
         }
     }
 
     pub fn set_pp(n: usize) -> Result<()> {
-        match PP.get() {
+        match P::get_loaded_public_params().get() {
             Some(pp) if n > pp.Gs.len() => bail!(
                 "Previous public parameters defined to be {}, which is smaller than new public parameters {}",
                 pp.Gs.len(),
@@ -119,8 +66,7 @@ impl PublicParams {
             ),
             Some(&_) => Ok(()),
             None => {
-                //println!("setting pp: {}", n);
-                match PP.set(PublicParams::new(n)) {
+                match P::get_loaded_public_params().set(PublicParams::new(n)) {
                     Ok(_) => Ok(()),
                     Err(pp) => if pp.len() == n {
                         Ok(())
@@ -132,14 +78,14 @@ impl PublicParams {
         }
     }
 
-    pub fn get_pp() -> &'static PublicParams {
-        match PP.get() {
-            Some(&_) => PP.get().unwrap(),
+    pub fn get_pp() -> &'static PublicParams<P> {
+        match P::get_loaded_public_params().get() {
+            Some(&_) => P::get_loaded_public_params().get().unwrap(),
             // If no public params have been set, set to max.
             // This will degrade performance, but always work.
             None => {
-                let _ = PP.set(PublicParams::new(N));
-                PP.get().unwrap()
+                let _ = P::get_loaded_public_params().set(PublicParams::new(N));
+                P::get_loaded_public_params().get().unwrap()
             }
         }
     }
@@ -149,16 +95,17 @@ impl PublicParams {
 mod tests {
     use anyhow::Result;
     use ark_ec::CurveGroup;
+    use ark_pallas::PallasConfig;
     use rand::{distributions::Uniform, Rng};
 
     use super::PublicParams;
 
-    const LAMBDA: usize = 10;
+    const LAMBDA: usize = 1;
 
     fn test_pp(n: usize, sec: usize) -> Result<()> {
         let mut rng = rand::thread_rng();
 
-        let pp = PublicParams::new(n);
+        let pp = PublicParams::<PallasConfig>::new(n);
 
         assert_eq!(pp.Gs.len(), n);
         assert!(pp.S.into_affine().is_on_curve());

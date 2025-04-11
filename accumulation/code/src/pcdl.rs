@@ -4,9 +4,10 @@
 use anyhow::{ensure, Result};
 use ark_ec::CurveGroup;
 use ark_ff::{AdditiveGroup, Field, PrimeField};
+use ark_pallas::PallasConfig;
 use ark_poly::DenseUVPolynomial;
 use ark_poly::{univariate::DensePolynomial, Polynomial};
-use ark_serialize::CanonicalSerialize;
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::One;
 use ark_std::UniformRand;
 use rand::Rng;
@@ -23,7 +24,7 @@ use crate::{
 // -------------------- PCS Data Structures --------------------
 
 /// The instances from the report. These represent polynomial commitment openings.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, CanonicalSerialize, CanonicalDeserialize)]
 pub struct Instance {
     pub(crate) C: PallasPoint, // Commitment to the coefficints of a polynomial p
     pub(crate) d: usize,       // The degree of p
@@ -116,7 +117,7 @@ impl Ord for Instance {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, CanonicalSerialize, CanonicalDeserialize)]
 pub struct EvalProof {
     pub(crate) Ls: Vec<PallasPoint>,
     pub(crate) Rs: Vec<PallasPoint>,
@@ -134,13 +135,13 @@ pub struct HPoly {
 
 // TODO: Privacy
 impl HPoly {
-    pub fn new(xis: Vec<PallasScalar>) -> Self {
+    pub(crate) fn new(xis: Vec<PallasScalar>) -> Self {
         Self { xis }
     }
 
     /// Constructs the polynomial h(X) based on the formula:
     /// h(X) := π^(lg(n)-1)_(i=0) (1 + ξ_(lg(n)−i) · X^(2^i)) ∈ F_q[X]
-    pub fn get_poly(&self) -> DensePolynomial<PallasScalar> {
+    pub(crate) fn get_poly(&self) -> DensePolynomial<PallasScalar> {
         let mut h = DensePolynomial::from_coefficients_slice(&[PallasScalar::one()]); // Start with 1
         let lg_n = self.xis.len() - 1;
 
@@ -163,7 +164,7 @@ impl HPoly {
         h
     }
 
-    pub fn eval(&self, z: &PallasScalar) -> PallasScalar {
+    pub(crate) fn eval(&self, z: &PallasScalar) -> PallasScalar {
         let lg_n = self.xis.len() - 1;
         let one = PallasScalar::one();
 
@@ -177,7 +178,8 @@ impl HPoly {
         v
     }
 
-    pub fn rand<R: Rng>(rng: &mut R, n: usize) -> Self {
+    #[allow(dead_code)]
+    pub(crate) fn rand<R: Rng>(rng: &mut R, n: usize) -> Self {
         let lg_n = n.ilog2() as usize;
         let mut xis = Vec::with_capacity(lg_n + 1);
         for _ in 0..(lg_n + 1) {
@@ -208,7 +210,7 @@ impl<T> VecPushOwn<T> for Vec<T> {
 /// Sets the public parameters. If not called, public parameters will be set to max.
 /// This will degrade performance, but never fail.
 pub fn setup(n: usize) -> Result<()> {
-    PublicParams::set_pp(n)
+    PublicParams::<PallasConfig>::set_pp(n)
 }
 
 /// Creates a commitment to the coefficients of the polynomial $p$ of degree $d' < d$, with optional hiding $\o$, using pedersen commitments.

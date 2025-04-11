@@ -7,11 +7,15 @@ use std::{
     thread,
 };
 
-use ark_ec::{CurveGroup, VariableBaseMSM};
-use ark_ff::{AdditiveGroup, Field};
+use ark_ec::{short_weierstrass::{Projective, SWCurveConfig}, CurveGroup, VariableBaseMSM};
+use ark_ff::{AdditiveGroup, BigInt, Field};
 use ark_poly::{univariate::DensePolynomial, Polynomial};
 use ark_std::One;
 use rayon::prelude::*;
+
+pub type Point<P: SWCurveConfig> = Projective<P>;
+pub type Affine<P: SWCurveConfig> = ark_ec::short_weierstrass::Affine<P>;
+pub type Scalar<P: SWCurveConfig> = P::ScalarField;
 
 pub type PallasPoint = ark_pallas::Projective;
 pub type PallasAffine = ark_pallas::Affine;
