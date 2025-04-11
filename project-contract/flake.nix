@@ -1,7 +1,7 @@
 {
   description = "A report built with Pandoc, with continious compilation.";
 
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/24.11";
 
   outputs = {
     self,
