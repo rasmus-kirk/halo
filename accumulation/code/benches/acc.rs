@@ -2,22 +2,21 @@
 
 use std::time::Duration;
 
+use ark_pallas::PallasConfig;
+use ark_serialize::CanonicalDeserialize;
 use ark_std::test_rng;
-use bincode::config::standard;
 use criterion::{BenchmarkId, Criterion};
 
 use halo_accumulation::{
     acc::{self, Accumulator},
     pcdl::Instance,
-    wrappers::{WrappedAccumulator, WrappedInstance},
 };
 
-const PRE: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/precompute/qs/qs.bin"));
+const PRE: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/precompute/pallas/qs/qs.bin"));
 
 /// Helper function: Gets precomputed linear-time computation dummy values.
-fn get_cheap_linears(n: usize) -> ([Instance; 1], Accumulator) {
-    let (val, _): (Vec<(usize, WrappedInstance, WrappedAccumulator)>, _) =
-        bincode::decode_from_slice(&PRE, standard()).unwrap();
+fn get_cheap_linears(n: usize) -> ([Instance<PallasConfig>; 1], Accumulator<PallasConfig>) {
+    let val = Vec::<(usize, Instance<PallasConfig>, Accumulator<PallasConfig>)>::deserialize_compressed(PRE).unwrap();
     let q_acc = val.into_iter().find(|x| x.0 == n).unwrap();
     ([q_acc.1.into()], q_acc.2.into())
 }

@@ -3,26 +3,25 @@
 use std::time::Duration;
 
 use ark_ff::UniformRand;
+use ark_pallas::PallasConfig;
 use ark_poly::DenseUVPolynomial;
+use ark_serialize::CanonicalDeserialize;
 use ark_std::test_rng;
-use bincode::config::standard;
 use criterion::{BenchmarkId, Criterion};
 
 use halo_accumulation::{
-    group::{PallasPoly, PallasScalar},
-    pcdl::{self, commit, Instance},
-    wrappers::{WrappedAccumulator, WrappedInstance},
+    acc::Accumulator, group::{PallasPoly, PallasScalar}, pcdl::{self, commit, Instance}
 };
 
-const PRE: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/precompute/qs/qs.bin"));
+const PRE: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/precompute/pallas/qs/qs.bin"));
 
 /// Helper function: Gets precomputed linear-time computation dummy values.
-fn get_cheap_linears(n: usize) -> [Instance; 1] {
-    let (val, _): (Vec<(usize, WrappedInstance, WrappedAccumulator)>, _) =
-        bincode::decode_from_slice(&PRE, standard()).unwrap();
+fn get_cheap_linears(n: usize) -> [Instance<PallasConfig>; 1] {
+    let val = Vec::<(usize, Instance<PallasConfig>, Accumulator<PallasConfig>)>::deserialize_compressed(PRE).unwrap();
     let q_acc = val.into_iter().find(|x| x.0 == n).unwrap();
     [q_acc.1.into()]
 }
+
 
 const WARMUP: Duration = Duration::from_millis(100);
 const MIN: usize = 2;
@@ -43,7 +42,7 @@ pub fn pcdl_open(c: &mut Criterion) {
                 let w = Some(PallasScalar::rand(rng));
                 let p = PallasPoly::rand(d, rng);
                 let z = &PallasScalar::rand(rng);
-                let comm = commit(&p, d, w.as_ref());
+                let comm = commit::<PallasConfig>(&p, d, w.as_ref());
 
                 b.iter(|| pcdl::open(rng, p.clone(), comm, d, z, w.as_ref()));
             },
@@ -67,7 +66,7 @@ pub fn pcdl_commit(c: &mut Criterion) {
                 let w = Some(PallasScalar::rand(rng));
                 let p = PallasPoly::rand(d, rng);
 
-                b.iter(|| pcdl::commit(&p, d, w.as_ref()));
+                b.iter(|| pcdl::commit::<PallasConfig>(&p, d, w.as_ref()));
             },
         );
     }

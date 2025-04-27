@@ -10,13 +10,16 @@ use ark_poly::{univariate::DensePolynomial, Polynomial};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::One;
 use ark_std::UniformRand;
+use rand::distributions::Standard;
+use rand::prelude::Distribution;
 use rand::Rng;
-#[cfg(feature = "parallel")]
+use educe::Educe;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 
-use crate::group::point_dot_affine;
+use crate::group::{point_dot_affine, Point, Poly, Scalar};
+use crate::wrappers::PastaConfig;
 use crate::{
-    group::{construct_powers, rho_0, scalar_dot, PallasPoint, PallasPoly, PallasScalar},
+    group::{construct_powers, rho0, scalar_dot, PallasPoint, PallasPoly, PallasScalar},
     pedersen,
     pp::PublicParams,
 };
@@ -24,26 +27,28 @@ use crate::{
 // -------------------- PCS Data Structures --------------------
 
 /// The instances from the report. These represent polynomial commitment openings.
-#[derive(Debug, Clone, PartialEq, Eq, CanonicalSerialize, CanonicalDeserialize)]
-pub struct Instance {
-    pub(crate) C: PallasPoint, // Commitment to the coefficints of a polynomial p
-    pub(crate) d: usize,       // The degree of p
-    pub(crate) z: PallasScalar, // The point to evaluate p at
-    pub(crate) v: PallasScalar, // The evaluation of p(z) = v
-    pub(crate) pi: EvalProof,  // The proof that p(z) = v
+//#[derive(Debug, Clone, PartialEq, Eq, CanonicalSerialize, CanonicalDeserialize)]
+#[derive(Educe, CanonicalSerialize, CanonicalDeserialize)]
+#[educe(Debug, Clone, PartialEq, Eq)]
+pub struct Instance<P: PastaConfig> {
+    pub(crate) C: Point<P>,      // Commitment to the coefficints of a polynomial p
+    pub(crate) d: usize,         // The degree of p
+    pub(crate) z: Scalar<P>,     // The point to evaluate p at
+    pub(crate) v: Scalar<P>,     // The evaluation of p(z) = v
+    pub(crate) pi: EvalProof<P>, // The proof that p(z) = v
 }
 
-impl Instance {
-    pub fn new(C: PallasPoint, d: usize, z: PallasScalar, v: PallasScalar, pi: EvalProof) -> Self {
+impl<P: PastaConfig> Instance<P> {
+    pub fn new(C: Point<P>, d: usize, z: Scalar<P>, v: Scalar<P>, pi: EvalProof<P>) -> Self {
         Self { C, d, z, v, pi }
     }
 
     pub fn open<R: Rng>(
         rng: &mut R,
-        p: PallasPoly,
+        p: Poly<P>,
         d: usize,
-        z: &PallasScalar,
-        w: Option<&PallasScalar>,
+        z: &Scalar<P>,
+        w: Option<&Scalar<P>>,
     ) -> Self {
         let C = commit(&p, d, w);
         let v = p.evaluate(z);
@@ -54,9 +59,10 @@ impl Instance {
     pub fn rand<R: Rng>(rng: &mut R, n: usize) -> Self {
         assert!(n.is_power_of_two(), "n ({n}) is not a power of two");
         let d = n - 1;
-        let w = Some(PallasScalar::rand(rng));
-        let p = PallasPoly::rand(d, rng);
-        let z = &PallasScalar::rand(rng);
+        let w = Some(Scalar::<P>::rand(rng));
+        let p: Poly<P> = DenseUVPolynomial::<Scalar<P>>::rand(d, rng);
+        let z = &Scalar::<P>::rand(rng);
+        assert!(p.degree() == n-1);
         Self::open(rng, p, d, z, w.as_ref())
     }
 
@@ -64,23 +70,23 @@ impl Instance {
         check(&self.C, self.d, &self.z, &self.v, self.pi.clone())
     }
 
-    pub fn succinct_check(&self) -> Result<(HPoly, PallasPoint)> {
+    pub fn succinct_check(&self) -> Result<(HPoly<P>, Point<P>)> {
         succinct_check(self.C, self.d, &self.z, &self.v, self.pi.clone())
     }
 
     pub fn tuple(
         &self,
     ) -> (
-        &PallasPoint,
+        &Point<P>,
         &usize,
-        &PallasScalar,
-        &PallasScalar,
-        &EvalProof,
+        &Scalar<P>,
+        &Scalar<P>,
+        &EvalProof<P>,
     ) {
         (&self.C, &self.d, &self.z, &self.v, &self.pi)
     }
 
-    pub fn C(&self) -> &PallasPoint {
+    pub fn C(&self) -> &Point<P> {
         &self.C
     }
 
@@ -88,61 +94,62 @@ impl Instance {
         &self.d
     }
 
-    pub fn z(&self) -> &PallasScalar {
+    pub fn z(&self) -> &Scalar<P> {
         &self.z
     }
 
-    pub fn v(&self) -> &PallasScalar {
+    pub fn v(&self) -> &Scalar<P> {
         &self.v
     }
 
-    pub fn pi(&self) -> &EvalProof {
+    pub fn pi(&self) -> &EvalProof<P> {
         &self.pi
     }
 
-    pub fn into_tuple(self) -> (PallasPoint, usize, PallasScalar, PallasScalar, EvalProof) {
+    pub fn into_tuple(self) -> (Point<P>, usize, Scalar<P>, Scalar<P>, EvalProof<P>) {
         (self.C, self.d, self.z, self.v, self.pi)
     }
 }
 
-impl PartialOrd for Instance {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.z.cmp(&other.z))
-    }
-}
+// impl PartialOrd for Instance {
+//     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+//         Some(self.z.cmp(&other.z))
+//     }
+// }
 
-impl Ord for Instance {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.z.cmp(&other.z)
-    }
-}
+// impl Ord for Instance {
+//     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+//         self.z.cmp(&other.z)
+//     }
+// }
 
-#[derive(Debug, Clone, PartialEq, Eq, CanonicalSerialize, CanonicalDeserialize)]
-pub struct EvalProof {
-    pub(crate) Ls: Vec<PallasPoint>,
-    pub(crate) Rs: Vec<PallasPoint>,
-    pub(crate) U: PallasPoint,
-    pub(crate) c: PallasScalar,
-    pub(crate) C_bar: Option<PallasPoint>,
-    pub(crate) w_prime: Option<PallasScalar>,
+#[derive(Educe, CanonicalSerialize, CanonicalDeserialize)]
+#[educe(Debug, Clone, PartialEq, Eq)]
+pub struct EvalProof<P: PastaConfig> {
+    pub(crate) Ls: Vec<Point<P>>,
+    pub(crate) Rs: Vec<Point<P>>,
+    pub(crate) U: Point<P>,
+    pub(crate) c: Scalar<P>,
+    pub(crate) C_bar: Option<Point<P>>,
+    pub(crate) w_prime: Option<Scalar<P>>,
 }
 
 /// Special struct to denote the polynomial h(X). The struct is needed in order to evaluate h(X) in sub-linear time
 #[derive(Clone, CanonicalSerialize)]
-pub struct HPoly {
-    pub(crate) xis: Vec<PallasScalar>,
+pub struct HPoly<P: PastaConfig> {
+    pub(crate) xis: Vec<Scalar<P>>,
 }
 
 // TODO: Privacy
-impl HPoly {
-    pub(crate) fn new(xis: Vec<PallasScalar>) -> Self {
+impl<P: PastaConfig> HPoly<P> {
+    pub(crate) fn new(xis: Vec<Scalar<P>>) -> Self {
         Self { xis }
     }
 
     /// Constructs the polynomial h(X) based on the formula:
     /// h(X) := π^(lg(n)-1)_(i=0) (1 + ξ_(lg(n)−i) · X^(2^i)) ∈ F_q[X]
-    pub(crate) fn get_poly(&self) -> DensePolynomial<PallasScalar> {
-        let mut h = DensePolynomial::from_coefficients_slice(&[PallasScalar::one()]); // Start with 1
+    pub(crate) fn get_poly(&self) -> DensePolynomial<Scalar<P>> {
+        let mut h = DensePolynomial::from_coefficients_slice(&[Scalar::<P>::one()]); // Start with 1
         let lg_n = self.xis.len() - 1;
 
         for i in 0..lg_n {
@@ -150,8 +157,8 @@ impl HPoly {
             let power = 1 << i;
 
             // Create coefficients for 1 + ξ_(lg(n)-i) * X^(2^i)
-            let mut term = vec![PallasScalar::ZERO; power + 1];
-            term[0] = PallasScalar::one(); // Constant term 1
+            let mut term = vec![Scalar::<P>::ZERO; power + 1];
+            term[0] = Scalar::<P>::one(); // Constant term 1
             term[power] = self.xis[lg_n - i]; // Coefficient for X^(2^i)
 
             // Create polynomial for this term
@@ -164,9 +171,9 @@ impl HPoly {
         h
     }
 
-    pub(crate) fn eval(&self, z: &PallasScalar) -> PallasScalar {
+    pub(crate) fn eval(&self, z: &Scalar<P>) -> Scalar<P> {
         let lg_n = self.xis.len() - 1;
-        let one = PallasScalar::one();
+        let one = Scalar::<P>::one();
 
         let mut v = one + self.xis[lg_n] * z;
         let mut z_i = *z;
@@ -183,7 +190,7 @@ impl HPoly {
         let lg_n = n.ilog2() as usize;
         let mut xis = Vec::with_capacity(lg_n + 1);
         for _ in 0..(lg_n + 1) {
-            xis.push(PallasScalar::rand(rng))
+            xis.push(Scalar::<P>::rand(rng))
         }
 
         HPoly::new(xis)
@@ -218,7 +225,7 @@ pub fn setup(n: usize) -> Result<()> {
 /// p: A univariate polynomial p(X),
 /// d: A degree bound for p, we require that p.degree() <= d,
 /// w: Optional hiding to pass to the underlying Pederson Commitment
-pub fn commit(p: &PallasPoly, d: usize, w: Option<&PallasScalar>) -> PallasPoint {
+pub fn commit<P: PastaConfig>(p: &Poly<P>, d: usize, w: Option<&Scalar<P>>) -> Point<P> {
     let pp = PublicParams::get_pp();
     let n = d + 1;
     let p_deg = p.degree();
@@ -237,12 +244,12 @@ pub fn commit(p: &PallasPoly, d: usize, w: Option<&PallasScalar>) -> PallasPoint
 /// p: A univariate polynomial p(X),
 /// d: A degree bound for p, we require that p.degree() <= d,
 /// w: Optional hiding to pass to the underlying Pederson Commitment
-pub fn chunked_commit(
-    p: &PallasPoly,
+pub fn chunked_commit<P: PastaConfig>(
+    p: &Poly<P>,
     d: usize,
-    w: Option<&PallasScalar>,
+    w: Option<&Scalar<P>>,
     chunk_size: usize,
-) -> Vec<PallasPoint> {
+) -> Vec<Point<P>> {
     let pp = PublicParams::get_pp();
     let n = d + 1;
     // let p_deg = p.degree();
@@ -267,14 +274,14 @@ pub fn chunked_commit(
 /// d: A degree bound for p, we require that p.degree() <= d,
 /// z: An evaluation point z
 /// w: Commitment randomness ω for the Pedersen Commitment C
-pub fn open<R: Rng>(
+pub fn open<R: Rng, P: PastaConfig>(
     rng: &mut R,
-    p: PallasPoly,
-    C: PallasPoint,
+    p: Poly<P>,
+    C: Point<P>,
     d: usize,
-    z: &PallasScalar,
-    w: Option<&PallasScalar>,
-) -> EvalProof {
+    z: &Scalar<P>,
+    w: Option<&Scalar<P>>,
+) -> EvalProof<P> {
     let pp = PublicParams::get_pp();
     let n = d + 1;
     let lg_n = n.ilog2() as usize;
@@ -289,18 +296,18 @@ pub fn open<R: Rng>(
     let (p_prime, C_prime, w_prime, C_bar) = if let Some(w) = w {
         // (2). Sample a random polynomial p_bar ∈ F^(≤d)_q[X] such that p_bar(z) = 0.
         // p_bar(X) = (X - z) * q(X), where q(X) is a uniform random polynomial
-        let z_poly = PallasPoly::from_coefficients_vec(vec![-*z, PallasScalar::ONE]);
-        let q = PallasPoly::rand(p.degree() - 1, rng);
+        let z_poly = Poly::<P>::from_coefficients_vec(vec![-*z, Scalar::<P>::ONE]);
+        let q: Poly<P> = DenseUVPolynomial::<Scalar<P>>::rand(d-1, rng);
         let p_bar = q * z_poly;
 
         // (3). Sample corresponding commitment randomness ω_bar ∈ Fq.
-        let w_bar = PallasScalar::rand(rng);
+        let w_bar = Scalar::<P>::rand(rng);
 
         // (4). Compute a hiding commitment to p_bar: C_bar ← CM.Commit^(ρ0)(ck, p_bar; ω_bar) ∈ G.
         let C_bar = commit(&p_bar, d, Some(&w_bar));
 
         // (5). Compute the challenge α := ρ(C, z, v, C_bar) ∈ F^∗_q.
-        let a = rho_0![C, z, v, C_bar];
+        let a = rho0(&[*z, v], &[C, C_bar]);
 
         // 6. Compute the polynomial p' := p + α ⋅ p_bar = Σ^d_(i=0) c_i ⋅ X_i ∈ Fq[X].
         let p_prime = p + &p_bar * a;
@@ -327,13 +334,13 @@ pub fn open<R: Rng>(
     // c_0 := (c_0, c_1, . . . , c_d) ∈ F^(d+1)_q
     // z_0 := (1, z, . . . , z^d) ∈ F^(d+1)_q
     // G_0 := (G_0, G_1, . . . , G_d) ∈ G_(d+1)
-    let mut xi_i = rho_0![C_prime, z, v];
+    let mut xi_i = rho0(&[*z, v], &[C_prime]);
     let H_prime = pp.H * xi_i;
 
     let mut cs = p_prime.coeffs;
-    cs.resize(n, PallasScalar::ZERO);
+    cs.resize(n, Scalar::<P>::ZERO);
     let mut gs = pp.Gs[0..n].to_vec();
-    let mut zs = construct_powers(z, n);
+    let mut zs: Vec<P::ScalarField> = construct_powers::<P>(z, n);
 
     let mut Ls = Vec::with_capacity(lg_n);
     let mut Rs = Vec::with_capacity(lg_n);
@@ -350,35 +357,26 @@ pub fn open<R: Rng>(
         let (cs_l, cs_r) = cs.split_at_mut(m);
         let (zs_l, zs_r) = zs.split_at_mut(m);
 
-        let dot_l = scalar_dot(cs_r, zs_l);
+        let dot_l = scalar_dot::<P>(cs_r, zs_l);
         let L = point_dot_affine(cs_r, gs_l) + H_prime * dot_l;
         Ls.push(L);
 
-        let dot_r = scalar_dot(cs_l, zs_r);
+        let dot_r = scalar_dot::<P>(cs_l, zs_r);
         let R = point_dot_affine(cs_l, gs_r) + H_prime * dot_r;
         Rs.push(R);
 
         // 3. Generate the (i+1)-th challenge ξ_(i+1) := ρ_0(ξ_i, L_(i+1), R_(i+1)) ∈ F_q.
-        let xi_next = rho_0![xi_i, L, R];
+        let xi_next = rho0(&[xi_i], &[L, R]);
         let xi_next_inv = xi_next.inverse().unwrap();
         xi_i = xi_next;
 
-        #[cfg(not(feature = "parallel"))]
-        let (gs_l_iter, cs_l_iter, zs_l_iter) = (gs_l.iter_mut(), cs_l.iter_mut(), zs_l.iter_mut());
-        #[cfg(feature = "parallel")]
-        let (gs_l_iter, cs_l_iter, zs_l_iter) = (
-            gs_l.par_iter_mut(),
-            cs_l.par_iter_mut(),
-            zs_l.par_iter_mut(),
-        );
-
-        gs_l_iter.take(m).enumerate().for_each(|(j, g)| {
+        gs_l.par_iter_mut().take(m).enumerate().for_each(|(j, g)| {
             *g = (*g + gs_r[j] * xi_next).into_affine();
         });
-        cs_l_iter.take(m).enumerate().for_each(|(j, c)| {
+        cs_l.par_iter_mut().take(m).enumerate().for_each(|(j, c)| {
             *c += cs_r[j] * xi_next_inv;
         });
-        zs_l_iter.take(m).enumerate().for_each(|(j, z)| {
+        zs_l.par_iter_mut().take(m).enumerate().for_each(|(j, z)| {
             *z += zs_r[j] * xi_next;
         });
 
@@ -408,13 +406,13 @@ pub fn open<R: Rng>(
 /// z: An evaluation point z
 /// v: v = p(z)
 /// pi: The evaluation proof
-pub fn succinct_check(
-    C: PallasPoint,
+pub fn succinct_check<P: PastaConfig>(
+    C: Point<P>,
     d: usize,
-    z: &PallasScalar,
-    v: &PallasScalar,
-    pi: EvalProof,
-) -> Result<(HPoly, PallasPoint)> {
+    z: &Scalar<P>,
+    v: &Scalar<P>,
+    pi: EvalProof<P>,
+) -> Result<(HPoly<P>, Point<P>)> {
     let pp = PublicParams::get_pp();
     let n = d + 1;
     let lg_n = n.ilog2() as usize;
@@ -431,7 +429,7 @@ pub fn succinct_check(
     // 4. Compute the non-hiding commitment C' := C + α · C_bar − ω'· S ∈ G.
     let C_prime = if let Some(C_bar) = C_bar {
         // (3). Compute the challenge α := ρ_0(C, z, v, C_bar) ∈ F^∗_q.
-        let a = rho_0![C, z, v, C_bar];
+        let a = rho0(&[*z, *v], &[C, C_bar]);
 
         C + C_bar * a - pp.S * w_prime.unwrap()
     } else {
@@ -439,7 +437,7 @@ pub fn succinct_check(
     };
 
     // 5. Compute the 0-th challenge ξ_0 := ρ_0(C', z, v), and set H' := ξ_0 · H ∈ G.
-    let xi_0 = rho_0![C_prime, z, v];
+    let xi_0 = rho0(&[*z, *v], &[C_prime]);
     let mut xis = Vec::with_capacity(lg_n + 1).push_own(xi_0);
 
     let H_prime = pp.H * xi_0;
@@ -450,7 +448,7 @@ pub fn succinct_check(
     // 7. For each i ∈ [log_n]:
     for i in 0..lg_n {
         // 7.a Generate the (i+1)-th challenge: ξ_(i+1) := ρ_0(ξ_i, L_i, R_i) ∈ F_q.
-        let xi_next = rho_0!(xis[i], Ls[i], Rs[i]);
+        let xi_next = rho0(&[xis[i]], &[Ls[i], Rs[i]]);
         xis.push(xi_next);
 
         // 7.b Compute the (i+1)-th commitment: C_(i+1) := C_i + ξ^(−1)_(i+1) · L_i + ξ_(i+1) · R_i ∈ G.
@@ -480,12 +478,12 @@ pub fn succinct_check(
 /// z: An evaluation point z
 /// v: v = p(z)
 /// pi: The evaluation proof
-pub fn check(
-    C: &PallasPoint,
+pub fn check<P: PastaConfig>(
+    C: &Point<P>,
     d: usize,
-    z: &PallasScalar,
-    v: &PallasScalar,
-    pi: EvalProof,
+    z: &Scalar<P>,
+    v: &Scalar<P>,
+    pi: EvalProof<P>,
 ) -> Result<()> {
     let pp = PublicParams::get_pp();
     // 1. Parse ck as (⟨group⟩, hk, S).
@@ -587,7 +585,7 @@ mod tests {
         assert_eq!(gs_mut.len(), 1);
         assert_eq!(g0_expected, gs_mut[0]);
 
-        let h = HPoly::new(xis.clone());
+        let h = HPoly::<PallasConfig>::new(xis.clone());
         let h_coeffs = h.get_poly().coeffs;
         let U = gs_mut[0];
         let U_prime = pedersen::commit(None, &gs_affine, &h_coeffs);
@@ -610,7 +608,7 @@ mod tests {
         let n = (2 as usize).pow(rng.sample(&Uniform::new(2, 10)));
 
         // Verify that check works
-        Instance::rand(rng, n).check()?;
+        Instance::<PallasConfig>::rand(rng, n).check()?;
 
         Ok(())
     }
@@ -624,7 +622,7 @@ mod tests {
 
         // Commit to a random polynomial
         let p = PallasPoly::rand(d_prime, &mut rng);
-        let C = commit(&p, d, None);
+        let C = commit::<PallasConfig>(&p, d, None);
 
         // Generate an evaluation proof
         let z = PallasScalar::rand(&mut rng);
@@ -658,7 +656,7 @@ mod tests {
             xis[1] * xis[2],
             xis[1] * xis[2] * xis[3],
         ];
-        let h = HPoly::new(xis);
+        let h = HPoly::<PallasConfig>::new(xis);
 
         assert_eq!(h.get_poly().coeffs, coeffs);
     }

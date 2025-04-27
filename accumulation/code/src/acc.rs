@@ -14,9 +14,13 @@ use ark_serialize::CanonicalSerialize;
 use ark_std::{UniformRand, Zero};
 use rand::Rng;
 
+use crate::group::Point;
+use crate::group::Poly;
+use crate::group::Scalar;
 use crate::pp::PublicParams;
+use crate::wrappers::PastaConfig;
 use crate::{
-    group::{construct_powers, point_dot, rho_1, PallasPoint, PallasPoly, PallasScalar},
+    group::{construct_powers, point_dot, rho1, PallasPoint, PallasPoly, PallasScalar},
     pcdl::{self, Instance},
 };
 
@@ -24,17 +28,17 @@ use crate::{
 
 /// acc in the paper
 #[derive(Debug, Clone, CanonicalSerialize, CanonicalDeserialize)]
-pub struct Accumulator {
-    pub(crate) q: Instance,
-    pub pi_V: AccumulatorHiding,
+pub struct Accumulator<P: PastaConfig> {
+    pub(crate) q: Instance<P>,
+    pub pi_V: AccumulatorHiding<P>,
 }
 
-impl Accumulator {
-    pub fn new<R: Rng>(rng: &mut R, qs: &[Instance]) -> Result<Self> {
+impl<P: PastaConfig> Accumulator<P> {
+    pub fn new<R: Rng>(rng: &mut R, qs: &[Instance<P>]) -> Result<Self> {
         prover(rng, qs)
     }
 
-    pub fn verifier(self, qs: &[Instance]) -> Result<()> {
+    pub fn verifier(self, qs: &[Instance<P>]) -> Result<()> {
         verifier(qs, self)
     }
 
@@ -45,22 +49,22 @@ impl Accumulator {
 
 /// pi_V in the paper, used for hiding only
 #[derive(Debug, Clone, CanonicalSerialize, CanonicalDeserialize)]
-pub struct AccumulatorHiding {
-    pub(crate) h: PallasPoly,
-    pub(crate) U: PallasPoint,
-    pub(crate) w: PallasScalar,
+pub struct AccumulatorHiding<P: PastaConfig> {
+    pub(crate) h: Poly<P>,
+    pub(crate) U: Point<P>,
+    pub(crate) w: Scalar<P>,
 }
 
 #[derive(Clone, CanonicalSerialize)]
-pub struct AccumulatedHPolys {
-    h_0: Option<PallasPoly>,
-    pub hs: Vec<pcdl::HPoly>,
-    alpha: Option<PallasScalar>,
-    alphas: Vec<PallasScalar>,
+pub struct AccumulatedHPolys<P: PastaConfig> {
+    h_0: Option<Poly<P>>,
+    pub(crate) hs: Vec<pcdl::HPoly<P>>,
+    alpha: Option<Scalar<P>>,
+    alphas: Vec<Scalar<P>>,
 }
 
-impl AccumulatedHPolys {
-    pub fn with_capacity(capacity: usize) -> Self {
+impl<P: PastaConfig> AccumulatedHPolys<P> {
+    pub(crate) fn with_capacity(capacity: usize) -> Self {
         Self {
             h_0: None,
             hs: Vec::with_capacity(capacity),
@@ -69,14 +73,14 @@ impl AccumulatedHPolys {
         }
     }
 
-    pub fn set_alpha(&mut self, alpha: PallasScalar) {
-        self.alphas = construct_powers(&alpha, self.alphas.capacity());
+    pub(crate) fn set_alpha(&mut self, alpha: Scalar<P>) {
+        self.alphas = construct_powers::<P>(&alpha, self.alphas.capacity());
         self.alpha = Some(alpha)
     }
 
     // WARNING: This will panic if alphas has not been initialized, but should be fine since this is private
-    pub fn get_poly(&self) -> PallasPoly {
-        let mut h = PallasPoly::zero();
+    pub(crate) fn get_poly(&self) -> Poly<P> {
+        let mut h = Poly::<P>::zero();
         if let Some(h_0) = &self.h_0 {
             h += h_0;
         }
@@ -87,8 +91,8 @@ impl AccumulatedHPolys {
     }
 
     // WARNING: This will panic if alphas has not been initialized, but should be fine since this is private
-    pub fn eval(&self, z: &PallasScalar) -> PallasScalar {
-        let mut v = PallasScalar::zero();
+    pub(crate) fn eval(&self, z: &Scalar<P>) -> Scalar<P> {
+        let mut v = Scalar::<P>::zero();
         if let Some(h_0) = &self.h_0 {
             v += h_0.evaluate(z);
         }
@@ -97,10 +101,18 @@ impl AccumulatedHPolys {
         }
         v
     }
+
+    pub(crate) fn get_scalars(&self) -> Vec<Scalar<P>> {
+        let mut vec: Vec<_> = self.hs.iter().flat_map(|x| x.xis.clone()).collect();
+        if let Some(alpha) = self.alpha {
+            vec.push(alpha)
+        }
+        vec
+    }
 }
 
-impl From<Accumulator> for Instance {
-    fn from(acc: Accumulator) -> Instance {
+impl<P: PastaConfig> From<Accumulator<P>> for Instance<P> {
+    fn from(acc: Accumulator<P>) -> Instance<P> {
         acc.q
     }
 }
@@ -114,10 +126,10 @@ pub fn setup(n: usize) -> Result<()> {
 
 /// D: Degree of the underlying polynomials
 /// pi_V: Used for hiding
-pub fn common_subroutine(
-    qs: &[Instance],
-    pi_V: &AccumulatorHiding,
-) -> Result<(PallasPoint, usize, PallasScalar, AccumulatedHPolys)> {
+pub fn common_subroutine<P: PastaConfig>(
+    qs: &[Instance<P>],
+    pi_V: &AccumulatorHiding<P>,
+) -> Result<(Point<P>, usize, Scalar<P>, AccumulatedHPolys<P>)> {
     let m = qs.len();
     let d = qs.first().context("No instances given")?.d;
 
@@ -151,7 +163,8 @@ pub fn common_subroutine(
     }
 
     // 6. Compute the challenge α := ρ1([h_i, U_i]^n_(i=0)) ∈ F_q.
-    hs.set_alpha(rho_1!(hs));
+    let alpha = rho1(&hs.get_scalars(), &Us);
+    hs.set_alpha(alpha);
 
     // 7. Set the polynomial h(X) := Σ^n_(i=0) α^i · h_i(X) ∈ Fq[X].
 
@@ -159,7 +172,7 @@ pub fn common_subroutine(
     let C = point_dot(&hs.alphas, &Us);
 
     // 9. Compute the challenge z := ρ1(C, h) ∈ F_q.
-    let z = rho_1![C, hs.alpha.unwrap()];
+    let z = rho1(&[alpha], &[C]);
 
     // 10. Randomize C : C_bar := C + ω · S ∈ G.
     let C_bar = C + pp.S * w;
@@ -168,15 +181,15 @@ pub fn common_subroutine(
     Ok((C_bar, d, z, hs))
 }
 
-pub fn prover<R: Rng>(rng: &mut R, qs: &[Instance]) -> Result<Accumulator> {
+pub fn prover<R: Rng, P: PastaConfig>(rng: &mut R, qs: &[Instance<P>]) -> Result<Accumulator<P>> {
     // 1. Sample a random linear polynomial h_0 ∈ F_q[X],
-    let h_0 = PallasPoly::rand(1, rng);
+    let h_0 = DenseUVPolynomial::rand(1, rng);
 
     // 2. Then compute a deterministic commitment to h_0: U_0 := PCDL.Commit_ρ0(ck_PC, h_0, d; ω = ⊥).
     let U_0 = pcdl::commit(&h_0, 1, None);
 
     // 3. Sample commitment randomness ω ∈ Fq, and set π_V := (h_0, U_0, ω).
-    let w = PallasScalar::rand(rng);
+    let w = Scalar::<P>::rand(rng);
     let pi_V = AccumulatorHiding { h: h_0, U: U_0, w };
 
     // 4. Then, compute the tuple (C_bar, d, z, h(X)) := T^ρ(avk, [qi]^n_(i=1), π_V).
@@ -194,7 +207,7 @@ pub fn prover<R: Rng>(rng: &mut R, qs: &[Instance]) -> Result<Accumulator> {
     Ok(acc)
 }
 
-pub fn verifier(qs: &[Instance], acc: Accumulator) -> Result<()> {
+pub fn verifier<P: PastaConfig>(qs: &[Instance<P>], acc: Accumulator<P>) -> Result<()> {
     let Instance { C, d, z, v, pi: _ } = acc.q;
     let pi_V = acc.pi_V;
 
@@ -210,7 +223,7 @@ pub fn verifier(qs: &[Instance], acc: Accumulator) -> Result<()> {
     Ok(())
 }
 
-pub fn decider(acc: Accumulator) -> Result<()> {
+pub fn decider<P: PastaConfig>(acc: Accumulator<P>) -> Result<()> {
     acc.q.check()
 }
 
@@ -225,8 +238,8 @@ mod tests {
     fn accumulate_random_instance<R: Rng>(
         rng: &mut R,
         n: usize,
-        acc: Option<Accumulator>,
-    ) -> Result<Accumulator> {
+        acc: Option<Accumulator<PallasConfig>>,
+    ) -> Result<Accumulator<PallasConfig>> {
         let q = Instance::rand(rng, n);
         let qs = if acc.is_some() {
             vec![acc.unwrap().into(), q]

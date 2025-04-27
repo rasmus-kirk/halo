@@ -1,8 +1,10 @@
 #![allow(non_snake_case)]
 
-use crate::{group::{point_dot_affine, PallasAffine, PallasPoint, PallasScalar}, pp::PublicParams};
+use ark_ec::VariableBaseMSM;
 
-pub fn commit(w: Option<&PallasScalar>, Gs: &[PallasAffine], ms: &[PallasScalar]) -> PallasPoint {
+use crate::{group::{Affine, Point, Scalar}, pp::PublicParams, wrappers::PastaConfig};
+
+pub fn commit<P: PastaConfig>(w: Option<&Scalar<P>>, Gs: &[Affine<P>], ms: &[Scalar<P>]) -> Point<P> {
     let pp = PublicParams::get_pp();
     
     assert!(
@@ -12,7 +14,7 @@ pub fn commit(w: Option<&PallasScalar>, Gs: &[PallasAffine], ms: &[PallasScalar]
         ms.len()
     );
 
-    let acc = point_dot_affine(ms, Gs);
+    let acc = Point::msm_unchecked(Gs, ms);
     if let Some(w) = w {
         pp.S * w + acc
     } else {
@@ -22,7 +24,8 @@ pub fn commit(w: Option<&PallasScalar>, Gs: &[PallasAffine], ms: &[PallasScalar]
 
 #[cfg(test)]
 mod tests {
-    use crate::pp::PublicParams;
+    use crate::{group::PallasScalar, pp::PublicParams};
+    use ark_pallas::PallasConfig;
     use ark_std::UniformRand;
     use rand::Rng;
 
@@ -44,8 +47,8 @@ mod tests {
         let w1 = PallasScalar::rand(rng);
         let w2 = PallasScalar::rand(rng);
 
-        let inner_sum = commit(Some(&(w1 + w2)), Gs, &ms_sum);
-        let outer_sum = commit(Some(&w1), Gs, &ms1) + commit(Some(&w2), Gs, &ms2);
+        let inner_sum = commit::<PallasConfig>(Some(&(w1 + w2)), Gs, &ms_sum);
+        let outer_sum = commit::<PallasConfig>(Some(&w1), Gs, &ms1) + commit::<PallasConfig>(Some(&w2), Gs, &ms2);
 
         // Check if homomorphism property holds
         println!("{:?}, {}", &pp.Gs[0..l], l);

@@ -10,6 +10,7 @@ use std::{
 
 use acc::Accumulator;
 use anyhow::{bail, Result};
+use ark_pallas::PallasConfig;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use pcdl::Instance;
 use rayon::prelude::*;
@@ -125,13 +126,13 @@ mod gen_pp {
 
 // -------------------- Benchmarking Functions --------------------
 
-fn gen(n: usize) -> Result<(usize, Instance, Accumulator)> {
+fn gen(n: usize) -> Result<(usize, Instance<PallasConfig>, Accumulator<PallasConfig>)> {
     let q = gen_q(n)?;
     let acc = gen_acc(q.clone())?;
     Ok((n, q, acc))
 }
 
-fn gen_q(n: usize) -> Result<Instance> {
+fn gen_q(n: usize) -> Result<Instance<PallasConfig>> {
     let rng = &mut rand::thread_rng();
 
     let now = SystemTime::now();
@@ -143,7 +144,7 @@ fn gen_q(n: usize) -> Result<Instance> {
     Ok(q)
 }
 
-fn gen_acc(q: Instance) -> Result<Accumulator> {
+fn gen_acc(q: Instance<PallasConfig>) -> Result<Accumulator<PallasConfig>> {
     let rng = &mut rand::thread_rng();
     let n = q.d + 1;
 
@@ -156,13 +157,13 @@ fn gen_acc(q: Instance) -> Result<Accumulator> {
     Ok(acc)
 }
 
-fn bench(n: usize, q: Instance, acc: Accumulator) -> Result<()> {
-    let q: Instance = q.into();
+fn bench(n: usize, q: Instance<PallasConfig>, acc: Accumulator<PallasConfig>) -> Result<()> {
+    let q: Instance<PallasConfig> = q.into();
     test_succinct_check(q.clone(), n)?;
     test_acc_ver(q, acc.into())
 }
 
-fn test_succinct_check(q: Instance, n: usize) -> Result<()> {
+fn test_succinct_check(q: Instance<PallasConfig>, n: usize) -> Result<()> {
     let now = SystemTime::now();
     let _ = q.succinct_check()?;
     let elapsed = now.elapsed()?;
@@ -180,7 +181,7 @@ fn test_succinct_check(q: Instance, n: usize) -> Result<()> {
     Ok(())
 }
 
-fn test_acc_ver(q: Instance, acc: Accumulator) -> Result<()> {
+fn test_acc_ver(q: Instance<PallasConfig>, acc: Accumulator<PallasConfig>) -> Result<()> {
     let n = acc.q.d + 1;
 
     let now = SystemTime::now();
@@ -231,8 +232,7 @@ fn main() -> Result<()> {
 
     match args.get(2) {
         Some(s) if s == "gen" => {
-
-            let res: Result<Vec<(usize, Instance, Accumulator)>> =
+            let res: Result<Vec<(usize, Instance<PallasConfig>, Accumulator<PallasConfig>)>> =
                 (min..max + 1).map(|i| gen(2usize.pow(i))).collect();
             let qs = res?;
             let mut bytes = Vec::with_capacity(qs.compressed_size());
@@ -248,7 +248,7 @@ fn main() -> Result<()> {
         }
         Some(s) if s == "bench" => {
             let bytes = fs::read(qs_path)?;
-            let val = Vec::<(usize, Instance, Accumulator)>::deserialize_compressed(bytes.as_slice())?;
+            let val = Vec::<(usize, Instance<PallasConfig>, Accumulator<PallasConfig>)>::deserialize_compressed(bytes.as_slice())?;
 
             val.into_par_iter()
                 .try_for_each(|(n, q, acc)| bench(n, q, acc))?;

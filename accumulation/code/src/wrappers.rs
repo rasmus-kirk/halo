@@ -2,9 +2,9 @@
 
 use std::sync::OnceLock;
 
-use crate::{consts::{G_BLOCKS_NO, G_BLOCKS_SIZE, N}, group::Affine, pp::PublicParams};
+use crate::{consts::{G_BLOCKS_NO, G_BLOCKS_SIZE, N}, group::{Affine, Scalar}, pp::PublicParams};
 use ark_ec::{short_weierstrass::{Projective, SWCurveConfig}, CurveGroup};
-use ark_ff::BigInt;
+use ark_ff::{BigInt, PrimeField};
 use ark_pallas::PallasConfig;
 use ark_vesta::VestaConfig;
 use bincode::{config::standard, Decode, Encode};
@@ -18,7 +18,6 @@ static PP_VESTA:  OnceLock<PublicParams<VestaConfig>>  = OnceLock::new();
 pub trait PastaConfig: SWCurveConfig
 where
 {
-    fn load_public_params(n: usize) -> PublicParams<Self>;
     fn get_loaded_public_params() -> &'static OnceLock<PublicParams<Self>>;
     fn get_g_data() -> [&'static [u8]; 64];
     fn get_sh_data() -> &'static [u8];
@@ -40,35 +39,6 @@ impl PastaConfig for ark_pallas::PallasConfig {
     }
     fn get_sh_data() -> &'static [u8] {
         SH_PATH_PALLAS
-    }
-    fn load_public_params(n: usize) -> PublicParams<PallasConfig> {
-        assert!(n.is_power_of_two());
-        assert!(n <= N);
-
-        let mut gs = Vec::with_capacity(n);
-        let mut m = n;
-        for bytes in G_PATHS_PALLAS.iter().take(G_BLOCKS_NO) {
-            let (raw_gs, _): (Vec<WrappedPoint>, usize) =
-                bincode::decode_from_slice(bytes, standard()).unwrap();
-            let mut converted_gs: Vec<ark_pallas::Affine> =
-                raw_gs.into_iter().take(m).map(|x| x.into()).collect();
-            gs.append(&mut converted_gs);
-
-            if let Some(new_m) = m.checked_sub(G_BLOCKS_SIZE) {
-                m = new_m
-            } else {
-                break;
-            }
-        }
-        let ((S, H), _): ((WrappedPoint, WrappedPoint), usize) =
-            bincode::decode_from_slice(SH_PATH_PALLAS, standard()).unwrap();
-
-        PublicParams {
-            S: S.into(),
-            H: H.into(),
-            D: n - 1,
-            Gs: gs,
-        }
     }
     fn get_loaded_public_params() -> &'static OnceLock<PublicParams<Self>> {
         &PP_PALLAS
@@ -102,35 +72,6 @@ impl PastaConfig for ark_vesta::VestaConfig {
     }
     fn get_loaded_public_params() -> &'static OnceLock<PublicParams<Self>> {
         &PP_VESTA
-    }
-    fn load_public_params(n: usize) -> PublicParams<VestaConfig> {
-        assert!(n.is_power_of_two());
-        assert!(n <= N);
-
-        let mut gs = Vec::with_capacity(n);
-        let mut m = n;
-        for bytes in G_PATHS_PALLAS.iter().take(G_BLOCKS_NO) {
-            let (raw_gs, _): (Vec<WrappedPoint>, usize) =
-                bincode::decode_from_slice(bytes, standard()).unwrap();
-            let mut converted_gs: Vec<ark_vesta::Affine> =
-                raw_gs.into_iter().take(m).map(|x| x.into()).collect();
-            gs.append(&mut converted_gs);
-
-            if let Some(new_m) = m.checked_sub(G_BLOCKS_SIZE) {
-                m = new_m
-            } else {
-                break;
-            }
-        }
-        let ((S, H), _): ((WrappedPoint, WrappedPoint), usize) =
-            bincode::decode_from_slice(SH_PATH_PALLAS, standard()).unwrap();
-
-        PublicParams {
-            S: S.into(),
-            H: H.into(),
-            D: n - 1,
-            Gs: gs,
-        }
     }
 }
 
