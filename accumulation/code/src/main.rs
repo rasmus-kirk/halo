@@ -11,7 +11,7 @@ use std::{
 use acc::Accumulator;
 use anyhow::{bail, Result};
 use ark_pallas::PallasConfig;
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Valid};
 use pcdl::Instance;
 use rayon::prelude::*;
 
@@ -52,8 +52,7 @@ mod gen_pp {
         let hash_result = hasher.finalize();
 
         // Generate a uniformly sampled point from the uniformly sampled field element
-        let point =
-            Point::<P>::generator() * Scalar::<P>::from_le_bytes_mod_order(&hash_result);
+        let point = Point::<P>::generator() * Scalar::<P>::from_le_bytes_mod_order(&hash_result);
         P::wrap_projective(point)
     }
 
@@ -139,6 +138,8 @@ fn gen_q(n: usize) -> Result<Instance<PallasConfig>> {
     let q = Instance::rand(rng, n);
     let elapsed = now.elapsed()?;
 
+    q.check().unwrap();
+
     println!("[q {}]: Finished in {} s", n, elapsed.as_secs_f32());
 
     Ok(q)
@@ -151,6 +152,8 @@ fn gen_acc(q: Instance<PallasConfig>) -> Result<Accumulator<PallasConfig>> {
     let now = SystemTime::now();
     let acc = acc::prover(rng, &[q])?;
     let elapsed = now.elapsed()?;
+
+    acc.clone().decider().unwrap();
 
     println!("[acc {}]: Finished acc in {} s", n, elapsed.as_secs_f32());
 
@@ -214,9 +217,7 @@ fn main() -> Result<()> {
     let max = 20;
 
     let curve = match args.get(2) {
-        Some(s) if s == "pallas" || s == "vesta" => {
-            s
-        }
+        Some(s) if s == "pallas" || s == "vesta" => s,
         Some(_) => bail!("Valid arguments are \"pallas\" and \"vesta\""),
         None => bail!("Second argument is required"),
     };
@@ -230,11 +231,15 @@ fn main() -> Result<()> {
     }
     let qs_path = qs_dir.join("qs.bin");
 
-    match args.get(2) {
+    match args.get(3) {
         Some(s) if s == "gen" => {
+            if curve == "vesta" {
+                bail!("qs cannot be created from vesta!")
+            }
             let res: Result<Vec<(usize, Instance<PallasConfig>, Accumulator<PallasConfig>)>> =
                 (min..max + 1).map(|i| gen(2usize.pow(i))).collect();
             let qs = res?;
+
             let mut bytes = Vec::with_capacity(qs.compressed_size());
             qs.serialize_compressed(&mut bytes)?;
 
