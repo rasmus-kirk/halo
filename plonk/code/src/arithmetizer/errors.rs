@@ -1,19 +1,24 @@
-use super::{arith_wire::ArithWire, cache::CacheError, trace::TraceError, Wire};
+use ark_ec::short_weierstrass::SWCurveConfig;
 
-use std::rc::Rc;
+use super::{
+    arith_wire::ArithWire, cache::CacheError, plookup::PlookupOps, trace::TraceError, Wire,
+};
 
-#[derive(Debug)]
-pub enum ArithmetizerError {
+use std::{error::Error, fmt::Debug, rc::Rc};
+
+pub enum ArithmetizerError<Op: PlookupOps, P: SWCurveConfig> {
     EmptyOutputWires,
     MismatchedCircuits,
     InvalidInputLength { expected: usize, got: usize },
-    EvaluatorError(TraceError),
-    CacheError(CacheError),
-    CommutativeSetTypeConversionError(ArithWire),
+    EvaluatorError(TraceError<Op, P>),
+    CacheError(CacheError<Op, P>),
+    CommutativeSetTypeConversionError(ArithWire<Op, P>),
 }
 
-impl ArithmetizerError {
-    pub fn validate<T>(input_values: &[T], output_wires: &[Wire]) -> Result<(), Self> {
+impl<Op: PlookupOps, P: SWCurveConfig> Error for ArithmetizerError<Op, P> {}
+
+impl<Op: PlookupOps, P: SWCurveConfig> ArithmetizerError<Op, P> {
+    pub fn validate<T>(input_values: &[T], output_wires: &[Wire<Op, P>]) -> Result<(), Self> {
         if output_wires.is_empty() {
             return Err(ArithmetizerError::EmptyOutputWires);
         }
@@ -40,7 +45,7 @@ impl ArithmetizerError {
     }
 }
 
-impl std::fmt::Display for ArithmetizerError {
+impl<Op: PlookupOps, P: SWCurveConfig> std::fmt::Display for ArithmetizerError<Op, P> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ArithmetizerError::EmptyOutputWires => {
@@ -67,4 +72,8 @@ impl std::fmt::Display for ArithmetizerError {
     }
 }
 
-impl std::error::Error for ArithmetizerError {}
+impl<Op: PlookupOps, P: SWCurveConfig> Debug for ArithmetizerError<Op, P> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ArithmetizerError: {}", self)
+    }
+}

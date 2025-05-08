@@ -1,3 +1,4 @@
+mod grandproduct;
 mod pi;
 mod proof;
 mod transcript;

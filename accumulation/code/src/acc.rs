@@ -5,7 +5,6 @@
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
-use ark_ff::PrimeField;
 use ark_pallas::PallasConfig;
 use ark_poly::DenseUVPolynomial;
 use ark_poly::Polynomial;
@@ -20,7 +19,7 @@ use crate::group::Scalar;
 use crate::pp::PublicParams;
 use crate::wrappers::PastaConfig;
 use crate::{
-    group::{construct_powers, point_dot, rho1, PallasPoint, PallasPoly, PallasScalar},
+    group::{construct_powers, point_dot, rho1},
     pcdl::{self, Instance},
 };
 
@@ -126,6 +125,7 @@ pub fn setup(n: usize) -> Result<()> {
 
 /// D: Degree of the underlying polynomials
 /// pi_V: Used for hiding
+#[allow(clippy::type_complexity)]
 pub fn common_subroutine<P: PastaConfig>(
     qs: &[Instance<P>],
     pi_V: &AccumulatorHiding<P>,

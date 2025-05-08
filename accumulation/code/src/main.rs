@@ -11,7 +11,7 @@ use std::{
 use acc::Accumulator;
 use anyhow::{bail, Result};
 use ark_pallas::PallasConfig;
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Valid};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use pcdl::Instance;
 use rayon::prelude::*;
 
@@ -161,9 +161,9 @@ fn gen_acc(q: Instance<PallasConfig>) -> Result<Accumulator<PallasConfig>> {
 }
 
 fn bench(n: usize, q: Instance<PallasConfig>, acc: Accumulator<PallasConfig>) -> Result<()> {
-    let q: Instance<PallasConfig> = q.into();
+    let q: Instance<PallasConfig> = q;
     test_succinct_check(q.clone(), n)?;
-    test_acc_ver(q, acc.into())
+    test_acc_ver(q, acc)
 }
 
 fn test_succinct_check(q: Instance<PallasConfig>, n: usize) -> Result<()> {
@@ -236,8 +236,10 @@ fn main() -> Result<()> {
             if curve == "vesta" {
                 bail!("qs cannot be created from vesta!")
             }
-            let res: Result<Vec<(usize, Instance<PallasConfig>, Accumulator<PallasConfig>)>> =
-                (min..max + 1).map(|i| gen(2usize.pow(i))).collect();
+            #[allow(clippy::type_complexity)]
+            let res: Result<
+                Vec<(usize, Instance<PallasConfig>, Accumulator<PallasConfig>)>,
+            > = (min..max + 1).map(|i| gen(2usize.pow(i))).collect();
             let qs = res?;
 
             let mut bytes = Vec::with_capacity(qs.compressed_size());

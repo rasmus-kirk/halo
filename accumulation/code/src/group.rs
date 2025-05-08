@@ -1,4 +1,10 @@
-#![allow(non_snake_case, unused_macros, dead_code, unused_imports)]
+#![allow(
+    non_snake_case,
+    unused_macros,
+    dead_code,
+    unused_imports,
+    type_alias_bounds
+)]
 
 use std::{
     cmp::{max, min},
@@ -7,6 +13,7 @@ use std::{
     thread,
 };
 
+use crate::wrappers::PastaConfig;
 use ark_ec::{
     short_weierstrass::{Projective, SWCurveConfig},
     CurveGroup, VariableBaseMSM,
@@ -18,7 +25,6 @@ use ark_serialize::CanonicalSerialize;
 use ark_std::One;
 use rayon::prelude::*;
 use sha3::{Digest, Sha3_256};
-use crate::wrappers::PastaConfig;
 
 pub type Point<P: SWCurveConfig> = Projective<P>;
 pub type Affine<P: SWCurveConfig> = ark_ec::short_weierstrass::Affine<P>;
@@ -75,7 +81,7 @@ fn rho<P: PastaConfig>(domain_sep: &[u8], scalars: &[Scalar<P>], points: &[Point
 
     // Interpret the hash as a scalar field element
     let mut hash_bytes = [0u8; 32];
-    hash_bytes.copy_from_slice(&hash_result.as_slice());
+    hash_bytes.copy_from_slice(hash_result.as_slice());
     Scalar::<P>::from_le_bytes_mod_order(&hash_bytes)
 }
 

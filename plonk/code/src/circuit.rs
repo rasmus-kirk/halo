@@ -1,59 +1,57 @@
+use ark_ec::short_weierstrass::SWCurveConfig;
+
+use super::{arithmetizer::PlookupEvsThunk, scheme::Slots};
 use crate::{
     scheme::{Selectors, Terms},
-    utils::print_table::evals_str,
+    utils::{misc::EnumIter, print_table::evals_str, Evals, Point, Poly, Scalar},
     Coset,
 };
 
-use super::{arithmetizer::PlookupEvsThunk, scheme::Slots};
+use educe::Educe;
 
-use halo_accumulation::group::{PallasPoint, PallasPoly, PallasScalar};
-
-use ark_poly::Evaluations;
-
-type Scalar = PallasScalar;
-type Poly = PallasPoly;
-type Point = PallasPoint;
-type Evals = Evaluations<Scalar>;
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CircuitPublic {
+#[derive(Educe)]
+#[educe(Clone, Debug, PartialEq, Eq)]
+pub struct CircuitPublic<P: SWCurveConfig> {
     pub d: usize,
     // coset scheme
-    pub h: Coset,
+    pub h: Coset<P>,
     // selector polynomials
-    pub qs: Vec<Poly>,
+    pub qs: Vec<Poly<P>>,
     // public input polynomial
-    pub pip: Poly,
+    pub pip: Poly<P>,
     // identity permutation polynomial
-    pub is: Vec<Poly>,
-    pub is_cache: Vec<Evals>,
+    pub is: Vec<Poly<P>>,
     // permutation polynomial
-    pub ps: Vec<Poly>,
-    pub ps_cache: Vec<Evals>,
+    pub ps: Vec<Poly<P>>,
+    pub _ps: Vec<Evals<P>>,
 
-    pub pip_com: Point,
-    pub qs_coms: Vec<Point>,
-    pub ps_coms: Vec<Point>,
+    pub pip_com: Point<P>,
+    pub qs_com: Vec<Point<P>>,
+    pub ps_com: Vec<Point<P>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CircuitPrivate {
+pub struct CircuitPrivate<P: SWCurveConfig> {
     // slot polynomials
-    pub ws: Vec<Poly>,
-    pub ws_cache: Vec<Evals>,
+    pub ws: Vec<Poly<P>>,
+    pub _ws: Vec<Evals<P>>,
     // thunk to compute Plonkup polys
-    pub plookup: PlookupEvsThunk,
+    pub plookup: PlookupEvsThunk<P>,
 }
 
-pub type Circuit = (CircuitPublic, CircuitPrivate);
+pub type Circuit<P> = (CircuitPublic<P>, CircuitPrivate<P>);
 
-pub fn poly_evaluations_to_string(x: &CircuitPublic, w: &CircuitPrivate) -> String {
+pub fn poly_evaluations_to_string<P: SWCurveConfig>(
+    x: &CircuitPublic<P>,
+    w: &CircuitPrivate<P>,
+) -> String {
     let mut result = String::from("Circuit {\n");
     let polys =
         w.ws.iter()
             .chain(x.qs.iter())
             .chain(std::iter::once(&x.pip))
             .chain(x.ps.iter())
+            .chain(x.is.iter())
             .collect();
     for line in evals_str(
         &x.h,
@@ -61,10 +59,11 @@ pub fn poly_evaluations_to_string(x: &CircuitPublic, w: &CircuitPrivate) -> Stri
         Terms::iter()
             .map(|t| t.to_string())
             .chain(Slots::iter().map(|slot| slot.perm_string().to_string()))
+            .chain(Slots::iter().map(|slot| slot.perm_string().to_string() + "id"))
             .collect::<Vec<String>>(),
         [false; Terms::COUNT]
             .iter()
-            .chain([true; Slots::COUNT].iter())
+            .chain([true; Slots::COUNT * 2].iter())
             .cloned()
             .collect(),
     )
@@ -76,114 +75,114 @@ pub fn poly_evaluations_to_string(x: &CircuitPublic, w: &CircuitPrivate) -> Stri
     result
 }
 
-impl CircuitPrivate {
+impl<P: SWCurveConfig> CircuitPrivate<P> {
     // Slot Getters ---------------------------------------------
 
-    pub fn a(&self) -> &Poly {
-        &self.ws[Slots::A as usize]
+    pub fn a(&self) -> &Poly<P> {
+        &self.ws[Slots::A.id()]
     }
 
-    pub fn b(&self) -> &Poly {
-        &self.ws[Slots::B as usize]
+    pub fn b(&self) -> &Poly<P> {
+        &self.ws[Slots::B.id()]
     }
 
-    pub fn c(&self) -> &Poly {
-        &self.ws[Slots::C as usize]
+    pub fn c(&self) -> &Poly<P> {
+        &self.ws[Slots::C.id()]
     }
 
-    pub fn _a(&self) -> &Evals {
-        &self.ws_cache[Slots::A as usize]
+    pub fn _a(&self, i: usize) -> Scalar<P> {
+        self._ws[Slots::A.id()].evals[i]
     }
 
-    pub fn _b(&self) -> &Evals {
-        &self.ws_cache[Slots::B as usize]
+    pub fn _b(&self, i: usize) -> Scalar<P> {
+        self._ws[Slots::B.id()].evals[i]
     }
 
-    pub fn _c(&self) -> &Evals {
-        &self.ws_cache[Slots::C as usize]
+    pub fn _c(&self, i: usize) -> Scalar<P> {
+        self._ws[Slots::C.id()].evals[i]
     }
 }
 
-impl CircuitPublic {
+impl<P: SWCurveConfig> CircuitPublic<P> {
     // Selector Getters ---------------------------------------------
 
-    pub fn ql(&self) -> &Poly {
-        &self.qs[Selectors::Ql as usize]
+    pub fn ql(&self) -> &Poly<P> {
+        &self.qs[Selectors::Ql.id()]
     }
 
-    pub fn qr(&self) -> &Poly {
-        &self.qs[Selectors::Qr as usize]
+    pub fn qr(&self) -> &Poly<P> {
+        &self.qs[Selectors::Qr.id()]
     }
 
-    pub fn qo(&self) -> &Poly {
-        &self.qs[Selectors::Qo as usize]
+    pub fn qo(&self) -> &Poly<P> {
+        &self.qs[Selectors::Qo.id()]
     }
 
-    pub fn qm(&self) -> &Poly {
-        &self.qs[Selectors::Qm as usize]
+    pub fn qm(&self) -> &Poly<P> {
+        &self.qs[Selectors::Qm.id()]
     }
 
-    pub fn qc(&self) -> &Poly {
-        &self.qs[Selectors::Qc as usize]
+    pub fn qc(&self) -> &Poly<P> {
+        &self.qs[Selectors::Qc.id()]
     }
 
-    pub fn qk(&self) -> &Poly {
-        &self.qs[Selectors::Qk as usize]
+    pub fn qk(&self) -> &Poly<P> {
+        &self.qs[Selectors::Qk.id()]
     }
 
-    pub fn j(&self) -> &Poly {
-        &self.qs[Selectors::J as usize]
+    pub fn j(&self) -> &Poly<P> {
+        &self.qs[Selectors::J.id()]
     }
 
     // Identity Permutation Getters ---------------------------------------------
 
-    pub fn ia(&self) -> &Poly {
-        &self.is[Slots::A as usize]
+    pub fn ia(&self) -> &Poly<P> {
+        &self.is[Slots::A.id()]
     }
 
-    pub fn ib(&self) -> &Poly {
-        &self.is[Slots::B as usize]
+    pub fn ib(&self) -> &Poly<P> {
+        &self.is[Slots::B.id()]
     }
 
-    pub fn ic(&self) -> &Poly {
-        &self.is[Slots::C as usize]
+    pub fn ic(&self) -> &Poly<P> {
+        &self.is[Slots::C.id()]
     }
 
-    pub fn _ia(&self) -> &Evals {
-        &self.is_cache[Slots::A as usize]
+    pub fn _ia(&self, i: usize) -> Scalar<P> {
+        self.h.h(Slots::A, i as u64)
     }
 
-    pub fn _ib(&self) -> &Evals {
-        &self.is_cache[Slots::B as usize]
+    pub fn _ib(&self, i: usize) -> Scalar<P> {
+        self.h.h(Slots::B, i as u64)
     }
 
-    pub fn _ic(&self) -> &Evals {
-        &self.is_cache[Slots::C as usize]
+    pub fn _ic(&self, i: usize) -> Scalar<P> {
+        self.h.h(Slots::C, i as u64)
     }
 
     // Permutation Getters ---------------------------------------------
 
-    pub fn pa(&self) -> &Poly {
-        &self.ps[Slots::A as usize]
+    pub fn pa(&self) -> &Poly<P> {
+        &self.ps[Slots::A.id()]
     }
 
-    pub fn pb(&self) -> &Poly {
-        &self.ps[Slots::B as usize]
+    pub fn pb(&self) -> &Poly<P> {
+        &self.ps[Slots::B.id()]
     }
 
-    pub fn pc(&self) -> &Poly {
-        &self.ps[Slots::C as usize]
+    pub fn pc(&self) -> &Poly<P> {
+        &self.ps[Slots::C.id()]
     }
 
-    pub fn _pa(&self) -> &Evals {
-        &self.ps_cache[Slots::A as usize]
+    pub fn _pa(&self, i: usize) -> Scalar<P> {
+        self._ps[Slots::A.id()].evals[i]
     }
 
-    pub fn _pb(&self) -> &Evals {
-        &self.ps_cache[Slots::B as usize]
+    pub fn _pb(&self, i: usize) -> Scalar<P> {
+        self._ps[Slots::B.id()].evals[i]
     }
 
-    pub fn _pc(&self) -> &Evals {
-        &self.ps_cache[Slots::C as usize]
+    pub fn _pc(&self, i: usize) -> Scalar<P> {
+        self._ps[Slots::C.id()].evals[i]
     }
 }

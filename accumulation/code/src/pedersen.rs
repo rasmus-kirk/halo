@@ -2,11 +2,19 @@
 
 use ark_ec::VariableBaseMSM;
 
-use crate::{group::{Affine, Point, Scalar}, pp::PublicParams, wrappers::PastaConfig};
+use crate::{
+    group::{Affine, Point, Scalar},
+    pp::PublicParams,
+    wrappers::PastaConfig,
+};
 
-pub fn commit<P: PastaConfig>(w: Option<&Scalar<P>>, Gs: &[Affine<P>], ms: &[Scalar<P>]) -> Point<P> {
+pub fn commit<P: PastaConfig>(
+    w: Option<&Scalar<P>>,
+    Gs: &[Affine<P>],
+    ms: &[Scalar<P>],
+) -> Point<P> {
     let pp = PublicParams::get_pp();
-    
+
     assert!(
         Gs.len() >= ms.len(),
         "ms must be larger than Gs: (Gs: {}), (ms: {})",
@@ -48,7 +56,8 @@ mod tests {
         let w2 = PallasScalar::rand(rng);
 
         let inner_sum = commit::<PallasConfig>(Some(&(w1 + w2)), Gs, &ms_sum);
-        let outer_sum = commit::<PallasConfig>(Some(&w1), Gs, &ms1) + commit::<PallasConfig>(Some(&w2), Gs, &ms2);
+        let outer_sum = commit::<PallasConfig>(Some(&w1), Gs, &ms1)
+            + commit::<PallasConfig>(Some(&w2), Gs, &ms2);
 
         // Check if homomorphism property holds
         println!("{:?}, {}", &pp.Gs[0..l], l);

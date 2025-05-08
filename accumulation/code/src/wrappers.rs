@@ -2,22 +2,23 @@
 
 use std::sync::OnceLock;
 
-use crate::{consts::{G_BLOCKS_NO, G_BLOCKS_SIZE, N}, group::{Affine, Scalar}, pp::PublicParams};
-use ark_ec::{short_weierstrass::{Projective, SWCurveConfig}, CurveGroup};
-use ark_ff::{BigInt, PrimeField};
+use crate::{group::Affine, pp::PublicParams};
+use ark_ec::{
+    short_weierstrass::{Projective, SWCurveConfig},
+    CurveGroup,
+};
+use ark_ff::BigInt;
 use ark_pallas::PallasConfig;
 use ark_vesta::VestaConfig;
-use bincode::{config::standard, Decode, Encode};
+use bincode::{Decode, Encode};
 
 include!(concat!(env!("OUT_DIR"), "/pallas/pp_paths.rs"));
 include!(concat!(env!("OUT_DIR"), "/vesta/pp_paths.rs"));
 
 static PP_PALLAS: OnceLock<PublicParams<PallasConfig>> = OnceLock::new();
-static PP_VESTA:  OnceLock<PublicParams<VestaConfig>>  = OnceLock::new();
+static PP_VESTA: OnceLock<PublicParams<VestaConfig>> = OnceLock::new();
 
-pub trait PastaConfig: SWCurveConfig
-where
-{
+pub trait PastaConfig: SWCurveConfig {
     fn get_loaded_public_params() -> &'static OnceLock<PublicParams<Self>>;
     fn get_g_data() -> [&'static [u8]; 64];
     fn get_sh_data() -> &'static [u8];

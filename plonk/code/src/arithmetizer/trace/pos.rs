@@ -1,14 +1,20 @@
+use ark_ec::short_weierstrass::SWCurveConfig;
+
 use super::{ConstraintID, Coset};
-use crate::{scheme::Slots, utils::misc::to_superscript};
+use crate::{
+    scheme::Slots,
+    utils::{
+        misc::{to_superscript, EnumIter},
+        Scalar,
+    },
+};
 
-use halo_accumulation::group::PallasScalar;
-
+use educe::Educe;
 use std::fmt;
 
-type Scalar = PallasScalar;
-
 /// Position in the permutation polynomial.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Educe)]
+#[educe(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Pos {
     pub slot: Slots,
     pub id: ConstraintID,
@@ -19,12 +25,16 @@ impl Pos {
         Self { slot, id }
     }
 
+    pub fn id(&self) -> usize {
+        self.id as usize
+    }
+
     /// Convert the position to a scalar used in the permutation polynomial.
-    pub fn to_scalar(self, scheme: &Coset) -> Scalar {
+    pub fn to_scalar<P: SWCurveConfig>(self, scheme: &Coset<P>) -> Scalar<P> {
         scheme.h(self.slot, self.id)
     }
 
-    pub fn from_scalar(scalar: Scalar, scheme: &Coset) -> Option<Self> {
+    pub fn from_scalar<P: SWCurveConfig>(scalar: Scalar<P>, scheme: &Coset<P>) -> Option<Self> {
         for slot in Slots::iter() {
             for (i_, &x) in scheme.vec_k(slot).iter().enumerate() {
                 let i = (i_ + 1) as u64;

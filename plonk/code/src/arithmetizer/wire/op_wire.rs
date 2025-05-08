@@ -1,17 +1,17 @@
-use crate::arithmetizer::plookup::PlookupOps;
-
 use super::{ast::WireAST, Wire};
+use crate::arithmetizer::plookup::{opsets::BinXorOr, PlookupOps};
 
+use ark_ec::short_weierstrass::SWCurveConfig;
 use std::ops::{Add, BitAnd, BitOr, BitXor, Mul, Neg, Not, Sub};
 
 // Add ------------------------------------------------------------------------
 
-impl Add for Wire {
-    type Output = Wire;
+impl<Op: PlookupOps, P: SWCurveConfig> Add for Wire<Op, P> {
+    type Output = Self;
 
-    fn add(self, other: Wire) -> Self::Output {
+    fn add(self, other: Self) -> Self::Output {
         Wire {
-            id: self.arith.clone().borrow_mut().add(self.id, other.id),
+            id: self.arith.clone().borrow_mut().wire_add(self.id, other.id),
             arith: self.arith,
             ast: self.ast.map(|ast| WireAST::add(ast, other.ast.unwrap())),
         }
@@ -20,12 +20,12 @@ impl Add for Wire {
 
 // Sub ------------------------------------------------------------------------
 
-impl Sub for Wire {
-    type Output = Wire;
+impl<Op: PlookupOps, P: SWCurveConfig> Sub for Wire<Op, P> {
+    type Output = Self;
 
-    fn sub(self, other: Wire) -> Self::Output {
+    fn sub(self, other: Self) -> Self::Output {
         Wire {
-            id: self.arith.clone().borrow_mut().sub(self.id, other.id),
+            id: self.arith.clone().borrow_mut().wire_sub(self.id, other.id),
             arith: self.arith,
             ast: self.ast.map(|ast| WireAST::sub(ast, other.ast.unwrap())),
         }
@@ -34,12 +34,12 @@ impl Sub for Wire {
 
 // Mul ------------------------------------------------------------------------
 
-impl Mul for Wire {
-    type Output = Wire;
+impl<Op: PlookupOps, P: SWCurveConfig> Mul for Wire<Op, P> {
+    type Output = Self;
 
-    fn mul(self, other: Wire) -> Self::Output {
+    fn mul(self, other: Self) -> Self::Output {
         Wire {
-            id: self.arith.clone().borrow_mut().mul(self.id, other.id),
+            id: self.arith.clone().borrow_mut().wire_mul(self.id, other.id),
             arith: self.arith,
             ast: self.ast.map(|ast| WireAST::mul(ast, other.ast.unwrap())),
         }
@@ -48,12 +48,12 @@ impl Mul for Wire {
 
 // Neg ---------------------------------------------------------
 
-impl Neg for Wire {
-    type Output = Wire;
+impl<Op: PlookupOps, P: SWCurveConfig> Neg for Wire<Op, P> {
+    type Output = Self;
 
     fn neg(self) -> Self::Output {
         Wire {
-            id: self.arith.clone().borrow_mut().neg(self.id),
+            id: self.arith.clone().borrow_mut().wire_neg(self.id),
             arith: self.arith,
             ast: self.ast.map(WireAST::neg),
         }
@@ -62,12 +62,12 @@ impl Neg for Wire {
 
 // Not -----------------------------------------------------
 
-impl Not for Wire {
-    type Output = Wire;
+impl<Op: PlookupOps, P: SWCurveConfig> Not for Wire<Op, P> {
+    type Output = Self;
 
     fn not(self) -> Self::Output {
         Wire {
-            id: self.arith.clone().borrow_mut().not(self.id),
+            id: self.arith.clone().borrow_mut().wire_not(self.id),
             arith: self.arith,
             ast: self.ast.map(WireAST::not),
         }
@@ -76,54 +76,49 @@ impl Not for Wire {
 
 // BitAnd -----------------------------------------------------
 
-impl BitAnd for Wire {
-    type Output = Wire;
+impl<Op: PlookupOps, P: SWCurveConfig> BitAnd for Wire<Op, P> {
+    type Output = Self;
 
-    fn bitand(self, other: Wire) -> Self::Output {
+    fn bitand(self, other: Self) -> Self::Output {
         Wire {
-            id: self.arith.clone().borrow_mut().and(self.id, other.id),
+            id: self.arith.clone().borrow_mut().wire_and(self.id, other.id),
             arith: self.arith,
             ast: self.ast.map(|ast| WireAST::and(ast, other.ast.unwrap())),
         }
     }
 }
 
-// BitOr -----------------------------------------------------
+// Lookup -----------------------------------------------------
 
-impl BitOr for Wire {
-    type Output = Wire;
-
-    fn bitor(self, other: Wire) -> Self::Output {
+impl<P: SWCurveConfig> Wire<BinXorOr, P> {
+    /// Perform a lookup operation between itself and other
+    pub fn lookup(self, op: BinXorOr, other: Self) -> Self {
         Wire {
             id: self
                 .arith
                 .clone()
                 .borrow_mut()
-                .lookup(PlookupOps::Or, self.id, other.id),
+                .wire_lookup(op, self.id, other.id),
             arith: self.arith,
             ast: self
                 .ast
-                .map(|ast| WireAST::lookup(PlookupOps::Or, ast, other.ast.unwrap())),
+                .map(|ast| WireAST::lookup(op, ast, other.ast.unwrap())),
         }
     }
 }
 
-// BitXor ----------------------------------------------------
+impl<P: SWCurveConfig> BitOr for Wire<BinXorOr, P> {
+    type Output = Self;
 
-impl BitXor for Wire {
-    type Output = Wire;
+    fn bitor(self, other: Self) -> Self::Output {
+        self.lookup(BinXorOr::Or, other)
+    }
+}
+
+impl<P: SWCurveConfig> BitXor for Wire<BinXorOr, P> {
+    type Output = Self;
 
     fn bitxor(self, other: Self) -> Self::Output {
-        Wire {
-            id: self
-                .arith
-                .clone()
-                .borrow_mut()
-                .lookup(PlookupOps::Xor, self.id, other.id),
-            arith: self.arith,
-            ast: self
-                .ast
-                .map(|ast| WireAST::lookup(PlookupOps::Xor, ast, other.ast.unwrap())),
-        }
+        self.lookup(BinXorOr::Xor, other)
     }
 }

@@ -1,165 +1,90 @@
 use crate::Coset;
 
-use halo_accumulation::{
-    group::{PallasPoint, PallasPoly, PallasScalar},
-    pcdl,
-};
+use ark_ec::short_weierstrass::SWCurveConfig;
+use ark_ff::{AdditiveGroup, Field};
+use ark_poly::{DenseUVPolynomial, Polynomial};
 
-use ark_ff::{AdditiveGroup, Field, Zero};
-use ark_poly::{DenseUVPolynomial, Evaluations, Polynomial};
+use super::{misc::batch_op, Evals, Poly, Scalar};
 
-use super::misc::batch_op;
-
-type Poly = PallasPoly;
-type Scalar = PallasScalar;
-type Point = PallasPoint;
-type Evals = Evaluations<Scalar>;
-
-pub fn batch_interpolate(es: Vec<Evals>) -> Vec<Poly> {
+pub fn batch_interpolate<P: SWCurveConfig>(es: Vec<Evals<P>>) -> Vec<Poly<P>> {
     batch_op(es, |e| e.interpolate())
 }
 
 /// f(X) = v
-pub fn deg0(v: &Scalar) -> Poly {
-    Poly::from_coefficients_slice(&[*v])
+pub fn deg0<P: SWCurveConfig>(v: Scalar<P>) -> Poly<P> {
+    Poly::<P>::from_coefficients_slice(&[v])
 }
 
 /// f(X) = vXⁿ
-pub fn vxn(v: &Scalar, n: u64) -> Poly {
-    let mut coeffs = vec![Scalar::ZERO; n as usize];
+pub fn vxn<P: SWCurveConfig>(v: &Scalar<P>, n: u64) -> Poly<P> {
+    let mut coeffs = vec![Scalar::<P>::ZERO; n as usize];
     coeffs.push(*v);
-    Poly::from_coefficients_slice(&coeffs)
+    Poly::<P>::from_coefficients_slice(&coeffs)
 }
 
 /// f(X) = Xⁿ
-pub fn xn(n: u64) -> Poly {
-    vxn(&Scalar::ONE, n)
+pub fn xn<P: SWCurveConfig>(n: u64) -> Poly<P> {
+    vxn::<P>(&Scalar::<P>::ONE, n)
 }
 
 /// f(X) = X
-pub fn x() -> Poly {
-    vxn(&Scalar::ONE, 1)
+pub fn x<P: SWCurveConfig>() -> Poly<P> {
+    vxn::<P>(&Scalar::<P>::ONE, 1)
 }
 
-// /// ∀X ∈ H₀: g(X) = f(aX)
-// pub fn coset_scale(h: &Coset, f: &Poly, a: Scalar) -> Poly {
-//     // Step 1: Get the coset domain scaled by `a`
-//     let coset_domain = h
-//         .coset_domain
-//         .get_coset(h.coset_domain.coset_offset() * a)
-//         .unwrap();
-
-//     // Step 2: Perform FFT on `f` over the coset domain {a * ωᶦ}
-//     let mut evals_new = coset_domain.fft(&f.coeffs);
-//     let evals_new_last = evals_new.pop().unwrap();
-//     evals_new.insert(0, evals_new_last);
-
-//     // Step 3: Perform inverse FFT to interpolate the new polynomial g(X)
-//     Evaluations::from_vec_and_domain(evals_new, h.domain).interpolate()
-// }
-
-// /// ∀X ∈ H₀: g(X) = f(ωX)
-// pub fn coset_scale_omega(h: &Coset, f: &Poly) -> Poly {
-//     coset_scale(h, f, h.w(1))
-// }
-
 /// ∀X ∈ H₀: g(X) = f(ωX)
-pub fn shift_wrap_eval(h: &Coset, evals: Evals) -> Evals {
+pub fn shift_wrap_eval<P: SWCurveConfig>(h: &Coset<P>, evals: Evals<P>) -> Evals<P> {
     let mut evals_new = evals.evals;
     let evals_new_first = evals_new.remove(0);
     evals_new.push(evals_new_first);
-    Evaluations::from_vec_and_domain(evals_new, h.domain)
+    Evals::<P>::from_vec_and_domain(evals_new, h.domain)
 }
 
 /// f(X) = p₀(X) + Xⁿp₁(X) + X²ⁿp₂(X) + ...
-pub fn split(n: usize, f: &Poly) -> Vec<Poly> {
+pub fn split<P: SWCurveConfig>(n: u64, f: &Poly<P>) -> Vec<Poly<P>> {
     f.coeffs
-        .chunks(n)
-        .map(Poly::from_coefficients_slice)
+        .chunks(n as usize)
+        .map(Poly::<P>::from_coefficients_slice)
         .collect()
 }
 
-/// f(X) = p₀(X) + ap₁(X) + a²p₂(X) + ...
-pub fn linear_comb<'a, I>(a: &Scalar, ps: I) -> Poly
-where
-    I: IntoIterator<Item = &'a Poly>,
-{
-    ps.into_iter()
-        .enumerate()
-        .fold(Poly::zero(), |acc, (i, p_i)| {
-            acc + deg0(&a.pow([i as u64])) * p_i
-        })
-}
-
 /// Lᵢ(X) = (ωⁱ (Xⁿ - 1)) / (n (X - ωⁱ))
-pub fn lagrange_basis(h: &Coset, i: u64) -> Poly {
-    let wi = &h.w(i);
-    let numerator = (xn(h.n()) + deg0(&PallasScalar::ONE)) * *wi;
-    let denominator = (x() - deg0(wi)) * PallasScalar::from(h.n());
+pub fn lagrange_basis<P: SWCurveConfig>(h: &Coset<P>, i: u64) -> Poly<P> {
+    let wi = h.w(i);
+    let numerator = (xn::<P>(h.n()) + deg0::<P>(Scalar::<P>::ONE)) * wi;
+    let denominator = (x::<P>() - deg0::<P>(wi)) * Scalar::<P>::from(h.n());
     numerator / denominator
 }
 
-// /// Zₕ(X) = Xⁿ - 1
-// /// such that ∀X ∈ H₀: Zₕ(X) = 0
-// pub fn zh_poly(h: &Coset) -> Poly {
-//     xn_poly(h.n()) - deg0(&Scalar::ONE)
-// }
-
-/// Y = x₀y₀ + x₁y₁ + x₂y₂ + ...
-pub fn hadamard(xs: &[Poly], ys: &[Poly]) -> Poly {
-    xs.iter()
-        .zip(ys.iter())
-        .map(|(x, y)| x * y)
-        .reduce(|acc, x| acc + x)
-        .unwrap()
-}
-
-pub fn batch_evaluate<'a, I>(ps: I, x: &Scalar) -> Vec<Scalar>
+pub fn batch_evaluate<'a, P: SWCurveConfig, I>(ps: I, x: Scalar<P>) -> Vec<Scalar<P>>
 where
-    I: IntoIterator<Item = &'a Poly>,
+    I: IntoIterator<Item = &'a Poly<P>>,
 {
-    batch_op(ps, |f| f.evaluate(x))
-}
-
-pub fn batch_commit<'a, I>(ps: I, d: usize, w: Option<&Scalar>) -> Vec<Point>
-where
-    I: IntoIterator<Item = &'a Poly>,
-{
-    batch_op(ps, |f| pcdl::commit(f, d, w))
+    batch_op(ps, |f| f.evaluate(&x))
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::scheme::Slots;
-    use ark_poly::Polynomial;
+    use ark_pallas::PallasConfig;
+    use halo_accumulation::group::PallasScalar;
+
+    use crate::{scheme::Slots, utils::misc::EnumIter};
 
     use super::*;
-
-    // #[test]
-    // fn zh() {
-    //     let rng = &mut rand::thread_rng();
-    //     let h_opt = Coset::new(rng, 5, Slots::COUNT);
-    //     assert!(h_opt.is_some());
-    //     let h = h_opt.unwrap();
-    //     let zh = zh_poly(&h);
-    //     for i in h.iter() {
-    //         assert_eq!(zh.evaluate(&h.w(i)), Scalar::ZERO);
-    //     }
-    // }
 
     #[test]
     fn lagrange() {
         let rng = &mut rand::thread_rng();
-        let h_opt = Coset::new(rng, 5, Slots::COUNT);
+        let h_opt = Coset::<PallasConfig>::new(rng, 5, Slots::COUNT);
         assert!(h_opt.is_some());
         let h = h_opt.unwrap();
         for i in h.iter() {
             let l = lagrange_basis(&h, i);
             for j in h.iter() {
                 if i == j {
-                    assert_eq!(l.evaluate(&h.w(j)), Scalar::ONE);
+                    assert_eq!(l.evaluate(&h.w(j)), PallasScalar::ONE);
                 } else {
-                    assert_eq!(l.evaluate(&h.w(j)), Scalar::ZERO);
+                    assert_eq!(l.evaluate(&h.w(j)), PallasScalar::ZERO);
                 }
             }
         }
