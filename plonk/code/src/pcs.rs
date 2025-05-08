@@ -38,7 +38,7 @@ pub trait PCS<P: SWCurveConfig> {
 pub struct PCSPallas {}
 
 impl PCS<PallasConfig> for PCSPallas {
-    type EvalProof = EvalProof;
+    type EvalProof = EvalProof<PallasConfig>;
     fn commit(
         f: &Poly<PallasConfig>,
         d: usize,
@@ -53,7 +53,7 @@ impl PCS<PallasConfig> for PCSPallas {
         d: usize,
         z: &Scalar<PallasConfig>,
         v: &Scalar<PallasConfig>,
-        pi: EvalProof,
+        pi: Self::EvalProof,
     ) -> Result<()> {
         if succint {
             let _ = pcdl::succinct_check(*C, d, z, v, pi)?;
@@ -73,7 +73,7 @@ impl PCS<PallasConfig> for PCSPallas {
         usize,
         Scalar<PallasConfig>,
         Scalar<PallasConfig>,
-        EvalProof,
+        Self::EvalProof,
     ) {
         Instance::open(rng, p, d, z, w).into_tuple()
     }

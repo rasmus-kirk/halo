@@ -154,6 +154,7 @@ dependencies = [
  "num-bigint",
  "num-integer",
  "num-traits",
+ "rayon",
  "zeroize",
 ]
 
@@ -206,6 +207,7 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "paste",
+ "rayon",
  "zeroize",
 ]
 
@@ -279,6 +281,7 @@ dependencies = [
  "educe",
  "fnv",
  "hashbrown",
+ "rayon",
 ]
 
 [[package]]
@@ -303,6 +306,7 @@ dependencies = [
  "arrayvec",
  "digest",
  "num-bigint",
+ "rayon",
 ]
 
 [[package]]
@@ -334,6 +338,19 @@ checksum = "246a225cc6131e9ee4f24619af0f19d67761fff15d7ccc22e42b80846e69449a"
 dependencies = [
  "num-traits",
  "rand",
+ "rayon",
+]
+
+[[package]]
+name = "ark-vesta"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3a6d658e5e7380af710828550b2dc2c7b033c9f3103d2690711cb07d5a62df6"
+dependencies = [
+ "ark-ec",
+ "ark-ff 0.5.0",
+ "ark-pallas",
+ "ark-std 0.5.0",
 ]
 
 [[package]]
@@ -725,7 +742,9 @@ dependencies = [
  "ark-poly",
  "ark-serialize 0.5.0",
  "ark-std 0.5.0",
+ "ark-vesta",
  "bincode",
+ "educe",
  "rand",
  "rayon",
  "sha3",
