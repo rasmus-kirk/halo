@@ -12,11 +12,18 @@ use halo_accumulation::{
     pcdl::Instance,
 };
 
-const PRE: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/precompute/pallas/qs/qs.bin"));
+const PRE: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/precompute/pallas/qs/qs.bin"
+));
 
 /// Helper function: Gets precomputed linear-time computation dummy values.
 fn get_cheap_linears(n: usize) -> ([Instance<PallasConfig>; 1], Accumulator<PallasConfig>) {
-    let val = Vec::<(usize, Instance<PallasConfig>, Accumulator<PallasConfig>)>::deserialize_compressed(PRE).unwrap();
+    let val =
+        Vec::<(usize, Instance<PallasConfig>, Accumulator<PallasConfig>)>::deserialize_compressed(
+            PRE,
+        )
+        .unwrap();
     let q_acc = val.into_iter().find(|x| x.0 == n).unwrap();
     ([q_acc.1.into()], q_acc.2.into())
 }

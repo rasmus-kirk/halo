@@ -3,23 +3,21 @@
 //! Bulletproofs-style polynomial commitments based on the Discrete Log assumption
 use anyhow::{ensure, Result};
 use ark_ec::CurveGroup;
-use ark_ff::{AdditiveGroup, Field, PrimeField};
+use ark_ff::{AdditiveGroup, Field};
 use ark_pallas::PallasConfig;
 use ark_poly::DenseUVPolynomial;
 use ark_poly::{univariate::DensePolynomial, Polynomial};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::One;
 use ark_std::UniformRand;
-use rand::distributions::Standard;
-use rand::prelude::Distribution;
-use rand::Rng;
 use educe::Educe;
+use rand::Rng;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::group::{point_dot_affine, Point, Poly, Scalar};
 use crate::wrappers::PastaConfig;
 use crate::{
-    group::{construct_powers, rho0, scalar_dot, PallasPoint, PallasPoly, PallasScalar},
+    group::{construct_powers, rho0, scalar_dot},
     pedersen,
     pp::PublicParams,
 };
@@ -62,7 +60,7 @@ impl<P: PastaConfig> Instance<P> {
         let w = Some(Scalar::<P>::rand(rng));
         let p: Poly<P> = DenseUVPolynomial::<Scalar<P>>::rand(d, rng);
         let z = &Scalar::<P>::rand(rng);
-        assert!(p.degree() == n-1);
+        assert!(p.degree() == n - 1);
         Self::open(rng, p, d, z, w.as_ref())
     }
 
@@ -74,15 +72,7 @@ impl<P: PastaConfig> Instance<P> {
         succinct_check(self.C, self.d, &self.z, &self.v, self.pi.clone())
     }
 
-    pub fn tuple(
-        &self,
-    ) -> (
-        &Point<P>,
-        &usize,
-        &Scalar<P>,
-        &Scalar<P>,
-        &EvalProof<P>,
-    ) {
+    pub fn tuple(&self) -> (&Point<P>, &usize, &Scalar<P>, &Scalar<P>, &EvalProof<P>) {
         (&self.C, &self.d, &self.z, &self.v, &self.pi)
     }
 
@@ -297,7 +287,7 @@ pub fn open<R: Rng, P: PastaConfig>(
         // (2). Sample a random polynomial p_bar ∈ F^(≤d)_q[X] such that p_bar(z) = 0.
         // p_bar(X) = (X - z) * q(X), where q(X) is a uniform random polynomial
         let z_poly = Poly::<P>::from_coefficients_vec(vec![-*z, Scalar::<P>::ONE]);
-        let q: Poly<P> = DenseUVPolynomial::<Scalar<P>>::rand(d-1, rng);
+        let q: Poly<P> = DenseUVPolynomial::<Scalar<P>>::rand(d - 1, rng);
         let p_bar = q * z_poly;
 
         // (3). Sample corresponding commitment randomness ω_bar ∈ Fq.
@@ -506,6 +496,8 @@ pub fn check<P: PastaConfig>(
 mod tests {
     use ark_std::UniformRand;
     use rand::distributions::Uniform;
+
+    use crate::group::{PallasPoint, PallasPoly, PallasScalar};
 
     use super::*;
 
