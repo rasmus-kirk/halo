@@ -34,10 +34,10 @@ pub fn x<P: SWCurveConfig>() -> Poly<P> {
 
 /// ∀X ∈ H₀: g(X) = f(ωX)
 pub fn shift_wrap_eval<P: SWCurveConfig>(h: &Coset<P>, evals: Evals<P>) -> Evals<P> {
-    let mut evals_new = evals.evals;
+    let mut evals_new = evals.vec();
     let evals_new_first = evals_new.remove(0);
     evals_new.push(evals_new_first);
-    Evals::<P>::from_vec_and_domain(evals_new, h.domain)
+    Evals::<P>::new(evals_new, h.domain)
 }
 
 /// f(X) = p₀(X) + Xⁿp₁(X) + X²ⁿp₂(X) + ...
