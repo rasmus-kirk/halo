@@ -36,7 +36,7 @@ impl<P: SWCurveConfig> PlookupEvsThunk<P> {
         let default = t.last().unwrap();
         let extend = h.n() as usize - t.len();
         t.extend(vec![*default; extend]);
-        Evals::<P>::from_vec_and_domain(t, h.domain)
+        Evals::<P>::new(t, h.domain)
     }
 
     fn compute_f_evs(
@@ -60,7 +60,7 @@ impl<P: SWCurveConfig> PlookupEvsThunk<P> {
         }));
         let extend = h.n() as usize - f.len();
         f.extend(vec![default; extend]);
-        Evals::<P>::from_vec_and_domain(f, h.domain)
+        Evals::<P>::new(f, h.domain)
     }
 
     fn split_sort(h: &Coset<P>, s: Vec<Scalar<P>>) -> Vec<Evals<P>> {
@@ -71,18 +71,18 @@ impl<P: SWCurveConfig> PlookupEvsThunk<P> {
                 hs
             })
             .into_iter()
-            .map(|evals| Evals::<P>::from_vec_and_domain(evals, h.domain))
+            .map(|evals| Evals::<P>::new(evals, h.domain))
             .collect()
     }
 
     pub fn compute(&self, h: &Coset<P>, zeta: Scalar<P>) -> PlookupPolys<P> {
         let mut evals = vec![];
         evals.push(self.compute_t_evs(zeta, h));
-        let default = *evals[0].evals.last().unwrap();
+        let default = *evals[0].last();
         evals.push(self.compute_f_evs(zeta, h, &self.constraints, default));
         let mut s: Vec<Scalar<P>> = Vec::new();
-        s.extend(evals[0].evals.iter());
-        s.extend(evals[1].evals.iter());
+        s.extend(evals[0].clone().vec().iter());
+        s.extend(evals[1].clone().vec().iter());
         s.sort();
         evals.extend(Self::split_sort(h, s));
 

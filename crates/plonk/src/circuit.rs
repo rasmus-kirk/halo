@@ -91,15 +91,15 @@ impl<P: SWCurveConfig> CircuitPrivate<P> {
     }
 
     pub fn _a(&self, i: usize) -> Scalar<P> {
-        self._ws[Slots::A.id()].evals[i]
+        self._ws[Slots::A.id()][i]
     }
 
     pub fn _b(&self, i: usize) -> Scalar<P> {
-        self._ws[Slots::B.id()].evals[i]
+        self._ws[Slots::B.id()][i]
     }
 
     pub fn _c(&self, i: usize) -> Scalar<P> {
-        self._ws[Slots::C.id()].evals[i]
+        self._ws[Slots::C.id()][i]
     }
 }
 
@@ -175,14 +175,14 @@ impl<P: SWCurveConfig> CircuitPublic<P> {
     }
 
     pub fn _pa(&self, i: usize) -> Scalar<P> {
-        self._ps[Slots::A.id()].evals[i]
+        self._ps[Slots::A.id()][i]
     }
 
     pub fn _pb(&self, i: usize) -> Scalar<P> {
-        self._ps[Slots::B.id()].evals[i]
+        self._ps[Slots::B.id()][i]
     }
 
     pub fn _pc(&self, i: usize) -> Scalar<P> {
-        self._ps[Slots::C.id()].evals[i]
+        self._ps[Slots::C.id()][i]
     }
 }

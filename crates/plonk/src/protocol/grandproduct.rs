@@ -36,7 +36,7 @@ impl<P: SWCurveConfig> GrandProduct<P> {
             .into_iter()
             .chain(points_rest)
             .collect();
-        Evals::<P>::from_vec_and_domain(points, h.domain)
+        Evals::<P>::new(points, h.domain)
     }
 
     // bᵢ = 1 / aᵢ

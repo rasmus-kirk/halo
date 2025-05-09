@@ -246,6 +246,4 @@ pub fn prove<R: rand::Rng, P: PastaConfig, PCST: PCS<P>>(
 }
 
 // TODO optimization by parallel evaluate at ch?
-// TODO make wrapper struct for poly evals
-// TODO wrapper struct Mul use `mul_polynomials_in_evaluation_domain`
 // TODO trace dont run fft, wrap into the struct instead i.e. cache only

@@ -305,7 +305,7 @@ impl<P: SWCurveConfig> Trace<P> {
                     .collect::<Vec<Scalar<P>>>();
                 evals.insert(0, Scalar::<P>::ZERO);
                 evals.extend(vec![Scalar::<P>::ZERO; extend]);
-                Evals::<P>::from_vec_and_domain(evals, self.h.domain)
+                Evals::<P>::new(evals, self.h.domain)
             })
             .collect()
     }
@@ -329,7 +329,7 @@ impl<P: SWCurveConfig> Trace<P> {
                     .into_iter()
                     .chain(evals)
                     .collect::<Vec<Scalar<P>>>();
-                Evals::<P>::from_vec_and_domain(evals, self.h.domain)
+                Evals::<P>::new(evals, self.h.domain)
             })
             .collect()
     }
