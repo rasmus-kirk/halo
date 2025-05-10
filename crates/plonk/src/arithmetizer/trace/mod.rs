@@ -293,43 +293,55 @@ impl<P: SWCurveConfig> Trace<P> {
 
     // Poly construction -------------------------------------------------------
 
-    /// Compute the circuit polynomials.
-    fn gate_polys(&self) -> Vec<Evals<P>> {
+    /// Compute the circuit polynomial evaluations.
+    fn gate_evals(&self) -> Vec<Evals<P>> {
         let extend = self.h.n() as usize - self.constraints.len();
         Terms::iter()
             .map(|term| {
-                let mut evals = self
-                    .constraints
-                    .iter()
-                    .map(|eqn| eqn[term].to_fp())
-                    .collect::<Vec<Scalar<P>>>();
-                evals.insert(0, Scalar::<P>::ZERO);
-                evals.extend(vec![Scalar::<P>::ZERO; extend]);
-                Evals::<P>::new(evals, self.h.domain)
+                Evals::<P>::new(
+                    [Scalar::<P>::ZERO]
+                        .into_iter()
+                        .chain(self.constraints.iter().map(|eqn| eqn[term].to_fp()))
+                        .chain(vec![Scalar::<P>::ZERO; extend])
+                        .collect::<Vec<Scalar<P>>>(),
+                    self.h.domain,
+                )
             })
             .collect()
     }
 
-    /// Compute the permutation and identity permutation polynomials.
-    fn copy_constraints(&self) -> Vec<Evals<P>> {
+    /// Compute the permutation polynomial evaluations.
+    fn permutation_evals(&self) -> Vec<Evals<P>> {
         Slots::iter()
             .map(|slot| {
-                let mut evals: Vec<Scalar<P>> = self
-                    .h
-                    .iter()
-                    .map(|id| {
-                        let pos = Pos::new(slot, id);
-                        self.permutation
-                            .get(&pos)
-                            .unwrap_or(&pos)
-                            .to_scalar(&self.h)
-                    })
-                    .collect();
-                evals = [self.h.k(slot)]
-                    .into_iter()
-                    .chain(evals)
-                    .collect::<Vec<Scalar<P>>>();
-                Evals::<P>::new(evals, self.h.domain)
+                Evals::<P>::new(
+                    [self.h.k(slot)]
+                        .into_iter()
+                        .chain(self.h.iter().map(|id| {
+                            let pos = Pos::new(slot, id);
+                            self.permutation
+                                .get(&pos)
+                                .unwrap_or(&pos)
+                                .to_scalar(&self.h)
+                        }))
+                        .collect::<Vec<Scalar<P>>>(),
+                    self.h.domain,
+                )
+            })
+            .collect()
+    }
+
+    /// Compute the identity permutation polynomial evaluations.
+    fn identity_evals(&self) -> Vec<Evals<P>> {
+        Slots::iter()
+            .map(|slot| {
+                Evals::<P>::new(
+                    [self.h.k(slot)]
+                        .into_iter()
+                        .chain(self.h.vec_k(slot))
+                        .collect(),
+                    self.h.domain,
+                )
             })
             .collect()
     }

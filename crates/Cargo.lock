@@ -777,7 +777,6 @@ dependencies = [
  "ark-bls12-381",
  "ark-bw6-761",
  "ark-ec",
- "ark-ed25519",
  "ark-ff 0.5.0",
  "ark-pallas",
  "ark-poly",
@@ -1038,38 +1037,6 @@ name = "paste"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
-
-[[package]]
-name = "plonk"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "ark-bls12-381",
- "ark-bw6-761",
- "ark-ec",
- "ark-ff 0.5.0",
- "ark-pallas",
- "ark-poly",
- "ark-serialize 0.5.0",
- "ark-std 0.5.0",
- "ascii_table",
- "bimap",
- "criterion",
- "csv",
- "educe",
- "env_logger",
- "field-matrix-utils",
- "halo-accumulation",
- "itertools 0.14.0",
- "log",
- "merlin",
- "num-bigint",
- "num-integer",
- "num-traits",
- "rand",
- "rayon",
- "stacker",
-]
 
 [[package]]
 name = "plotters"
