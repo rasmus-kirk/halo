@@ -9,7 +9,7 @@ use crate::{
     scheme::{Selectors, Slots, Terms},
     utils::{
         misc::EnumIter,
-        poly::{self, batch_interpolate},
+        poly::batch_interpolate,
         Evals, Point, Poly,
     },
 };
@@ -48,12 +48,17 @@ impl<P: SWCurveConfig> Trace<P> {
 
     pub fn to_circuit<PCST: PCS<P>>(self) -> Circuit<P> {
         let d = self.d;
-        let _ts = self.gate_polys();
-        let _ps = self.copy_constraints();
+        let _ts = self.gate_evals();
+        let _ps = self.permutation_evals();
         let ts: Vec<Poly<P>> = batch_interpolate::<P>(_ts.clone());
-        let is: Vec<Poly<P>> = Slots::iter()
-            .map(|slot| poly::x::<P>() * self.h.k(slot))
-            .collect();
+        // let is: Vec<Poly<P>> = Slots::iter()
+        //     .map(|slot| poly::x::<P>() * self.h.k(slot))
+        //     .collect();
+        let is = self
+            .identity_evals()
+            .into_iter()
+            .map(|e| e.interpolate())
+            .collect::<Vec<_>>();
         let ps: Vec<Poly<P>> = batch_interpolate::<P>(_ps.clone());
 
         let pip_com: Point<P> = PCST::commit(&ts[Terms::PublicInputs.id()], d, None);
