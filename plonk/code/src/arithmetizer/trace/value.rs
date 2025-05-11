@@ -6,6 +6,7 @@ use crate::{
 
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::{AdditiveGroup, Field};
+
 use educe::Educe;
 use std::{
     fmt,

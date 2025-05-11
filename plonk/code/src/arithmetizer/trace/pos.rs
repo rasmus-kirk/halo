@@ -1,5 +1,3 @@
-use ark_ec::short_weierstrass::SWCurveConfig;
-
 use super::{ConstraintID, Coset};
 use crate::{
     scheme::Slots,
@@ -8,6 +6,8 @@ use crate::{
         Scalar,
     },
 };
+
+use ark_ec::short_weierstrass::SWCurveConfig;
 
 use educe::Educe;
 use std::fmt;

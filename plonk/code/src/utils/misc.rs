@@ -6,6 +6,7 @@ use std::{
 #[cfg(test)]
 pub mod tests {
     use std::sync::Once;
+
     static INIT: Once = Once::new();
 
     pub fn on_debug() {

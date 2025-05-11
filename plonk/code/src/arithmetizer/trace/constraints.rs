@@ -13,6 +13,7 @@ use crate::{
 
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::AdditiveGroup;
+
 use bimap::BiMap;
 use educe::Educe;
 use std::{
@@ -202,12 +203,13 @@ mod tests {
     use super::*;
     use crate::{
         arithmetizer::plookup::{opsets::BinXorOr, TableRegistry},
-        utils::scalar::bitxor,
+        utils::scalar::tests::bitxor,
     };
 
     use ark_ff::Field;
     use ark_pallas::PallasConfig;
     use halo_accumulation::group::PallasScalar;
+
     use rand::Rng;
 
     const N: usize = 100;

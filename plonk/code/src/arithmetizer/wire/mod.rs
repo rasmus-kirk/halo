@@ -2,10 +2,13 @@ mod ast;
 mod op_scalar;
 mod op_wire;
 
+use ast::WireAST;
+
 use super::{plookup::PlookupOps, Arithmetizer, WireID};
 use crate::utils::misc::{if_debug, is_debug};
+
 use ark_ec::short_weierstrass::SWCurveConfig;
-use ast::WireAST;
+
 use educe::Educe;
 
 use std::{
@@ -87,14 +90,14 @@ impl<Op: PlookupOps, P: SWCurveConfig> Debug for Wire<Op, P> {
 
 #[cfg(test)]
 mod tests {
-    use ark_ff::Field;
-    use halo_accumulation::group::PallasScalar;
-
     use super::*;
     use crate::{
         arithmetizer::PallasEmptyArith,
         utils::misc::{map_to_alphabet, tests::on_debug},
     };
+
+    use ark_ff::Field;
+    use halo_accumulation::group::PallasScalar;
 
     #[test]
     fn new() {

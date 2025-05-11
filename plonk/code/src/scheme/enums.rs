@@ -1,11 +1,10 @@
-use std::fmt;
-
 use crate::utils::misc::EnumIter;
+
+use educe::Educe;
+use std::fmt;
 
 /// Used to determine degree of root of unity along with number of constraints.
 pub const MAX_BLIND_TERMS: u64 = 0;
-
-use educe::Educe;
 
 /// Enum of slots in the constraint system; private polynomials.
 #[derive(Educe)]

@@ -1,9 +1,8 @@
 #![allow(non_upper_case_globals, unused)]
+use crate::utils::Scalar;
 
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::BigInt;
-
-use crate::utils::Scalar;
 
 pub const N: usize = 765;
 pub const t: usize = 3;

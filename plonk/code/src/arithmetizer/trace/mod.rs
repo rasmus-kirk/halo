@@ -7,9 +7,9 @@ mod pos;
 mod value;
 
 pub use constraints::Constraints;
-use educe::Educe;
 pub use errors::TraceError;
 pub use pos::Pos;
+use value::Value;
 
 use super::{
     arith_wire::ArithWire,
@@ -17,7 +17,6 @@ use super::{
     plookup::{PlookupOps, TableRegistry},
     WireID,
 };
-
 use crate::{
     scheme::{Slots, Terms, MAX_BLIND_TERMS},
     utils::{misc::EnumIter, Evals, Scalar},
@@ -26,10 +25,11 @@ use crate::{
 
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::AdditiveGroup;
+
+use educe::Educe;
 use log::info;
 use rand::{distributions::Standard, prelude::Distribution, Rng};
 use std::collections::HashMap;
-use value::Value;
 
 /// A unique identifier for a constraint in the circuit.
 type ConstraintID = u64;
@@ -303,13 +303,12 @@ impl<P: SWCurveConfig> Trace<P> {
         let extend = self.h.n() as usize - self.constraints.len();
         Terms::iter()
             .map(|term| {
-                Evals::<P>::new(
-                    [Scalar::<P>::ZERO]
-                        .into_iter()
-                        .chain(self.constraints.iter().map(|eqn| eqn[term].to_fp()))
+                Evals::<P>::new_sr(
+                    self.constraints
+                        .iter()
+                        .map(|eqn| eqn[term].to_fp())
                         .chain(vec![Scalar::<P>::ZERO; extend])
-                        .collect::<Vec<Scalar<P>>>(),
-                    self.h.domain,
+                        .collect(),
                 )
             })
             .collect()
@@ -319,18 +318,17 @@ impl<P: SWCurveConfig> Trace<P> {
     fn permutation_evals(&self) -> Vec<Evals<P>> {
         Slots::iter()
             .map(|slot| {
-                Evals::<P>::new(
-                    [self.h.k(slot)]
-                        .into_iter()
-                        .chain(self.h.iter().map(|id| {
+                Evals::<P>::new_sr(
+                    self.h
+                        .iter()
+                        .map(|id| {
                             let pos = Pos::new(slot, id);
                             self.permutation
                                 .get(&pos)
                                 .unwrap_or(&pos)
                                 .to_scalar(&self.h)
-                        }))
-                        .collect::<Vec<Scalar<P>>>(),
-                    self.h.domain,
+                        })
+                        .collect(),
                 )
             })
             .collect()
@@ -339,31 +337,22 @@ impl<P: SWCurveConfig> Trace<P> {
     /// Compute the identity permutation polynomial evaluations.
     fn identity_evals(&self) -> Vec<Evals<P>> {
         Slots::iter()
-            .map(|slot| {
-                Evals::<P>::new(
-                    [self.h.k(slot)]
-                        .into_iter()
-                        .chain(self.h.vec_k(slot))
-                        .collect(),
-                    self.h.domain,
-                )
-            })
+            .map(|slot| Evals::<P>::new_sr(self.h.vec_k(slot)))
             .collect()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use ark_ff::Field;
-    use ark_pallas::PallasConfig;
-    use halo_accumulation::group::PallasScalar;
-
+    use super::*;
     use crate::{
         arithmetizer::{plookup::opsets::EmptyOpSet, Arithmetizer, Wire},
         pcs::PCSPallas,
     };
 
-    use super::*;
+    use ark_ff::Field;
+    use ark_pallas::PallasConfig;
+    use halo_accumulation::group::PallasScalar;
 
     #[test]
     fn evaluator_values() {

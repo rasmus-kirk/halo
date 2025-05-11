@@ -1,8 +1,8 @@
-use ark_ec::short_weierstrass::SWCurveConfig;
-
 use super::{
     arith_wire::ArithWire, cache::CacheError, plookup::PlookupOps, trace::TraceError, Wire,
 };
+
+use ark_ec::short_weierstrass::SWCurveConfig;
 
 use std::{error::Error, fmt::Debug, rc::Rc};
 

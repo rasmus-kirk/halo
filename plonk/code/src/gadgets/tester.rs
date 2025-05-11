@@ -3,8 +3,9 @@ use crate::{
     utils::Scalar,
 };
 
-use anyhow::{ensure, Result};
 use ark_ec::short_weierstrass::SWCurveConfig;
+
+use anyhow::{ensure, Result};
 use rand::{distributions::Standard, prelude::Distribution, Rng};
 
 const FUZZING_COUNT: usize = 20;

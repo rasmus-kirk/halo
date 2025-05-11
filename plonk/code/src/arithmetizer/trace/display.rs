@@ -6,6 +6,7 @@ use crate::{
 };
 
 use ark_ec::short_weierstrass::SWCurveConfig;
+
 use ascii_table::{Align, AsciiTable};
 use std::fmt::{self, Display};
 

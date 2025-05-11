@@ -1,9 +1,10 @@
+use crate::utils::{Point, Scalar};
+
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::PrimeField;
 use ark_serialize::CanonicalSerialize;
-use merlin::Transcript;
 
-use crate::utils::{Point, Scalar};
+use merlin::Transcript;
 
 pub trait TranscriptProtocol<P: SWCurveConfig> {
     fn domain_sep(&mut self);

@@ -1,16 +1,17 @@
 #![allow(non_snake_case)]
 
-use crate::utils::{misc::batch_op, Point, Poly, Scalar};
+use crate::utils::{misc::batch_op, Point, Scalar};
 use anyhow::Result;
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_pallas::PallasConfig;
+use ark_poly::univariate::DensePolynomial;
 use halo_accumulation::pcdl::{self, EvalProof, Instance};
 use rand::Rng;
 
 pub trait PCS<P: SWCurveConfig> {
     type EvalProof;
 
-    fn commit(f: &Poly<P>, d: usize, w: Option<&Scalar<P>>) -> Point<P>;
+    fn commit(f: &DensePolynomial<Scalar<P>>, d: usize, w: Option<&Scalar<P>>) -> Point<P>;
     fn check(
         succint: bool,
         C: &Point<P>,
@@ -22,13 +23,13 @@ pub trait PCS<P: SWCurveConfig> {
 
     fn batch_commit<'a, I>(ps: I, d: usize, w: Option<&Scalar<P>>) -> Vec<Point<P>>
     where
-        I: IntoIterator<Item = &'a Poly<P>>,
+        I: IntoIterator<Item = &'a DensePolynomial<Scalar<P>>>,
     {
         batch_op(ps, |f| Self::commit(f, d, w))
     }
     fn open<R: Rng>(
         rng: &mut R,
-        p: Poly<P>,
+        p: DensePolynomial<Scalar<P>>,
         d: usize,
         z: &Scalar<P>,
         w: Option<&Scalar<P>>,
@@ -40,7 +41,7 @@ pub struct PCSPallas {}
 impl PCS<PallasConfig> for PCSPallas {
     type EvalProof = EvalProof<PallasConfig>;
     fn commit(
-        f: &Poly<PallasConfig>,
+        f: &DensePolynomial<Scalar<PallasConfig>>,
         d: usize,
         w: Option<&Scalar<PallasConfig>>,
     ) -> Point<PallasConfig> {
@@ -64,7 +65,7 @@ impl PCS<PallasConfig> for PCSPallas {
 
     fn open<R: Rng>(
         rng: &mut R,
-        p: Poly<PallasConfig>,
+        p: DensePolynomial<Scalar<PallasConfig>>,
         d: usize,
         z: &Scalar<PallasConfig>,
         w: Option<&Scalar<PallasConfig>>,

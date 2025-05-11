@@ -1,6 +1,5 @@
-use crate::utils::Scalar;
-
 use super::{plookup::PlookupOps, Arithmetizer, Wire};
+use crate::utils::Scalar;
 
 use ark_ec::short_weierstrass::SWCurveConfig;
 

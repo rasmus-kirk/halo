@@ -4,16 +4,16 @@ mod errors;
 pub use commutative_set::CommutativeSet;
 pub use errors::{BitError, CacheError};
 
-use crate::utils::Scalar;
-
 use super::{
     arith_wire::{ArithWire, CommutativeOps},
     plookup::PlookupOps,
     WireID,
 };
+use crate::utils::Scalar;
 
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::{AdditiveGroup, Field};
+
 use bimap::BiMap;
 use educe::Educe;
 use std::collections::{HashMap, HashSet};
@@ -208,12 +208,11 @@ impl<Op: PlookupOps, P: SWCurveConfig> ArithWireCache<Op, P> {
 
 #[cfg(test)]
 mod tests {
-    use ark_pallas::PallasConfig;
-    use halo_accumulation::group::PallasScalar;
-
+    use super::*;
     use crate::arithmetizer::plookup::opsets::EmptyOpSet;
 
-    use super::*;
+    use ark_pallas::PallasConfig;
+    use halo_accumulation::group::PallasScalar;
 
     #[test]
     fn insert_wire() {

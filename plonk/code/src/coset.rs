@@ -114,9 +114,9 @@ impl<P: SWCurveConfig> Coset<P> {
         self.ks.iter()
     }
 
-    /// [1, n)
+    /// [1, n]
     pub fn iter(&self) -> impl Iterator<Item = u64> {
-        1..self.n
+        1..(self.n + 1)
     }
 
     pub fn iter_usize(&self) -> impl Iterator<Item = usize> {
@@ -140,13 +140,13 @@ impl<P: SWCurveConfig> Coset<P> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
-
     use super::*;
     use crate::{scheme::Slots, utils::misc::EnumIter};
 
     use ark_pallas::PallasConfig;
     use halo_accumulation::group::PallasScalar;
+
+    use std::collections::HashSet;
 
     type Scalar = PallasScalar;
 
@@ -157,9 +157,6 @@ mod tests {
         assert!(h_opt.is_some());
         let h = h_opt.unwrap();
         assert_eq!(h.n, 8);
-        for w in h.vec() {
-            assert!(w != Scalar::ONE);
-        }
         assert!(h.w(0) == Scalar::ONE);
         assert_eq!(h.w(0), h.w(h.n));
         for i in h.iter() {
@@ -178,7 +175,7 @@ mod tests {
             set.insert(h.h(Slots::B, i));
             set.insert(h.h(Slots::C, i));
         }
-        assert_eq!(set.len() as u64, 3 * (h.n - 1));
+        assert_eq!(set.len() as u64, 3 * h.n);
         for w in set {
             assert!(w != Scalar::ZERO);
         }

@@ -2,6 +2,7 @@ use super::{ConstraintID, Pos, Trace};
 use crate::{arithmetizer::WireID, utils::misc::pair_app};
 
 use ark_ec::short_weierstrass::SWCurveConfig;
+
 use bimap::BiMap;
 use std::collections::HashMap;
 

@@ -13,15 +13,14 @@ pub use coset::Coset;
 mod tests {
     use crate::{
         arithmetizer::{PallasBitArith, PallasEmptyArith},
+        circuit::poly_evaluations_to_string,
         pcs::PCSPallas,
+        protocol,
         utils::misc::tests::on_debug,
     };
 
-    use super::*;
     use anyhow::Result;
-    use circuit::poly_evaluations_to_string;
     use log::debug;
-    use protocol;
 
     #[test]
     fn circuit_canonical() -> Result<()> {
@@ -34,7 +33,7 @@ mod tests {
             "{}",
             PallasEmptyArith::to_string(&input_values, output_wires)
         );
-        let (x, w) = &PallasEmptyArith::to_circuit::<_, _, PCSPallas>(
+        let (x, w) = &mut PallasEmptyArith::to_circuit::<_, _, PCSPallas>(
             rng,
             input_values,
             output_wires,
@@ -59,8 +58,12 @@ mod tests {
             "\n{}",
             PallasBitArith::to_string(&input_values, output_wires)
         );
-        let (x, w) =
-            &PallasBitArith::to_circuit::<_, _, PCSPallas>(rng, input_values, output_wires, None)?;
+        let (x, w) = &mut PallasBitArith::to_circuit::<_, _, PCSPallas>(
+            rng,
+            input_values,
+            output_wires,
+            None,
+        )?;
         debug!("\n{}", poly_evaluations_to_string(x, w));
         let pi = protocol::prove::<_, _, PCSPallas>(rng, x, w);
         protocol::verify(false, x, pi)?;
@@ -78,7 +81,7 @@ mod tests {
             "{}",
             PallasEmptyArith::to_string(&input_values, output_wires)
         );
-        let (x, w) = &PallasEmptyArith::to_circuit::<_, _, PCSPallas>(
+        let (x, w) = &mut PallasEmptyArith::to_circuit::<_, _, PCSPallas>(
             rng,
             input_values,
             output_wires,
