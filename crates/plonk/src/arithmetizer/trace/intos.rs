@@ -6,16 +6,11 @@ use crate::{
     },
     circuit::{Circuit, CircuitPrivate, CircuitPublic},
     pcs::PCS,
-    scheme::{Selectors, Slots, Terms},
-    utils::{
-        misc::EnumIter,
-        poly::batch_interpolate,
-        Evals, Point, Poly,
-    },
+    scheme::{Selectors, Slots},
+    utils::{batch_fft, batch_p, misc::EnumIter},
 };
 
 use ark_ec::short_weierstrass::SWCurveConfig;
-use ark_poly::Polynomial;
 
 use std::collections::HashMap;
 
@@ -48,54 +43,21 @@ impl<P: SWCurveConfig> Trace<P> {
 
     pub fn to_circuit<PCST: PCS<P>>(self) -> Circuit<P> {
         let d = self.d;
-        let _ts = self.gate_evals();
-        let _ps = self.permutation_evals();
-        let ts: Vec<Poly<P>> = batch_interpolate::<P>(_ts.clone());
-        // let is: Vec<Poly<P>> = Slots::iter()
-        //     .map(|slot| poly::x::<P>() * self.h.k(slot))
-        //     .collect();
-        let is = self
-            .identity_evals()
-            .into_iter()
-            .map(|e| e.interpolate())
-            .collect::<Vec<_>>();
-        let ps: Vec<Poly<P>> = batch_interpolate::<P>(_ps.clone());
+        let mut ts = batch_fft(&self.gate_evals());
+        let pip = ts.drain(Slots::COUNT + Selectors::COUNT..).next().unwrap();
+        let qs = ts.drain(Slots::COUNT..).collect::<Vec<_>>();
+        let ws = ts;
+        let ps = batch_fft(&self.permutation_evals());
+        let is = batch_fft(&self.identity_evals());
 
-        let pip_com: Point<P> = PCST::commit(&ts[Terms::PublicInputs.id()], d, None);
-        let qs_com: Vec<Point<P>> = ts[Slots::COUNT..Slots::COUNT + Selectors::COUNT]
-            .iter()
-            .map(|q| PCST::commit(q, self.d, None))
-            .collect();
-        let ps_com: Vec<Point<P>> = (0..Slots::COUNT)
-            .map(|i| PCST::commit(&ps[i], self.d, None))
-            .collect();
+        let pip_com = PCST::commit(&pip.p, d, None);
+        let qs_coms = PCST::batch_commit(batch_p(&qs), d, None);
+        let ps_coms = PCST::batch_commit(batch_p(&ps), d, None);
+        let ws_coms = PCST::batch_commit(batch_p(&ws), d, None);
 
-        ts.iter()
-            .chain(ps.iter())
-            .chain(is.iter())
-            .for_each(|p: &Poly<P>| assert!(p.degree() <= d));
-
-        let pip: Poly<P> = ts[Terms::PublicInputs.id()].clone();
-        let ws: Vec<Poly<P>> = ts[..Slots::COUNT].to_vec();
-        let _ws: Vec<Evals<P>> = _ts[..Slots::COUNT].to_vec();
-        let qs: Vec<Poly<P>> = ts[Slots::COUNT..Slots::COUNT + Selectors::COUNT].to_vec();
-        let x = CircuitPublic {
-            d: self.d,
-            h: self.h,
-            qs,
-            pip,
-            is,
-            ps,
-            _ps,
-            pip_com,
-            qs_com,
-            ps_com,
-        };
-        let w = CircuitPrivate {
-            ws,
-            _ws,
-            plookup: PlookupEvsThunk::new(self.constraints, self.table),
-        };
+        let plookup = PlookupEvsThunk::new(self.constraints, self.table);
+        let x = CircuitPublic::new(d, self.h, qs, qs_coms, pip, pip_com, is, ps, ps_coms);
+        let w = CircuitPrivate::new(ws, ws_coms, plookup);
         (x, w)
     }
 
@@ -105,10 +67,10 @@ impl<P: SWCurveConfig> Trace<P> {
             .iter()
             .try_fold((vec![], h.n()), |(mut acc, m), i| {
                 let c = Constraints::new(
-                    w.ws.iter()
-                        .chain(x.qs.iter())
+                    w.ws()
+                        .chain(x.qs())
                         .chain(std::iter::once(&x.pip))
-                        .map(|p| Value::AnonWire(p.evaluate(&h.w(i))))
+                        .map(|p| Value::AnonWire(p[i as usize]))
                         .collect::<Vec<_>>()
                         .try_into()
                         .unwrap(),
@@ -124,9 +86,8 @@ impl<P: SWCurveConfig> Trace<P> {
 
         let mut expected_permutation: [Vec<Pos>; Slots::COUNT] = [vec![], vec![], vec![]];
         (1..m).for_each(|i| {
-            let wi = &h.w(i);
-            Slots::iter().for_each(|slot| {
-                if let Some(pos) = Pos::from_scalar(x.ps[slot.id()].evaluate(wi), h) {
+            x.ps().zip(Slots::iter()).for_each(|(poly, slot)| {
+                if let Some(pos) = Pos::from_scalar(poly[i as usize], h) {
                     expected_permutation[slot.id()].push(pos);
                 }
             });

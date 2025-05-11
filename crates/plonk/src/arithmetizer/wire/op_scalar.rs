@@ -1,8 +1,8 @@
-use ark_ec::short_weierstrass::SWCurveConfig;
-
 use crate::{arithmetizer::plookup::PlookupOps, utils::Scalar};
 
 use super::{ast::WireAST, Wire};
+
+use ark_ec::short_weierstrass::SWCurveConfig;
 
 use std::{
     ops::{Add, Div, Mul, Sub},

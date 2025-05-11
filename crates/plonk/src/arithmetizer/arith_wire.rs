@@ -3,6 +3,7 @@ use crate::utils::{misc::map_to_alphabet, Scalar};
 
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::AdditiveGroup;
+
 use educe::Educe;
 use std::fmt::{self, Debug, Display};
 

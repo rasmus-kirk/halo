@@ -1,21 +1,7 @@
-use ark_ec::short_weierstrass::SWCurveConfig;
-use ark_ff::Field;
-#[cfg(test)]
-use ark_ff::{BigInteger, PrimeField};
-
 use super::Scalar;
 
-#[cfg(test)]
-/// Compute the bitwise XOR of two scalars
-pub fn bitxor<P: SWCurveConfig>(lhs: Scalar<P>, rhs: Scalar<P>) -> Scalar<P> {
-    let xs = lhs.into_bigint().to_bits_be();
-    let ys = rhs.into_bigint().to_bits_be();
-    let mut zs = vec![false; xs.len().max(ys.len())];
-    for (i, z) in zs.iter_mut().enumerate() {
-        *z = xs.get(i).unwrap_or(&false) ^ ys.get(i).unwrap_or(&false);
-    }
-    Scalar::<P>::from_bigint(BigInteger::from_bits_be(&zs)).unwrap()
-}
+use ark_ec::short_weierstrass::SWCurveConfig;
+use ark_ff::Field;
 
 /// Y = L₁(X) = (Xⁿ - 1) / (n (X - 1))
 pub fn lagrange_basis1<P: SWCurveConfig>(n: u64, w: Scalar<P>, x: Scalar<P>) -> Scalar<P> {
@@ -28,17 +14,30 @@ pub fn zh_ev<P: SWCurveConfig>(n: u64, x: Scalar<P>) -> Scalar<P> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::{
         scheme::Slots,
-        utils::{misc::EnumIter, poly::lagrange_basis},
+        utils::{misc::EnumIter, Poly},
         Coset,
     };
 
+    use ark_ff::{BigInteger, PrimeField};
     use ark_pallas::PallasConfig;
-    use ark_poly::Polynomial;
+    use halo_accumulation::group::PallasScalar;
+
     use rand::Rng;
+
+    /// Compute the bitwise XOR of two scalars
+    pub fn bitxor<P: SWCurveConfig>(lhs: Scalar<P>, rhs: Scalar<P>) -> Scalar<P> {
+        let xs = lhs.into_bigint().to_bits_be();
+        let ys = rhs.into_bigint().to_bits_be();
+        let mut zs = vec![false; xs.len().max(ys.len())];
+        for (i, z) in zs.iter_mut().enumerate() {
+            *z = xs.get(i).unwrap_or(&false) ^ ys.get(i).unwrap_or(&false);
+        }
+        Scalar::<P>::from_bigint(BigInteger::from_bits_be(&zs)).unwrap()
+    }
 
     #[test]
     fn l1_ev() {
@@ -46,7 +45,7 @@ mod tests {
         let h_opt = Coset::<PallasConfig>::new(rng, 5, Slots::COUNT);
         assert!(h_opt.is_some());
         let h = h_opt.unwrap();
-        let l1 = lagrange_basis(&h, 1);
+        let l1 = Poly::new_li(&h, 1);
         for _ in 0..100 {
             let x = rng.gen();
             assert_eq!(

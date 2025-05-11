@@ -1,5 +1,3 @@
-use std::{error::Error, fmt::Display};
-
 use crate::{
     arithmetizer::{arith_wire::ArithWire, plookup::PlookupOps},
     utils::Scalar,
@@ -8,6 +6,7 @@ use crate::{
 use ark_ec::short_weierstrass::SWCurveConfig;
 
 use educe::Educe;
+use std::{error::Error, fmt::Display};
 
 #[derive(Educe)]
 #[educe(Debug)]

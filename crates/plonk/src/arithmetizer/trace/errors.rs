@@ -7,6 +7,7 @@ use crate::{
 };
 
 use ark_ec::short_weierstrass::SWCurveConfig;
+
 use educe::Educe;
 
 #[derive(Educe)]

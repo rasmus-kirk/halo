@@ -7,9 +7,6 @@ mod trace;
 mod wire;
 
 use arith_wire::ArithWire;
-use ark_ec::short_weierstrass::SWCurveConfig;
-use ark_pallas::PallasConfig;
-use educe::Educe;
 pub use errors::ArithmetizerError;
 use plookup::opsets::{BinXorOr, EmptyOpSet};
 pub use plookup::*;
@@ -22,8 +19,12 @@ use crate::{
     utils::{misc::map_to_alphabet, Scalar},
 };
 
+use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::Field;
-use log::trace;
+use ark_pallas::PallasConfig;
+
+use educe::Educe;
+use log::debug;
 use rand::{distributions::Standard, prelude::Distribution, Rng};
 use std::{cell::RefCell, rc::Rc};
 
@@ -208,7 +209,7 @@ mod tests {
 
     use crate::arithmetizer::plookup::opsets::EmptyOpSet;
 
-    use super::*;
+    use halo_accumulation::group::PallasScalar;
 
     #[test]
     fn new() {

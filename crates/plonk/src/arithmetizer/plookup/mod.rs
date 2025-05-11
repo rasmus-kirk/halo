@@ -3,12 +3,13 @@ pub mod opsets;
 mod plookupops;
 
 pub use compute::PlookupEvsThunk;
+use opsets::EmptyOpSet;
 pub use plookupops::PlookupOps;
 
 use crate::scheme::eqns::EqnsF;
-use opsets::EmptyOpSet;
 
 use ark_ec::short_weierstrass::SWCurveConfig;
+
 use educe::Educe;
 
 /// A lookup table for a given Plookup operation.

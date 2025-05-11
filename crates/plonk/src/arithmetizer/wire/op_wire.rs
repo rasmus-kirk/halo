@@ -2,6 +2,7 @@ use super::{ast::WireAST, Wire};
 use crate::arithmetizer::plookup::{opsets::BinXorOr, PlookupOps};
 
 use ark_ec::short_weierstrass::SWCurveConfig;
+
 use std::ops::{Add, BitAnd, BitOr, BitXor, Mul, Neg, Not, Sub};
 
 // Add ------------------------------------------------------------------------
