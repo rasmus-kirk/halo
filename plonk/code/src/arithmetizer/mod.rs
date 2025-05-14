@@ -68,17 +68,22 @@ impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
     /// Compute the circuit R where R(x,w) = ⊤.
     pub fn to_circuit<R: Rng, T, PCST: PCS<P>>(
         rng: &mut R,
-        input_values: Vec<T>,
+        input_values: &[T],
         output_wires: &[Wire<Op, P>],
         d: Option<usize>,
     ) -> Result<Circuit<P>, ArithmetizerError<Op, P>>
     where
+        T: Copy,
         Scalar<P>: From<T>,
         Standard: Distribution<Scalar<P>>,
     {
-        ArithmetizerError::validate(&input_values, output_wires)?;
+        ArithmetizerError::validate(input_values, output_wires)?;
         let wires = &output_wires[0].arith().borrow().wires;
-        let input_scalars = input_values.into_iter().map(Scalar::<P>::from).collect();
+        let input_scalars = input_values
+            .iter()
+            .copied()
+            .map(Scalar::<P>::from)
+            .collect();
         let output_ids = output_wires.iter().map(Wire::id).collect();
         Trace::<P>::new(rng, d, wires, input_scalars, output_ids)
             .map_err(ArithmetizerError::EvaluatorError)
@@ -106,8 +111,7 @@ impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
 
     /// a - b : 𝔽
     pub fn wire_sub(&mut self, a: WireID, b: WireID) -> WireID {
-        let neg_one = self.wires.get_const_id(-Scalar::<P>::ONE);
-        let b_ = self.wire_mul(b, neg_one);
+        let b_ = self.wire_neg(b);
         self.wire_add(a, b_)
     }
 

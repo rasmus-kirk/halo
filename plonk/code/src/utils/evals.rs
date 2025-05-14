@@ -1,7 +1,9 @@
 use super::{misc::batch_op, Poly, Scalar};
 
 use ark_ec::short_weierstrass::SWCurveConfig;
-use ark_poly::{EvaluationDomain, Evaluations, GeneralEvaluationDomain};
+use ark_poly::{
+    univariate::DensePolynomial, EvaluationDomain, Evaluations, GeneralEvaluationDomain,
+};
 
 use educe::Educe;
 use std::ops::{Add, Index, Mul, Sub};
@@ -25,13 +27,13 @@ impl<P: SWCurveConfig> Evals<P> {
         Self(vec![v; n])
     }
 
+    pub fn fft_sp(self) -> DensePolynomial<Scalar<P>> {
+        let domain = self.domain();
+        Evaluations::from_vec_and_domain(self.0, domain).interpolate()
+    }
     /// interpolate consuming self
     pub fn fft_s(self) -> Poly<P> {
-        let domain = self.domain();
-        Poly::new_e(
-            Evaluations::from_vec_and_domain(self.0.clone(), domain).interpolate(),
-            self,
-        )
+        Poly::new_e(Self::fft_sp(self.clone()), self)
     }
 
     /// interpolate borrowing self

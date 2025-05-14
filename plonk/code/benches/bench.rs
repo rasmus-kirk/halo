@@ -48,7 +48,7 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
         );
         for size in MIN..MAX + 1 {
             let d = 2usize.pow(size as u32) - 1;
-            let input_values = vec![3, 4, 5, 6];
+            let input_values = &[3, 4, 5, 6];
 
             let off = (size - MIN) * SERIES_COUNT;
             info!("A1");

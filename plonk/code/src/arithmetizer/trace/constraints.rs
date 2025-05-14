@@ -100,6 +100,17 @@ impl<P: SWCurveConfig> Constraints<P> {
         vs
     }
 
+    /// Create a constraint that enforces the product of two values is 1.
+    pub fn mul_inv(v: Value<P>, v_inv: Value<P>) -> Self {
+        let mut vs: Self = Default::default();
+        vs[Terms::F(Slots::A)] = v;
+        vs[Terms::F(Slots::B)] = v_inv;
+        vs[Terms::F(Slots::C)] = Value::ONE;
+        vs[Terms::Q(Selectors::Qm)] = Value::ONE;
+        vs[Terms::Q(Selectors::Qo)] = Value::neg_one();
+        vs
+    }
+
     /// Create a booleanity constraint.
     pub fn boolean(val: Value<P>) -> Self {
         let mut vs: Self = Default::default();
