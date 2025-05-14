@@ -1,5 +1,5 @@
 use crate::{
-    utils::{Evals, Scalar},
+    utils::{Evals, Poly, Scalar},
     Coset,
 };
 
@@ -39,6 +39,14 @@ impl<P: SWCurveConfig> GrandProduct<P> {
         let last = points.pop().unwrap();
         points[0] = last;
         Evals::<P>::new(points)
+    }
+
+    pub fn poly<F, G>(h: &Coset<P>, f: F, g: G) -> Poly<P>
+    where
+        F: Fn(usize) -> Scalar<P>,
+        G: Fn(usize) -> Scalar<P>,
+    {
+        Self::evals(h, f, g).fft_s()
     }
 
     // bᵢ = 1 / aᵢ

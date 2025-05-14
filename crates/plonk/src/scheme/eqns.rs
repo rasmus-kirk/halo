@@ -128,6 +128,7 @@ where
 
 pub struct EqnsF<P: SWCurveConfig>(PhantomData<P>);
 impl<P: SWCurveConfig> EqnsF<P> {
+    /// p₀ + a₁p₁ + a₂p₂ + ...
     pub fn geometric<T, U, I>(a: Scalar<P>, ps: I) -> U
     where
         I: IntoIterator<Item = T>,
@@ -146,6 +147,7 @@ impl<P: SWCurveConfig> EqnsF<P> {
         flat_geometric(Scalar::<P>::ONE, a, pss)
     }
 
+    /// a + ζb + ζ²c + ζ³j
     pub fn plookup_compress<U, T>(zeta: Scalar<P>, a: T, b: T, c: T, j: T) -> U
     where
         U: Add<U, Output = U> + Default,
@@ -154,6 +156,7 @@ impl<P: SWCurveConfig> EqnsF<P> {
         plookup_compress(P::ScalarField::ONE, zeta, a, b, c, j)
     }
 
+    /// aQₗ + bQᵣ + cQₒ + abQₘ + Q꜀ + PI + Qₖ(a + ζb + ζ²c + ζ³j - f)
     pub fn plonkup_eqn<T, U, I1, I2>(zeta: Scalar<P>, ws: I1, qs: I2, pip: T, f: T) -> U
     where
         I1: IntoIterator<Item = T> + Clone,
@@ -168,6 +171,7 @@ impl<P: SWCurveConfig> EqnsF<P> {
         plonkup_eqn(Scalar::<P>::ONE, zeta, ws, qs, pip, f)
     }
 
+    /// L₁ (Z - 1)
     pub fn grand_product1<T, U>(z: T, l1: T) -> U
     where
         T: Sub<Scalar<P>, Output = U> + Mul<U, Output = U>,

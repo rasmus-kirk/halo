@@ -91,23 +91,6 @@ impl<Op: PlookupOps, P: SWCurveConfig> BitAnd for Wire<Op, P> {
 
 // Lookup -----------------------------------------------------
 
-impl<P: SWCurveConfig> Wire<BinXorOr, P> {
-    /// Perform a lookup operation between itself and other
-    pub fn lookup(self, op: BinXorOr, other: Self) -> Self {
-        Wire {
-            id: self
-                .arith
-                .clone()
-                .borrow_mut()
-                .wire_lookup(op, self.id, other.id),
-            arith: self.arith,
-            ast: self
-                .ast
-                .map(|ast| WireAST::lookup(op, ast, other.ast.unwrap())),
-        }
-    }
-}
-
 impl<P: SWCurveConfig> BitOr for Wire<BinXorOr, P> {
     type Output = Self;
 

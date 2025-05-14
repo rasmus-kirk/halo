@@ -69,6 +69,7 @@ impl<P: SWCurveConfig> Trace<P> {
             eval.bool_constraint(wires, wire, *value)?;
             eval.public_constraint(wires, wire, *value)?;
         }
+        // TODO remember to predicate check for input wires too
         // fix input wire values
 
         for w in output_wires {

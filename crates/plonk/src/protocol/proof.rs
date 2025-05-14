@@ -12,6 +12,7 @@ use crate::{
 };
 
 use ark_ff::Field;
+use ark_poly::Polynomial;
 
 use log::{debug, info};
 use merlin::Transcript;
@@ -52,8 +53,6 @@ pub fn prove<R: rand::Rng, P: PastaConfig, PCST: PCS<P>>(
     // ε = H(transcript)
     let epsilon = transcript.challenge();
 
-    // ----- Calculate z ----- //
-
     // a + βb + γ
     let _cc = eqns::copy_constraint_term(Into::<Scalar<P>>::into, beta, gamma);
     let cc = eqns::copy_constraint_term(poly::deg0::<P>, beta, gamma);
@@ -63,6 +62,13 @@ pub fn prove<R: rand::Rng, P: PastaConfig, PCST: PCS<P>>(
     // gcc'(X) = (A(X) + β S₁(X) + γ) (B(X) + β S₂(X) + γ) (C(X) + β S₃(X) + γ)
     let zgcc = &(cc(&w.a.p, &x.pa.p) * cc(&w.b.p, &x.pb.p) * cc(&w.c.p, &x.pc.p));
     let _zgcc = |i| _cc(w.a[i], x.pa[i]) * _cc(w.b[i], x.pb[i]) * _cc(w.c[i], x.pc[i]);
+    // Z
+    let zcc = &GrandProduct::<P>::poly(&x.h, _zfcc, _zgcc);
+    let zcc_bar = &zcc.e.clone().shift_left().fft_sp();
+    let zcc_com = PCST::commit(&zcc.p, x.d, None);
+    transcript.append_point(b"zcc", &zcc_com);
+    info!("Round 3 - A - {} s", now.elapsed().as_secs_f64());
+    // copy constraints
 
     // ε(1 + δ) + a + δb
     let e1d = epsilon * (Scalar::<P>::ONE + delta);
@@ -74,22 +80,13 @@ pub fn prove<R: rand::Rng, P: PastaConfig, PCST: PCS<P>>(
     // gpl'(X) = (ε(1 + δ) + h₁(X) + δh₂(X)) (ε(1 + δ) + h₂(X) + δh₁(Xω))
     let zgpl = &(pl(&p.h1.p, &p.h2.p) * pl(&p.h2.p, &p.h1_bar.p));
     let _zgpl = |i| _pl(p.h1[i], p.h2[i]) * _pl(p.h2[i], p.h1_bar[i]);
-
-    debug!("Round 3 - A - {} s", r3_now.elapsed().as_secs_f64());
-    // Z(1) = 1, Z(ω) = 1, Z(ωⁱ) = Z(ωᶦ⁻¹) f'(ωᶦ⁻¹) / g'(ωᶦ⁻¹)
-    let zcc = &GrandProduct::<P>::evals(&x.h, _zfcc, _zgcc).fft();
-    let zpl = &GrandProduct::<P>::evals(&x.h, _zfpl, _zgpl).fft();
-    info!("Round 3 - B - {} s", now.elapsed().as_secs_f64());
-    info!("Round 3 - C - {} s", now.elapsed().as_secs_f64());
-    // Z(ω X)
-    let zcc_bar = &(zcc.e.clone().shift_left()).fft();
-    let zpl_bar = &(zpl.e.clone().shift_left()).fft();
-    info!("Round 3 - D - {} s", now.elapsed().as_secs_f64());
-    let zcc_com = PCST::commit(&zcc.p, x.d, None);
+    // Z
+    let zpl = &GrandProduct::<P>::poly(&x.h, _zfpl, _zgpl);
+    let zpl_bar = &zpl.e.clone().shift_left().fft_sp();
     let zpl_com = PCST::commit(&zpl.p, x.d, None);
-    transcript.append_point(b"zcc", &zcc_com);
     transcript.append_point(b"zpl", &zpl_com);
     info!("Round 3 took {} s", now.elapsed().as_secs_f64());
+    // plookup
 
     // -------------------- Round 4 --------------------
 
@@ -97,20 +94,16 @@ pub fn prove<R: rand::Rng, P: PastaConfig, PCST: PCS<P>>(
     // α = H(transcript)
     let alpha = transcript.challenge();
 
-    debug!("Round 4A - {} s", r4_now.elapsed().as_secs_f64());
-    // F_GC(X) = A(X)Qₗ(X) + B(X)Qᵣ(X) + C(X)Qₒ(X) + A(X)B(X)Qₘ(X) + Q꜀(X) + PI(X)
-    //         + Qₖ(X)(A(X) + ζB(X) + ζ²C(X) + ζ³J(X) - f(X))
+    info!("Round 4A - {} s", now.elapsed().as_secs_f64());
     let f_gc = &EqnsF::<P>::plonkup_eqn(zeta, w.wsp(), x.qsp(), &x.pip.p, &p.f.p);
     info!("Round 4C - {} s", now.elapsed().as_secs_f64());
-    // F_Z1(X) = L₁(X) (Z(X) - 1)
     let onepoly = &Poly::<P>::new_v(&Scalar::<P>::ONE).p;
     let l1poly = &Poly::<P>::new_li(&x.h, 1);
     let fcc_z1 = &eqns::grand_product1(onepoly, &zcc.p, &l1poly.p);
     let fpl_z1 = &eqns::grand_product1(onepoly, &zpl.p, &l1poly.p);
     info!("Round 4D - {} s", now.elapsed().as_secs_f64());
-    // F_Z2(X) = Z(X)f'(X) - g'(X)Z(ω X)
-    let fcc_z2 = &eqns::grand_product2(&zcc.p, zfcc, zgcc, &zcc_bar.p);
-    let fpl_z2 = &eqns::grand_product2(&zpl.p, zfpl, zgpl, &zpl_bar.p);
+    let fcc_z2 = &eqns::grand_product2(&zcc.p, zfcc, zgcc, zcc_bar);
+    let fpl_z2 = &eqns::grand_product2(&zpl.p, zfpl, zgpl, zpl_bar);
     info!("Round 4E1 - {} s", now.elapsed().as_secs_f64());
     // T(X) = (F_GC(X) + α F_CC1(X) + α² F_CC2(X) + α³ F_PL1(X) + α⁴ F_PL2(X) ) / Zₕ(X)
     let tzh = &EqnsF::<P>::geometric(alpha, [f_gc, fcc_z1, fcc_z2, fpl_z1, fpl_z2]);
@@ -171,14 +164,14 @@ pub fn prove<R: rand::Rng, P: PastaConfig, PCST: PCS<P>>(
         "\n{}",
         utils::print_table::evals_str(
             &x.h,
-            batch_p([&p.t, &p.t_bar, &p.f, &p.h1, &p.h1_bar, &p.h2, zcc, zcc_bar, zpl, zpl_bar])
+            batch_p([&p.t, &p.t_bar, &p.f, &p.h1, &p.h1_bar, &p.h2, zcc, zpl])
                 .into_iter()
                 .chain([f_gc, fcc_z1, fcc_z2, fpl_z1, fpl_z2].into_iter())
                 .collect(),
             utils::misc::batch_op(
                 vec![
-                    "t(X)", "t(ωX)", "f(X)", "h1(X)", "h1(ωX)", "h2(X)", "ZCC(X)", "ZCC(ωX)",
-                    "ZPL(X)", "ZPL(ωX)", "FGC(X)", "FCCZ1(X)", "FCCZ2(X)", "FPLZ1(X)", "FPLZ2(X)"
+                    "t(X)", "t(ωX)", "f(X)", "h1(X)", "h1(ωX)", "h2(X)", "ZCC(X)", "ZPL(X)",
+                    "FGC(X)", "FCCZ1(X)", "FCCZ2(X)", "FPLZ1(X)", "FPLZ2(X)"
                 ],
                 |s| s.to_string()
             ),
@@ -236,9 +229,6 @@ pub fn prove<R: rand::Rng, P: PastaConfig, PCST: PCS<P>>(
 }
 
 // TODO optimization by parallel evaluate at ch?
-
-// TODO replace Evals compute for F_* with actual polynomials (fix proof)
-
-// optimizations
-// we might not be able to compute polys using evals trick
-// the poly computed when evaluate on challenge does not agree with evaluation computed by verifier
+// TODO implement inverse starting from wire then recurse till working
+// TODO implement predicate / exists from wire then recurse till working
+// TODO commutative plookup test?

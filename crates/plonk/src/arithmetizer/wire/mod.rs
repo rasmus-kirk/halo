@@ -70,6 +70,21 @@ impl<Op: PlookupOps, P: SWCurveConfig> Wire<Op, P> {
         arith.wire_publicize(self.id);
         self.clone()
     }
+
+    /// Perform a lookup operation between itself and other
+    pub fn lookup(self, op: Op, other: Self) -> Self {
+        Wire {
+            id: self
+                .arith
+                .clone()
+                .borrow_mut()
+                .wire_lookup(op, self.id, other.id),
+            arith: self.arith,
+            ast: self
+                .ast
+                .map(|ast| WireAST::lookup(op, ast, other.ast.unwrap())),
+        }
+    }
 }
 
 impl<Op: PlookupOps, P: SWCurveConfig> Display for Wire<Op, P> {
