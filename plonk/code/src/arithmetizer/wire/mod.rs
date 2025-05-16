@@ -71,6 +71,16 @@ impl<Op: PlookupOps, P: SWCurveConfig> Wire<Op, P> {
         self.clone()
     }
 
+    /// Multiplicative inverse of the wire
+    pub fn inv(self) -> Self {
+        let mut arith = self.arith.borrow_mut();
+        Wire {
+            id: arith.wire_inv(self.id),
+            arith: self.arith.clone(),
+            ast: self.ast.map(WireAST::inv),
+        }
+    }
+
     /// Perform a lookup operation between itself and other
     pub fn lookup(self, op: Op, other: Self) -> Self {
         Wire {

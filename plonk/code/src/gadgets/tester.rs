@@ -4,6 +4,7 @@ use crate::{
 };
 
 use ark_ec::short_weierstrass::SWCurveConfig;
+use ark_ff::Field;
 
 use anyhow::{ensure, Result};
 use rand::{distributions::Standard, prelude::Distribution, Rng};
@@ -61,6 +62,26 @@ fn test_mul() {
         let input_values: Vec<u32> = vec![rng.gen(), rng.gen()];
         test_extensionality(
             |inputs| inputs[0] * inputs[1],
+            &input_values,
+            output_wire.clone(),
+        )
+        .unwrap();
+    }
+}
+
+#[test]
+fn test_mul_inv() {
+    let rng = &mut rand::thread_rng();
+    let [x] = PallasEmptyArith::build();
+    let output_wire = x.inv();
+    for _ in 0..FUZZING_COUNT {
+        let mut scalar = rng.gen();
+        while scalar == 0 {
+            scalar = rng.gen();
+        }
+        let input_values: Vec<u32> = vec![scalar];
+        test_extensionality(
+            |inputs| inputs[0].inverse().unwrap(),
             &input_values,
             output_wire.clone(),
         )

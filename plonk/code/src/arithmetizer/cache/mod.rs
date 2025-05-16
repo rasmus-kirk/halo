@@ -162,7 +162,7 @@ impl<Op: PlookupOps, P: SWCurveConfig> ArithWireCache<Op, P> {
     fn set_bit_(&mut self, id: WireID, gen_constraint: bool) -> Result<(), CacheError<Op, P>> {
         match self.to_arith(id) {
             Some(w) => match w {
-                ArithWire::Input(_) => {
+                ArithWire::Input(_) | ArithWire::Inv(_) => {
                     self.bit_wires.insert(id, gen_constraint);
                     Ok(())
                 }
@@ -189,7 +189,7 @@ impl<Op: PlookupOps, P: SWCurveConfig> ArithWireCache<Op, P> {
     pub fn is_bit(&self, id: WireID) -> bool {
         match self.to_arith(id) {
             Some(w) => match w {
-                ArithWire::Input(_) => self.bit_wires.contains_key(&id),
+                ArithWire::Input(_) | ArithWire::Inv(_) => self.bit_wires.contains_key(&id),
                 ArithWire::Constant(b) => b == Scalar::<P>::ZERO || b == Scalar::<P>::ONE,
                 ArithWire::AddGate(_, _)
                 | ArithWire::MulGate(_, _)

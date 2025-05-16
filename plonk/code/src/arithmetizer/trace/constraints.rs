@@ -345,6 +345,25 @@ mod tests {
     }
 
     #[test]
+    fn mul_inv() {
+        let rng = &mut rand::thread_rng();
+        for _ in 0..N {
+            let mut a_: PallasScalar = rng.gen();
+            while a_ == PallasScalar::ZERO {
+                a_ = rng.gen();
+            }
+            let v = Value::<PallasConfig>::new_wire(0, a_);
+            let v_inv = v.inv();
+            assert!(v_inv.is_some());
+            let v_inv = v_inv.unwrap();
+            let eqn_values = Constraints::mul_inv(v, v_inv);
+            assert_eq!(eqn_values[Terms::F(Slots::A)], v);
+            assert_eq!(eqn_values[Terms::F(Slots::B)], v_inv);
+            assert!(eqn_values.is_satisfied());
+        }
+    }
+
+    #[test]
     fn structural_eq() {
         let c1 = Constraints::<PallasConfig>::constant(Value::new_wire(0, PallasScalar::ZERO));
         let c2 = Constraints::constant(Value::new_wire(1, PallasScalar::ZERO));

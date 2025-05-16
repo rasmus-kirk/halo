@@ -21,6 +21,7 @@ pub enum WireAST<Op: PlookupOps, P: SWCurveConfig> {
     Constant(Scalar<P>),
     Add(Rc<WireAST<Op, P>>, Rc<WireAST<Op, P>>),
     Mul(Rc<WireAST<Op, P>>, Rc<WireAST<Op, P>>),
+    Inv(Rc<WireAST<Op, P>>),
     Lookup(Op, Rc<WireAST<Op, P>>, Rc<WireAST<Op, P>>),
 }
 
@@ -32,6 +33,7 @@ impl<Op: PlookupOps, P: SWCurveConfig> Display for WireAST<Op, P> {
             WireAST::Add(lhs, rhs) => write!(f, "(+ {} {})", lhs, rhs),
             WireAST::Mul(lhs, rhs) => write!(f, "(* {} {})", lhs, rhs),
             WireAST::Lookup(op, lhs, rhs) => write!(f, "({} {} {})", op, lhs, rhs),
+            WireAST::Inv(ast) => write!(f, "(inv {})", ast),
         }
     }
 }
@@ -81,6 +83,10 @@ impl<Op: PlookupOps, P: SWCurveConfig> WireAST<Op, P> {
 
     pub fn lookup(op: Op, lhs: Rc<Self>, rhs: Rc<Self>) -> Rc<Self> {
         Rc::new(Self::Lookup(op, lhs, rhs))
+    }
+
+    pub fn inv(ast: Rc<Self>) -> Rc<Self> {
+        Rc::new(Self::Inv(ast))
     }
 
     pub fn not(ast: Rc<Self>) -> Rc<Self> {
