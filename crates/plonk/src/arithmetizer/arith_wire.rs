@@ -15,6 +15,7 @@ pub enum ArithWire<Op: PlookupOps, P: SWCurveConfig> {
     AddGate(WireID, WireID),
     MulGate(WireID, WireID),
     Lookup(Op, WireID, WireID),
+    Inv(WireID),
 }
 
 impl<Op: PlookupOps, P: SWCurveConfig> ArithWire<Op, P> {
@@ -24,6 +25,7 @@ impl<Op: PlookupOps, P: SWCurveConfig> ArithWire<Op, P> {
             Self::AddGate(lhs, rhs) => vec![lhs, rhs].into_iter(),
             Self::MulGate(lhs, rhs) => vec![lhs, rhs].into_iter(),
             Self::Lookup(_, lhs, rhs) => vec![lhs, rhs].into_iter(),
+            Self::Inv(w) => vec![w].into_iter(),
             _ => vec![].into_iter(),
         }
     }
@@ -54,6 +56,9 @@ impl<Op: PlookupOps, P: SWCurveConfig> Display for ArithWire<Op, P> {
                     map_to_alphabet(lhs),
                     map_to_alphabet(rhs)
                 )
+            }
+            ArithWire::Inv(w) => {
+                write!(f, "Inv({})", map_to_alphabet(w))
             }
         }
     }

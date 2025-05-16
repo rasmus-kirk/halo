@@ -153,26 +153,26 @@ impl<P: SWCurveConfig> Trace<P> {
                 let val = Value::new_wire(id, scalar);
                 Ok(Some((Constraints::constant(val), val)))
             }
-            ArithWire::AddGate(lhs, rhs)
-            | ArithWire::MulGate(lhs, rhs)
-            | ArithWire::Lookup(_, lhs, rhs) => {
-                let mut vals = [Value::ZERO; 2];
-                for (i, &inp) in [lhs, rhs].iter().enumerate() {
-                    vals[i] = match self.evals.get(&inp) {
-                        Some(val) => *val,
+            ArithWire::AddGate(_, _)
+            | ArithWire::MulGate(_, _)
+            | ArithWire::Lookup(_, _, _)
+            | ArithWire::Inv(_) => {
+                let mut vals = Vec::new();
+                for inp in arith_wire.inputs() {
+                    match self.evals.get(&inp) {
+                        Some(val) => vals.push(*val),
                         None => {
                             stack.push(wire);
                             stack.push(inp);
                             return Ok(None);
                         }
-                    };
+                    }
                 }
-                let [lhs_val, rhs_val] = vals;
                 let out_val = self
-                    .compute_output(&arith_wire, lhs_val, rhs_val)
+                    .compute_output(&arith_wire, &vals)?
                     .set_id(wire)
                     .set_bit_type(wires);
-                let constraint = Self::compute_constraint(&arith_wire, lhs_val, rhs_val, out_val);
+                let constraint = Self::compute_constraint(&arith_wire, vals, out_val);
                 Ok(Some((constraint, out_val)))
             }
         }
@@ -182,13 +182,13 @@ impl<P: SWCurveConfig> Trace<P> {
     fn compute_output<Op: PlookupOps>(
         &self,
         arith_wire: &ArithWire<Op, P>,
-        lhs_val: Value<P>,
-        rhs_val: Value<P>,
-    ) -> Value<P> {
+        vals: &[Value<P>],
+    ) -> Result<Value<P>, TraceError<Op, P>> {
         match arith_wire {
-            ArithWire::AddGate(_, _) => lhs_val + rhs_val,
-            ArithWire::MulGate(_, _) => lhs_val * rhs_val,
-            &ArithWire::Lookup(op, _, _) => self.lookup_value(op, lhs_val, rhs_val).unwrap(),
+            ArithWire::AddGate(_, _) => Ok(vals[0] + vals[1]),
+            ArithWire::MulGate(_, _) => Ok(vals[0] * vals[1]),
+            &ArithWire::Lookup(op, _, _) => Ok(self.lookup_value(op, vals[0], vals[1]).unwrap()),
+            ArithWire::Inv(id) => vals[0].inv().ok_or(TraceError::InverseZero(*id)),
             _ => unreachable!(),
         }
     }
@@ -196,14 +196,14 @@ impl<P: SWCurveConfig> Trace<P> {
     /// Compute the constraint for a gate operation.
     fn compute_constraint<Op: PlookupOps>(
         arith_wire: &ArithWire<Op, P>,
-        lhs_val: Value<P>,
-        rhs_val: Value<P>,
+        vals: Vec<Value<P>>,
         out_val: Value<P>,
     ) -> Constraints<P> {
         match arith_wire {
-            ArithWire::AddGate(_, _) => Constraints::add(lhs_val, rhs_val, out_val),
-            ArithWire::MulGate(_, _) => Constraints::mul(lhs_val, rhs_val, out_val),
-            ArithWire::Lookup(op, _, _) => Constraints::lookup(*op, lhs_val, rhs_val, out_val),
+            ArithWire::AddGate(_, _) => Constraints::add(vals[0], vals[1], out_val),
+            ArithWire::MulGate(_, _) => Constraints::mul(vals[0], vals[1], out_val),
+            ArithWire::Lookup(op, _, _) => Constraints::lookup(*op, vals[0], vals[1], out_val),
+            ArithWire::Inv(_) => Constraints::mul_inv(vals[0], out_val),
             _ => unreachable!(),
         }
     }

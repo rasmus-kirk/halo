@@ -153,6 +153,10 @@ impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
         self.wires.get_id(ArithWire::Lookup(op, a, b))
     }
 
+    pub fn wire_inv(&mut self, a: WireID) -> WireID {
+        self.wires.get_id(ArithWire::Inv(a))
+    }
+
     // boolean operators --------------------------------------------------
 
     /// a : 𝔹

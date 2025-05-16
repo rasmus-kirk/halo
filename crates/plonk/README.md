@@ -147,7 +147,7 @@ For the list of operations available to you, look at `arithmetizer::wire`.
 In the struct for wire we have
 - `w.is_bit()` which enforces the wire to the range `{0,1}`
 - `w.is_public()` which reveals the value of the wire to the public input polynomial
-- TODO `w.inv()` which returns the multiplicative inverse of the wire
+- `w.inv()` which returns the multiplicative inverse of the wire
 - `w1.lookup(Op::Table, w2)` which returns `w3` where `(w1,w2,w3)` exists in the table
 - TODO `w.predicate(Op::Table) = w1.exists(Op::Table, w2=0, w3=0)` which enforces that `(w,0,0)` exists in the table TODO NOTE: this should work like a constraint i.e. bit and public, not a lookup operation; i.e. have a `wires.is_predicate(wire)` check and then `self.constraints.push`
 
@@ -159,8 +159,6 @@ Of course there are sugar syntax operations as well, these are listed in `arithm
 - `-w` negation i.e. `w * -1`
 - `!w` logical bit negation i.e. `1 - w`
 - `w1 & w2` logical bit and i.e. multiplication
-
-TODO: `s op w` as well?
 
 There are also sugar syntax for specific lookup tables, for now there is only for `BinXorOr`
 - `w1 | w2` logical bit or; `w1.lookup(BinXorOr::Or, w2)`

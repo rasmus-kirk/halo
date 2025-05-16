@@ -100,6 +100,10 @@ impl<P: SWCurveConfig> Value<P> {
             x => x,
         }
     }
+
+    pub fn inv(self) -> Option<Self> {
+        Some(Self::AnonWire(self.to_fp().inverse()?))
+    }
 }
 
 impl<P: SWCurveConfig> Neg for Value<P> {
