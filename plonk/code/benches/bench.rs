@@ -17,7 +17,7 @@ use log::info;
 use plonk::{arithmetizer::PallasBitArith, pcs::PCSPallas, protocol};
 
 // const WARMUP: Duration = Duration::from_millis(100);
-const MIN: usize = 4;
+const MIN: usize = 10;
 const MAX: usize = 20;
 
 pub fn plonk_proof_verify(c: &mut Criterion) {
@@ -51,14 +51,12 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
             let input_values = vec![3, 4, 5, 6];
 
             let off = (size - MIN) * SERIES_COUNT;
-            info!("A1");
             let start_time = Instant::now();
             let output_wires = &PallasBitArith::synthesize::<4, _>(rng, d);
             let rand_circuit_time = start_time.elapsed().as_secs_f32();
             data[off].push(rand_circuit_time);
             info!("lens: {:?}, {:?}", output_wires.len(), output_wires[0].id());
 
-            info!("A2");
             let start_time = Instant::now();
             let (x, w) = &PallasBitArith::to_circuit::<_, _, PCSPallas>(
                 rng,
@@ -70,14 +68,12 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
             let to_circuit_time = start_time.elapsed().as_secs_f32();
             data[off + 1].push(to_circuit_time);
 
-            info!("A3");
             // circuits.push((size, x.clone(), w.clone()));
 
             let start_time = Instant::now();
             let pi = protocol::prove::<_, _, PCSPallas>(rng, &x, &w);
             let new_p_time = start_time.elapsed().as_secs_f32();
             data[off + 2].push(new_p_time);
-            info!("D");
             // new_pis.push(new_pi.clone());
 
             let new_pi = pi.clone();

@@ -80,7 +80,7 @@ fn write_pp_paths(curve: &str) -> Result<()> {
     let dest_path = dest_dir.join("pp_paths.rs");
 
     let mut content = String::from(format!(
-        "pub(crate) const G_PATHS_{CURVE}: [&[u8]; 64] = [\n"
+        "const G_PATHS_{CURVE}: [&[u8]; 64] = [\n"
     ));
 
     for k in 0..G_BLOCKS_NO {
@@ -99,10 +99,10 @@ fn write_pp_paths(curve: &str) -> Result<()> {
 
     if cfg!(feature = "bootstrap") {
         content.push_str(&format!(
-            "pub(crate) const SH_PATH_{CURVE}: &[u8] = &[0];\n"
+            "const SH_PATH_{CURVE}: &[u8] = &[0];\n"
         ));
     } else {
-        content.push_str(&format!("pub(crate) const SH_PATH_{CURVE}: &[u8] = include_bytes!(concat!(env!(\"OUT_DIR\"), \"/{PUBLIC_PARAMS}/{curve}/sh.bin\"));\n"));
+        content.push_str(&format!("const SH_PATH_{CURVE}: &[u8] = include_bytes!(concat!(env!(\"OUT_DIR\"), \"/{PUBLIC_PARAMS}/{curve}/sh.bin\"));\n"));
     }
 
     fs::write(dest_path, content)?;

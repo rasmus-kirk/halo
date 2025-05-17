@@ -23,7 +23,7 @@ use crate::{
 };
 
 use ark_ff::Field;
-use log::debug;
+use log::trace;
 use rand::{distributions::Standard, prelude::Distribution, Rng};
 use std::{cell::RefCell, rc::Rc};
 
@@ -82,7 +82,7 @@ impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
         Trace::<P>::new(rng, d, wires, input_scalars, output_ids)
             .map_err(ArithmetizerError::EvaluatorError)
             .map(|t| {
-                debug!("\n{}", t);
+                trace!("\n{}", t);
                 t.to_circuit::<PCST>()
             })
     }

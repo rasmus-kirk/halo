@@ -19,7 +19,7 @@ use crate::{
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::Field;
 use ark_poly::Polynomial;
-use log::{debug, info};
+use log::{debug, info, trace};
 use merlin::Transcript;
 use std::time::Instant;
 
@@ -35,22 +35,26 @@ where
     transcript.domain_sep();
     // -------------------- Round 1 --------------------
 
-    let now = Instant::now();
+    let r1_now = Instant::now();
     let ws_coms = PCST::batch_commit(&w.ws, x.d, None);
     transcript.append_points(b"abc", &ws_coms);
-    info!("Round 1 took {} s", now.elapsed().as_secs_f64());
+
+    let r1_time = r1_now.elapsed().as_secs_f64();
+    debug!("Round 1 took {} s", r1_time);
 
     // -------------------- Round 2 --------------------
 
-    let now = Instant::now();
+    let r2_now = Instant::now();
     // ζ = H(transcript)
     let zeta = transcript.challenge_scalar(b"zeta");
     let p = &w.plookup.compute(&x.h, zeta);
-    info!("Round 2 took {} s", now.elapsed().as_secs_f64());
+
+    let r2_time = r2_now.elapsed().as_secs_f64();
+    debug!("Round 2 took {} s", r2_time);
 
     // -------------------- Round 3 --------------------
 
-    let now = Instant::now();
+    let r3_now = Instant::now();
     // β = H(transcript)
     let beta = transcript.challenge_scalar(b"beta");
     // γ = H(transcript)
@@ -83,61 +87,65 @@ where
     let zgpl = pl(&p.h1, &p.h2) * pl(&p.h2, &p.h1_bar);
     let _zgpl = |i| _pl(p._h1[i], p._h2[i]) * _pl(p._h2[i], p._h1_bar[i]);
 
-    info!("Round 3 - A - {} s", now.elapsed().as_secs_f64());
+    debug!("Round 3 - A - {} s", r3_now.elapsed().as_secs_f64());
     // Z(1) = 1, Z(ω) = 1, Z(ωⁱ) = Z(ωᶦ⁻¹) f'(ωᶦ⁻¹) / g'(ωᶦ⁻¹)
     let zcc_cache = GrandProduct::<P>::evals(&x.h, _zfcc, _zgcc);
     let zpl_cache = GrandProduct::<P>::evals(&x.h, _zfpl, _zgpl);
-    info!("Round 3 - B - {} s", now.elapsed().as_secs_f64());
+    debug!("Round 3 - B - {} s", r3_now.elapsed().as_secs_f64());
     let zcc = &zcc_cache.clone().interpolate();
     let zpl = &zpl_cache.clone().interpolate();
-    info!("Round 3 - C - {} s", now.elapsed().as_secs_f64());
+    debug!("Round 3 - C - {} s", r3_now.elapsed().as_secs_f64());
     // Z(ω X)
     let zcc_bar = &poly::shift_wrap_eval(&x.h, zcc_cache).interpolate();
     let zpl_bar = &poly::shift_wrap_eval(&x.h, zpl_cache).interpolate();
-    info!("Round 3 - D - {} s", now.elapsed().as_secs_f64());
+    debug!("Round 3 - D - {} s", r3_now.elapsed().as_secs_f64());
     let zcc_com = PCST::commit(zcc, x.d, None);
     let zpl_com = PCST::commit(zpl, x.d, None);
     transcript.append_point(b"zcc", &zcc_com);
     transcript.append_point(b"zpl", &zpl_com);
-    info!("Round 3 took {} s", now.elapsed().as_secs_f64());
+
+    let r3_time = r3_now.elapsed().as_secs_f64();
+    debug!("Round 3 took {} s", r3_time);
 
     // -------------------- Round 4 --------------------
 
-    let now = Instant::now();
+    let r4_now = Instant::now();
     // α = H(transcript)
     let alpha = transcript.challenge_scalar(b"alpha");
 
-    info!("Round 4A - {} s", now.elapsed().as_secs_f64());
+    debug!("Round 4A - {} s", r4_now.elapsed().as_secs_f64());
     // F_GC(X) = A(X)Qₗ(X) + B(X)Qᵣ(X) + C(X)Qₒ(X) + A(X)B(X)Qₘ(X) + Q꜀(X) + PI(X)
     //         + Qₖ(X)(A(X) + ζB(X) + ζ²C(X) + ζ³J(X) - f(X))
     let f_gc = &EqnsF::<P>::plonkup_eqn(zeta, &w.ws, &x.qs, &x.pip, &p.f);
-    info!("Round 4C - {} s", now.elapsed().as_secs_f64());
+    debug!("Round 4C - {} s", r4_now.elapsed().as_secs_f64());
     // F_Z1(X) = L₁(X) (Z(X) - 1)
     let onepoly = &deg0::<P>(Scalar::<P>::ONE);
     let l1poly = &poly::lagrange_basis(&x.h, 1);
     let fcc_z1 = &eqns::grand_product1(onepoly, zcc, l1poly);
     let fpl_z1 = &eqns::grand_product1(onepoly, zpl, l1poly);
-    info!("Round 4D - {} s", now.elapsed().as_secs_f64());
+    debug!("Round 4D - {} s", r4_now.elapsed().as_secs_f64());
     // F_Z2(X) = Z(X)f'(X) - g'(X)Z(ω X)
     let fcc_z2 = &eqns::grand_product2(zcc, &zfcc, &zgcc, zcc_bar);
     let fpl_z2 = &eqns::grand_product2(zpl, &zfpl, &zgpl, zpl_bar);
-    info!("Round 4E1 - {} s", now.elapsed().as_secs_f64());
+    debug!("Round 4E1 - {} s", r4_now.elapsed().as_secs_f64());
     // T(X) = (F_GC(X) + α F_CC1(X) + α² F_CC2(X) + α³ F_PL1(X) + α⁴ F_PL2(X) ) / Zₕ(X)
     let tzh = EqnsF::<P>::geometric_fp(alpha, [f_gc, fcc_z1, fcc_z2, fpl_z1, fpl_z2]);
-    info!("Round 4E2 - {} s", now.elapsed().as_secs_f64());
+    debug!("Round 4E2 - {} s", r4_now.elapsed().as_secs_f64());
     let (t, _) = tzh.divide_by_vanishing_poly(x.h.coset_domain);
-    info!("Round 4E3 - {} s", now.elapsed().as_secs_f64());
+    debug!("Round 4E3 - {} s", r4_now.elapsed().as_secs_f64());
     let ts = &poly::split::<P>(x.h.n(), &t);
-    info!("Round 4F - {} s", now.elapsed().as_secs_f64());
+    debug!("Round 4F - {} s", r4_now.elapsed().as_secs_f64());
     let ts_coms = PCST::batch_commit(ts, x.d, None);
-    info!("Round 4G - {} s", now.elapsed().as_secs_f64());
+    debug!("Round 4G - {} s", r4_now.elapsed().as_secs_f64());
 
     transcript.append_points(b"t", &ts_coms);
-    info!("Round 4 took {} s", now.elapsed().as_secs_f64());
+
+    let r4_time = r4_now.elapsed().as_secs_f64();
+    debug!("Round 4 took {} s", r4_time);
 
     // -------------------- Round 5 --------------------
 
-    let now = Instant::now();
+    let r5_now = Instant::now();
     // 𝔷 = H(transcript)
     let ch = transcript.challenge_scalar(b"xi");
     let ch_bar = &(ch * x.h.w(1));
@@ -179,7 +187,7 @@ where
     let W_bar = EqnsF::<P>::geometric_fp(v, [zcc, zpl]);
     let (_, _, _, _, W_bar_pi) = PCST::open(rng, W_bar, x.d, ch_bar, None);
 
-    debug!(
+    trace!(
         "\n{}",
         utils::print_table::evals_str(
             &x.h,
@@ -225,7 +233,17 @@ where
         },
     };
 
-    info!("Round 5 took {} s", now.elapsed().as_secs_f64());
+    let r5_time = r5_now.elapsed().as_secs_f64();
+    debug!("Round 5 took {} s", r5_time);
+
+    let total_time = r1_time + r2_time + r3_time + r4_time + r5_time;
+    let r1_frac = r1_time / total_time * 100.0;
+    let r2_frac = r2_time / total_time * 100.0;
+    let r3_frac = r3_time / total_time * 100.0;
+    let r4_frac = r4_time / total_time * 100.0;
+    let r5_frac = r5_time / total_time * 100.0;
+
+    info!("Fractions: | {:>6.3}% | {:>6.3}% | {:>6.3}% | {:>6.3}% | {:>6.3}% |", r1_frac, r2_frac, r3_frac, r4_frac, r5_frac);
 
     pi
 }

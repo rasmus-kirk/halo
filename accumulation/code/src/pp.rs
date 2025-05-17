@@ -6,9 +6,6 @@ use crate::wrappers::{PastaConfig, WrappedPoint};
 use anyhow::{bail, Result};
 use bincode::config::standard;
 
-include!(concat!(env!("OUT_DIR"), "/pallas/pp_paths.rs"));
-include!(concat!(env!("OUT_DIR"), "/vesta/pp_paths.rs"));
-
 #[derive(Debug)]
 pub struct PublicParams<P: PastaConfig> {
     pub S: Point<P>,
@@ -50,7 +47,7 @@ impl<P: PastaConfig> PublicParams<P> {
             }
         }
         let ((S, H), _): ((WrappedPoint, WrappedPoint), usize) =
-            bincode::decode_from_slice(SH_PATH_PALLAS, standard()).unwrap();
+            bincode::decode_from_slice(P::get_sh_data(), standard()).unwrap();
 
         PublicParams {
             S: P::unwrap_projective(S),

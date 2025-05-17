@@ -26,7 +26,6 @@ use crate::{
 
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::AdditiveGroup;
-use log::info;
 use rand::{distributions::Standard, prelude::Distribution, Rng};
 use std::collections::HashMap;
 use value::Value;
@@ -62,7 +61,6 @@ impl<P: SWCurveConfig> Trace<P> {
             table: TableRegistry::new::<Op>(),
             ..Default::default()
         };
-        info!("[A]: Remaining stack - {:?}", stacker::remaining_stack());
 
         for (wire, value) in input_values.into_iter().enumerate() {
             let value = &Value::new_wire(wire, value).set_bit_type(wires);
@@ -71,17 +69,14 @@ impl<P: SWCurveConfig> Trace<P> {
             eval.public_constraint(wires, wire, *value)?;
         }
         // fix input wire values
-        info!("[B]: Remaining stack - {:?}", stacker::remaining_stack());
 
         for w in output_wires {
             eval.resolve(wires, w)?;
         }
         // compute wire values
-        info!("[C]: Remaining stack - {:?}", stacker::remaining_stack());
 
         eval.compute_pos_permutation();
         // compute copy constraint values
-        info!("[D]: Remaining stack - {:?}", stacker::remaining_stack());
 
         let n = eval.table.len() as u64;
         let m = eval.constraints.len() as u64;
