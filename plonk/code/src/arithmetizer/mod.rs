@@ -11,7 +11,7 @@ pub use errors::ArithmetizerError;
 use plookup::opsets::{BinXorOr, EmptyOpSet};
 pub use plookup::*;
 pub use trace::{Pos, Trace};
-pub use wire::Wire;
+pub use wire::{Wire, Witness};
 
 use crate::{
     circuit::Circuit,
@@ -116,34 +116,34 @@ impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
     }
 
     /// a + b : 𝔽
-    pub fn wire_add_const(&mut self, a: WireID, b: Scalar<P>) -> WireID {
-        let right = self.wires.get_const_id(b);
+    pub fn wire_add_const(&mut self, a: WireID, b: Scalar<P>, private: bool) -> WireID {
+        let right = self.wires.get_const_id(b, private);
         let gate = ArithWire::AddGate(a, right);
         self.wires.get_id(gate)
     }
 
     /// a - b : 𝔽
-    pub fn wire_sub_const(&mut self, a: WireID, b: Scalar<P>) -> WireID {
-        let right = self.wires.get_const_id(-b);
+    pub fn wire_sub_const(&mut self, a: WireID, b: Scalar<P>, private: bool) -> WireID {
+        let right = self.wires.get_const_id(-b, private);
         let gate = ArithWire::AddGate(a, right);
         self.wires.get_id(gate)
     }
 
     /// a b : 𝔽
-    pub fn wire_mul_const(&mut self, a: WireID, b: Scalar<P>) -> WireID {
-        let right = self.wires.get_const_id(b);
+    pub fn wire_mul_const(&mut self, a: WireID, b: Scalar<P>, private: bool) -> WireID {
+        let right = self.wires.get_const_id(b, private);
         let gate = ArithWire::MulGate(a, right);
         self.wires.get_id(gate)
     }
 
     /// -a : 𝔽
     pub fn wire_neg(&mut self, a: WireID) -> WireID {
-        self.wire_mul_const(a, -Scalar::<P>::ONE)
+        self.wire_mul_const(a, -Scalar::<P>::ONE, false)
     }
 
     /// a / b : 𝔽
-    pub fn wire_div_const(&mut self, a: WireID, b: Scalar<P>) -> WireID {
-        let right = self.wires.get_const_id(Scalar::<P>::ONE / b);
+    pub fn wire_div_const(&mut self, a: WireID, b: Scalar<P>, private: bool) -> WireID {
+        let right = self.wires.get_const_id(Scalar::<P>::ONE / b, private);
         let gate = ArithWire::MulGate(a, right);
         self.wires.get_id(gate)
     }
@@ -166,7 +166,7 @@ impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
 
     /// ¬a
     pub fn wire_not(&mut self, a: WireID) -> WireID {
-        let one = self.wires.get_const_id(Scalar::<P>::ONE);
+        let one = self.wires.get_const_id(Scalar::<P>::ONE, false);
         self.wire_sub(one, a)
     }
 
@@ -291,7 +291,10 @@ mod tests {
         let wires = &c.arith().borrow().wires;
         assert_eq!(wires.to_arith_(a.id()), ArithWire::Input(0));
         assert_eq!(wires.to_arith_(b.id()), ArithWire::Input(1));
-        assert_eq!(wires.to_arith_(2), ArithWire::Constant(-PallasScalar::ONE));
+        assert_eq!(
+            wires.to_arith_(2),
+            ArithWire::Constant(-PallasScalar::ONE, false)
+        );
         assert_eq!(wires.to_arith_(3), ArithWire::MulGate(b.id(), 2));
         assert_eq!(wires.to_arith_(c.id()), ArithWire::AddGate(a.id(), 3));
     }
@@ -304,7 +307,10 @@ mod tests {
         assert_eq!(c.id(), 2);
         let wires = &c.arith().borrow().wires;
         assert_eq!(wires.to_arith_(0), ArithWire::Input(0));
-        assert_eq!(wires.to_arith_(1), ArithWire::Constant(PallasScalar::ONE));
+        assert_eq!(
+            wires.to_arith_(1),
+            ArithWire::Constant(PallasScalar::ONE, false)
+        );
     }
 
     #[test]
@@ -315,7 +321,10 @@ mod tests {
         assert_eq!(c.id(), 2);
         let wires = &c.arith().borrow().wires;
         assert_eq!(wires.to_arith_(a.id()), ArithWire::Input(0));
-        assert_eq!(wires.to_arith_(1), ArithWire::Constant(-PallasScalar::ONE));
+        assert_eq!(
+            wires.to_arith_(1),
+            ArithWire::Constant(-PallasScalar::ONE, false)
+        );
         assert_eq!(wires.to_arith_(c.id()), ArithWire::AddGate(a.id(), 1));
     }
 
@@ -327,7 +336,10 @@ mod tests {
         assert_eq!(c.id(), 2);
         let wires = &c.arith().borrow().wires;
         assert_eq!(wires.to_arith_(a.id()), ArithWire::Input(0));
-        assert_eq!(wires.to_arith_(1), ArithWire::Constant(PallasScalar::ONE));
+        assert_eq!(
+            wires.to_arith_(1),
+            ArithWire::Constant(PallasScalar::ONE, false)
+        );
         assert_eq!(wires.to_arith_(c.id()), ArithWire::MulGate(a.id(), 1));
     }
 }

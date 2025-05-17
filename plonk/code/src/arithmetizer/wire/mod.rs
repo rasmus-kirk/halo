@@ -1,8 +1,10 @@
 mod ast;
 mod op_scalar;
 mod op_wire;
+mod witness;
 
 use ast::WireAST;
+pub use witness::Witness;
 
 use super::{plookup::PlookupOps, Arithmetizer, WireID};
 use crate::utils::misc::{if_debug, is_debug};
