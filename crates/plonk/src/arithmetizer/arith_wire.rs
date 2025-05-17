@@ -11,7 +11,7 @@ use std::fmt::{self, Debug, Display};
 #[educe(Hash, Clone, Copy, PartialEq, Eq)]
 pub enum ArithWire<Op: PlookupOps, P: SWCurveConfig> {
     Input(WireID),
-    Constant(Scalar<P>),
+    Constant(Scalar<P>, bool),
     AddGate(WireID, WireID),
     MulGate(WireID, WireID),
     Lookup(Op, WireID, WireID),
@@ -33,7 +33,7 @@ impl<Op: PlookupOps, P: SWCurveConfig> ArithWire<Op, P> {
 
 impl<Op: PlookupOps, P: SWCurveConfig> Default for ArithWire<Op, P> {
     fn default() -> Self {
-        ArithWire::Constant(Scalar::<P>::ZERO)
+        ArithWire::Constant(Scalar::<P>::ZERO, false)
     }
 }
 
@@ -41,7 +41,13 @@ impl<Op: PlookupOps, P: SWCurveConfig> Display for ArithWire<Op, P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             ArithWire::Input(wire_id) => write!(f, "Input({})", map_to_alphabet(wire_id)),
-            ArithWire::Constant(scalar) => write!(f, "Constant({})", scalar),
+            ArithWire::Constant(scalar, private) => {
+                if private {
+                    write!(f, "Witness({})", scalar)
+                } else {
+                    write!(f, "Constant({})", scalar)
+                }
+            }
             ArithWire::AddGate(lhs, rhs) => {
                 write!(f, "Add({}, {})", map_to_alphabet(lhs), map_to_alphabet(rhs))
             }

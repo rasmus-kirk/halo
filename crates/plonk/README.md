@@ -160,6 +160,12 @@ Of course there are sugar syntax operations as well, these are listed in `arithm
 - `!w` logical bit negation i.e. `1 - w`
 - `w1 & w2` logical bit and i.e. multiplication
 
+Scalars can also be private, i.e. it won't be exposed in $Q_c$ polynomial. This is done by wrapping the scalar in a `Witness` struct.
+```rust
+x + Witness::new(2) // 2 is private
+x + 2 // 2 is public
+```
+
 There are also sugar syntax for specific lookup tables, for now there is only for `BinXorOr`
 - `w1 | w2` logical bit or; `w1.lookup(BinXorOr::Or, w2)`
 - `w1 ^ w2` logical bit xor; `w1.lookup(BinXorOr::Xor, w2)`
