@@ -22,11 +22,11 @@ jobs:
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
 
-      - name: Thesis report spellcheck
+      - name: Thesis report build
         run: nix build
         working-directory: ./documents/thesis
 
-      - name: Project contract report spellcheck
+      - name: Project contract report build
         run: nix build
         working-directory: ./documents/project-contract
 
