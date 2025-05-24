@@ -33,6 +33,8 @@
 \usepackage{caption}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
+\usepackage{stmaryrd}
+\usepackage{multicol}
 
 \newcommand{\Desc}[2]{\hspace*{\algorithmicindent} \makebox[14.5em][l]{#1}\parbox[t]{32em}{#2}}
 
@@ -156,4 +158,10 @@
 \newcommand*\AccHiding{\mathbf{AccHiding}}
 \newcommand*\EvalProof{\mathbf{EvalProof}}
 
-
+\newcommand{\maybe}[2]{ \left[ #1 \middle\vert #2 \right]}
+\newcommand{\wave}[1]{ \bar{#1} }
+\newcommand{\set}[1]{ \left\{ #1 \right\}}
+\newcommand{\build}[3]{\left\llbracket #1 \right\rrbracket^{#2}_{#3}}
+\newcommand{\AbsCirc}{\text{Circ}}
+\newcommand{\Gate}{\text{Gate}}
+\newcommand{\ArithState}{\text{State}}
