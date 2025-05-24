@@ -1,0 +1,38 @@
+[package]
+name = "halo-accumulation"
+version = "0.2.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "bench"
+harness = false
+
+[dependencies]
+anyhow = "1"
+halo-group = { path = "../group" }
+halo-poseidon = { path = "../poseidon" }
+ark-ec = { features = [ "parallel" ], version = "0.5" }
+ark-ff = { features = [ "parallel" ], version = "0.5" }
+ark-pallas = "0.5"
+ark-poly = { features = [ "parallel" ], version = "0.5" }
+ark-serialize = { features = [ "parallel" ], version = "0.5" }
+ark-std = { features = [ "parallel" ], version = "0.5" }
+ark-vesta = "0.5"
+bincode = "2.0.0-rc.3"
+educe = "0.6.0"
+rand = "0.8"
+rayon = "1.10.0"
+sha3 = "0.10"
+
+[build-dependencies]
+anyhow = "1.0"
+
+[features]
+default = ["parallel"]  # Enable parallelism by default
+parallel = []    # Parallel feature depends on Rayon
+bootstrap = []

@@ -1,0 +1,19 @@
+[package]
+name = "halo-schnorr"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.98"
+halo-group = { path = "../group" }
+halo-poseidon = { path = "../poseidon" }
+ark-ec = { features = [ "parallel" ], version = "0.5" }
+ark-ff = { features = [ "parallel" ], version = "0.5" }
+ark-pallas = "0.5"
+ark-poly = { features = [ "parallel" ], version = "0.5" }
+ark-serialize = { features = [ "parallel" ], version = "0.5" }
+ark-std = { features = [ "parallel" ], version = "0.5" }
+ark-vesta = "0.5"
+hex = "0.4.3"
+rand = "0.8"
+sha2 = "0.10.9"
