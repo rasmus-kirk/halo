@@ -512,7 +512,6 @@ dependencies = [
  "halo-poseidon",
  "rand 0.8.5",
  "rayon",
- "sha3",
 ]
 
 [[package]]
@@ -546,6 +545,7 @@ dependencies = [
  "ark-serialize",
  "ark-std",
  "ark-vesta",
+ "halo-group",
  "hex",
  "rand 0.9.1",
  "serde",

@@ -2,10 +2,9 @@
 
 use std::sync::OnceLock;
 
-use crate::{group::{Affine, BaseField, Scalar}, pp::PublicParams};
+use crate::{group::{Affine, BaseField, Scalar}, poseidon_consts::{FP_MDS, FP_ROUND_CONSTANTS, FQ_MDS, FQ_ROUND_CONSTANTS}, pp::PublicParams};
 use ark_ec::{
-    short_weierstrass::{Projective, SWCurveConfig},
-    CurveGroup,
+    short_weierstrass::{Projective, SWCurveConfig}, CurveConfig, CurveGroup
 };
 use ark_ff::{BigInt, PrimeField};
 use ark_pallas::PallasConfig;
@@ -28,8 +27,13 @@ pub trait PastaConfig: SWCurveConfig {
     fn unwrap_affine(w: WrappedPoint) -> Affine<Self>;
     fn basefield_into_bigint(x: BaseField<Self>) -> BigInt<4>;
     fn scalar_into_bigint(x: Scalar<Self>) -> BigInt<4>;
-    fn basefield_from_bigint(x: BigInt<4>) -> BaseField<Self>;
-    fn scalar_from_bigint(x: BigInt<4>) -> Scalar<Self>;
+    fn basefield_from_bigint(x: BigInt<4>) -> Option<BaseField<Self>>;
+    fn scalar_from_bigint(x: BigInt<4>) -> Option<Scalar<Self>>;
+
+    const POSEIDON_MDS: [[Self::BaseField; 3]; 3];
+    const POSEIDON_ROUND_CONSTANTS: [[Self::BaseField; 3]; 55];
+    const FP_MODULUS: BigInt<4>;
+    const FQ_MODULUS: BigInt<4>;
 }
 
 impl PastaConfig for ark_pallas::PallasConfig {
@@ -60,12 +64,17 @@ impl PastaConfig for ark_pallas::PallasConfig {
     fn scalar_into_bigint(x: Scalar<Self>) -> BigInt<4> {
         x.into_bigint()
     }
-    fn basefield_from_bigint(x: BigInt<4>) -> BaseField<Self> {
-        BaseField::<Self>::from_bigint(x).unwrap()
+    fn basefield_from_bigint(x: BigInt<4>) -> Option<BaseField<Self>> {
+        BaseField::<Self>::from_bigint(x)
     }
-    fn scalar_from_bigint(x: BigInt<4>) -> Scalar<Self> {
-        Scalar::<Self>::from_bigint(x).unwrap()
+    fn scalar_from_bigint(x: BigInt<4>) -> Option<Scalar<Self>> {
+        Scalar::<Self>::from_bigint(x)
     }
+
+    const POSEIDON_MDS: [[<PallasConfig as CurveConfig>::BaseField; 3]; 3] = FP_MDS;
+    const POSEIDON_ROUND_CONSTANTS: [[<PallasConfig as CurveConfig>::BaseField; 3]; 55] = FP_ROUND_CONSTANTS;
+    const FP_MODULUS: BigInt<4> = <PallasConfig as CurveConfig>::ScalarField::MODULUS;
+    const FQ_MODULUS: BigInt<4> = <PallasConfig as CurveConfig>::BaseField::MODULUS;
 }
 
 impl PastaConfig for ark_vesta::VestaConfig {
@@ -96,12 +105,17 @@ impl PastaConfig for ark_vesta::VestaConfig {
     fn scalar_into_bigint(x: Scalar<Self>) -> BigInt<4> {
         x.into_bigint()
     }
-    fn basefield_from_bigint(x: BigInt<4>) -> BaseField<Self> {
-        BaseField::<Self>::from_bigint(x).unwrap()
+    fn basefield_from_bigint(x: BigInt<4>) -> Option<BaseField<Self>> {
+        BaseField::<Self>::from_bigint(x)
     }
-    fn scalar_from_bigint(x: BigInt<4>) -> Scalar<Self> {
-        Scalar::<Self>::from_bigint(x).unwrap()
+    fn scalar_from_bigint(x: BigInt<4>) -> Option<Scalar<Self>> {
+        Scalar::<Self>::from_bigint(x)
     }
+
+    const POSEIDON_MDS: [[<VestaConfig as CurveConfig>::BaseField; 3]; 3] = FQ_MDS;
+    const POSEIDON_ROUND_CONSTANTS: [[<VestaConfig as CurveConfig>::BaseField; 3]; 55] = FQ_ROUND_CONSTANTS;
+    const FP_MODULUS: BigInt<4> = <VestaConfig as CurveConfig>::ScalarField::MODULUS;
+    const FQ_MODULUS: BigInt<4> = <VestaConfig as CurveConfig>::BaseField::MODULUS;
 }
 
 // -------------------- Wrappers -------------------- //

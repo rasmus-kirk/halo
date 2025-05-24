@@ -24,7 +24,6 @@ use ark_poly::{univariate::DensePolynomial, Polynomial};
 use ark_serialize::CanonicalSerialize;
 use ark_std::One;
 use rayon::prelude::*;
-use sha3::{Digest, Sha3_256};
 
 pub type Point<P: SWCurveConfig> = Projective<P>;
 pub type Affine<P: SWCurveConfig> = ark_ec::short_weierstrass::Affine<P>;
@@ -64,32 +63,4 @@ pub fn construct_powers<P: PastaConfig>(z: &Scalar<P>, n: usize) -> Vec<Scalar<P
         current *= z;
     }
     zs
-}
-
-fn rho<P: PastaConfig>(domain_sep: &[u8], scalars: &[Scalar<P>], points: &[Point<P>]) -> Scalar<P> {
-    let size = scalars.iter().map(|x| x.compressed_size()).sum::<usize>()
-        + points.iter().map(|x| x.compressed_size()).sum::<usize>();
-
-    let mut data = Vec::with_capacity(size);
-    for scalar in scalars {
-        scalar.serialize_compressed(&mut data).unwrap()
-    }
-
-    let mut hasher = Sha3_256::new();
-    hasher.update(&data);
-    hasher.update(domain_sep);
-    let hash_result = hasher.finalize();
-
-    // Interpret the hash as a scalar field element
-    let mut hash_bytes = [0u8; 32];
-    hash_bytes.copy_from_slice(hash_result.as_slice());
-    Scalar::<P>::from_le_bytes_mod_order(&hash_bytes)
-}
-
-pub fn rho0<P: PastaConfig>(scalars: &[Scalar<P>], points: &[Point<P>]) -> Scalar<P> {
-    rho(&[0], scalars, points)
-}
-
-pub fn rho1<P: PastaConfig>(scalars: &[Scalar<P>], points: &[Point<P>]) -> Scalar<P> {
-    rho(&[1], scalars, points)
 }

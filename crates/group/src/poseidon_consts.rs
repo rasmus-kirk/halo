@@ -1,30 +1,6 @@
-use ark_ff::{BigInt, Field};
+use ark_ff::BigInt;
 use ark_vesta::Fq;
 use ark_vesta::Fr as Fp;
-
-pub(crate) const SPONGE_CAPACITY: usize = 1;
-pub(crate) const SPONGE_WIDTH: usize = 3;
-pub(crate) const SPONGE_RATE: usize = 2;
-pub(crate) const PERM_ROUNDS_FULL: usize = 55;
-pub(crate) const PERM_ROUNDS_PARTIAL: usize = 0;
-pub(crate) const PERM_HALF_ROUNDS_FULL: usize = 0;
-pub(crate) const PERM_SBOX: u32 = 7;
-pub(crate) const STATE_SIZE: usize = SPONGE_CAPACITY + SPONGE_RATE;
-
-pub trait PoseidonConstants<F: Field> {
-    const MDS: [[F; 3]; 3];
-    const ROUND_CONSTANTS: [[F; 3]; 55];
-}
-
-impl PoseidonConstants<Fp> for Fp {
-    const MDS: [[Fp; 3]; 3] = FP_MDS;
-    const ROUND_CONSTANTS: [[Fp; 3]; 55] = FP_ROUND_CONSTANTS;
-}
-
-impl PoseidonConstants<Fq> for Fq {
-    const MDS: [[Fq; 3]; 3] = FQ_MDS;
-    const ROUND_CONSTANTS: [[Fq; 3]; 55] = FQ_ROUND_CONSTANTS;
-}
 
 const fn fq(x: [u64; 4]) -> Fq {
     Fq::new_unchecked(BigInt::new(x))

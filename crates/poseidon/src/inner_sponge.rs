@@ -1,6 +1,11 @@
 use ark_ff::Field;
+use halo_group::wrappers::PastaConfig;
+use ark_ff::Zero;
 
-use crate::constants::*;
+const SPONGE_CAPACITY: usize = 1;
+const SPONGE_RATE: usize = 2;
+const PERM_ROUNDS_FULL: usize = 55;
+const STATE_SIZE: usize = SPONGE_CAPACITY + SPONGE_RATE;
 
 // -------------------- Helpers -------------------- //
 
@@ -14,20 +19,20 @@ fn sbox<F: Field>(mut x: F) -> F {
     x
 }
 
-fn apply_mds_matrix<F: Field + PoseidonConstants<F>>(state: &[F; STATE_SIZE]) -> [F; STATE_SIZE] {
-    let mut ret = [F::ZERO; 3];
-    for i in 0..F::MDS.len() {
-        ret[i] = state.iter().zip(F::MDS[i]).map(|(s, m)| *s * m).sum::<F>();
+fn apply_mds_matrix<P: PastaConfig>(state: &[P::BaseField; STATE_SIZE]) -> [P::BaseField; STATE_SIZE] {
+    let mut ret = [P::BaseField::zero(); 3];
+    for i in 0..P::POSEIDON_MDS.len() {
+        ret[i] = state.iter().zip(P::POSEIDON_MDS[i]).map(|(s, m)| *s * m).sum::<P::BaseField>();
     }
     ret
 }
 
-fn full_round<F: Field + PoseidonConstants<F>>(state: &mut [F; STATE_SIZE], r: usize) {
+fn full_round<P: PastaConfig>(state: &mut [P::BaseField; STATE_SIZE], r: usize) {
     for state_i in state.iter_mut() {
         *state_i = sbox(*state_i);
     }
-    *state = apply_mds_matrix(state);
-    for (i, x) in F::ROUND_CONSTANTS[r].iter().enumerate() {
+    *state = apply_mds_matrix::<P>(state);
+    for (i, x) in P::POSEIDON_ROUND_CONSTANTS[r].iter().enumerate() {
         state[i] += x;
     }
 }
@@ -39,26 +44,26 @@ pub enum SpongeState {
 }
 
 #[derive(Clone)]
-pub struct PoseidonSponge<F: Field> {
+pub struct PoseidonSponge<P: PastaConfig> {
     pub sponge_state: SpongeState,
-    pub state: [F; 3],
+    pub state: [P::BaseField; 3],
 }
 
-impl<F: Field + PoseidonConstants<F>> PoseidonSponge<F> {
+impl<P: PastaConfig> PoseidonSponge<P> {
     fn poseidon_block_cipher(&mut self) {
         for r in 0..PERM_ROUNDS_FULL {
-            full_round(&mut self.state, r);
+            full_round::<P>(&mut self.state, r);
         }
     }
 
     pub fn new() -> Self {
         Self {
-            state: [F::ZERO; STATE_SIZE],
+            state: [<P::BaseField as Zero>::zero(); STATE_SIZE],
             sponge_state: SpongeState::Absorbed(0),
         }
     }
 
-    pub fn absorb(&mut self, x: &[F]) {
+    pub fn absorb(&mut self, x: &[P::BaseField]) {
         for x in x.iter() {
             match self.sponge_state {
                 SpongeState::Absorbed(n) => {
@@ -79,7 +84,7 @@ impl<F: Field + PoseidonConstants<F>> PoseidonSponge<F> {
         }
     }
 
-    pub fn squeeze(&mut self) -> F {
+    pub fn squeeze(&mut self) -> P::BaseField {
         match self.sponge_state {
             SpongeState::Squeezed(n) => {
                 if n == SPONGE_RATE {
@@ -100,7 +105,7 @@ impl<F: Field + PoseidonConstants<F>> PoseidonSponge<F> {
     }
 
     pub fn reset(&mut self) {
-        self.state = [F::ZERO; STATE_SIZE];
+        self.state = [P::BaseField::zero(); STATE_SIZE];
         self.sponge_state = SpongeState::Absorbed(0);
     }
 }
@@ -109,10 +114,11 @@ impl<F: Field + PoseidonConstants<F>> PoseidonSponge<F> {
 mod self_tests {
     use super::*;
     use ark_ff::{AdditiveGroup, Field};
+    use ark_pallas::PallasConfig;
     use ark_vesta::Fr as Fp;
 
     fn minas_apply_mds_matrix(state: &[Fp]) -> Vec<Fp> {
-        FP_MDS
+        PallasConfig::POSEIDON_MDS
             .iter()
             .map(|m| {
                 state
@@ -154,7 +160,7 @@ mod self_tests {
 
         // Assuming FP_MDS is a 3x3 matrix, verify against expected output
         // Replace with actual expected values based on FP_MDS
-        let expected = apply_mds_matrix(&state).to_vec();
+        let expected = apply_mds_matrix::<PallasConfig>(&state).to_vec();
         assert_eq!(
             result, expected,
             "apply_mds_matrix should match apply_mds_matrix_2"
@@ -163,7 +169,7 @@ mod self_tests {
 
     #[test]
     fn test_poseidon_sponge_new() {
-        let sponge = PoseidonSponge::<Fp>::new();
+        let sponge = PoseidonSponge::<PallasConfig>::new();
         assert_eq!(
             sponge.state,
             [Fp::ZERO; 3],
@@ -177,7 +183,7 @@ mod self_tests {
 
     #[test]
     fn test_poseidon_sponge_absorb_single() {
-        let mut sponge = PoseidonSponge::new();
+        let mut sponge = PoseidonSponge::<PallasConfig>::new();
         let input = fp_from_u64(42);
         sponge.absorb(&[input]);
         assert_eq!(
@@ -194,7 +200,7 @@ mod self_tests {
 
     #[test]
     fn test_poseidon_sponge_reset() {
-        let mut sponge = PoseidonSponge::new();
+        let mut sponge = PoseidonSponge::<PallasConfig>::new();
         sponge.absorb(&[fp_from_u64(42)]);
         sponge.squeeze();
         sponge.reset();
@@ -210,8 +216,10 @@ mod self_tests {
 mod mina_tests {
     use super::*;
     use ark_ff::Field;
+    use ark_pallas::PallasConfig;
     use ark_vesta::Fq;
     use ark_vesta::Fr as Fp;
+    use ark_vesta::VestaConfig;
     use serde::Deserialize;
     use std::{fs::File, path::PathBuf}; // needed for ::new() sponge
 
@@ -269,7 +277,7 @@ mod mina_tests {
     #[test]
     fn poseidon_test_vectors_kimchi() {
         fn hash(input: &[Fp]) -> Fp {
-            let mut hash = PoseidonSponge::<Fp>::new();
+            let mut hash = PoseidonSponge::<PallasConfig>::new();
             hash.absorb(input);
             hash.squeeze()
         }
@@ -292,7 +300,7 @@ mod mina_tests {
             "ece80fe77b11ca43fc49588ffca09e7409896723f18a1859060fda7c460dde0d",
         ];
 
-        let mut sponge = PoseidonSponge::<Fq>::new();
+        let mut sponge = PoseidonSponge::<VestaConfig>::new();
         let inputs_fq: Vec<_> = inputs_hex.into_iter().map(|x| from_hex::<Fq>(x)).collect();
         sponge.absorb(&inputs_fq);
 
@@ -315,7 +323,7 @@ mod mina_tests {
             "1afdc9e9dd0adfc9130e22f03191916dbd0f51b304d2d1ecc395a952c4b13b24",
         ];
 
-        let mut sponge = PoseidonSponge::<Fp>::new();
+        let mut sponge = PoseidonSponge::<PallasConfig>::new();
         let inputs_fp: Vec<_> = inputs_hex.into_iter().map(|x| from_hex::<Fp>(x)).collect();
         sponge.absorb(&inputs_fp);
 

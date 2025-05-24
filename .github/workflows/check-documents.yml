@@ -1,0 +1,50 @@
+name: Check documents
+
+on:
+    # Triggers the workflow on push or pull request events but only for the main branch
+    push:
+        branches: [main, release**]
+    pull_request:
+        branches: [main, release**]
+        # Don't run on draft PR's, see: https://github.com/orgs/community/discussions/25722#discussioncomment-3248917
+        types: [opened, synchronize, reopened, ready_for_review]
+    # Allows us to run the workflow manually from the Actions tab
+    workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Thesis report spellcheck
+        run: nix build
+        working-directory: ./documents/thesis
+
+      - name: Project contract report spellcheck
+        run: nix build
+        working-directory: ./documents/project-contract
+
+  spellcheck:
+    runs-on: ubuntu-24.04
+    depends-on: build
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Thesis report spellcheck
+        run: nix run .#spellcheck
+        working-directory: ./documents/thesis
+
+      - name: Project contract report spellcheck
+        run: nix run .#spellcheck
+        working-directory: ./documents/project-contract

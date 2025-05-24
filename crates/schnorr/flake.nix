@@ -47,13 +47,16 @@
             pkgs.rust-bin.nightly."${rustFmtVersion}".rustfmt
             pkgs.rustToolchain
             (pkgs.writeShellScriptBin "check-all" ''
-              check-fmt && check-lint
+              check-fmt && check-lint && check-test
             '')
             (pkgs.writeShellScriptBin "check-fmt" ''
               cargo fmt --manifest-path ./Cargo.toml --all -- --check
             '')
             (pkgs.writeShellScriptBin "check-lint" ''
               cargo clippy -- -D warnings
+            '')
+            (pkgs.writeShellScriptBin "check-test" ''
+              cargo test
             '')
           ];
         };
