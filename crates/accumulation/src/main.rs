@@ -73,9 +73,8 @@ fn main() -> Result<()> {
     let qs_path = qs_dir.join("qs.bin");
 
     #[allow(clippy::type_complexity)]
-    let res: Result<
-        Vec<(usize, Instance<PallasConfig>, Accumulator<PallasConfig>)>,
-    > = (min..max + 1).map(|i| gen(2usize.pow(i))).collect();
+    let res: Result<Vec<(usize, Instance<PallasConfig>, Accumulator<PallasConfig>)>> =
+        (min..max + 1).map(|i| gen(2usize.pow(i))).collect();
     let qs = res?;
 
     let mut bytes = Vec::with_capacity(qs.compressed_size());

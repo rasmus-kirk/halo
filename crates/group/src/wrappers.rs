@@ -2,9 +2,14 @@
 
 use std::sync::OnceLock;
 
-use crate::{group::{Affine, BaseField, Scalar}, poseidon_consts::{FP_MDS, FP_ROUND_CONSTANTS, FQ_MDS, FQ_ROUND_CONSTANTS}, pp::PublicParams};
+use crate::{
+    group::{Affine, BaseField, Scalar},
+    poseidon_consts::{FP_MDS, FP_ROUND_CONSTANTS, FQ_MDS, FQ_ROUND_CONSTANTS},
+    pp::PublicParams,
+};
 use ark_ec::{
-    short_weierstrass::{Projective, SWCurveConfig}, CurveConfig, CurveGroup
+    short_weierstrass::{Projective, SWCurveConfig},
+    CurveConfig, CurveGroup,
 };
 use ark_ff::{BigInt, PrimeField};
 use ark_pallas::PallasConfig;
@@ -72,7 +77,8 @@ impl PastaConfig for ark_pallas::PallasConfig {
     }
 
     const POSEIDON_MDS: [[<PallasConfig as CurveConfig>::BaseField; 3]; 3] = FP_MDS;
-    const POSEIDON_ROUND_CONSTANTS: [[<PallasConfig as CurveConfig>::BaseField; 3]; 55] = FP_ROUND_CONSTANTS;
+    const POSEIDON_ROUND_CONSTANTS: [[<PallasConfig as CurveConfig>::BaseField; 3]; 55] =
+        FP_ROUND_CONSTANTS;
     const FP_MODULUS: BigInt<4> = <PallasConfig as CurveConfig>::ScalarField::MODULUS;
     const FQ_MODULUS: BigInt<4> = <PallasConfig as CurveConfig>::BaseField::MODULUS;
 }
@@ -113,7 +119,8 @@ impl PastaConfig for ark_vesta::VestaConfig {
     }
 
     const POSEIDON_MDS: [[<VestaConfig as CurveConfig>::BaseField; 3]; 3] = FQ_MDS;
-    const POSEIDON_ROUND_CONSTANTS: [[<VestaConfig as CurveConfig>::BaseField; 3]; 55] = FQ_ROUND_CONSTANTS;
+    const POSEIDON_ROUND_CONSTANTS: [[<VestaConfig as CurveConfig>::BaseField; 3]; 55] =
+        FQ_ROUND_CONSTANTS;
     const FP_MODULUS: BigInt<4> = <VestaConfig as CurveConfig>::ScalarField::MODULUS;
     const FQ_MODULUS: BigInt<4> = <VestaConfig as CurveConfig>::BaseField::MODULUS;
 }

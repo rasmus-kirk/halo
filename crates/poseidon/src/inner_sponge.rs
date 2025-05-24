@@ -1,6 +1,6 @@
 use ark_ff::Field;
-use halo_group::wrappers::PastaConfig;
 use ark_ff::Zero;
+use halo_group::wrappers::PastaConfig;
 
 const SPONGE_CAPACITY: usize = 1;
 const SPONGE_RATE: usize = 2;
@@ -19,10 +19,17 @@ fn sbox<F: Field>(mut x: F) -> F {
     x
 }
 
-fn apply_mds_matrix<P: PastaConfig>(state: &[P::BaseField; STATE_SIZE]) -> [P::BaseField; STATE_SIZE] {
+#[allow(clippy::needless_range_loop)]
+fn apply_mds_matrix<P: PastaConfig>(
+    state: &[P::BaseField; STATE_SIZE],
+) -> [P::BaseField; STATE_SIZE] {
     let mut ret = [P::BaseField::zero(); 3];
     for i in 0..P::POSEIDON_MDS.len() {
-        ret[i] = state.iter().zip(P::POSEIDON_MDS[i]).map(|(s, m)| *s * m).sum::<P::BaseField>();
+        ret[i] = state
+            .iter()
+            .zip(P::POSEIDON_MDS[i])
+            .map(|(s, m)| *s * m)
+            .sum::<P::BaseField>();
     }
     ret
 }
@@ -56,14 +63,14 @@ impl<P: PastaConfig> PoseidonSponge<P> {
         }
     }
 
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             state: [<P::BaseField as Zero>::zero(); STATE_SIZE],
             sponge_state: SpongeState::Absorbed(0),
         }
     }
 
-    pub fn absorb(&mut self, x: &[P::BaseField]) {
+    pub(crate) fn absorb(&mut self, x: &[P::BaseField]) {
         for x in x.iter() {
             match self.sponge_state {
                 SpongeState::Absorbed(n) => {
@@ -84,7 +91,7 @@ impl<P: PastaConfig> PoseidonSponge<P> {
         }
     }
 
-    pub fn squeeze(&mut self) -> P::BaseField {
+    pub(crate) fn squeeze(&mut self) -> P::BaseField {
         match self.sponge_state {
             SpongeState::Squeezed(n) => {
                 if n == SPONGE_RATE {
@@ -104,10 +111,10 @@ impl<P: PastaConfig> PoseidonSponge<P> {
         }
     }
 
-    pub fn reset(&mut self) {
-        self.state = [P::BaseField::zero(); STATE_SIZE];
-        self.sponge_state = SpongeState::Absorbed(0);
-    }
+    // pub fn reset(&mut self) {
+    //     self.state = [P::BaseField::zero(); STATE_SIZE];
+    //     self.sponge_state = SpongeState::Absorbed(0);
+    // }
 }
 
 #[cfg(test)]

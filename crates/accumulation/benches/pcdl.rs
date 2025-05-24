@@ -9,16 +9,13 @@ use ark_serialize::CanonicalDeserialize;
 use ark_std::test_rng;
 use criterion::{BenchmarkId, Criterion};
 
-use halo_group::group::{PallasPoly, PallasScalar};
 use halo_accumulation::{
     acc::Accumulator,
     pcdl::{self, commit, Instance},
 };
+use halo_group::group::{PallasPoly, PallasScalar};
 
-const PRE: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/.precompute/qs.bin"
-));
+const PRE: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/.precompute/qs.bin"));
 
 /// Helper function: Gets precomputed linear-time computation dummy values.
 fn get_cheap_linears(n: usize) -> [Instance<PallasConfig>; 1] {

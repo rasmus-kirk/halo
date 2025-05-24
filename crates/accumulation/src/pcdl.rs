@@ -15,12 +15,12 @@ use halo_poseidon::outer_sponge::{Protocols, Sponge};
 use rand::Rng;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 
+use crate::pedersen;
 use halo_group::{
-    group::{construct_powers, scalar_dot, point_dot_affine, Point, Poly, Scalar},
+    group::{construct_powers, point_dot_affine, scalar_dot, Point, Poly, Scalar},
     pp::PublicParams,
     wrappers::PastaConfig,
 };
-use crate::pedersen;
 
 // -------------------- PCS Data Structures --------------------
 

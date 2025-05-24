@@ -32,9 +32,9 @@ pub fn commit<P: PastaConfig>(
 
 #[cfg(test)]
 mod tests {
-    use halo_group::{group::PallasScalar, pp::PublicParams};
     use ark_pallas::PallasConfig;
     use ark_std::UniformRand;
+    use halo_group::{group::PallasScalar, pp::PublicParams};
     use rand::Rng;
 
     use super::*;

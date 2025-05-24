@@ -1,10 +1,10 @@
-use ark_pallas::{Projective, Fr};
 use ark_ec::CurveGroup;
+use ark_ec::PrimeGroup;
 use ark_ff::PrimeField;
+use ark_pallas::{Fr, Projective};
 use ark_serialize::CanonicalSerialize;
 use ark_std::UniformRand;
 use rand::thread_rng;
-use ark_ec::PrimeGroup;
 
 use sha2::{Digest, Sha256};
 
@@ -15,7 +15,7 @@ type Point = Projective; // Curve point in projective coordinates
 // Schnorr signature struct: (R, s)
 #[derive(Clone, Debug)]
 pub struct SchnorrSignature {
-    r: Point, // Commitment point R = k * G
+    r: Point,  // Commitment point R = k * G
     s: Scalar, // s = k + e * x
 }
 
@@ -28,20 +28,23 @@ pub struct PublicKey(Point);
 // Hash function for Fiat-Shamir transform: H(P || R || m)
 fn hash_message(public_key: &Point, r: &Point, message: &[u8]) -> Scalar {
     let mut hasher = Sha256::new();
-    
+
     // Convert points to affine and get x-coordinates for hashing
     let public_key_affine = public_key.into_affine();
     let r_affine = r.into_affine();
-    
+
     // Serialize x-coordinates as 32-byte arrays
     let mut bytes = vec![];
-    public_key_affine.x.serialize_compressed(&mut bytes).unwrap();
+    public_key_affine
+        .x
+        .serialize_compressed(&mut bytes)
+        .unwrap();
     r_affine.x.serialize_compressed(&mut bytes).unwrap();
-    
+
     // Hash P || R || m
     hasher.update(&bytes);
     hasher.update(message);
-    
+
     // Convert hash to scalar (mod q)
     let hash_bytes = hasher.finalize();
     Scalar::from_be_bytes_mod_order(&hash_bytes)
@@ -93,8 +96,8 @@ impl PublicKey {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ark_pallas::Fr;
     use ark_ec::CurveGroup;
+    use ark_pallas::Fr;
     use ark_std::UniformRand;
     use rand::{thread_rng, Rng, RngCore};
 
@@ -110,13 +113,13 @@ mod tests {
     #[test]
     fn test_keypair_generation() {
         let (sk, pk) = generate_keypair();
-        
+
         // Check that private key is non-zero
         assert_ne!(sk.0, Fr::from(0));
-        
+
         // Check that public key is on curve
         assert!(pk.0.into_affine().is_on_curve());
-        
+
         // Check that public key = private_key * G
         let expected_pk = Point::generator() * sk.0;
         assert_eq!(pk.0, expected_pk);
@@ -126,7 +129,7 @@ mod tests {
     fn test_signature_verification() {
         let (sk, pk) = generate_keypair();
         let message = b"Test message for Schnorr signature";
-        
+
         // Generate and verify valid signature
         let signature = sk.sign(message);
         assert!(pk.verify(message, &signature));
@@ -137,7 +140,7 @@ mod tests {
         let (sk, pk) = generate_keypair();
         let message = b"Correct message";
         let wrong_message = b"Wrong message";
-        
+
         let signature = sk.sign(message);
         assert!(!pk.verify(wrong_message, &signature));
     }
@@ -146,13 +149,13 @@ mod tests {
     fn test_invalid_signature_fails() {
         let (sk, pk) = generate_keypair();
         let message = b"Test message";
-        
+
         let mut signature = sk.sign(message);
-        
+
         // Modify signature to make it invalid
         let mut rng = thread_rng();
         signature.s = Fr::rand(&mut rng);
-        
+
         assert!(!pk.verify(message, &signature));
     }
 
@@ -161,7 +164,7 @@ mod tests {
         let (sk, _) = generate_keypair();
         let (_, other_pk) = generate_keypair();
         let message = b"Test message";
-        
+
         let signature = sk.sign(message);
         assert!(!other_pk.verify(message, &signature));
     }
@@ -169,7 +172,7 @@ mod tests {
     #[test]
     fn test_multiple_messages() {
         let (sk, pk) = generate_keypair();
-        
+
         // Test with 5 random messages
         for _ in 0..5 {
             let message = random_message();
@@ -182,7 +185,7 @@ mod tests {
     fn test_empty_message() {
         let (sk, pk) = generate_keypair();
         let empty_message = b"";
-        
+
         let signature = sk.sign(empty_message);
         assert!(pk.verify(empty_message, &signature));
     }

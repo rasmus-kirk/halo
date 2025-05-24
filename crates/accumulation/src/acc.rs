@@ -13,10 +13,10 @@ use ark_serialize::CanonicalSerialize;
 use ark_std::{UniformRand, Zero};
 use rand::Rng;
 
-use halo_group::group::{Point, Poly, Scalar, construct_powers, point_dot, rho1};
+use crate::pcdl::{self, Instance};
+use halo_group::group::{construct_powers, point_dot, rho1, Point, Poly, Scalar};
 use halo_group::pp::PublicParams;
 use halo_group::wrappers::PastaConfig;
-use crate::pcdl::{self, Instance};
 
 // -------------------- Accumulation Data Structures --------------------
 

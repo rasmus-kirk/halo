@@ -382,6 +382,7 @@ dependencies = [
  "ark-serialize",
  "ark-std",
  "ark-vesta",
+ "halo-group",
  "hex",
  "rand 0.9.1",
  "serde",
