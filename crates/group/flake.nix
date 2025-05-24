@@ -47,7 +47,17 @@
             pkgs.rust-bin.nightly."${rustFmtVersion}".rustfmt
             pkgs.rustToolchain
             (pkgs.writeShellScriptBin "check-all" ''
-              check-fmt && check-lint && check-test
+              check-fmt &&
+              echo "" &&
+              echo "Format ✅" &&
+              echo "" &&
+              check-lint &&
+              echo "" &&
+              echo "Lint ✅" &&
+              echo "" &&
+              check-test
+              echo "" &&
+              echo "Test ✅" &&
             '')
             (pkgs.writeShellScriptBin "check-fmt" ''
               cargo fmt --manifest-path ./Cargo.toml --all -- --check
