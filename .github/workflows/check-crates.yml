@@ -12,21 +12,6 @@ on:
     workflow_dispatch:
 
 jobs:
-  check-crates:
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@main
-
-      - name: Run checks
-        run: nix develop -c check-all
-        working-directory: ./crates
-
   build-crates:
     runs-on: ubuntu-24.04
     strategy:
@@ -41,6 +26,10 @@ jobs:
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Run checks
+        run: nix develop -c check-all
+        working-directory: ./crates/${{ matrix.crate }}
 
       - name: Build
         run: nix build .#${{ matrix.crate }}
