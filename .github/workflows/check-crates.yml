@@ -28,22 +28,10 @@ jobs:
         run: nix develop -c check-fmt
         working-directory: ./crates/${{ matrix.crate }}
 
-      - name: Save fmt status
-        if: always()
-        run: echo "${{ job.status }}" > fmt-status-${{ matrix.crate }}.txt
-        working-directory: ./crates/${{ matrix.crate }}
-
-      - name: Upload fmt status
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: fmt-status-${{ matrix.crate }}
-          path: ./crates/${{ matrix.crate }}/fmt-status-${{ matrix.crate }}.txt
-          retention-days: 1
-
   lint:
     runs-on: ubuntu-24.04
     needs: fmt
+    if: always()
     strategy:
       matrix:
         crate: [accumulation, plonk, group, poseidon, schnorr]
@@ -53,21 +41,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      - name: Download fmt status
-        uses: actions/download-artifact@v4
-        with:
-          name: fmt-status-${{ matrix.crate }}
-          path: ./crates/${{ matrix.crate }}
-
-      - name: Check fmt status
-        id: check-fmt
-        run: |
-          if [ "$(cat ./crates/${{ matrix.crate }}/fmt-status-${{ matrix.crate }}.txt)" == "success" ]; then
-            echo "proceed=true" >> $GITHUB_OUTPUT
-          else
-            echo "proceed=false" >> $GITHUB_OUTPUT
-          fi
 
       - name: Install Nix
         if: steps.check-fmt.outputs.proceed == 'true'
@@ -78,22 +51,10 @@ jobs:
         run: nix develop -c check-lint
         working-directory: ./crates/${{ matrix.crate }}
 
-      - name: Save lint status
-        if: always()
-        run: echo "${{ job.status }}" > lint-status-${{ matrix.crate }}.txt
-        working-directory: ./crates/${{ matrix.crate }}
-
-      - name: Upload lint status
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: lint-status-${{ matrix.crate }}
-          path: ./crates/${{ matrix.crate }}/lint-status-${{ matrix.crate }}.txt
-          retention-days: 1
-
   test:
     runs-on: ubuntu-24.04
     needs: lint
+    if: always()
     strategy:
       matrix:
         crate: [accumulation, plonk, group, poseidon, schnorr]
@@ -104,27 +65,11 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Download lint status
-        uses: actions/download-artifact@v4
-        with:
-          name: lint-status-${{ matrix.crate }}
-          path: ./crates/${{ matrix.crate }}
-
-      - name: Check lint status
-        id: check-lint
-        run: |
-          if [ "$(cat ./crates/${{ matrix.crate }}/lint-status-${{ matrix.crate }}.txt)" == "success" ]; then
-            echo "proceed=true" >> $GITHUB_OUTPUT
-          else
-            echo "proceed=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Install Nix
         if: steps.check-lint.outputs.proceed == 'true'
         uses: DeterminateSystems/nix-installer-action@main
 
       - name: Run tests
-        if: steps.check-lint.outputs.proceed == 'true'
         run: nix develop -c check-test
         working-directory: ./crates/${{ matrix.crate }}
 
