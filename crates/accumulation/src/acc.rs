@@ -251,9 +251,9 @@ mod tests {
     fn test_acc_scheme() -> Result<()> {
         let mut rng = rand::thread_rng();
         let n_range = Uniform::new(2, 8);
-        let n = (2 as usize).pow(rng.sample(&n_range));
+        let n = 2_usize.pow(rng.sample(n_range));
 
-        let m = rng.sample(&n_range);
+        let m = rng.sample(n_range);
         let mut acc = None;
         for _ in 0..m {
             acc = Some(accumulate_random_instance(&mut rng, n, acc)?);

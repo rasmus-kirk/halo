@@ -22,7 +22,7 @@ fn get_cheap_linears(n: usize) -> ([Instance<PallasConfig>; 1], Accumulator<Pall
         )
         .unwrap();
     let q_acc = val.into_iter().find(|x| x.0 == n).unwrap();
-    ([q_acc.1.into()], q_acc.2.into())
+    ([q_acc.1], q_acc.2)
 }
 
 const WARMUP: Duration = Duration::from_millis(100);

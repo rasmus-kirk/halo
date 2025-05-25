@@ -517,7 +517,7 @@ mod tests {
     fn test_z() {
         let mut rng = rand::thread_rng();
         let n_range = Uniform::new(2, 10);
-        let n = (2 as usize).pow(rng.sample(&n_range));
+        let n = 2_usize.pow(rng.sample(n_range));
         let lg_n = n.ilog2() as usize;
         let one = PallasScalar::one();
 
@@ -528,7 +528,7 @@ mod tests {
         }
 
         let mut v_1 = one + xis[lg_n] * z;
-        let mut z_i = z.clone();
+        let mut z_i = z;
         for i in 1..lg_n {
             z_i.square_in_place();
             v_1 *= one + xis[lg_n - i] * z_i;
@@ -545,7 +545,7 @@ mod tests {
 
     #[test]
     fn test_u_check() -> Result<()> {
-        let n = (2 as usize).pow(3);
+        let n = 2_usize.pow(3);
         let lg_n = n.ilog2() as usize;
 
         let pp = PublicParams::get_pp();
@@ -592,12 +592,12 @@ mod tests {
         let h = HPoly::<PallasConfig>::new(xis.clone());
         let h_coeffs = h.get_poly().coeffs;
         let U = gs_mut[0];
-        let U_prime = pedersen::commit(None, &gs_affine, &h_coeffs);
+        let U_prime = pedersen::commit(None, gs_affine, &h_coeffs);
 
         let mut xs = Vec::with_capacity(gs.len());
         let mut acc = PallasPoint::ZERO;
         for i in 0..gs.len() {
-            acc = acc + gs[i] * h_coeffs[i];
+            acc += gs[i] * h_coeffs[i];
             xs.push(gs[i] * h_coeffs[i])
         }
 
@@ -609,7 +609,7 @@ mod tests {
     #[test]
     fn test_check() -> Result<()> {
         let rng = &mut rand::thread_rng();
-        let n = (2 as usize).pow(rng.sample(&Uniform::new(2, 10)));
+        let n = 2_usize.pow(rng.sample(Uniform::new(2, 10)));
 
         // Verify that check works
         Instance::<PallasConfig>::rand(rng, n).check()?;
@@ -620,9 +620,9 @@ mod tests {
     #[test]
     fn test_check_no_hiding() -> Result<()> {
         let mut rng = rand::thread_rng();
-        let n = (2 as usize).pow(rng.sample(&Uniform::new(2, 10)));
+        let n = 2_usize.pow(rng.sample(Uniform::new(2, 10)));
         let d = n - 1;
-        let d_prime = rng.sample(&Uniform::new(1, d));
+        let d_prime = rng.sample(Uniform::new(1, d));
 
         // Commit to a random polynomial
         let p = PallasPoly::rand(d_prime, &mut rng);
@@ -642,7 +642,7 @@ mod tests {
     #[test]
     fn test_construct_h_with_degree_7() {
         let mut rng = rand::thread_rng();
-        let n = (2 as usize).pow(3);
+        let n = 2_usize.pow(3);
         let lg_n = n.ilog2() as usize;
         let xis_len = lg_n + 1;
 

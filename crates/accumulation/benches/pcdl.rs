@@ -13,7 +13,7 @@ use halo_accumulation::{
     acc::Accumulator,
     pcdl::{self, commit, Instance},
 };
-use halo_group::group::{PallasPoly, PallasScalar};
+use halo_group::{PallasPoly, PallasScalar};
 
 const PRE: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/.precompute/qs.bin"));
 
