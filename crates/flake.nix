@@ -60,7 +60,8 @@
             pkgs.rust-bin.nightly."${rustFmtVersion}".rustfmt
             pkgs.rustToolchain
             (pkgs.writeShellScriptBin "check-all" ''
-              check-fmt &&
+              cd ${self}
+              cargo fmt --all -- --check &&
               echo "-------------------- Format ✅ --------------------" &&
               check-lint &&
               echo "-------------------- Lint ✅ --------------------" &&
@@ -68,7 +69,7 @@
               echo "-------------------- Test ✅ --------------------"
             '')
             (pkgs.writeShellScriptBin "check-fmt" ''
-              cargo fmt --all -- --check
+              cargo fmt -- --check
             '')
             (pkgs.writeShellScriptBin "check-lint" ''
               cargo clippy --all-targets --all-features -- -D warnings

@@ -28,7 +28,7 @@ jobs:
         uses: DeterminateSystems/nix-installer-action@main
 
       - name: Run fmt check
-        run: nix develop -c cargo fmt --all -- --check
+        run: nix develop -c check-fmt
         working-directory: ./crates/${{ matrix.crate }}
 
   lint:
@@ -48,7 +48,7 @@ jobs:
         uses: DeterminateSystems/nix-installer-action@main
 
       - name: Run lint check
-        run: nix develop -c cargo clippy --all-targets --all-features -- -D warnings
+        run: nix develop -c check-lint
         working-directory: ./crates/${{ matrix.crate }}
 
   test:
@@ -68,12 +68,11 @@ jobs:
         uses: DeterminateSystems/nix-installer-action@main
 
       - name: Run tests
-        run: nix develop -c cargo test --all-features
+        run: nix develop -c check-test
         working-directory: ./crates/${{ matrix.crate }}
 
   build:
     runs-on: ubuntu-24.04
-    needs: test
     strategy:
       matrix:
         crate: [accumulation, plonk, group, poseidon, schnorr]
