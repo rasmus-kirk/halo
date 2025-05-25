@@ -71,19 +71,19 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
             // circuits.push((size, x.clone(), w.clone()));
 
             let start_time = Instant::now();
-            let pi = protocol::prove::<_, _, PCSPallas>(rng, &x, &w);
+            let pi = protocol::prove::<_, _, PCSPallas>(rng, x, w);
             let new_p_time = start_time.elapsed().as_secs_f32();
             data[off + 2].push(new_p_time);
             // new_pis.push(new_pi.clone());
 
             let new_pi = pi.clone();
             let start_time = Instant::now();
-            protocol::verify(false, &x, new_pi).unwrap();
+            protocol::verify(false, x, new_pi).unwrap();
             let new_v_time = start_time.elapsed().as_secs_f32();
             data[off + 3].push(new_v_time);
 
             let start_time = Instant::now();
-            protocol::verify(true, &x, pi).unwrap();
+            protocol::verify(true, x, pi).unwrap();
             let new_v_succ_time = start_time.elapsed().as_secs_f32();
             data[off + 4].push(new_v_succ_time);
 
@@ -172,7 +172,7 @@ fn write_csv(data: &Vec<Vec<f32>>) -> Result<()> {
     let file = File::create(path)?;
     let mut wtr = Writer::from_writer(file);
 
-    wtr.write_record(&[
+    wtr.write_record([
         "n",
         "gen_circ",
         "gen_circ_err",
@@ -185,7 +185,7 @@ fn write_csv(data: &Vec<Vec<f32>>) -> Result<()> {
         "SuccVerifier",
         "SuccVerifier_err",
     ])?;
-    for (i, row) in data.into_iter().enumerate() {
+    for (i, row) in data.iter().enumerate() {
         let n = i + MIN;
         let mut row_with_n = vec![n as f32];
         row_with_n.extend(row);
