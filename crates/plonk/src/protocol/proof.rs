@@ -1,9 +1,6 @@
 #![allow(non_snake_case)]
 
-use super::{
-    pi::{EvalProofs, Proof, ProofCommitments, ProofEvaluations},
-    transcript::TranscriptProtocol,
-};
+use super::pi::{EvalProofs, Proof, ProofCommitments, ProofEvaluations};
 use crate::{
     circuit::{CircuitPrivate, CircuitPublic},
     pcs::PCS,
@@ -16,28 +13,25 @@ use crate::{
     },
 };
 
-use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::Field;
 use ark_poly::Polynomial;
+use halo_group::PastaConfig;
+use halo_poseidon::Sponge;
 use log::{debug, info, trace};
-use merlin::Transcript;
 use std::time::Instant;
 
-pub fn prove<R: rand::Rng, P: SWCurveConfig, PCST: PCS<P>>(
+pub fn prove<R: rand::Rng, P: PastaConfig, PCST: PCS<P>>(
     rng: &mut R,
     x: &CircuitPublic<P>,
     w: &CircuitPrivate<P>,
-) -> Proof<P, PCST>
-where
-    Transcript: TranscriptProtocol<P>,
-{
-    let mut transcript = Transcript::new(b"protocol");
-    transcript.domain_sep();
+) -> Proof<P, PCST> {
+    let mut transcript = Sponge::new(halo_poseidon::Protocols::PLONK);
+
     // -------------------- Round 1 --------------------
 
     let r1_now = Instant::now();
     let ws_coms = PCST::batch_commit(&w.ws, x.d, None);
-    transcript.append_points(b"abc", &ws_coms);
+    transcript.absorb_g(&ws_coms);
 
     let r1_time = r1_now.elapsed().as_secs_f64();
     debug!("Round 1 took {} s", r1_time);
@@ -46,7 +40,7 @@ where
 
     let r2_now = Instant::now();
     // ζ = H(transcript)
-    let zeta = transcript.challenge_scalar(b"zeta");
+    let zeta = transcript.challenge();
     let p = &w.plookup.compute(&x.h, zeta);
 
     let r2_time = r2_now.elapsed().as_secs_f64();
@@ -56,13 +50,13 @@ where
 
     let r3_now = Instant::now();
     // β = H(transcript)
-    let beta = transcript.challenge_scalar(b"beta");
+    let beta = transcript.challenge();
     // γ = H(transcript)
-    let gamma = transcript.challenge_scalar(b"gamma");
+    let gamma = transcript.challenge();
     // δ = H(transcript)
-    let delta = transcript.challenge_scalar(b"delta");
+    let delta = transcript.challenge();
     // ε = H(transcript)
-    let epsilon = transcript.challenge_scalar(b"epsilon");
+    let epsilon = transcript.challenge();
 
     // ----- Calculate z ----- //
 
@@ -101,8 +95,8 @@ where
     debug!("Round 3 - D - {} s", r3_now.elapsed().as_secs_f64());
     let zcc_com = PCST::commit(zcc, x.d, None);
     let zpl_com = PCST::commit(zpl, x.d, None);
-    transcript.append_point(b"zcc", &zcc_com);
-    transcript.append_point(b"zpl", &zpl_com);
+    transcript.absorb_g(&[zcc_com]);
+    transcript.absorb_g(&[zpl_com]);
 
     let r3_time = r3_now.elapsed().as_secs_f64();
     debug!("Round 3 took {} s", r3_time);
@@ -111,7 +105,7 @@ where
 
     let r4_now = Instant::now();
     // α = H(transcript)
-    let alpha = transcript.challenge_scalar(b"alpha");
+    let alpha = transcript.challenge();
 
     debug!("Round 4A - {} s", r4_now.elapsed().as_secs_f64());
     // F_GC(X) = A(X)Qₗ(X) + B(X)Qᵣ(X) + C(X)Qₒ(X) + A(X)B(X)Qₘ(X) + Q꜀(X) + PI(X)
@@ -138,7 +132,7 @@ where
     let ts_coms = PCST::batch_commit(ts, x.d, None);
     debug!("Round 4G - {} s", r4_now.elapsed().as_secs_f64());
 
-    transcript.append_points(b"t", &ts_coms);
+    transcript.absorb_g(&ts_coms);
 
     let r4_time = r4_now.elapsed().as_secs_f64();
     debug!("Round 4 took {} s", r4_time);
@@ -147,7 +141,7 @@ where
 
     let r5_now = Instant::now();
     // 𝔷 = H(transcript)
-    let ch = transcript.challenge_scalar(b"xi");
+    let ch = transcript.challenge();
     let ch_bar = &(ch * x.h.w(1));
     let zcc_bar_ev = zcc_bar.evaluate(&ch);
     let zpl_bar_ev = zpl_bar.evaluate(&ch);
@@ -163,18 +157,18 @@ where
     let pl_h1_bar_ev = p.h1_bar.evaluate(&ch);
     let pl_t_bar_ev = p.t_bar.evaluate(&ch);
 
-    transcript.append_scalars(b"ws_ev", &ws_ev);
-    transcript.append_scalars(b"qs_ev", &qs_ev);
-    transcript.append_scalars(b"ss_ev", &ps_ev);
-    transcript.append_scalars(b"plonkup_ev", &pl_evs);
-    transcript.append_scalar(b"zcc_bar_ev", &zcc_bar_ev);
-    transcript.append_scalar(b"zpl_bar_ev", &zpl_bar_ev);
-    transcript.append_scalars(b"t_ev", ts_ev.as_slice());
-    transcript.append_scalar(b"zcc_ev", &zcc_ev);
-    transcript.append_scalar(b"zpl_ev", &zpl_ev);
+    transcript.absorb_fr(&ws_ev);
+    transcript.absorb_fr(&qs_ev);
+    transcript.absorb_fr(&ps_ev);
+    transcript.absorb_fr(&pl_evs);
+    transcript.absorb_fr(&[zcc_bar_ev]);
+    transcript.absorb_fr(&[zpl_bar_ev]);
+    transcript.absorb_fr(ts_ev.as_slice());
+    transcript.absorb_fr(&[zcc_ev]);
+    transcript.absorb_fr(&[zpl_ev]);
     // WARNING: soundness t1_bar_ev and h1_bar_ev? pip?
 
-    let v = transcript.challenge_scalar(b"v");
+    let v = transcript.challenge();
 
     // W(X) = Qₗ(X) + vQᵣ(X) + v²Qₒ(X) + v³Qₘ(X) + v⁴Q꜀(X) + v⁵Qₖ(X) + v⁶J(X)
     //      + v⁷A(X) + v⁸B(X) + v⁹C(X) + v¹⁰ZCC(X) + v¹¹ZPL(X)

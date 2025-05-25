@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use super::{transcript::TranscriptProtocol, Proof};
+use super::Proof;
 use crate::{
     circuit::CircuitPublic,
     pcs::PCS,
@@ -12,65 +12,60 @@ use crate::{
 };
 
 use anyhow::{ensure, Result};
-use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::Field;
-use merlin::Transcript;
+use halo_group::PastaConfig;
+use halo_poseidon::{Protocols, Sponge};
 
-pub fn verify<P: SWCurveConfig, PCST: PCS<P>>(
+pub fn verify<P: PastaConfig, PCST: PCS<P>>(
     succint: bool,
     x: &CircuitPublic<P>,
     pi: Proof<P, PCST>,
-) -> Result<()>
-where
-    Transcript: TranscriptProtocol<P>,
-{
+) -> Result<()> {
     let ev = &pi.ev;
     let com = &pi.com;
-    let mut transcript = Transcript::new(b"protocol");
-    transcript.domain_sep();
+    let mut transcript = Sponge::new(Protocols::PLONK);
 
     // -------------------- Round 1 --------------------
 
-    transcript.append_points(b"abc", &com.ws);
+    transcript.absorb_g(&com.ws);
 
     // -------------------- Round 2 --------------------
 
-    let zeta = transcript.challenge_scalar(b"zeta");
+    let zeta = transcript.challenge();
 
     // -------------------- Round 3 --------------------
 
     // β = H(transcript)
-    let beta = transcript.challenge_scalar(b"beta");
+    let beta = transcript.challenge();
     // γ = H(transcript)
-    let gamma = transcript.challenge_scalar(b"gamma");
+    let gamma = transcript.challenge();
     // δ = H(transcript)
-    let delta = transcript.challenge_scalar(b"delta");
+    let delta = transcript.challenge();
     // ε = H(transcript)
-    let epsilon = transcript.challenge_scalar(b"epsilon");
-    transcript.append_point(b"zcc", &com.zcc);
-    transcript.append_point(b"zpl", &com.zpl);
+    let epsilon = transcript.challenge();
+    transcript.absorb_g(&[com.zcc, com.zpl]);
 
     // -------------------- Round 4 --------------------
 
-    let alpha = transcript.challenge_scalar(b"alpha");
-    transcript.append_points(b"t", &com.ts);
+    let alpha = transcript.challenge();
+    transcript.absorb_g(&com.ts);
 
     // -------------------- Round 5 --------------------
 
-    let ch = transcript.challenge_scalar(b"xi");
+    let ch = transcript.challenge();
     let ch_w = ch * x.h.w(1);
     let zh_ev = scalar::zh_ev::<P>(x.h.n(), ch);
     let [ia, ib, ic] = [ch, x.h.k(Slots::B) * ch, x.h.k(Slots::C) * ch];
 
-    transcript.append_scalars(b"ws_ev", &ev.ws);
-    transcript.append_scalars(b"qs_ev", &ev.qs);
-    transcript.append_scalars(b"ss_ev", &ev.ps);
-    transcript.append_scalars(b"plonkup_ev", &ev.pls);
-    transcript.append_scalar(b"zcc_bar_ev", &ev.zcc_bar);
-    transcript.append_scalar(b"zpl_bar_ev", &ev.zpl_bar);
-    transcript.append_scalars(b"t_ev", &ev.ts);
-    transcript.append_scalar(b"zcc_ev", &ev.zcc);
-    transcript.append_scalar(b"zpl_ev", &ev.zpl);
+    transcript.absorb_fr(&ev.ws);
+    transcript.absorb_fr(&ev.qs);
+    transcript.absorb_fr(&ev.ps);
+    transcript.absorb_fr(&ev.pls);
+    transcript.absorb_fr(&[ev.zcc_bar]);
+    transcript.absorb_fr(&[ev.zpl_bar]);
+    transcript.absorb_fr(&ev.ts);
+    transcript.absorb_fr(&[ev.zcc]);
+    transcript.absorb_fr(&[ev.zpl]);
 
     // a + βb + γ
     let cc = eqns::copy_constraint_term(Into::into, beta, gamma);
@@ -106,7 +101,7 @@ where
         "T(𝔷) ≠ (F_GC(𝔷) + α F_CC1(𝔷) + α² F_CC2(𝔷) + α³ F_PL1(𝔷) + α⁴ F_PL2(𝔷)) / Zₕ(𝔷)"
     );
 
-    let v = transcript.challenge_scalar(b"v");
+    let v = transcript.challenge();
 
     // W(𝔷) = Qₗ(𝔷) + vQᵣ(𝔷) + v²Qₒ(𝔷) + v³Qₘ(𝔷) + v⁴Q꜀(𝔷) + v⁵Qₖ(𝔷) + v⁶J(𝔷)
     //      + v⁷A(𝔷) + v⁸B(𝔷) + v⁹C(𝔷) + v¹⁰Z(𝔷) + v¹¹ZPL(𝔷)

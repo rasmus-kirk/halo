@@ -1,7 +1,6 @@
 mod grandproduct;
 mod pi;
 mod proof;
-mod transcript;
 mod verify;
 
 pub use pi::{EvalProofs, Proof, ProofCommitments, ProofEvaluations};
