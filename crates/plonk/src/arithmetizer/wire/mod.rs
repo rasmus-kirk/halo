@@ -88,7 +88,7 @@ impl<Op: PlookupOps, P: SWCurveConfig> Debug for Wire<Op, P> {
 #[cfg(test)]
 mod tests {
     use ark_ff::Field;
-    use halo_accumulation::group::PallasScalar;
+    use halo_group::PallasScalar;
 
     use super::*;
     use crate::{

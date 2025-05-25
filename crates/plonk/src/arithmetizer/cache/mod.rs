@@ -209,7 +209,7 @@ impl<Op: PlookupOps, P: SWCurveConfig> ArithWireCache<Op, P> {
 #[cfg(test)]
 mod tests {
     use ark_pallas::PallasConfig;
-    use halo_accumulation::group::PallasScalar;
+    use halo_group::PallasScalar;
 
     use crate::arithmetizer::plookup::opsets::EmptyOpSet;
 

@@ -78,7 +78,7 @@ fn write_pp_paths(curve: &str) -> Result<()> {
     create_dir_all(&dest_dir)?;
     let dest_path = dest_dir.join("pp_paths.rs");
 
-    let mut content = String::from(format!("const G_PATHS_{CURVE}: [&[u8]; 64] = [\n"));
+    let mut content = format!("const G_PATHS_{CURVE}: [&[u8]; 64] = [\n");
 
     for k in 0..G_BLOCKS_NO {
         if cfg!(feature = "bootstrap") {

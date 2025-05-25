@@ -38,7 +38,6 @@ mod tests {
 
     use ark_pallas::PallasConfig;
     use ark_poly::Polynomial;
-    use halo_accumulation::group::PallasScalar;
     use rand::Rng;
 
     #[test]
@@ -49,7 +48,7 @@ mod tests {
         let h = h_opt.unwrap();
         let l1 = lagrange_basis(&h, 1);
         for _ in 0..100 {
-            let x: PallasScalar = rng.gen();
+            let x = rng.gen();
             assert_eq!(
                 lagrange_basis1::<PallasConfig>(h.n(), h.w(1), x),
                 l1.evaluate(&x)

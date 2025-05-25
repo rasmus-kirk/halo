@@ -2,21 +2,17 @@
 
 //! Accumulation scheme based on the Discrete Log assumption, using bulletproofs-style IPP
 
-use anyhow::ensure;
-use anyhow::Context;
-use anyhow::Result;
+use anyhow::{ensure, Context, Result};
 use ark_pallas::PallasConfig;
-use ark_poly::DenseUVPolynomial;
-use ark_poly::Polynomial;
-use ark_serialize::CanonicalDeserialize;
-use ark_serialize::CanonicalSerialize;
+use ark_poly::{DenseUVPolynomial, Polynomial};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::{UniformRand, Zero};
 use rand::Rng;
 
+use halo_group::{construct_powers, point_dot, PastaConfig, Point, Poly, PublicParams, Scalar};
+use halo_poseidon::{Protocols, Sponge};
+
 use crate::pcdl::{self, Instance};
-use halo_group::group::{construct_powers, point_dot, rho1, Point, Poly, Scalar};
-use halo_group::pp::PublicParams;
-use halo_group::wrappers::PastaConfig;
 
 // -------------------- Accumulation Data Structures --------------------
 
@@ -127,8 +123,9 @@ pub fn common_subroutine<P: PastaConfig>(
 ) -> Result<(Point<P>, usize, Scalar<P>, AccumulatedHPolys<P>)> {
     let m = qs.len();
     let d = qs.first().context("No instances given")?.d;
-
     let pp = PublicParams::get_pp();
+
+    let mut transcript = Sponge::new(Protocols::ASDL);
 
     // 1. Parse avk as (rk, ck^(1)_(PC)), and rk as (⟨group⟩ = (G, q, G), S, H, D).
     let mut hs = AccumulatedHPolys::with_capacity(m);
@@ -158,7 +155,9 @@ pub fn common_subroutine<P: PastaConfig>(
     }
 
     // 6. Compute the challenge α := ρ1([h_i, U_i]^n_(i=0)) ∈ F_q.
-    let alpha = rho1(&hs.get_scalars(), &Us);
+    transcript.absorb_fr(&hs.get_scalars());
+    transcript.absorb_g(&Us);
+    let alpha = transcript.challenge();
     hs.set_alpha(alpha);
 
     // 7. Set the polynomial h(X) := Σ^n_(i=0) α^i · h_i(X) ∈ Fq[X].
@@ -167,7 +166,7 @@ pub fn common_subroutine<P: PastaConfig>(
     let C = point_dot(&hs.alphas, &Us);
 
     // 9. Compute the challenge z := ρ1(C, h) ∈ F_q.
-    let z = rho1(&[alpha], &[C]);
+    let z = transcript.challenge();
 
     // 10. Randomize C : C_bar := C + ω · S ∈ G.
     let C_bar = C + pp.S * w;

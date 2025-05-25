@@ -49,15 +49,16 @@
             (pkgs.writeShellScriptBin "check-all" ''
               check-fmt &&
               echo "" &&
-              echo "Format ✅" &&
+              echo "-------------------- Format ✅ --------------------" &&
               echo "" &&
               check-lint &&
               echo "" &&
-              echo "Lint ✅" &&
+              echo "-------------------- Lint ✅ --------------------" &&
               echo "" &&
-              check-test
+              check-test &&
               echo "" &&
-              echo "Test ✅" &&
+              echo "-------------------- Test ✅ --------------------" &&
+              echo ""
             '')
             (pkgs.writeShellScriptBin "check-fmt" ''
               cargo fmt --manifest-path ./Cargo.toml --all -- --check

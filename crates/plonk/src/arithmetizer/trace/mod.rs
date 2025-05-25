@@ -339,7 +339,7 @@ impl<P: SWCurveConfig> Trace<P> {
 mod tests {
     use ark_ff::Field;
     use ark_pallas::PallasConfig;
-    use halo_accumulation::group::PallasScalar;
+    use halo_group::PallasScalar;
 
     use crate::{
         arithmetizer::{plookup::opsets::EmptyOpSet, Arithmetizer, Wire},

@@ -66,7 +66,7 @@ where
 #[cfg(test)]
 mod tests {
     use ark_pallas::PallasConfig;
-    use halo_accumulation::group::PallasScalar;
+    use halo_group::PallasScalar;
 
     use crate::{scheme::Slots, utils::misc::EnumIter};
 

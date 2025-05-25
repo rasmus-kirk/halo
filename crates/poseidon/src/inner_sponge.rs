@@ -1,6 +1,6 @@
 use ark_ff::Field;
 use ark_ff::Zero;
-use halo_group::wrappers::PastaConfig;
+use halo_group::PastaConfig;
 
 const SPONGE_CAPACITY: usize = 1;
 const SPONGE_RATE: usize = 2;
@@ -111,10 +111,10 @@ impl<P: PastaConfig> PoseidonSponge<P> {
         }
     }
 
-    // pub fn reset(&mut self) {
-    //     self.state = [P::BaseField::zero(); STATE_SIZE];
-    //     self.sponge_state = SpongeState::Absorbed(0);
-    // }
+    pub(crate) fn reset(&mut self) {
+        self.state = [P::BaseField::zero(); STATE_SIZE];
+        self.sponge_state = SpongeState::Absorbed(0);
+    }
 }
 
 #[cfg(test)]

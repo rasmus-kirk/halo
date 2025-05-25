@@ -5,22 +5,19 @@ use anyhow::{ensure, Result};
 use ark_ec::CurveGroup;
 use ark_ff::{AdditiveGroup, Field};
 use ark_pallas::PallasConfig;
-use ark_poly::DenseUVPolynomial;
-use ark_poly::{univariate::DensePolynomial, Polynomial};
+use ark_poly::{univariate::DensePolynomial, DenseUVPolynomial, Polynomial};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
-use ark_std::One;
-use ark_std::UniformRand;
+use ark_std::{One, UniformRand};
 use educe::Educe;
-use halo_poseidon::outer_sponge::{Protocols, Sponge};
 use rand::Rng;
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
+use rayon::prelude::*;
+
+use halo_group::{
+    construct_powers, point_dot_affine, scalar_dot, PastaConfig, Point, Poly, PublicParams, Scalar,
+};
+use halo_poseidon::{Protocols, Sponge};
 
 use crate::pedersen;
-use halo_group::{
-    group::{construct_powers, point_dot_affine, scalar_dot, Point, Poly, Scalar},
-    pp::PublicParams,
-    wrappers::PastaConfig,
-};
 
 // -------------------- PCS Data Structures --------------------
 
@@ -273,7 +270,7 @@ pub fn open<R: Rng, P: PastaConfig>(
     w: Option<&Scalar<P>>,
 ) -> EvalProof<P> {
     let pp = PublicParams::get_pp();
-    let transcript = Sponge::<P>::new(Protocols::PCDL);
+    let mut transcript = Sponge::<P>::new(Protocols::PCDL);
     let n = d + 1;
     let lg_n = n.ilog2() as usize;
     assert!(n > 1);
@@ -298,7 +295,9 @@ pub fn open<R: Rng, P: PastaConfig>(
         let C_bar = commit(&p_bar, d, Some(&w_bar));
 
         // (5). Compute the challenge α := ρ(C, z, v, C_bar) ∈ F^∗_q.
-        let a = rho0(&[*z, v], &[C, C_bar]);
+        transcript.absorb_g(&[C, C_bar]);
+        transcript.absorb_fr(&[*z, v]);
+        let a = transcript.challenge();
 
         // 6. Compute the polynomial p' := p + α ⋅ p_bar = Σ^d_(i=0) c_i ⋅ X_i ∈ Fq[X].
         let p_prime = p + &p_bar * a;
@@ -325,7 +324,9 @@ pub fn open<R: Rng, P: PastaConfig>(
     // c_0 := (c_0, c_1, . . . , c_d) ∈ F^(d+1)_q
     // z_0 := (1, z, . . . , z^d) ∈ F^(d+1)_q
     // G_0 := (G_0, G_1, . . . , G_d) ∈ G_(d+1)
-    let mut xi_i = rho0(&[*z, v], &[C_prime]);
+    transcript.absorb_g(&[C_prime]);
+    transcript.absorb_fr(&[*z, v]);
+    let mut xi_i = transcript.challenge();
     let H_prime = pp.H * xi_i;
 
     let mut cs = p_prime.coeffs;
@@ -357,7 +358,9 @@ pub fn open<R: Rng, P: PastaConfig>(
         Rs.push(R);
 
         // 3. Generate the (i+1)-th challenge ξ_(i+1) := ρ_0(ξ_i, L_(i+1), R_(i+1)) ∈ F_q.
-        let xi_next = rho0(&[xi_i], &[L, R]);
+        transcript.absorb_fr(&[xi_i]);
+        transcript.absorb_g(&[L, R]);
+        let xi_next = transcript.challenge();
         let xi_next_inv = xi_next.inverse().unwrap();
         xi_i = xi_next;
 
@@ -410,6 +413,8 @@ pub fn succinct_check<P: PastaConfig>(
     assert!(n.is_power_of_two(), "n ({n}) is not a power of two");
     ensure!(d <= pp.D, "d was larger than D!");
 
+    let mut transcript = Sponge::new(Protocols::PCDL);
+
     // 1. Parse rk as (⟨group⟩, S, H, d'), and π as (L, R, U, c, C_bar, ω').
     #[rustfmt::skip]
     let EvalProof { Ls, Rs, U, c, C_bar, w_prime } = pi;
@@ -420,7 +425,9 @@ pub fn succinct_check<P: PastaConfig>(
     // 4. Compute the non-hiding commitment C' := C + α · C_bar − ω'· S ∈ G.
     let C_prime = if let Some(C_bar) = C_bar {
         // (3). Compute the challenge α := ρ_0(C, z, v, C_bar) ∈ F^∗_q.
-        let a = rho0(&[*z, *v], &[C, C_bar]);
+        transcript.absorb_g(&[C, C_bar]);
+        transcript.absorb_fr(&[*z, *v]);
+        let a = transcript.challenge();
 
         C + C_bar * a - pp.S * w_prime.unwrap()
     } else {
@@ -428,7 +435,9 @@ pub fn succinct_check<P: PastaConfig>(
     };
 
     // 5. Compute the 0-th challenge ξ_0 := ρ_0(C', z, v), and set H' := ξ_0 · H ∈ G.
-    let xi_0 = rho0(&[*z, *v], &[C_prime]);
+    transcript.absorb_g(&[C_prime]);
+    transcript.absorb_fr(&[*z, *v]);
+    let xi_0 = transcript.challenge();
     let mut xis = Vec::with_capacity(lg_n + 1).push_own(xi_0);
 
     let H_prime = pp.H * xi_0;
@@ -439,7 +448,9 @@ pub fn succinct_check<P: PastaConfig>(
     // 7. For each i ∈ [log_n]:
     for i in 0..lg_n {
         // 7.a Generate the (i+1)-th challenge: ξ_(i+1) := ρ_0(ξ_i, L_i, R_i) ∈ F_q.
-        let xi_next = rho0(&[xis[i]], &[Ls[i], Rs[i]]);
+        transcript.absorb_fr(&[xis[i]]);
+        transcript.absorb_g(&[Ls[i], Rs[i]]);
+        let xi_next = transcript.challenge();
         xis.push(xi_next);
 
         // 7.b Compute the (i+1)-th commitment: C_(i+1) := C_i + ξ^(−1)_(i+1) · L_i + ξ_(i+1) · R_i ∈ G.
@@ -498,7 +509,7 @@ mod tests {
     use ark_std::UniformRand;
     use rand::distributions::Uniform;
 
-    use halo_group::group::{PallasPoint, PallasPoly, PallasScalar};
+    use halo_group::{PallasPoint, PallasPoly, PallasScalar};
 
     use super::*;
 

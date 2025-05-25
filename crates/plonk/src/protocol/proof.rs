@@ -243,7 +243,10 @@ where
     let r4_frac = r4_time / total_time * 100.0;
     let r5_frac = r5_time / total_time * 100.0;
 
-    info!("Fractions: | {:>6.3}% | {:>6.3}% | {:>6.3}% | {:>6.3}% | {:>6.3}% |", r1_frac, r2_frac, r3_frac, r4_frac, r5_frac);
+    info!(
+        "Fractions: | {:>6.3}% | {:>6.3}% | {:>6.3}% | {:>6.3}% | {:>6.3}% |",
+        r1_frac, r2_frac, r3_frac, r4_frac, r5_frac
+    );
 
     pi
 }

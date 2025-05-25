@@ -2,11 +2,7 @@
 
 use ark_ec::VariableBaseMSM;
 
-use halo_group::{
-    group::{Affine, Point, Scalar},
-    pp::PublicParams,
-    wrappers::PastaConfig,
-};
+use halo_group::{Affine, PastaConfig, Point, PublicParams, Scalar};
 
 pub fn commit<P: PastaConfig>(
     w: Option<&Scalar<P>>,
@@ -34,7 +30,7 @@ pub fn commit<P: PastaConfig>(
 mod tests {
     use ark_pallas::PallasConfig;
     use ark_std::UniformRand;
-    use halo_group::{group::PallasScalar, pp::PublicParams};
+    use halo_group::{PallasScalar, PublicParams};
     use rand::Rng;
 
     use super::*;

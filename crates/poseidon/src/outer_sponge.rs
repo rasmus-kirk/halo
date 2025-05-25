@@ -1,9 +1,11 @@
 use ark_ec::short_weierstrass::Affine;
+use ark_ec::short_weierstrass::Projective;
+use ark_ec::CurveGroup;
 use ark_ff::One;
 use ark_ff::PrimeField;
 use ark_ff::Zero;
 use ark_ff::{BigInt, BigInteger};
-use halo_group::wrappers::PastaConfig;
+use halo_group::PastaConfig;
 
 use crate::inner_sponge::PoseidonSponge;
 
@@ -18,6 +20,17 @@ pub enum Protocols {
 }
 
 impl<P: PastaConfig> Sponge<P> {
+    fn add_g_affine(&mut self, g: &Affine<P>) {
+        if g.infinity {
+            // absorb a fake point (0, 0)
+            self.sponge.absorb(&[P::BaseField::zero()]);
+            self.sponge.absorb(&[P::BaseField::zero()]);
+        } else {
+            self.sponge.absorb(&[g.x]);
+            self.sponge.absorb(&[g.y]);
+        }
+    }
+
     pub fn new(label: Protocols) -> Self {
         let mut inner_sponge = PoseidonSponge::new();
         let field_label = P::basefield_from_bigint(BigInt::<4>::from(label as u8)).unwrap();
@@ -28,16 +41,15 @@ impl<P: PastaConfig> Sponge<P> {
         }
     }
 
-    pub fn absorb_g(&mut self, g: &[Affine<P>]) {
+    pub fn absorb_g(&mut self, g: &[Projective<P>]) {
         for g in g.iter() {
-            if g.infinity {
-                // absorb a fake point (0, 0)
-                self.sponge.absorb(&[P::BaseField::zero()]);
-                self.sponge.absorb(&[P::BaseField::zero()]);
-            } else {
-                self.sponge.absorb(&[g.x]);
-                self.sponge.absorb(&[g.y]);
-            }
+            self.add_g_affine(&g.into_affine());
+        }
+    }
+
+    pub fn absorb_g_affine(&mut self, g: &[Affine<P>]) {
+        for g in g.iter() {
+            self.add_g_affine(g);
         }
     }
 
@@ -90,6 +102,10 @@ impl<P: PastaConfig> Sponge<P> {
         // Previously the attacker's odds were 1/q, now it's (q-p)/q.
         // Since log2(q-p) ~ 86 and log2(q) ~ 254 the odds of a successful attack are negligible.
         P::scalar_from_bigint(x).unwrap_or_else(P::ScalarField::zero)
+    }
+
+    pub fn reset(&mut self) {
+        self.sponge.reset()
     }
 
     // fn challenge_fq(&mut self) -> P::BaseField {

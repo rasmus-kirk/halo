@@ -1,5 +1,10 @@
-pub mod consts;
-pub mod group;
+mod consts;
+mod group;
 mod poseidon_consts;
-pub mod pp;
-pub mod wrappers;
+mod pp;
+mod wrappers;
+
+pub use group::*;
+pub use pp::PublicParams;
+pub use wrappers::PastaConfig;
+pub use wrappers::WrappedPoint;

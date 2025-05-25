@@ -187,7 +187,7 @@ $$
 $$
 
 I.e. any adversary, $\Ac$, will not be able to open on a different polynomial,
-than the one they commited to.
+than the one they committed to.
 
 [^sonic]: Sonic paper: [https://eprint.iacr.org/2019/099](https://eprint.iacr.org/2019/099)
 [^marlin]: Marlin paper: [https://eprint.iacr.org/2019/1047](https://eprint.iacr.org/2019/1047)
@@ -333,7 +333,7 @@ d}$, we have the following protocol:
 Note that for the Plonk protocol specifically, $S = H = \{ 1, \o, \o^2, \dots,
 \o^{n-1} \}$ for the reason that $Z_s$ then becomes $Z_s = X^n - 1$ because
 $\o$ is a root of unity of order $n$. This is much more efficient to
-compute. The $\alpha$'s are used since we need a linearly independant
+compute. The $\alpha$'s are used since we need a linearly independent
 combination of $\vec{F}$. We use powers of $\alpha$ instead of a vector of
 $\alpha$'s ($\vec{\a}$) to reduce the necessary communication between the
 prover and verifier, thusly reducing proof size.
@@ -678,9 +678,9 @@ S_\sigma(X \in H') = \begin{cases}
 \end{cases}
 $$
 
-**Permutated Wire Polynomials**
+**Permuted Wire Polynomials**
 
-Let the permutated wire polynomial of $A(X)$ be notated as $A'(X)$. Then we
+Let the permuted wire polynomial of $A(X)$ be notated as $A'(X)$. Then we
 have the following.
 
 $$
@@ -927,12 +927,12 @@ G_2 \in \Gb_2$ the SRS is:
 
 $$SRS = \{ G_1, \a \cdot G_1, \a^2 \cdot G_1, \dots, \a^t \cdot G_1, G_2, \a \cdot G_2 \}$$
 
-Where $t$ represents the maximum degree of commited polynomials. If any
+Where $t$ represents the maximum degree of committed polynomials. If any
 adversary knows $\a$ they can break soundness. It is exactly the structure
 between elements of the above set that requires a trusted setup. The setup
 is universal and updatable which means that one or more parties participate
 in a setup protocol and if at least a single party is honest, only then will
-Plonk acheive its soundness.
+Plonk achieve its soundness.
 
 In contrast, the polynomial commitment scheme is based on bulletproofs where
 the setup creates a _Uniform Random String_[^srsurs] of the form:
@@ -1020,11 +1020,11 @@ automatically pad the polynomial. We can simply compute the degree bound by
 using rust's `next_power_of_two` method.
 
 However when we open the polynomial we would have to provide the same degree
-bound. Thus to ease bookeeping, we created a wrapper struct `CommitData`
+bound. Thus to ease bookkeeping, we created a wrapper struct `CommitData`
 that stores the degree bound and the commitment.
 
 ```rust {.numberLines}
-  /// Succint PCDL commit call
+  /// Succinct PCDL commit call
   pub fn commit(poly: &Poly) -> CommitData {
       let mut d = poly.degree().next_power_of_two() - 1;
       if poly.degree() >= d {
@@ -1059,14 +1059,14 @@ it is 31.
 This large difference in degree bounds presents an opportunity for further
 optimization.
 
-The team at MINA protocol has proposed a solution
+The team at Mina protocol has proposed a solution
 [Kimchi](https://o1-labs.github.io/proof-systems/plonk/zkpm.html) that
 enables such an optimization.
 
 However in our final implementation we have omitted the use of blinding
 factors. Our implementation thus is not zero knowledge.
 
-## Concluding Imeplementation
+## Concluding Implementation
 
 We have successfully implemented the pre-computation polynomials. These are
 $A(X), B(X), C(X)$ and $Q_l(X), Q_r(X), Q_o(X), Q_m(X), Q_c(X)$ and also the copy
@@ -1113,7 +1113,7 @@ the complex nature of the Plonk paper limited our ability to do so. Much of
 our effort was devoted to unrolling the protocol from its highly abstract
 presentation, especially due to its reliance on the underlying KZG
 
-Nevertheless, we are quite proud of the acheived insight into an otherwise
+Nevertheless, we are quite proud of the achieved insight into an otherwise
 esoteric, yet powerful, area of cryptography and are very satisfied with
 our implementation and our understanding of it. The project has also been a
 great opportunity to hone our skills in implementing efficient cryptographic
@@ -1134,7 +1134,7 @@ protocols in Rust
 | $(a_1, a_2, \dots, a_n)$                                                        | A vector                                                                                                  |
 | $a \in_R S$                                                                     | $a$ is a uniformly randomly sampled element of $S$                                                        |
 | $(S_1, \dots, S_n)$                                                             | In the context of sets, the same as $S_1 \times \dots \times S_n$                                         |
-| $\vec{a} \cat \vec{b}$ where $\vec{a} \in \Fb^n_q, \vec{b} \in \Fb^m_q$         | Concatinate vectors to create $\vec{c} \in \Fb^{n+m}_q$.                                                  |
+| $\vec{a} \cat \vec{b}$ where $\vec{a} \in \Fb^n_q, \vec{b} \in \Fb^m_q$         | Concatenate vectors to create $\vec{c} \in \Fb^{n+m}_q$.                                                  |
 | $a \cat b$ where $a \in \Fb_q$                                                  | Create vector $\vec{c} = (a, b)$.                                                                         |
 | $\Bb$                                                                           | Represents a boolean $\{ \top, \bot \}$                                                                   |
 | $\Option(T)$                                                                    | $\{ T, \bot \}$                                                                                           |
