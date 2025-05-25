@@ -25,7 +25,7 @@ fn get_cheap_linears(n: usize) -> [Instance<PallasConfig>; 1] {
         )
         .unwrap();
     let q_acc = val.into_iter().find(|x| x.0 == n).unwrap();
-    [q_acc.1.into()]
+    [q_acc.1]
 }
 
 const WARMUP: Duration = Duration::from_millis(100);

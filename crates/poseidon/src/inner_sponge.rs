@@ -308,7 +308,7 @@ mod mina_tests {
         ];
 
         let mut sponge = PoseidonSponge::<VestaConfig>::new();
-        let inputs_fq: Vec<_> = inputs_hex.into_iter().map(|x| from_hex::<Fq>(x)).collect();
+        let inputs_fq: Vec<_> = inputs_hex.into_iter().map(from_hex::<Fq>).collect();
         sponge.absorb(&inputs_fq);
 
         assert_eq!(sponge.squeeze(), from_hex(expected_out_hex))
@@ -331,7 +331,7 @@ mod mina_tests {
         ];
 
         let mut sponge = PoseidonSponge::<PallasConfig>::new();
-        let inputs_fp: Vec<_> = inputs_hex.into_iter().map(|x| from_hex::<Fp>(x)).collect();
+        let inputs_fp: Vec<_> = inputs_hex.into_iter().map(from_hex::<Fp>).collect();
         sponge.absorb(&inputs_fp);
 
         assert_eq!(sponge.squeeze(), from_hex(expected_out_hex))
