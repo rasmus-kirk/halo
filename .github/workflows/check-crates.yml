@@ -1,18 +1,18 @@
 name: Check crates
 
 on:
-    # Triggers the workflow on push or pull request events but only for the main branch
-    push:
-        branches: [main, release**]
-    pull_request:
-        branches: [main, release**]
-        # Don't run on draft PR's, see: https://github.com/orgs/community/discussions/25722#discussioncomment-3248917
-        types: [opened, synchronize, reopened, ready_for_review]
-    # Allows us to run the workflow manually from the Actions tab
-    workflow_dispatch:
+  # Triggers the workflow on push or pull request events but only for the main branch
+  push:
+    branches: [main, release**]
+  pull_request:
+    branches: [main, release**]
+    # Don't run on draft PRs
+    types: [opened, synchronize, reopened, ready_for_review]
+  # Allows us to run the workflow manually from the Actions tab
+  workflow_dispatch:
 
 jobs:
-  build-crates:
+  fmt:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
@@ -27,9 +27,65 @@ jobs:
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
 
-      - name: Run checks
-        run: nix develop -c check-all
+      - name: Run fmt check
+        run: nix develop -c cargo fmt --all -- --check
         working-directory: ./crates/${{ matrix.crate }}
+
+  lint:
+    runs-on: ubuntu-24.04
+    needs: fmt
+    strategy:
+      matrix:
+        crate: [accumulation, plonk, group, poseidon, schnorr]
+      fail-fast: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Run lint check
+        run: nix develop -c cargo clippy --all-targets --all-features -- -D warnings
+        working-directory: ./crates/${{ matrix.crate }}
+
+  test:
+    runs-on: ubuntu-24.04
+    needs: lint
+    strategy:
+      matrix:
+        crate: [accumulation, plonk, group, poseidon, schnorr]
+      fail-fast: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Run tests
+        run: nix develop -c cargo test --all-features
+        working-directory: ./crates/${{ matrix.crate }}
+
+  build:
+    runs-on: ubuntu-24.04
+    needs: test
+    strategy:
+      matrix:
+        crate: [accumulation, plonk, group, poseidon, schnorr]
+      fail-fast: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
 
       - name: Build
         run: nix build .#${{ matrix.crate }}
