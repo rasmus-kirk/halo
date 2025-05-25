@@ -9,85 +9,12 @@ on:
   workflow_dispatch:
 
 jobs:
-  fmt:
-    runs-on: ubuntu-24.04
+  check-all:
     strategy:
       matrix:
         crate: [accumulation, plonk, group, poseidon, schnorr]
       fail-fast: false
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
+    uses: ./.github/workflows/check-all-reusable.yml
+    with:
+      crate: ${{ matrix.crate }}
 
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@main
-
-      - name: Run fmt check
-        run: nix develop -c check-fmt
-        working-directory: ./crates/${{ matrix.crate }}
-
-  lint:
-    runs-on: ubuntu-24.04
-    needs: fmt
-    if: always()
-    strategy:
-      matrix:
-        crate: [accumulation, plonk, group, poseidon, schnorr]
-      fail-fast: false
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Install Nix
-        if: steps.check-fmt.outputs.proceed == 'true'
-        uses: DeterminateSystems/nix-installer-action@main
-
-      - name: Run lint check
-        if: steps.check-fmt.outputs.proceed == 'true'
-        run: nix develop -c check-lint
-        working-directory: ./crates/${{ matrix.crate }}
-
-  test:
-    runs-on: ubuntu-24.04
-    needs: lint
-    if: always()
-    strategy:
-      matrix:
-        crate: [accumulation, plonk, group, poseidon, schnorr]
-      fail-fast: false
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Install Nix
-        if: steps.check-lint.outputs.proceed == 'true'
-        uses: DeterminateSystems/nix-installer-action@main
-
-      - name: Run tests
-        run: nix develop -c check-test
-        working-directory: ./crates/${{ matrix.crate }}
-
-  build:
-    runs-on: ubuntu-24.04
-    strategy:
-      matrix:
-        crate: [accumulation, plonk, group, poseidon, schnorr]
-      fail-fast: false
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@main
-
-      - name: Build
-        run: nix build .#${{ matrix.crate }}
-        working-directory: ./crates

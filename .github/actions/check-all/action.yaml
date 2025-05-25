@@ -1,0 +1,66 @@
+name: Check All
+
+on:
+  workflow_call:
+    inputs:
+      crate:
+        description: Rust crate
+        required: true
+
+jobs:
+  fmt:
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Check all
+        uses: ./.github/actions/check-all
+        with:
+          crate: ${{ inputs.crate }}
+
+  lint:
+    needs: fmt
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Run lint check
+        run: nix develop -c check-lint
+        working-directory: ./crates/${{ inputs.crate }}
+
+  test:
+    needs: lint
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Run tests
+        run: nix develop -c check-test
+        working-directory: ./crates/${{ inputs.crate }}
+
+  build:
+    needs: test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Build
+        run: nix build .#${{ inputs.crate }}
+        working-directory: ./crates

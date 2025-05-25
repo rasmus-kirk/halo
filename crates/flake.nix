@@ -56,6 +56,7 @@
 
       devShells = forAllSystems ({ pkgs }: {
         default = pkgs.mkShell {
+          shellHook = ''export RUST_BACKTRACE=1'';
           buildInputs = [
             pkgs.rust-bin.nightly."${rustFmtVersion}".rustfmt
             pkgs.rustToolchain
