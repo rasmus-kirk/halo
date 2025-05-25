@@ -14,6 +14,21 @@ on:
 jobs:
   check-crates:
     runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Run checks
+        run: nix develop -c check-all
+        working-directory: ./crates
+
+  build-crates:
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         crate: [accumulation, plonk, group, poseidon, schnorr]
@@ -27,18 +42,6 @@ jobs:
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
 
-      - name: Format
-        run: nix develop -c check-fmt
-        working-directory: ./crates/${{ matrix.crate }}
-
-      - name: Lint
-        run: nix develop -c check-lint
-        working-directory: ./crates/${{ matrix.crate }}
-
-      - name: Test
-        run: nix develop -c check-test
-        working-directory: ./crates/${{ matrix.crate }}
-
       - name: Build
-        run: nix build
-        working-directory: ./crates/${{ matrix.crate }}
+        run: nix build .#${{ matrix.crate }}
+        working-directory: ./crates
