@@ -111,7 +111,7 @@ mod tests {
         assert!(pp.H.into_affine().is_on_curve());
         // Sample and verify LAMBDA random points from Gs
         for _ in 0..(LAMBDA * sec) {
-            let j = rng.sample(&Uniform::new(n / 2, n));
+            let j = rng.sample(Uniform::new(n / 2, n));
             assert!(pp.Gs[j].is_on_curve());
         }
 
@@ -120,7 +120,7 @@ mod tests {
 
     #[test]
     fn test_big_pp() -> Result<()> {
-        let n = (2 as usize).pow(20);
+        let n = 2usize.pow(20);
         test_pp(n, 100)?;
         Ok(())
     }
@@ -129,7 +129,7 @@ mod tests {
     fn test_many_pps() -> Result<()> {
         let mut rng = rand::thread_rng();
         for _ in 0..LAMBDA {
-            let n = (2 as usize).pow(rng.sample(&Uniform::new(2, 20)));
+            let n = 2usize.pow(rng.sample(Uniform::new(2, 20)));
             test_pp(n, 10)?
         }
 

@@ -1,7 +1,6 @@
 {
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    # Provides helpers for Rust toolchains
     rust-overlay.url = "github:oxalica/rust-overlay";
     rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
   };
@@ -11,85 +10,82 @@
       rustVersion = "1.87.0";
       rustFmtVersion = "2024-12-01";
 
-      # Systems supported
       allSystems = [
-        "x86_64-linux" # 64-bit Intel/AMD Linux
-        "aarch64-linux" # 64-bit ARM Linux
-        "x86_64-darwin" # 64-bit Intel macOS
-        "aarch64-darwin" # 64-bit ARM macOS
+        "x86_64-linux"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
       ];
 
-      # Helper to provide system-specific attributes
       forAllSystems = f: nixpkgs.lib.genAttrs allSystems (system: f {
         pkgs = import nixpkgs {
           inherit system;
           overlays = [
-            # Provides Nixpkgs with a rust-bin attribute for building Rust toolchains
             rust-overlay.overlays.default
-            # Uses the rust-bin attribute to select a Rust toolchain
             self.overlays.default
           ];
         };
       });
+
+      # Helper to build a crate from the workspace
+      buildCrate = { pkgs, crateName, src }:
+        let
+          manifest = (pkgs.lib.importTOML "${src}/${crateName}/Cargo.toml").package;
+          rustPlatform = pkgs.makeRustPlatform {
+            cargo = pkgs.rustToolchain;
+            rustc = pkgs.rustToolchain;
+          };
+        in
+        rustPlatform.buildRustPackage {
+          pname = manifest.name;
+          version = manifest.version;
+          src = pkgs.lib.cleanSource src; # Use workspace root as source
+          cargoLock = {
+            lockFile = "${src}/Cargo.lock"; # Use workspace-level Cargo.lock
+          };
+          cargoBuildFlags = [ "-p" "${manifest.name}" ];
+          doCheck = false; # Tests run in CI separately
+        };
     in
     {
       overlays.default = final: prev: {
-        # The Rust toolchain used for the package build
         rustToolchain = final.rust-bin.stable."${rustVersion}".default.override {
           extensions = [ "rust-analyzer" "rust-src" ];
         };
       };
 
-      devShells = forAllSystems ({ pkgs } : {
+      devShells = forAllSystems ({ pkgs }: {
         default = pkgs.mkShell {
           buildInputs = [
-            # rustfmt must be kept above rustToolchain in this list!
             pkgs.rust-bin.nightly."${rustFmtVersion}".rustfmt
             pkgs.rustToolchain
             (pkgs.writeShellScriptBin "check-all" ''
               check-fmt &&
-              echo "" &&
               echo "-------------------- Format ✅ --------------------" &&
-              echo "" &&
               check-lint &&
-              echo "" &&
               echo "-------------------- Lint ✅ --------------------" &&
-              echo "" &&
               check-test &&
-              echo "" &&
-              echo "-------------------- Test ✅ --------------------" &&
-              echo ""
+              echo "-------------------- Test ✅ --------------------"
             '')
             (pkgs.writeShellScriptBin "check-fmt" ''
-              cargo fmt --manifest-path ./Cargo.toml --all -- --check
+              cargo fmt --all -- --check
             '')
             (pkgs.writeShellScriptBin "check-lint" ''
-              cargo clippy -- -D warnings
+              cargo clippy --all-targets --all-features -- -D warnings
             '')
             (pkgs.writeShellScriptBin "check-test" ''
-              cargo test
+              cargo test --all-features
             '')
           ];
         };
       });
 
       packages = forAllSystems ({ pkgs }: {
-        default =
-          let
-            manifest = (pkgs.lib.importTOML ./Cargo.toml).package;
-            rustPlatform = pkgs.makeRustPlatform {
-              cargo = pkgs.rustToolchain;
-              rustc = pkgs.rustToolchain;
-            };
-          in
-          rustPlatform.buildRustPackage {
-            name = manifest.name;
-            version = manifest.version;
-            src = ./.;
-            cargoLock = {
-              lockFile = ./Cargo.lock;
-            };
-          };
+        accumulation = buildCrate { inherit pkgs; crateName = "accumulation"; src = ./.; };
+        plonk = buildCrate { inherit pkgs; crateName = "plonk"; src = ./.; };
+        group = buildCrate { inherit pkgs; crateName = "group"; src = ./.; };
+        poseidon = buildCrate { inherit pkgs; crateName = "poseidon"; src = ./.; };
+        schnorr = buildCrate { inherit pkgs; crateName = "schnorr"; src = ./.; };
       });
     };
 }
