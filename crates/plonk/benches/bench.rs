@@ -12,9 +12,9 @@ const SECONDS: u64 = 2;
 
 use ark_std::test_rng;
 use csv::Writer;
+use halo_plonk::{arithmetizer::PallasBitArith, pcs::PCSPallas, protocol};
 use itertools::Itertools;
 use log::info;
-use halo_plonk::{arithmetizer::PallasBitArith, pcs::PCSPallas, protocol};
 
 // const WARMUP: Duration = Duration::from_millis(100);
 const MIN: usize = 10;
