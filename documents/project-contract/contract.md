@@ -19,9 +19,9 @@ PLONK and accumulation schemes.
 
 ## Scope
 
-1. **Full Working and Succint Plonk**
+1. **Full Working and Succinct Plonk**
    - Develop a fully functional implementation of the Plonk protocol using Rust and Arkworks.
-   - A succint verifier that can be used for IVC.
+   - A succinct verifier that can be used for IVC.
 2. **Lookup Arguments in Plonk; Plonkup**
    - Enable our SNARK construction in Plonk to use lookup arguments.
 3. **Implement Gadgets**
