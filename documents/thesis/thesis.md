@@ -1133,7 +1133,7 @@ protocols in Rust
 | $G \in \Eb(\Fb)$                                                                | An elliptic Curve point, defined over field $\Fb$                                                         |
 | $\vec{a}$                                                                       | A vector                                                                                                  |
 | $(a_1, a_2, \dots, a_n)$                                                        | A vector                                                                                                  |
-| $(s..t)$                                                                        | A vector of elements $s$ to $t$, if $t < s$ then the vector is empty.                                     |
+| $(s..t)$                                                                        | A vector from $s$ to $t-1$, if $t \leq s$ then $()$, and $(..t) = (0..t)$.                   |
 | $a \in_R S$                                                                     | $a$ is a uniformly randomly sampled element of $S$                                                        |
 | $(S_1, \dots, S_n)$                                                             | In the context of sets, the same as $S_1 \times \dots \times S_n$                                         |
 | $\vec{a} \cat \vec{b}$ where $\vec{a} \in \Fb^n_q, \vec{b} \in \Fb^m_q$         | Concatenate vectors to create $\vec{c} \in \Fb^{n+m}_q$.                                                  |
@@ -1171,41 +1171,39 @@ Note that the following are isomorphic $\Bb \iso \Option(\top) \iso
 
 ## Arithmetize
 
-Arithmetize turns a program $f$ into an abstract circuit $\wave{f}$, which is a one-to-many-or-none relation between gates $g$ and output wire id(s) $\wave{y} : \Nb$. We notate inserting a gate or gadget $f$ to the circuit with $\build{f = \wave{\vec{y}}}{s}{s'}$, $\build{f = \wave{y}}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the state from $s$ to $s'$. State has the form $(u, \wave{f})$ where $u$ is the current uuid. Wires annotated as the final output will be added to the set $\wave{Y}$, i.e. $\build{f=\wave{y}^*}{(\_,\wave{Y})}{(\_, \wave{Y} \cup \set{\wave{y}})}$, which is omitted notationally if unchanged. Gates are primitive operations with $n\geq 0$ fan in inputs and $m \geq 0$ fan out outputs. A circuit is a composition of gadget(s) and/or gate(s). These inserts yield new wires. However, wires are reused by an equivalence class on gates. If $g \equiv h$ where $(h,\_) \in \wave{f}$, then $\wave{\vec{y}}$ in $\build{g=\wave{\vec{y}}}{s}{s}$ corresponds to the output wire(s) of $h$, leaving the state unchanged.
+Arithmetize turns a program $f$ into an abstract circuit $\wave{f}$, which is a one-to-many-or-none relation between gates $g$ and output wire id(s) $\wave{y} : \Nb_\bot$ where $\bot$ denotes no output wires. e.g. $(\text{Add}(a,b), c) \in \wave{f}$ corresponds to the circuit $\build{a+b=c}{}{}$. We notate inserting a gate or gadget $f$ to the circuit with $\build{f = \wave{\vec{y}}}{s}{s'}$, $\build{f = \wave{y}}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the state from $s$ to $s'$. State has the form $(u, \wave{f})$ where $u$ is the current uuid for wires. Wires annotated as the final output will be appended to $\wave{\vec{Y}}$, i.e. $\build{f=\wave{y}^*}{(\_,\wave{\vec{Y}})}{(\_, \wave{\vec{Y}} \cat \wave{y})}$, which is omitted notationally if unchanged. Gates are primitive operations with $n\geq 0$ fan in inputs and $m \geq 0$ fan out outputs. A circuit is a composition of gadget(s) and/or gate(s). These inserts yield new wires. However, wires are reused by an equivalence class on gates. If $g \equiv h$ where $(h,\_) \in \wave{f}$, then $\wave{\vec{y}}$ in $\build{g=\wave{\vec{y}}}{s}{s}$ corresponds to the output wire(s) of $h$, leaving the state unchanged.
 
 $$
 \begin{aligned}
 \AbsCirc &= \set{
-  \wave{f} \subset \Gate \times \Nb \cup \set{\bot} \middle\vert
+  \wave{f} \subset \Gate \times \Nb_\bot \middle\vert
   \forall (g,\wave{y}),(h,\wave{y}) \in \wave{f}. \wave{y} \neq \bot \implies g = h
 } \\
-\ArithState &= \Nb \times \AbsCirc \\
 \Gate^{\wave{f}}_g &= \set{h \in \Gate \middle\vert
   (h, \_) \in \wave{f} \land h \equiv g
 }
+\\
+\ArithState &= \Nb \times \AbsCirc
 \end{aligned}
 $$
 $$
 \begin{array}{rlrl}
-\text{out} &: (\Nb + \AbsCirc \times \Gate) \to \Nb^m &
+\text{out} &: (\Nb_\bot + \AbsCirc \times \Gate) \to \Nb^m &
 \text{get} &: \ArithState \to \Gate \to \ArithState \times \Nb^m
 \\
-\begin{array}{r}
-  \text{out}(u) \\
-  \text{out}(\wave{f}, g)
-\end{array} & 
-\begin{array}{l}
-= (u..u+m-1) \\
-= \text{out}(
-  \min\left(\set{\wave{y} \middle\vert
-    (g,\wave{y}\neq \bot) \in \wave{f}
-  } \right) ||\ 0
-)
-\end{array} &
-\text{get}(u, \wave{f}, g) &= \begin{cases}
-  (u, \wave{f}, \text{out}(\wave{f}, h)) & h \in \Gate^{\wave{f}}_g \\
-  (\text{put}(g, u, \wave{f}), \text{out}(u)) & \text{otherwise}
-\end{cases}
+\text{out}(\bot) &= () &
+\multirow{3}{*}{$\text{get}(u, \wave{f}, g)$} &
+\multirow{3}{*}{$=\begin{cases}
+    (u, \wave{f}, \text{out}(\wave{f}, h)) & h \in \Gate^{\wave{f}}_g \\
+    (\text{put}(g, u, \wave{f}), \text{out}(u)) & \text{otherwise}
+  \end{cases}
+$}
+\\
+\text{out}(u) &= (u..u+m) \\
+\text{out}(\wave{f}, g)
+&= \text{out} \circ \min\left(
+  \set{\wave{y} \middle\vert (g,\wave{y}) \in \wave{f}}
+\right)
 \\ \\
 \text{entries}  &: \Gate \to \Nb \to \AbsCirc &
 \build{g = \wave{\vec{y}}}{s}{s'} &= \left(\text{get}(s,g) \overset{?}{=} (s', \wave{\vec{y}})\right) 
@@ -1217,63 +1215,102 @@ $$
 \build{f}{s_1}{s_{k+1}} &= \bigwedge\limits_{i \in [k]} \build{f_i}{s_i}{s_{i+1}} 
 \\ \\
 \text{put} &: \Gate \to \ArithState \to \ArithState &
-\text{arithmetize} &: (\Fb^n_q \to \Fb^m_q) \to \AbsCirc \times \mathcal{P}(\Nb)
+\text{arithmetize} &: (\Fb^n_q \to \Fb^m_q) \to \AbsCirc \times \Nb^{m'}
 \\
 \text{put}(g, u, \wave{f}) &= (
   u + m, \wave{f} \cup \text{entries}(g, u)
 ) &
-\text{arithmetize}(f) &= \maybe{(\wave{f}, \wave{Y})}{
-  \build{f}{(\text{put}(\text{Input})^n(0,\emptyset), \emptyset)}{(\_, \wave{f}, \wave{Y})}
+\text{arithmetize}(f) &= \maybe{(\wave{f}, \wave{\vec{Y}})}{
+  \build{f}{(\text{put}(\text{Input})^n(0,\emptyset), \emptyset)}{(\_, \wave{f}, \wave{\vec{Y}})}
 }
 \end{array}
 $$
 
 ## Trace
 
-Trace takes in $(\wave{f}, o)$ and $\vec{x}$; input values for the program $f$, to compute the values corresponding to $\wave{Y}$ recursively using the gates $g$ in $(g,\wave{y}) \in \wave{f}$. A gate is of the form $(\wave{\vec{x}}, f, c)$ where $\wave{\vec{x}}$ are the vector of input wire ids and $f:\Fb^n_q \to \Fb^m_q$ the program $g$ corresponds to, computing the output wires' values.The values are cached by the value map state $v$. Trace then computes a matrix $M : \Fb^{N \times M}_q$ using all gates' $c$ involved in populating $v$.
-
-
+Trace takes in $(\wave{f}, \wave{\vec{Y}})$ and $\vec{x}$; input values for the program $f$, to compute the values corresponding to $\wave{\vec{Y}}$ recursively via $\Downarrow$, using the gates $g$ in $(g,\wave{y}) \in \wave{f}$. A gate is of the form $(\wave{\vec{x}}, f, c)$ where $\wave{\vec{x}}$ are the vector of input wire ids and $f$ the program $g$ corresponds to that computes the output wires' values.The values are cached by the value map $v$ and are used by $e$ to compute the output $t$.
 
 $$
-\begin{aligned}
+\begin{array}{rl}
+\begin{array}{rl}
 \Gate &=
   \Nb^n \times
   (\Fb^n_q \to \Fb^m_q) \times
   (\Fb^{n+m}_q \to \Fb^{N \times k}_q)
 \\
-\text{VMap} &: \Nb \rightharpoonup \Fb_q
+\text{VMap} &= \Nb \rightharpoonup \Fb_q
+\\
+\text{State}^T &= \text{VMap} \times T
+\\ 
+\text{Tab}_{\wave{f}}^T &= (\Nb^m + \Nb) \to \text{State}^T \to \text{State}^T
 \\ \\
-\text{resolve} &: \AbsCirc \to \text{VMap} \to \Nb^k \to \text{VMap}
+\text{ap} &: \text{VMap} \to \Nb^n \to \Fb^n_q \to \text{VMap}
 \\
-\text{resolve}(\_, v, ()) &= v
+\text{ap}(v_0, \wave{\vec{y}}, \vec{y}) &= \maybe{v_n}{
+\forall i. v_i = v_{i-1}[\wave{\vec{x}}_i \mapsto \vec{x}_i]
+}
+\\ \\
+\text{trace} &:
+  T \to
+  \text{Tab}_{\wave{f}}^T \to
+  \Nb^m \to
+  \Fb^n_q \to
+  T
 \\
-\text{resolve}(\wave{f}, v, (\wave{y})) &= \begin{cases}
-  v & v(\wave{y}) \neq \bot \\
-  & ((\wave{\vec{x}}, \_, \_),\wave{y}) \in \wave{f} \\
-  v'[\wave{y} \mapsto f(\vec{x})] & 
-    \text{resolve}(\wave{f}, v, \wave{\vec{x}}) = v' \\
-  & \vec{x}_j = v'(\wave{\vec{x}}_j) \\
-  \bot
+\text{trace}^t_e(\wave{\vec{Y}}, \vec{x}) &= \maybe{t'}{
+  e \left(\wave{\vec{Y}}, 
+    \wave{\vec{Y}}_{\Downarrow e}^{(\text{ap}(\bot, (..n), \vec{x}), t)}
+  \right) = ( \_, t')
+}
+\end{array}
+&
+\begin{array}{rl}
+{\Downarrow } &:
+  \text{Tab}_{\wave{f}}^T \to
+  \Nb^l \to
+  \text{State}^T \to
+  \text{State}^T
+\\
+\wave{\vec{w}}_{\Downarrow e}^{(v,t)} &=
+\begin{cases}\begin{array}{lrl}
+  (v,t) & |\wave{\vec{w}}| &= 0\\
+  & \wave{\vec{w}} &= \wave{w} \cat \wave{\vec{r}} \\
+  \wave{\vec{r}}_{\Downarrow e}^{(v,t)}
+  & v(\wave{w}) &= \bot \\
+  \multirow{6}{*}{$\wave{\vec{r}}_{\Downarrow e}^{s'}$}
+  & \wave{f} &\ni ((\wave{\vec{x}}, f, \_), \wave{w}) \\
+  & \wave{\vec{x}}^{(v,t)}_{\Downarrow e} &= (v', t') \\
+  & \forall i. \vec{x}_i &= v'(\wave{\vec{x}}_i) \\
+  & \wave{\vec{y}} &= \text{out}(\wave{f}, \wave{\vec{x}}, f, c) \\
+  & v'' &= \text{ap}(v,' \wave{\vec{y}}, f(\vec{x}))\\
+  & s' &= e(\wave{w}, v'', t')
+\end{array}
 \end{cases}
-\\
-\text{resolve}(\wave{f}, v, (\wave{y}) \cat \wave{\vec{y}}) &=
-  \text{resolve}(\wave{f},
-    \text{resolve}(\wave{f}, v, \wave{y}),
-    \wave{\vec{y}})
-\\ \\
-\text{trace} &: \AbsCirc \times \mathcal{P}(\Nb) \to \Fb^n_q \to \Fb^{N \times M}_q
-\\
-\text{trace}(\wave{f}, \wave{Y}, \vec{x}) &= \text{tabulate}(\text{resolve}(\wave{f}, \bot[i \mapsto \vec{x}_i | i \in [n]], \wave{Y}))
-\end{aligned}
+\end{array}
+\end{array}
 $$
 
+Note: $e(\wave{y},s)$ is computing constraints while $\Downarrow$, but $e(\wave{\vec{Y}},s)$ is after $\text{trace}$.
 
-- TODO tabulate
-  - constraints matrix (update resolve; $M \cat c(\vec{x}\cat\vec{y})$)
-  - asserts matrix (zero output gates)
-  - permutation matrix (when appending to $M$ you need to track row number, column number to cell id, cell id are quotiented into an equivalence class modulo wire id, then made into an ordered loop, then you can compute the permutation matrix... thus maybe make a function for appen $M$, that internally tracks this.. THIS IS A NEW STATE, i.e. trace state = (v,p) where p is a relation between wire id and (row, col) coordinates)
-  - lookup matrix
-  - combine matrices
+### Gate Constraints
+
+$M \cat c(\vec{x}\cat\vec{y})$
+asserts matrix (zero output gates)
+
+### Copy Constraints
+
+permutation matrix (when appending to $M$ you need to track row number, column number to cell id, cell id are quotiented into an equivalence class modulo wire id, then made into an ordered loop, then you can compute the permutation matrix... thus maybe make a function for appen $M$, that internally tracks this.. THIS IS A NEW STATE, i.e. trace state = (v,p) where p is a relation between wire id and (row, col) coordinates)
+
+### Lookup Argument Constraints
+
+- $t$ poly eval thunk
+- $f$: get eval corresponding to $(x,y,z)$ when resolve lookup else get 
+
+### Full Surkål Trace
+
+... construct $t$ and $e$ and define $\text{trace} = \text{trace}^t_e$
+
+## Circuit
 
 The gates evaluate their output values as follows:
 
@@ -1304,54 +1341,54 @@ $$
 \begin{aligned}
 &\text{arithmetize}((x,y) \mapsto (x^2 + y))
 \\
-&= \maybe{\left(\wave{f}'', \set{z}\right)}{
+&= \maybe{\left(\wave{f}'', (z)\right)}{
   \build{x^2 + y = z^*}
     {((u, \wave{f}) = \text{put}(\text{Input})^2(0, \emptyset), \emptyset)}
-    {(\_, \wave{f}'', \set{z})}
+    {(\_, \wave{f}'', (z))}
   }
 \\
-&= \maybe{\left(\wave{f}'', \set{z}\right)}{\build{\begin{array}{l}
+&= \maybe{\left(\wave{f}'', (z)\right)}{\build{\begin{array}{l}
   x \times x = t \\
   t + y = z^*
-\end{array}}{(u, \wave{f}, \emptyset)}{(\_, \wave{f}'', \set{z})}}
+\end{array}}{(u, \wave{f}, \emptyset)}{(\_, \wave{f}'', (z))}}
 \\
-&= \maybe{\left(\wave{f}'', \set{z}\right)}{\begin{array}{l}
+&= \maybe{\left(\wave{f}'', (z)\right)}{\begin{array}{l}
   \build{x \times x = t}{(u, \wave{f})}{(u', \wave{f}')} \\
-  \build{t + y = z^*}{(u', \wave{f}', \emptyset)}{(\_, \wave{f}'', \set{z})}
+  \build{t + y = z^*}{(u', \wave{f}', \emptyset)}{(\_, \wave{f}'', (z))}
 \end{array}}
 \\
-&= \maybe{\left(\wave{f}'', \set{z}\right)}{\begin{array}{rl}
+&= \maybe{\left(\wave{f}'', (z)\right)}{\begin{array}{rl}
   \text{get}(u, \wave{f}, \text{Mul}(x,x)) &= (u', \wave{f}', (t)) \\
   \text{get}(u', \wave{f}', \text{Add}(t,y)) &= (\_, \wave{f}'', (z))
 \end{array}}
 \\ 
-&= \maybe{\left(\wave{f}'', \set{z}\right)}{\begin{array}{rl}
+&= \maybe{\left(\wave{f}'', (z)\right)}{\begin{array}{rl}
   (u+1, \wave{f} \cup \set{(\text{Mul}(x,x), u)}, (u)) &= (u', \wave{f}', (t)) \\
   \text{get}(u', \wave{f}', \text{Add}(t,y)) &= (\_, \wave{f}'', (z))
 \end{array}}
 \\
-&= \maybe{\left(\wave{f}'', \set{z}\right)}{
+&= \maybe{\left(\wave{f}'', (z)\right)}{
   \text{get}(u+1, \wave{f} \cup \set{(\text{Mul}(x,x))}, \text{Add}(u,y)) = (\_, \wave{f}'', (z))
 }
 \\
 &= \maybe{\left(\wave{f} \cup \set{\begin{array}{rl}
     \text{Mul}(x,x) & u \\
     \text{Add}(u,y) & u+1
-  \end{array}}, \set{u+1}\right)}{
+  \end{array}}, (u+1)\right)}{
   (u, \wave{f}) = \text{put}(\text{Input})^2(0, \emptyset)
 }
 \\
 &= \maybe{\left(\wave{f} \cup \set{\begin{array}{rl}
     \text{Mul}(0,0) & u \\
     \text{Add}(u,y) & u+1
-  \end{array}}, \set{u+1}\right)}{
+  \end{array}}, (u+1)\right)}{
     (u, \wave{f}) = \text{put}(\text{Input}, 1, \set{(\text{Input}, 0)}, \emptyset)
   }
 \\
 &= \maybe{\left(\wave{f} \cup \set{\begin{array}{rl}
     \text{Mul}(0,0) & u \\
     \text{Add}(u,1) & u+1
-  \end{array}}, \set{u+1} \right)}
+  \end{array}}, (u+1) \right)}
   {(u, \wave{f}) = \left(2, \set{\begin{array}{rl}
     \text{Input} & 0 \\
     \text{Input} & 1
@@ -1362,7 +1399,7 @@ $$
   \text{Input} & 1 \\
   \text{Mul}(0,0) & 2 \\
   \text{Add}(2,1) & 3
-\end{array}}, \set{3}\right)
+\end{array}}, (3)\right)
 \end{aligned}
 $$
 
