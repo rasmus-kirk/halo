@@ -1276,7 +1276,7 @@ $$
   \multirow{6}{*}{$\wave{\vec{r}}_{\Downarrow e}^{s'}$}
   & \wave{f} &\ni (\wave{g}, \wave{\vec{x}}, f, \wave{w}) \\
   & \wave{\vec{x}}^{(v,t)}_{\Downarrow e} &= (v', t') \\
-  & \forall i. \vec{x}_i &= v'(\wave{\vec{x}}_i) \\
+  & \forall i. x_i &= v'(\wave{x}_i) \\
   & \wave{\vec{y}} &= \text{out}(\wave{f}, \wave{g}, \wave{\vec{x}}, f) \\
   & v'' &= v'[\wave{\vec{y}} \mapsto f(\vec{x})]\\
   & s' &= e(\wave{w}, v'', t')
@@ -1288,39 +1288,89 @@ $$
 
 Note: $e(\wave{y},s)$ is computing constraints while $\Downarrow$, but $e(\wave{\vec{Y}},s)$ is after $\text{trace}$.
 
-### Gate Constraints
+### Asserts
 
-The Gate Constraints is matrix with $M$ rows and $N$ columns where each row has the form of the constraint equation $F_{GC}$. The rows for the matrix are computed by $c$ that takes in a gate type id $\wave{g}$, the input and output values of the gate and returns $k$ rows / constraints. The protocol also populates a set of wire ids involved as $W$, this is used at the end to populate constraints for gates with no output wires; checking if their inputs exists in $W$.
+This $\text{Tab}$ simply tracks the wires involved in $\wave{\vec{Y}}_{\Downarrow e}$ and at the end computes the vector of gates with zero outputs that are relevant. These gates are also called assertions.
+
+- TODO what if you have an assert partially in $W$? lets say $\build{..., a^* + b = c, a + b \overset{?}{=} c}{}{}$ thus $\wave{\vec{Y}} = (a)$
+- however by definition of trace we do not have value for b and c.. do we need to call $\Downarrow$ in this? it should be fine to recurse back to $\Downarrow$ because even though it calls the TAB back, its in a different case; not post e call in trace. thus asserts is parameterized by $e$ too?!?! thats crazy, higher order TAB. thus you will be calling $\wave{\vec{x}}_{\Downarrow e \circ \text{asserts}}$
+- but you need to handle the recursion of $W$ after $\Downarrow$ the $W$ is updated, and you have to check assert again; detect $W' = W$ if changed, then recurse assert top level!!!!
+- also it makes sense to be done here and not in trace, because in trace if we check for other gates with inputs in $W$, even if it has output wires, that is irrelevant, we only care about asserts. think if this can be done as a tab, otherwise then put it into trace. but the point is its not just inputs in the set, its also zero outputs.
+- rename TAB to plugin? cuz technically this isnt tabulating anything. its a "plugin" or compute over processed wires of gates in $\wave{\vec{Y}}$.
 
 $$
 \begin{array}{rl}
-\text{Constraint} &= \Fb^{w}_q \to \Fb^{N \times k}_q
+T &= \mathcal{P}(\Nb) \times \Gate^n \\
+\text{asserts}_e &: \text{Tab}^{T \times T'}_{\wave{f}} \to \text{Tab}^{T \times T'}_{\wave{f}}
 \\
-\text{gate} &: (\text{GateType} \to \text{Constraint}) \to \text{Tab}^{\mathcal{P}(\Nb) \times\Fb_q^{\_ \times N}}_{\wave{f}}
+\text{asserts}_e(w, v, W, \vec{g},t) &= \begin{cases}\begin{array}{lrl}
+(v, W \cup \wave{\vec{x}}, \vec{g}, t)
+& \wave{f} &\ni (\_, \wave{\vec{x}}, \_, w)
 \\
-\text{gate}_c(w, v, W, M_0) &= \begin{cases}
-\begin{array}{lrl}
-\multirow{5}{*}{$(W', M')$}
-& \wave{f} &\ni ((\wave{g}, \wave{\vec{x}}, f), w) \\
-& \forall i. \vec{x}_i &= v(\wave{\vec{x}}_i) \\
-& \vec{y} &= f(\text{out}(\wave{f}, \wave{g}, \wave{\vec{x}}, f)) \\
-& W' & W \cup \set{w} \cup \set{\wave{w} \middle\vert \wave{w} \in \wave{\vec{x}}} \\
-& M' &= M_0 \cat c(\wave{g}, \vec{x} \cat \vec{y}) \\
-\multirow{3}{*}{$(W, \vec{M}_{|\vec{M}|})$}
-& \forall i. \wave{f} &\ni ((\wave{\vec{g}}_i, \wave{\vec{xs}}_i, \_), \bot) \\
-& \forall j. \vec{xs}_{i,j} &= v(\wave{\vec{xs}}_{i,j}) \\
-& \vec{M}_i &= \vec{M}_{i-1} \cat
-\begin{cases}
-  c(\wave{\vec{g}}_i, \vec{xs}_i)
-    & \forall j. \wave{\vec{xs}}_{i,j}\in W \\
-  () & \text{otherwise}
-\end{cases}
+\multirow{2}{*}{$(v', W, \vec{g},t')$}
+& \forall i. \wave{f} &\ni (g_i=(\_, \wave{\vec{x}}, \_), \bot) \\
+& \exists j. \wave{x}_j &\in W \\
+& \wave{\vec{x}}
 \end{array}
 \end{cases}
 \end{array}
 $$
 
+
+### Gate Constraints
+
+The Gate Constraints is matrix with $N$ columns where each row coresponds to the terms in the gate constraint polynomial $F_{GC}$. The rows for the matrix are computed by $c$ that takes in a gate type id $\wave{g}$, the input and output values of the gate and returns $k$ rows / constraints.
+
+$$
+\begin{array}{rl}
+\begin{array}{rl}
+\text{Constraint} &= \Fb^{w}_q \to \Fb^{N \times k}_q \\
+\text{Constraints} &= \text{GateType} \to \text{Constraint}
+\end{array}
+&
+\begin{array}{rl}
+\text{gate} &:
+  \text{Constraints} \to
+  \text{Tab}^{\mathcal{P}(\Nb) \times \Fb_q^{\_ \times N}}_{\wave{f}}
+\\
+\text{gate}_c(w, s_0) &= \begin{cases}
+  \begin{array}{lrl}
+    \text{put}^{\bot}_c(g, s_0) & \wave{f} &\ni (g, w) \\
+    \multirow{2}{*}{$s_{\max(\set{i})}$}
+    & \forall i. \wave{f} &\ni (g_i, \bot) \\
+    & s_i &= \text{put}^{\top}_c(g_i, s_{i-1})
+  \end{array}
+\end{cases}
+\end{array}
+\end{array}
+$$
+$$
+\begin{array}{rl}
+\text{put} &: \Bb \to \text{Constraints} \to \Gate \to \text{State}^T \to \text{State}^T \\
+\text{put}^b_c(\wave{g}, \wave{\vec{x}},f,v,W,M) &=
+\begin{cases}
+(v,W', M') & \begin{array}{rl}
+  b &\Rightarrow \forall i. \wave{x}_i \in W \\
+  \forall i. x_i &= v(\wave{x}_i) \\
+  W' &= W \cup \wave{\vec{x}} \cup \text{out}(\wave{f}, \wave{g}, \wave{\vec{x}}, f) \\
+  M' &= M \cat c(\wave{g}, \vec{x} \cat f(\vec{x}))
+\end{array} \\
+(v,M,W) & \text{otherwise}
+\end{cases}
+\end{array}
+$$
+
+TODO - dont compute W use vector of asserts
+
 ### Copy Constraints
+
+- $c$ from before computes row
+- $c$ now needs to compute coordinates? (row, col) for each input and output wire
+- row then is offset by running number of rows (state $r$ maybe?)
+- would be nice to have the logic / detection of adding rows from gate for zero output gates
+- MAKE W its own TAB!!!!! thus gate just checks W and does not need to update it
+- likewise copy constraints can just check W at end
+- wait not even W TAB will populate a vector of relevant zero output gates! thus it is guaranteed to have the same order across different TABs
 
 permutation matrix (when appending to $M$ you need to track row number, column number to cell id, cell id are quotiented into an equivalence class modulo wire id, then made into an ordered loop, then you can compute the permutation matrix... thus maybe make a function for appen $M$, that internally tracks this.. THIS IS A NEW STATE, i.e. trace state = (v,p) where p is a relation between wire id and (row, col) coordinates)
 
