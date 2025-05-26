@@ -1128,6 +1128,8 @@ protocols in Rust
 | $[n]$                                                                           | Denotes the integers $\{ 1, ..., n \}$                                                                    |
 | $[n,m]$                                                                         | Denotes the integers $\{ n, ..., m \}$                                                                    |
 | $\maybe{x}{\phi(x)}$                                                            | Returns $x$ if $\phi(x)$ is true, otherwise $\bot$ or errors.|
+| $f[x \mapsto y]$ | Updates the partial map $f$ with a new mapping $f(x)=y$.|
+| $f[\vec{x} \mapsto \vec{y}]$ | Updates the partial map $f$ with mappings from vectors. |
 | $a \in \Fb$                                                                     | A field element in a prime field of order $q$                                                             |
 | $\vec{a} \in S^n_q$                                                             | A vector of length $n$ consisting of elements from set $S$                                                |
 | $G \in \Eb(\Fb)$                                                                | An elliptic Curve point, defined over field $\Fb$                                                         |
@@ -1228,27 +1230,21 @@ $$
 
 ## Trace
 
-Trace takes in $(\wave{f}, \wave{\vec{Y}})$ and $\vec{x}$; input values for the program $f$, to compute the values corresponding to $\wave{\vec{Y}}$ recursively via $\Downarrow$, using the gates $g$ in $(g,\wave{y}) \in \wave{f}$. A gate is of the form $(\wave{\vec{x}}, f, c)$ where $\wave{\vec{x}}$ are the vector of input wire ids and $f$ the program $g$ corresponds to that computes the output wires' values.The values are cached by the value map $v$ and are used by $e$ to compute the output $t$.
+Trace takes in $(\wave{f}, \wave{\vec{Y}})$ and $\vec{x}$; input values for the program $f$, to compute the values corresponding to $\wave{\vec{Y}}$ recursively via $\Downarrow$, using the gates $g$ in $(g,\wave{y}) \in \wave{f}$. A gate is of the form $(\wave{g}, \wave{\vec{x}}, f)$ where $\wave{g}$ is the gate type id, $\wave{\vec{x}}$ are the vector of input wire ids and $f$ the program $g$ corresponds to that computes the output wires' values.The values are cached by the value map $v$ and are used by $e$ to compute the output $t$.
 
 $$
 \begin{array}{rl}
 \begin{array}{rl}
 \Gate &=
+  \text{GateType} \times
   \Nb^n \times
-  (\Fb^n_q \to \Fb^m_q) \times
-  (\Fb^{n+m}_q \to \Fb^{N \times k}_q)
+  (\Fb^n_q \to \Fb^m_q)
 \\
 \text{VMap} &= \Nb \rightharpoonup \Fb_q
 \\
 \text{State}^T &= \text{VMap} \times T
 \\ 
 \text{Tab}_{\wave{f}}^T &= (\Nb^m + \Nb) \to \text{State}^T \to \text{State}^T
-\\ \\
-\text{ap} &: \text{VMap} \to \Nb^n \to \Fb^n_q \to \text{VMap}
-\\
-\text{ap}(v_0, \wave{\vec{y}}, \vec{y}) &= \maybe{v_n}{
-\forall i. v_i = v_{i-1}[\wave{\vec{x}}_i \mapsto \vec{x}_i]
-}
 \\ \\
 \text{trace} &:
   T \to
@@ -1259,7 +1255,7 @@ $$
 \\
 \text{trace}^t_e(\wave{\vec{Y}}, \vec{x}) &= \maybe{t'}{
   e \left(\wave{\vec{Y}}, 
-    \wave{\vec{Y}}_{\Downarrow e}^{(\text{ap}(\bot, (..n), \vec{x}), t)}
+    \wave{\vec{Y}}_{\Downarrow e}^{(\bot[(..n) \mapsto \vec{x}], t)}
   \right) = ( \_, t')
 }
 \end{array}
@@ -1276,13 +1272,13 @@ $$
   (v,t) & |\wave{\vec{w}}| &= 0\\
   & \wave{\vec{w}} &= \wave{w} \cat \wave{\vec{r}} \\
   \wave{\vec{r}}_{\Downarrow e}^{(v,t)}
-  & v(\wave{w}) &= \bot \\
+  & v(\wave{w}) &\neq \bot \\
   \multirow{6}{*}{$\wave{\vec{r}}_{\Downarrow e}^{s'}$}
-  & \wave{f} &\ni ((\wave{\vec{x}}, f, \_), \wave{w}) \\
+  & \wave{f} &\ni (\wave{g}, \wave{\vec{x}}, f, \wave{w}) \\
   & \wave{\vec{x}}^{(v,t)}_{\Downarrow e} &= (v', t') \\
   & \forall i. \vec{x}_i &= v'(\wave{\vec{x}}_i) \\
-  & \wave{\vec{y}} &= \text{out}(\wave{f}, \wave{\vec{x}}, f, c) \\
-  & v'' &= \text{ap}(v,' \wave{\vec{y}}, f(\vec{x}))\\
+  & \wave{\vec{y}} &= \text{out}(\wave{f}, \wave{g}, \wave{\vec{x}}, f) \\
+  & v'' &= v'[\wave{\vec{y}} \mapsto f(\vec{x})]\\
   & s' &= e(\wave{w}, v'', t')
 \end{array}
 \end{cases}
@@ -1294,8 +1290,35 @@ Note: $e(\wave{y},s)$ is computing constraints while $\Downarrow$, but $e(\wave{
 
 ### Gate Constraints
 
-$M \cat c(\vec{x}\cat\vec{y})$
-asserts matrix (zero output gates)
+The Gate Constraints is matrix with $M$ rows and $N$ columns where each row has the form of the constraint equation $F_{GC}$. The rows for the matrix are computed by $c$ that takes in a gate type id $\wave{g}$, the input and output values of the gate and returns $k$ rows / constraints. The protocol also populates a set of wire ids involved as $W$, this is used at the end to populate constraints for gates with no output wires; checking if their inputs exists in $W$.
+
+$$
+\begin{array}{rl}
+\text{Constraint} &= \Fb^{w}_q \to \Fb^{N \times k}_q
+\\
+\text{gate} &: (\text{GateType} \to \text{Constraint}) \to \text{Tab}^{\mathcal{P}(\Nb) \times\Fb_q^{\_ \times N}}_{\wave{f}}
+\\
+\text{gate}_c(w, v, W, M_0) &= \begin{cases}
+\begin{array}{lrl}
+\multirow{5}{*}{$(W', M')$}
+& \wave{f} &\ni ((\wave{g}, \wave{\vec{x}}, f), w) \\
+& \forall i. \vec{x}_i &= v(\wave{\vec{x}}_i) \\
+& \vec{y} &= f(\text{out}(\wave{f}, \wave{g}, \wave{\vec{x}}, f)) \\
+& W' & W \cup \set{w} \cup \set{\wave{w} \middle\vert \wave{w} \in \wave{\vec{x}}} \\
+& M' &= M_0 \cat c(\wave{g}, \vec{x} \cat \vec{y}) \\
+\multirow{3}{*}{$(W, \vec{M}_{|\vec{M}|})$}
+& \forall i. \wave{f} &\ni ((\wave{\vec{g}}_i, \wave{\vec{xs}}_i, \_), \bot) \\
+& \forall j. \vec{xs}_{i,j} &= v(\wave{\vec{xs}}_{i,j}) \\
+& \vec{M}_i &= \vec{M}_{i-1} \cat
+\begin{cases}
+  c(\wave{\vec{g}}_i, \vec{xs}_i)
+    & \forall j. \wave{\vec{xs}}_{i,j}\in W \\
+  () & \text{otherwise}
+\end{cases}
+\end{array}
+\end{cases}
+\end{array}
+$$
 
 ### Copy Constraints
 
