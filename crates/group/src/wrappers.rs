@@ -39,6 +39,7 @@ pub trait PastaConfig: SWCurveConfig {
     const POSEIDON_ROUND_CONSTANTS: [[Self::BaseField; 3]; 55];
     const FP_MODULUS: BigInt<4>;
     const FQ_MODULUS: BigInt<4>;
+    const CURVE_NAME: &'static str;
 }
 
 impl PastaConfig for ark_pallas::PallasConfig {
@@ -81,6 +82,7 @@ impl PastaConfig for ark_pallas::PallasConfig {
         FP_ROUND_CONSTANTS;
     const FP_MODULUS: BigInt<4> = <PallasConfig as CurveConfig>::ScalarField::MODULUS;
     const FQ_MODULUS: BigInt<4> = <PallasConfig as CurveConfig>::BaseField::MODULUS;
+    const CURVE_NAME: &'static str = "Pallas";
 }
 
 impl PastaConfig for ark_vesta::VestaConfig {
@@ -123,6 +125,7 @@ impl PastaConfig for ark_vesta::VestaConfig {
         FQ_ROUND_CONSTANTS;
     const FP_MODULUS: BigInt<4> = <VestaConfig as CurveConfig>::ScalarField::MODULUS;
     const FQ_MODULUS: BigInt<4> = <VestaConfig as CurveConfig>::BaseField::MODULUS;
+    const CURVE_NAME: &'static str = "Vesta";
 }
 
 // -------------------- Wrappers -------------------- //

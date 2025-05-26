@@ -1,5 +1,7 @@
 #![allow(non_snake_case)]
 
+use std::fmt::Display;
+
 use crate::consts::*;
 use crate::group::{Affine, Point};
 use crate::wrappers::{PastaConfig, WrappedPoint};
@@ -29,15 +31,14 @@ impl<P: PastaConfig> PublicParams<P> {
 
         let mut gs = Vec::with_capacity(n);
         let mut m = n;
-        for bytes in P::get_g_data().iter().take(G_BLOCKS_NO) {
-            let (raw_gs, _): (Vec<WrappedPoint>, usize) =
-                bincode::decode_from_slice(bytes, standard()).unwrap();
-            let mut converted_gs: Vec<Affine<P>> = raw_gs
+        for (i, bytes) in P::get_g_data().iter().enumerate() {
+            let raw_gs = bincode::decode_from_slice::<Vec<WrappedPoint>, _>(bytes, standard())
+                .expect(format!("Failed to decode G_BLOCKS_NO {}", i).as_str())
+                .0
                 .into_iter()
                 .take(m)
-                .map(|x| P::unwrap_affine(x))
-                .collect();
-            gs.append(&mut converted_gs);
+                .map(P::unwrap_affine);
+            gs.extend(raw_gs);
 
             if let Some(new_m) = m.checked_sub(G_BLOCKS_SIZE) {
                 m = new_m
@@ -46,7 +47,7 @@ impl<P: PastaConfig> PublicParams<P> {
             }
         }
         let ((S, H), _): ((WrappedPoint, WrappedPoint), usize) =
-            bincode::decode_from_slice(P::get_sh_data(), standard()).unwrap();
+            bincode::decode_from_slice(P::get_sh_data(), standard()).expect(format!("Failed to get SH data for curve {}", P::CURVE_NAME).as_str());
 
         PublicParams {
             S: P::unwrap_projective(S),
