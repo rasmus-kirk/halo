@@ -1,11 +1,12 @@
 use super::{
     misc::{to_subscript, to_superscript, EnumIter},
-    Poly, Scalar,
+    Scalar,
 };
 use crate::{scheme::Slots, Coset};
 
 use ark_ec::short_weierstrass::SWCurveConfig;
-use ark_poly::Polynomial;
+use ark_poly::{univariate::DensePolynomial, Polynomial};
+
 use ascii_table::{Align, AsciiTable};
 
 pub fn print_scalar<P: SWCurveConfig>(x: Scalar<P>) -> String {
@@ -43,7 +44,7 @@ fn v_str<P: SWCurveConfig>(h: &Coset<P>, x: Scalar<P>) -> String {
 /// Print the evaluations of a vector of polynomials for all elements in the coset.
 pub fn evals_str<P: SWCurveConfig>(
     h: &Coset<P>,
-    fs: Vec<&Poly<P>>,
+    fs: Vec<&DensePolynomial<Scalar<P>>>,
     hs: Vec<String>,
     is_pos: Vec<bool>,
 ) -> String {

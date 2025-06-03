@@ -7,9 +7,9 @@ mod pos;
 mod value;
 
 pub use constraints::Constraints;
-use educe::Educe;
 pub use errors::TraceError;
 pub use pos::Pos;
+use value::Value;
 
 use super::{
     arith_wire::ArithWire,
@@ -17,7 +17,6 @@ use super::{
     plookup::{PlookupOps, TableRegistry},
     WireID,
 };
-
 use crate::{
     scheme::{Slots, Terms, MAX_BLIND_TERMS},
     utils::{misc::EnumIter, Evals, Scalar},
@@ -26,9 +25,10 @@ use crate::{
 
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::AdditiveGroup;
+
+use educe::Educe;
 use rand::{distributions::Standard, prelude::Distribution, Rng};
 use std::collections::HashMap;
-use value::Value;
 
 /// A unique identifier for a constraint in the circuit.
 type ConstraintID = u64;
@@ -68,6 +68,7 @@ impl<P: SWCurveConfig> Trace<P> {
             eval.bool_constraint(wires, wire, *value)?;
             eval.public_constraint(wires, wire, *value)?;
         }
+        // TODO remember to predicate check for input wires too
         // fix input wire values
 
         for w in output_wires {
@@ -116,13 +117,15 @@ impl<P: SWCurveConfig> Trace<P> {
             let arith_wire = wires
                 .to_arith(wire)
                 .ok_or(TraceError::WireNotInCache(wire))?;
-            if let Some((constraint, value)) =
+            if let Some((opt_constraint, value)) =
                 self.eval_helper(&mut stack, wires, wire, arith_wire)?
             {
-                if !constraint.is_satisfied() {
-                    return Err(TraceError::constraint_not_satisfied(&constraint));
+                if let Some(constraint) = opt_constraint {
+                    if !constraint.is_satisfied() {
+                        return Err(TraceError::constraint_not_satisfied(&constraint));
+                    }
+                    self.constraints.push(constraint);
                 }
-                self.constraints.push(constraint);
                 self.bool_constraint(wires, wire, value)?;
                 self.public_constraint(wires, wire, value)?;
                 self.evals.insert(wire, value);
@@ -141,36 +144,41 @@ impl<P: SWCurveConfig> Trace<P> {
         wires: &ArithWireCache<Op, P>,
         wire: WireID,
         arith_wire: ArithWire<Op, P>,
-    ) -> Result<Option<(Constraints<P>, Value<P>)>, TraceError<Op, P>> {
+    ) -> Result<Option<(Option<Constraints<P>>, Value<P>)>, TraceError<Op, P>> {
         match arith_wire {
             ArithWire::Input(id) => Err(TraceError::InputNotSet(id)),
-            ArithWire::Constant(scalar) => {
+            ArithWire::Constant(scalar, private) => {
                 let id = wires
-                    .lookup_const_id(scalar)
+                    .lookup_const_id(scalar, private)
                     .ok_or(TraceError::ConstNotInCache(scalar))?;
                 let val = Value::new_wire(id, scalar);
-                Ok(Some((Constraints::constant(val), val)))
+                let constraint = if !private {
+                    Some(Constraints::constant(val))
+                } else {
+                    None
+                };
+                Ok(Some((constraint, val)))
             }
-            ArithWire::AddGate(lhs, rhs)
-            | ArithWire::MulGate(lhs, rhs)
-            | ArithWire::Lookup(_, lhs, rhs) => {
-                let mut vals = [Value::ZERO; 2];
-                for (i, &inp) in [lhs, rhs].iter().enumerate() {
-                    vals[i] = match self.evals.get(&inp) {
-                        Some(val) => *val,
+            ArithWire::AddGate(_, _)
+            | ArithWire::MulGate(_, _)
+            | ArithWire::Lookup(_, _, _)
+            | ArithWire::Inv(_) => {
+                let mut vals = Vec::new();
+                for inp in arith_wire.inputs() {
+                    match self.evals.get(&inp) {
+                        Some(val) => vals.push(*val),
                         None => {
                             stack.push(wire);
                             stack.push(inp);
                             return Ok(None);
                         }
-                    };
+                    }
                 }
-                let [lhs_val, rhs_val] = vals;
                 let out_val = self
-                    .compute_output(&arith_wire, lhs_val, rhs_val)
+                    .compute_output(&arith_wire, &vals)?
                     .set_id(wire)
                     .set_bit_type(wires);
-                let constraint = Self::compute_constraint(&arith_wire, lhs_val, rhs_val, out_val);
+                let constraint = Some(Self::compute_constraint(&arith_wire, vals, out_val));
                 Ok(Some((constraint, out_val)))
             }
         }
@@ -180,13 +188,13 @@ impl<P: SWCurveConfig> Trace<P> {
     fn compute_output<Op: PlookupOps>(
         &self,
         arith_wire: &ArithWire<Op, P>,
-        lhs_val: Value<P>,
-        rhs_val: Value<P>,
-    ) -> Value<P> {
+        vals: &[Value<P>],
+    ) -> Result<Value<P>, TraceError<Op, P>> {
         match arith_wire {
-            ArithWire::AddGate(_, _) => lhs_val + rhs_val,
-            ArithWire::MulGate(_, _) => lhs_val * rhs_val,
-            &ArithWire::Lookup(op, _, _) => self.lookup_value(op, lhs_val, rhs_val).unwrap(),
+            ArithWire::AddGate(_, _) => Ok(vals[0] + vals[1]),
+            ArithWire::MulGate(_, _) => Ok(vals[0] * vals[1]),
+            &ArithWire::Lookup(op, _, _) => Ok(self.lookup_value(op, vals[0], vals[1]).unwrap()),
+            ArithWire::Inv(id) => vals[0].inv().ok_or(TraceError::InverseZero(*id)),
             _ => unreachable!(),
         }
     }
@@ -194,14 +202,14 @@ impl<P: SWCurveConfig> Trace<P> {
     /// Compute the constraint for a gate operation.
     fn compute_constraint<Op: PlookupOps>(
         arith_wire: &ArithWire<Op, P>,
-        lhs_val: Value<P>,
-        rhs_val: Value<P>,
+        vals: Vec<Value<P>>,
         out_val: Value<P>,
     ) -> Constraints<P> {
         match arith_wire {
-            ArithWire::AddGate(_, _) => Constraints::add(lhs_val, rhs_val, out_val),
-            ArithWire::MulGate(_, _) => Constraints::mul(lhs_val, rhs_val, out_val),
-            ArithWire::Lookup(op, _, _) => Constraints::lookup(*op, lhs_val, rhs_val, out_val),
+            ArithWire::AddGate(_, _) => Constraints::add(vals[0], vals[1], out_val),
+            ArithWire::MulGate(_, _) => Constraints::mul(vals[0], vals[1], out_val),
+            ArithWire::Lookup(op, _, _) => Constraints::lookup(*op, vals[0], vals[1], out_val),
+            ArithWire::Inv(_) => Constraints::mul_inv(vals[0], out_val),
             _ => unreachable!(),
         }
     }
@@ -293,50 +301,53 @@ impl<P: SWCurveConfig> Trace<P> {
 
     // Poly construction -------------------------------------------------------
 
-    /// Compute the circuit polynomials.
-    fn gate_polys(&self) -> Vec<Evals<P>> {
+    /// Compute the circuit polynomial evaluations.
+    fn gate_evals(&self) -> Vec<Evals<P>> {
         let extend = self.h.n() as usize - self.constraints.len();
         Terms::iter()
             .map(|term| {
-                let mut evals = self
-                    .constraints
-                    .iter()
-                    .map(|eqn| eqn[term].to_fp())
-                    .collect::<Vec<Scalar<P>>>();
-                evals.insert(0, Scalar::<P>::ZERO);
-                evals.extend(vec![Scalar::<P>::ZERO; extend]);
-                Evals::<P>::from_vec_and_domain(evals, self.h.domain)
+                Evals::<P>::new_sr(
+                    self.constraints
+                        .iter()
+                        .map(|eqn| eqn[term].to_fp())
+                        .chain(vec![Scalar::<P>::ZERO; extend])
+                        .collect(),
+                )
             })
             .collect()
     }
 
-    /// Compute the permutation and identity permutation polynomials.
-    fn copy_constraints(&self) -> Vec<Evals<P>> {
+    /// Compute the permutation polynomial evaluations.
+    fn permutation_evals(&self) -> Vec<Evals<P>> {
         Slots::iter()
             .map(|slot| {
-                let mut evals: Vec<Scalar<P>> = self
-                    .h
-                    .iter()
-                    .map(|id| {
-                        let pos = Pos::new(slot, id);
-                        self.permutation
-                            .get(&pos)
-                            .unwrap_or(&pos)
-                            .to_scalar(&self.h)
-                    })
-                    .collect();
-                evals = [self.h.k(slot)]
-                    .into_iter()
-                    .chain(evals)
-                    .collect::<Vec<Scalar<P>>>();
-                Evals::<P>::from_vec_and_domain(evals, self.h.domain)
+                Evals::<P>::new_sr(
+                    self.h
+                        .iter()
+                        .map(|id| {
+                            let pos = Pos::new(slot, id);
+                            self.permutation
+                                .get(&pos)
+                                .unwrap_or(&pos)
+                                .to_scalar(&self.h)
+                        })
+                        .collect(),
+                )
             })
+            .collect()
+    }
+
+    /// Compute the identity permutation polynomial evaluations.
+    fn identity_evals(&self) -> Vec<Evals<P>> {
+        Slots::iter()
+            .map(|slot| Evals::<P>::new_sr(self.h.vec_k(slot)))
             .collect()
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use ark_ff::Field;
     use ark_pallas::PallasConfig;
     use halo_group::PallasScalar;
@@ -345,8 +356,6 @@ mod tests {
         arithmetizer::{plookup::opsets::EmptyOpSet, Arithmetizer, Wire},
         pcs::PCSPallas,
     };
-
-    use super::*;
 
     #[test]
     fn evaluator_values() {

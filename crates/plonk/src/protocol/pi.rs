@@ -1,12 +1,11 @@
 #![allow(non_snake_case)]
-
-use ark_ec::short_weierstrass::SWCurveConfig;
-
 use crate::{
     pcs::PCS,
     scheme::{Selectors, Slots},
     utils::{misc::EnumIter, Point, Scalar},
 };
+
+use ark_ec::short_weierstrass::SWCurveConfig;
 
 use educe::Educe;
 

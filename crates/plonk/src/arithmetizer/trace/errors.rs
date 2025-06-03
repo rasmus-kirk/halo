@@ -7,6 +7,7 @@ use crate::{
 };
 
 use ark_ec::short_weierstrass::SWCurveConfig;
+
 use educe::Educe;
 
 #[derive(Educe)]
@@ -19,6 +20,7 @@ pub enum TraceError<Op: PlookupOps, P: SWCurveConfig> {
     FailedToMakeCoset(u64),
     ConstraintNotSatisfied(String),
     LookupFailed(Op, Scalar<P>, Scalar<P>),
+    InverseZero(WireID),
 }
 
 impl<Op: PlookupOps, P: SWCurveConfig> Error for TraceError<Op, P> {}
@@ -63,6 +65,13 @@ impl<Op: PlookupOps, P: SWCurveConfig> Display for TraceError<Op, P> {
                     f,
                     "Evaluator: Failed to lookup for op {:?} with a={} and b={}",
                     op, a, b
+                )
+            }
+            TraceError::InverseZero(id) => {
+                write!(
+                    f,
+                    "Evaluator: Cannot invert wire `{}` with value 0",
+                    map_to_alphabet(*id)
                 )
             }
         }

@@ -6,7 +6,6 @@ use crate::{
     arithmetizer::{plookup::PlookupOps, Table},
     utils::{misc::EnumIter, Scalar},
 };
-
 use educe::Educe;
 
 #[derive(Educe)]

@@ -13,6 +13,7 @@ use crate::{
 
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::AdditiveGroup;
+
 use bimap::BiMap;
 use educe::Educe;
 use std::{
@@ -96,6 +97,17 @@ impl<P: SWCurveConfig> Constraints<P> {
         vs[Terms::F(Slots::C)] = out;
         vs[Terms::Q(Selectors::Qo)] = Value::neg_one();
         vs[Terms::Q(Selectors::Qm)] = Value::ONE;
+        vs
+    }
+
+    /// Create a constraint that enforces the product of two values is 1.
+    pub fn mul_inv(v: Value<P>, v_inv: Value<P>) -> Self {
+        let mut vs: Self = Default::default();
+        vs[Terms::F(Slots::A)] = v;
+        vs[Terms::F(Slots::B)] = v_inv;
+        vs[Terms::F(Slots::C)] = Value::ONE;
+        vs[Terms::Q(Selectors::Qm)] = Value::ONE;
+        vs[Terms::Q(Selectors::Qo)] = Value::neg_one();
         vs
     }
 
@@ -202,12 +214,13 @@ mod tests {
     use super::*;
     use crate::{
         arithmetizer::plookup::{opsets::BinXorOr, TableRegistry},
-        utils::scalar::bitxor,
+        utils::scalar::tests::bitxor,
     };
 
     use ark_ff::Field;
     use ark_pallas::PallasConfig;
     use halo_group::PallasScalar;
+
     use rand::Rng;
 
     const N: usize = 100;
@@ -328,6 +341,25 @@ mod tests {
             let f = table.query(BinXorOr::Xor, zeta, a_, b_);
             assert!(f.is_some());
             assert!(eqn_values.is_plonkup_satisfied(zeta, f.unwrap()))
+        }
+    }
+
+    #[test]
+    fn mul_inv() {
+        let rng = &mut rand::thread_rng();
+        for _ in 0..N {
+            let mut a_: PallasScalar = rng.gen();
+            while a_ == PallasScalar::ZERO {
+                a_ = rng.gen();
+            }
+            let v = Value::<PallasConfig>::new_wire(0, a_);
+            let v_inv = v.inv();
+            assert!(v_inv.is_some());
+            let v_inv = v_inv.unwrap();
+            let eqn_values = Constraints::mul_inv(v, v_inv);
+            assert_eq!(eqn_values[Terms::F(Slots::A)], v);
+            assert_eq!(eqn_values[Terms::F(Slots::B)], v_inv);
+            assert!(eqn_values.is_satisfied());
         }
     }
 

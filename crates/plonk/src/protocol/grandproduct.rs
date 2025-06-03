@@ -1,12 +1,12 @@
-use std::marker::PhantomData;
+use crate::{
+    utils::{Evals, Poly, Scalar},
+    Coset,
+};
 
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::Field;
 
-use crate::{
-    utils::{Evals, Scalar},
-    Coset,
-};
+use std::marker::PhantomData;
 
 pub struct GrandProduct<P: SWCurveConfig>(PhantomData<P>);
 
@@ -32,11 +32,21 @@ impl<P: SWCurveConfig> GrandProduct<P> {
                 Some(*acc)
             })
             .collect::<Vec<_>>();
-        let points = [Scalar::<P>::ONE; 2]
+        let mut points: Vec<Scalar<P>> = [Scalar::<P>::ONE; 2]
             .into_iter()
             .chain(points_rest)
             .collect();
-        Evals::<P>::from_vec_and_domain(points, h.domain)
+        let last = points.pop().unwrap();
+        points[0] = last;
+        Evals::<P>::new(points)
+    }
+
+    pub fn poly<F, G>(h: &Coset<P>, f: F, g: G) -> Poly<P>
+    where
+        F: Fn(usize) -> Scalar<P>,
+        G: Fn(usize) -> Scalar<P>,
+    {
+        Self::evals(h, f, g).fft_s()
     }
 
     // bᵢ = 1 / aᵢ

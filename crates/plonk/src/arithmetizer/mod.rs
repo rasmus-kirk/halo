@@ -7,14 +7,11 @@ mod trace;
 mod wire;
 
 use arith_wire::ArithWire;
-use ark_ec::short_weierstrass::SWCurveConfig;
-use ark_pallas::PallasConfig;
-use educe::Educe;
 pub use errors::ArithmetizerError;
 use plookup::opsets::{BinXorOr, EmptyOpSet};
 pub use plookup::*;
 pub use trace::{Pos, Trace};
-pub use wire::Wire;
+pub use wire::{Wire, Witness};
 
 use crate::{
     circuit::Circuit,
@@ -22,7 +19,11 @@ use crate::{
     utils::{misc::map_to_alphabet, Scalar},
 };
 
+use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::Field;
+use ark_pallas::PallasConfig;
+
+use educe::Educe;
 use log::trace;
 use rand::{distributions::Standard, prelude::Distribution, Rng};
 use std::{cell::RefCell, rc::Rc};
@@ -67,17 +68,22 @@ impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
     /// Compute the circuit R where R(x,w) = ⊤.
     pub fn to_circuit<R: Rng, T, PCST: PCS<P>>(
         rng: &mut R,
-        input_values: Vec<T>,
+        input_values: &[T],
         output_wires: &[Wire<Op, P>],
         d: Option<usize>,
     ) -> Result<Circuit<P>, ArithmetizerError<Op, P>>
     where
+        T: Copy,
         Scalar<P>: From<T>,
         Standard: Distribution<Scalar<P>>,
     {
-        ArithmetizerError::validate(&input_values, output_wires)?;
+        ArithmetizerError::validate(input_values, output_wires)?;
         let wires = &output_wires[0].arith().borrow().wires;
-        let input_scalars = input_values.into_iter().map(Scalar::<P>::from).collect();
+        let input_scalars = input_values
+            .iter()
+            .copied()
+            .map(Scalar::<P>::from)
+            .collect();
         let output_ids = output_wires.iter().map(Wire::id).collect();
         Trace::<P>::new(rng, d, wires, input_scalars, output_ids)
             .map_err(ArithmetizerError::EvaluatorError)
@@ -105,40 +111,39 @@ impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
 
     /// a - b : 𝔽
     pub fn wire_sub(&mut self, a: WireID, b: WireID) -> WireID {
-        let neg_one = self.wires.get_const_id(-Scalar::<P>::ONE);
-        let b_ = self.wire_mul(b, neg_one);
+        let b_ = self.wire_neg(b);
         self.wire_add(a, b_)
     }
 
     /// a + b : 𝔽
-    pub fn wire_add_const(&mut self, a: WireID, b: Scalar<P>) -> WireID {
-        let right = self.wires.get_const_id(b);
+    pub fn wire_add_const(&mut self, a: WireID, b: Scalar<P>, private: bool) -> WireID {
+        let right = self.wires.get_const_id(b, private);
         let gate = ArithWire::AddGate(a, right);
         self.wires.get_id(gate)
     }
 
     /// a - b : 𝔽
-    pub fn wire_sub_const(&mut self, a: WireID, b: Scalar<P>) -> WireID {
-        let right = self.wires.get_const_id(-b);
+    pub fn wire_sub_const(&mut self, a: WireID, b: Scalar<P>, private: bool) -> WireID {
+        let right = self.wires.get_const_id(-b, private);
         let gate = ArithWire::AddGate(a, right);
         self.wires.get_id(gate)
     }
 
     /// a b : 𝔽
-    pub fn wire_mul_const(&mut self, a: WireID, b: Scalar<P>) -> WireID {
-        let right = self.wires.get_const_id(b);
+    pub fn wire_mul_const(&mut self, a: WireID, b: Scalar<P>, private: bool) -> WireID {
+        let right = self.wires.get_const_id(b, private);
         let gate = ArithWire::MulGate(a, right);
         self.wires.get_id(gate)
     }
 
     /// -a : 𝔽
     pub fn wire_neg(&mut self, a: WireID) -> WireID {
-        self.wire_mul_const(a, -Scalar::<P>::ONE)
+        self.wire_mul_const(a, -Scalar::<P>::ONE, false)
     }
 
     /// a / b : 𝔽
-    pub fn wire_div_const(&mut self, a: WireID, b: Scalar<P>) -> WireID {
-        let right = self.wires.get_const_id(Scalar::<P>::ONE / b);
+    pub fn wire_div_const(&mut self, a: WireID, b: Scalar<P>, private: bool) -> WireID {
+        let right = self.wires.get_const_id(Scalar::<P>::ONE / b, private);
         let gate = ArithWire::MulGate(a, right);
         self.wires.get_id(gate)
     }
@@ -146,6 +151,10 @@ impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
     /// Plookup operations
     pub fn wire_lookup(&mut self, op: Op, a: WireID, b: WireID) -> WireID {
         self.wires.get_id(ArithWire::Lookup(op, a, b))
+    }
+
+    pub fn wire_inv(&mut self, a: WireID) -> WireID {
+        self.wires.get_id(ArithWire::Inv(a))
     }
 
     // boolean operators --------------------------------------------------
@@ -157,7 +166,7 @@ impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
 
     /// ¬a
     pub fn wire_not(&mut self, a: WireID) -> WireID {
-        let one = self.wires.get_const_id(Scalar::<P>::ONE);
+        let one = self.wires.get_const_id(Scalar::<P>::ONE, false);
         self.wire_sub(one, a)
     }
 
@@ -204,11 +213,11 @@ impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
 
 #[cfg(test)]
 mod tests {
-    use halo_group::PallasScalar;
-
+    use super::*;
     use crate::arithmetizer::plookup::opsets::EmptyOpSet;
 
-    use super::*;
+    use ark_ff::Field;
+    use halo_group::PallasScalar;
 
     #[test]
     fn new() {
@@ -283,7 +292,10 @@ mod tests {
         let wires = &c.arith().borrow().wires;
         assert_eq!(wires.to_arith_(a.id()), ArithWire::Input(0));
         assert_eq!(wires.to_arith_(b.id()), ArithWire::Input(1));
-        assert_eq!(wires.to_arith_(2), ArithWire::Constant(-PallasScalar::ONE));
+        assert_eq!(
+            wires.to_arith_(2),
+            ArithWire::Constant(-PallasScalar::ONE, false)
+        );
         assert_eq!(wires.to_arith_(3), ArithWire::MulGate(b.id(), 2));
         assert_eq!(wires.to_arith_(c.id()), ArithWire::AddGate(a.id(), 3));
     }
@@ -296,7 +308,10 @@ mod tests {
         assert_eq!(c.id(), 2);
         let wires = &c.arith().borrow().wires;
         assert_eq!(wires.to_arith_(0), ArithWire::Input(0));
-        assert_eq!(wires.to_arith_(1), ArithWire::Constant(PallasScalar::ONE));
+        assert_eq!(
+            wires.to_arith_(1),
+            ArithWire::Constant(PallasScalar::ONE, false)
+        );
     }
 
     #[test]
@@ -307,7 +322,10 @@ mod tests {
         assert_eq!(c.id(), 2);
         let wires = &c.arith().borrow().wires;
         assert_eq!(wires.to_arith_(a.id()), ArithWire::Input(0));
-        assert_eq!(wires.to_arith_(1), ArithWire::Constant(-PallasScalar::ONE));
+        assert_eq!(
+            wires.to_arith_(1),
+            ArithWire::Constant(-PallasScalar::ONE, false)
+        );
         assert_eq!(wires.to_arith_(c.id()), ArithWire::AddGate(a.id(), 1));
     }
 
@@ -319,7 +337,10 @@ mod tests {
         assert_eq!(c.id(), 2);
         let wires = &c.arith().borrow().wires;
         assert_eq!(wires.to_arith_(a.id()), ArithWire::Input(0));
-        assert_eq!(wires.to_arith_(1), ArithWire::Constant(PallasScalar::ONE));
+        assert_eq!(
+            wires.to_arith_(1),
+            ArithWire::Constant(PallasScalar::ONE, false)
+        );
         assert_eq!(wires.to_arith_(c.id()), ArithWire::MulGate(a.id(), 1));
     }
 }

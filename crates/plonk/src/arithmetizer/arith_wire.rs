@@ -3,6 +3,7 @@ use crate::utils::{misc::map_to_alphabet, Scalar};
 
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::AdditiveGroup;
+
 use educe::Educe;
 use std::fmt::{self, Debug, Display};
 
@@ -10,10 +11,11 @@ use std::fmt::{self, Debug, Display};
 #[educe(Hash, Clone, Copy, PartialEq, Eq)]
 pub enum ArithWire<Op: PlookupOps, P: SWCurveConfig> {
     Input(WireID),
-    Constant(Scalar<P>),
+    Constant(Scalar<P>, bool),
     AddGate(WireID, WireID),
     MulGate(WireID, WireID),
     Lookup(Op, WireID, WireID),
+    Inv(WireID),
 }
 
 impl<Op: PlookupOps, P: SWCurveConfig> ArithWire<Op, P> {
@@ -23,6 +25,7 @@ impl<Op: PlookupOps, P: SWCurveConfig> ArithWire<Op, P> {
             Self::AddGate(lhs, rhs) => vec![lhs, rhs].into_iter(),
             Self::MulGate(lhs, rhs) => vec![lhs, rhs].into_iter(),
             Self::Lookup(_, lhs, rhs) => vec![lhs, rhs].into_iter(),
+            Self::Inv(w) => vec![w].into_iter(),
             _ => vec![].into_iter(),
         }
     }
@@ -30,7 +33,7 @@ impl<Op: PlookupOps, P: SWCurveConfig> ArithWire<Op, P> {
 
 impl<Op: PlookupOps, P: SWCurveConfig> Default for ArithWire<Op, P> {
     fn default() -> Self {
-        ArithWire::Constant(Scalar::<P>::ZERO)
+        ArithWire::Constant(Scalar::<P>::ZERO, false)
     }
 }
 
@@ -38,7 +41,13 @@ impl<Op: PlookupOps, P: SWCurveConfig> Display for ArithWire<Op, P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             ArithWire::Input(wire_id) => write!(f, "Input({})", map_to_alphabet(wire_id)),
-            ArithWire::Constant(scalar) => write!(f, "Constant({})", scalar),
+            ArithWire::Constant(scalar, private) => {
+                if private {
+                    write!(f, "Witness({})", scalar)
+                } else {
+                    write!(f, "Constant({})", scalar)
+                }
+            }
             ArithWire::AddGate(lhs, rhs) => {
                 write!(f, "Add({}, {})", map_to_alphabet(lhs), map_to_alphabet(rhs))
             }
@@ -53,6 +62,9 @@ impl<Op: PlookupOps, P: SWCurveConfig> Display for ArithWire<Op, P> {
                     map_to_alphabet(lhs),
                     map_to_alphabet(rhs)
                 )
+            }
+            ArithWire::Inv(w) => {
+                write!(f, "Inv({})", map_to_alphabet(w))
             }
         }
     }

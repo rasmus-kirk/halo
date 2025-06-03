@@ -1,11 +1,16 @@
 mod ast;
 mod op_scalar;
 mod op_wire;
+mod witness;
+
+use ast::WireAST;
+pub use witness::Witness;
 
 use super::{plookup::PlookupOps, Arithmetizer, WireID};
 use crate::utils::misc::{if_debug, is_debug};
+
 use ark_ec::short_weierstrass::SWCurveConfig;
-use ast::WireAST;
+
 use educe::Educe;
 
 use std::{
@@ -67,6 +72,31 @@ impl<Op: PlookupOps, P: SWCurveConfig> Wire<Op, P> {
         arith.wire_publicize(self.id);
         self.clone()
     }
+
+    /// Multiplicative inverse of the wire
+    pub fn inv(self) -> Self {
+        let mut arith = self.arith.borrow_mut();
+        Wire {
+            id: arith.wire_inv(self.id),
+            arith: self.arith.clone(),
+            ast: self.ast.map(WireAST::inv),
+        }
+    }
+
+    /// Perform a lookup operation between itself and other
+    pub fn lookup(self, op: Op, other: Self) -> Self {
+        Wire {
+            id: self
+                .arith
+                .clone()
+                .borrow_mut()
+                .wire_lookup(op, self.id, other.id),
+            arith: self.arith,
+            ast: self
+                .ast
+                .map(|ast| WireAST::lookup(op, ast, other.ast.unwrap())),
+        }
+    }
 }
 
 impl<Op: PlookupOps, P: SWCurveConfig> Display for Wire<Op, P> {
@@ -87,14 +117,14 @@ impl<Op: PlookupOps, P: SWCurveConfig> Debug for Wire<Op, P> {
 
 #[cfg(test)]
 mod tests {
-    use ark_ff::Field;
-    use halo_group::PallasScalar;
-
     use super::*;
     use crate::{
         arithmetizer::PallasEmptyArith,
         utils::misc::{map_to_alphabet, tests::on_debug},
     };
+
+    use ark_ff::Field;
+    use halo_group::PallasScalar;
 
     #[test]
     fn new() {

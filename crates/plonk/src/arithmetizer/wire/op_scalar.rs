@@ -1,8 +1,8 @@
-use ark_ec::short_weierstrass::SWCurveConfig;
-
 use crate::{arithmetizer::plookup::PlookupOps, utils::Scalar};
 
 use super::{ast::WireAST, Wire};
+
+use ark_ec::short_weierstrass::SWCurveConfig;
 
 use std::{
     ops::{Add, Div, Mul, Sub},
@@ -22,9 +22,11 @@ where
             id: self
                 .arith
                 .borrow_mut()
-                .wire_add_const(self.id, other.into()),
+                .wire_add_const(self.id, other.into(), false),
             arith: Rc::clone(&self.arith),
-            ast: self.ast.map(|ast| WireAST::add_const(ast, other.into())),
+            ast: self
+                .ast
+                .map(|ast| WireAST::add_const(ast, other.into(), false)),
         }
     }
 }
@@ -43,9 +45,11 @@ where
                 .arith
                 .clone()
                 .borrow_mut()
-                .wire_sub_const(self.id, other.into()),
+                .wire_sub_const(self.id, other.into(), false),
             arith: self.arith,
-            ast: self.ast.map(|ast| WireAST::sub_const(ast, other.into())),
+            ast: self
+                .ast
+                .map(|ast| WireAST::sub_const(ast, other.into(), false)),
         }
     }
 }
@@ -64,9 +68,11 @@ where
                 .arith
                 .clone()
                 .borrow_mut()
-                .wire_mul_const(self.id, other.into()),
+                .wire_mul_const(self.id, other.into(), false),
             arith: self.arith,
-            ast: self.ast.map(|ast| WireAST::mul_const(ast, other.into())),
+            ast: self
+                .ast
+                .map(|ast| WireAST::mul_const(ast, other.into(), false)),
         }
     }
 }
@@ -85,9 +91,11 @@ where
                 .arith
                 .clone()
                 .borrow_mut()
-                .wire_div_const(self.id, other.into()),
+                .wire_div_const(self.id, other.into(), false),
             arith: self.arith,
-            ast: self.ast.map(|ast| WireAST::div_const(ast, other.into())),
+            ast: self
+                .ast
+                .map(|ast| WireAST::div_const(ast, other.into(), false)),
         }
     }
 }

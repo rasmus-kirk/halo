@@ -127,17 +127,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ark-curve25519"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d934c527bc397a2591e85dfabd3a705eaa5eed71be763c7e4b802d62ec41ae3"
-dependencies = [
- "ark-ec",
- "ark-ff 0.5.0",
- "ark-std 0.5.0",
-]
-
-[[package]]
 name = "ark-ec"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -157,18 +146,6 @@ dependencies = [
  "num-traits",
  "rayon",
  "zeroize",
-]
-
-[[package]]
-name = "ark-ed25519"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f7bef34b937f049401e156e80efaefce8d30a896cd927b06f9b01cdb8d5de53"
-dependencies = [
- "ark-curve25519",
- "ark-ec",
- "ark-ff 0.5.0",
- "ark-std 0.5.0",
 ]
 
 [[package]]
@@ -800,7 +777,6 @@ dependencies = [
  "ark-bls12-381",
  "ark-bw6-761",
  "ark-ec",
- "ark-ed25519",
  "ark-ff 0.5.0",
  "ark-pallas",
  "ark-poly",

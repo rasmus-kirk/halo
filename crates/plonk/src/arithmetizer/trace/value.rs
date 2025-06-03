@@ -6,6 +6,7 @@ use crate::{
 
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::{AdditiveGroup, Field};
+
 use educe::Educe;
 use std::{
     fmt,
@@ -98,6 +99,10 @@ impl<P: SWCurveConfig> Value<P> {
             Self::Wire(id, _, scalar) if cache.is_bit(id) => Self::Wire(id, ValueType::Bit, scalar),
             x => x,
         }
+    }
+
+    pub fn inv(self) -> Option<Self> {
+        Some(Self::AnonWire(self.to_fp().inverse()?))
     }
 }
 

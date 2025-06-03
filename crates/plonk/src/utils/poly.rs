@@ -1,59 +1,88 @@
+use super::{misc::batch_op, Evals, Scalar};
 use crate::Coset;
 
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::{AdditiveGroup, Field};
-use ark_poly::{DenseUVPolynomial, Polynomial};
+use ark_poly::{univariate::DensePolynomial, DenseUVPolynomial, Polynomial};
 
-use super::{misc::batch_op, Evals, Poly, Scalar};
+use educe::Educe;
+use std::ops::Index;
 
-pub fn batch_interpolate<P: SWCurveConfig>(es: Vec<Evals<P>>) -> Vec<Poly<P>> {
-    batch_op(es, |e| e.interpolate())
+/// ∀X ∈ [n]: f(ωᶦ) = v
+pub fn deg0<P: SWCurveConfig>(v: Scalar<P>) -> DensePolynomial<Scalar<P>> {
+    Poly::<P>::new_v(&v).p
 }
 
-/// f(X) = v
-pub fn deg0<P: SWCurveConfig>(v: Scalar<P>) -> Poly<P> {
-    Poly::<P>::from_coefficients_slice(&[v])
+#[derive(Educe)]
+#[educe(Default, Debug, Clone, PartialEq, Eq)]
+pub struct Poly<P: SWCurveConfig> {
+    pub p: DensePolynomial<Scalar<P>>,
+    pub e: Evals<P>,
 }
 
-/// f(X) = vXⁿ
-pub fn vxn<P: SWCurveConfig>(v: &Scalar<P>, n: u64) -> Poly<P> {
-    let mut coeffs = vec![Scalar::<P>::ZERO; n as usize];
-    coeffs.push(*v);
-    Poly::<P>::from_coefficients_slice(&coeffs)
+impl<P: SWCurveConfig> Poly<P> {
+    pub fn new(p: DensePolynomial<Scalar<P>>) -> Self {
+        Self {
+            p,
+            e: Default::default(),
+        }
+    }
+
+    pub fn new_e(p: DensePolynomial<Scalar<P>>, e: Evals<P>) -> Self {
+        Self { p, e }
+    }
+
+    /// f(X) = vXⁿ
+    pub fn new_vxn(v: &Scalar<P>, n: u64) -> Self {
+        let mut coeffs = vec![Scalar::<P>::ZERO; n as usize];
+        coeffs.push(*v);
+        Self::new(DenseUVPolynomial::from_coefficients_vec(coeffs))
+    }
+
+    /// f(X) = v
+    pub fn new_v(v: &Scalar<P>) -> Self {
+        Self::new_vxn(v, 0)
+    }
+
+    /// f(X) = Xⁿ
+    pub fn new_xn(n: u64) -> Self {
+        Self::new_vxn(&Scalar::<P>::ONE, n)
+    }
+
+    /// f(X) = X
+    pub fn new_x() -> Self {
+        Self::new_xn(1)
+    }
+
+    /// Lᵢ(X) = (ωⁱ (Xⁿ - 1)) / (n (X - ωⁱ))
+    pub fn new_li(h: &Coset<P>, i: u64) -> Self {
+        let wi = h.w(i);
+        let numerator = (Self::new_xn(h.n()).p + Self::new_v(&Scalar::<P>::ONE).p) * wi;
+        let denominator = (Self::new_x().p - Self::new_v(&wi).p) * Scalar::<P>::from(h.n());
+        Self::new(numerator / denominator)
+    }
+
+    /// f(X) = p₀(X) + Xp₁(X) + X²p₂(X) + ...
+    pub fn split(self, n: u64) -> Vec<Self> {
+        self.p
+            .coeffs
+            .chunks(n as usize)
+            .map(DensePolynomial::from_coefficients_slice)
+            .map(Self::new)
+            .collect()
+    }
+
+    /// f(X)
+    pub fn evaluate(&self, x: &Scalar<P>) -> Scalar<P> {
+        self.p.evaluate(x)
+    }
 }
 
-/// f(X) = Xⁿ
-pub fn xn<P: SWCurveConfig>(n: u64) -> Poly<P> {
-    vxn::<P>(&Scalar::<P>::ONE, n)
-}
-
-/// f(X) = X
-pub fn x<P: SWCurveConfig>() -> Poly<P> {
-    vxn::<P>(&Scalar::<P>::ONE, 1)
-}
-
-/// ∀X ∈ H₀: g(X) = f(ωX)
-pub fn shift_wrap_eval<P: SWCurveConfig>(h: &Coset<P>, evals: Evals<P>) -> Evals<P> {
-    let mut evals_new = evals.evals;
-    let evals_new_first = evals_new.remove(0);
-    evals_new.push(evals_new_first);
-    Evals::<P>::from_vec_and_domain(evals_new, h.domain)
-}
-
-/// f(X) = p₀(X) + Xⁿp₁(X) + X²ⁿp₂(X) + ...
-pub fn split<P: SWCurveConfig>(n: u64, f: &Poly<P>) -> Vec<Poly<P>> {
-    f.coeffs
-        .chunks(n as usize)
-        .map(Poly::<P>::from_coefficients_slice)
-        .collect()
-}
-
-/// Lᵢ(X) = (ωⁱ (Xⁿ - 1)) / (n (X - ωⁱ))
-pub fn lagrange_basis<P: SWCurveConfig>(h: &Coset<P>, i: u64) -> Poly<P> {
-    let wi = h.w(i);
-    let numerator = (xn::<P>(h.n()) + deg0::<P>(Scalar::<P>::ONE)) * wi;
-    let denominator = (x::<P>() - deg0::<P>(wi)) * Scalar::<P>::from(h.n());
-    numerator / denominator
+pub fn batch_p<'a, P: SWCurveConfig, I>(ps: I) -> Vec<&'a DensePolynomial<Scalar<P>>>
+where
+    I: IntoIterator<Item = &'a Poly<P>>,
+{
+    batch_op(ps, |f| &f.p)
 }
 
 pub fn batch_evaluate<'a, P: SWCurveConfig, I>(ps: I, x: Scalar<P>) -> Vec<Scalar<P>>
@@ -63,14 +92,21 @@ where
     batch_op(ps, |f| f.evaluate(&x))
 }
 
+impl<P: SWCurveConfig> Index<usize> for Poly<P> {
+    type Output = Scalar<P>;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.e[index]
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use ark_pallas::PallasConfig;
-    use halo_group::PallasScalar;
-
+    use super::*;
     use crate::{scheme::Slots, utils::misc::EnumIter};
 
-    use super::*;
+    use ark_pallas::PallasConfig;
+    use halo_group::PallasScalar;
 
     #[test]
     fn lagrange() {
@@ -79,7 +115,7 @@ mod tests {
         assert!(h_opt.is_some());
         let h = h_opt.unwrap();
         for i in h.iter() {
-            let l = lagrange_basis(&h, i);
+            let l = Poly::new_li(&h, i);
             for j in h.iter() {
                 if i == j {
                     assert_eq!(l.evaluate(&h.w(j)), PallasScalar::ONE);

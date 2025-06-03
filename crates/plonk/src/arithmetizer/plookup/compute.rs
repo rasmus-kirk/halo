@@ -2,18 +2,18 @@ use super::TableRegistry;
 use crate::{
     arithmetizer::trace::Constraints,
     scheme::{eqns::EqnsF, Selectors, Slots, Terms},
-    utils::{misc::batch_op, poly::shift_wrap_eval, Evals, Poly, Scalar},
+    utils::{Evals, Poly, Scalar},
     Coset,
 };
 
 use ark_ec::short_weierstrass::SWCurveConfig;
-use ark_ff::{AdditiveGroup, Field};
+use ark_ff::Field;
 use educe::Educe;
 
 /// A struct that acts as a thunk where `compute` takes in zeta
 /// from transcript to compute the polynomials for plookup
 #[derive(Educe)]
-#[educe(Debug, PartialEq, Eq, Clone)]
+#[educe(Default, Debug, PartialEq, Eq, Clone)]
 pub struct PlookupEvsThunk<P: SWCurveConfig> {
     constraints: Vec<Constraints<P>>,
     table: TableRegistry<P>,
@@ -25,18 +25,18 @@ impl<P: SWCurveConfig> PlookupEvsThunk<P> {
     }
 
     fn compute_t_evs(&self, zeta: Scalar<P>, h: &Coset<P>) -> Evals<P> {
-        let mut t = self.table.tables.iter().enumerate().fold(
-            vec![Scalar::<P>::ZERO],
-            |mut acc, (_j, table)| {
+        let mut t = self
+            .table
+            .tables
+            .iter()
+            .enumerate()
+            .fold(vec![], |mut acc, (_j, table)| {
                 acc.extend(table.compress(zeta, Scalar::<P>::from(_j as u64)));
                 acc
-            },
-        );
+            });
         t.sort();
-        let default = t.last().unwrap();
-        let extend = h.n() as usize - t.len();
-        t.extend(vec![*default; extend]);
-        Evals::<P>::from_vec_and_domain(t, h.domain)
+        t.extend(vec![*t.last().unwrap(); h.n() as usize - t.len()]);
+        Evals::<P>::new_sr(t)
     }
 
     fn compute_f_evs(
@@ -46,24 +46,26 @@ impl<P: SWCurveConfig> PlookupEvsThunk<P> {
         constraints: &[Constraints<P>],
         default: Scalar<P>,
     ) -> Evals<P> {
-        let mut f = vec![Scalar::<P>::ZERO];
-        f.extend(constraints.iter().map(|constraint| {
-            if constraint[Terms::Q(Selectors::Qk)].to_fp() == Scalar::<P>::ONE {
-                let a = constraint[Terms::F(Slots::A)].to_fp();
-                let b = constraint[Terms::F(Slots::B)].to_fp();
-                let c = constraint[Terms::F(Slots::C)].to_fp();
-                let j = constraint[Terms::Q(Selectors::J)].to_fp();
-                EqnsF::<P>::plookup_compress(zeta, a, b, c, j)
-            } else {
-                default
-            }
-        }));
-        let extend = h.n() as usize - f.len();
-        f.extend(vec![default; extend]);
-        Evals::<P>::from_vec_and_domain(f, h.domain)
+        Evals::<P>::new_sr(
+            constraints
+                .iter()
+                .map(|constraint| {
+                    if constraint[Terms::Q(Selectors::Qk)].to_fp() == Scalar::<P>::ONE {
+                        let a = constraint[Terms::F(Slots::A)].to_fp();
+                        let b = constraint[Terms::F(Slots::B)].to_fp();
+                        let c = constraint[Terms::F(Slots::C)].to_fp();
+                        let j = constraint[Terms::Q(Selectors::J)].to_fp();
+                        EqnsF::<P>::plookup_compress(zeta, a, b, c, j)
+                    } else {
+                        default
+                    }
+                })
+                .chain(vec![default; h.n() as usize - constraints.len()])
+                .collect(),
+        )
     }
 
-    fn split_sort(h: &Coset<P>, s: Vec<Scalar<P>>) -> Vec<Evals<P>> {
+    fn split_sort(s: Vec<Scalar<P>>) -> [Evals<P>; 2] {
         s.into_iter()
             .enumerate()
             .fold([vec![], vec![]], |mut hs, (i, x)| {
@@ -71,72 +73,50 @@ impl<P: SWCurveConfig> PlookupEvsThunk<P> {
                 hs
             })
             .into_iter()
-            .map(|evals| Evals::<P>::from_vec_and_domain(evals, h.domain))
-            .collect()
+            .map(|evals| Evals::<P>::new_sr(evals))
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap()
     }
 
-    pub fn compute(&self, h: &Coset<P>, zeta: Scalar<P>) -> PlookupPolys<P> {
-        let mut evals = vec![];
-        evals.push(self.compute_t_evs(zeta, h));
-        let default = *evals[0].evals.last().unwrap();
-        evals.push(self.compute_f_evs(zeta, h, &self.constraints, default));
+    pub fn compute(&self, h: &Coset<P>, zeta: Scalar<P>) -> PlookupEvals<P> {
+        let t = self.compute_t_evs(zeta, h);
+        let default = *t.last();
+        let f = self.compute_f_evs(zeta, h, &self.constraints, default);
         let mut s: Vec<Scalar<P>> = Vec::new();
-        s.extend(evals[0].evals.iter());
-        s.extend(evals[1].evals.iter());
+        s.extend(t.clone().0.iter());
+        s.extend(f.clone().0.iter());
         s.sort();
-        evals.extend(Self::split_sort(h, s));
+        let [h1, h2] = Self::split_sort(s);
 
-        PlookupPolys::new(h, evals)
+        PlookupEvals::new(t.fft_s(), f.fft_s(), h1.fft_s(), h2.fft_s())
     }
 }
 
-pub struct PlookupPolys<P: SWCurveConfig> {
+pub struct PlookupEvals<P: SWCurveConfig> {
     pub t: Poly<P>,
-    pub _t: Evals<P>,
     pub f: Poly<P>,
-    pub _f: Evals<P>,
     pub h1: Poly<P>,
-    pub _h1: Evals<P>,
     pub h2: Poly<P>,
-    pub _h2: Evals<P>,
     pub h1_bar: Poly<P>,
-    pub _h1_bar: Evals<P>,
     pub t_bar: Poly<P>,
-    pub _t_bar: Evals<P>,
 }
 
-impl<P: SWCurveConfig> PlookupPolys<P> {
-    pub fn new(h: &Coset<P>, evals: Vec<Evals<P>>) -> Self {
-        let _t = evals[0].clone();
-        let _f = evals[1].clone();
-        let _h1 = evals[2].clone();
-        let _h2 = evals[3].clone();
-        let _t_bar = shift_wrap_eval(h, _t.clone());
-        let _h1_bar = shift_wrap_eval(h, _h1.clone());
-        let mut plp = batch_op(evals, |eval| eval.interpolate());
-        let h2 = plp.pop().unwrap();
-        let h1 = plp.pop().unwrap();
-        let f = plp.pop().unwrap();
-        let t = plp.pop().unwrap();
-        let t_bar = _t_bar.clone().interpolate();
-        let h1_bar = _h1_bar.clone().interpolate();
-        PlookupPolys {
+impl<P: SWCurveConfig> PlookupEvals<P> {
+    pub fn new(t: Poly<P>, f: Poly<P>, h1: Poly<P>, h2: Poly<P>) -> Self {
+        let t_bar = t.e.clone().shift_left().fft();
+        let h1_bar = h1.e.clone().shift_left().fft();
+        PlookupEvals {
             t,
-            _t,
             f,
-            _f,
             h1,
-            _h1,
             h2,
-            _h2,
             h1_bar,
-            _h1_bar,
             t_bar,
-            _t_bar,
         }
     }
 
-    pub fn base_polys(&self) -> Vec<&Poly<P>> {
-        vec![&self.t, &self.f, &self.h1, &self.h2]
+    pub fn base_polys(&self) -> impl Iterator<Item = &Poly<P>> {
+        [&self.t, &self.f, &self.h1, &self.h2].into_iter()
     }
 }
