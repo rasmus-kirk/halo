@@ -31,14 +31,21 @@ PLONK and accumulation schemes.
 5. **Benchmark performance over circuit size**
    - Benchmark the performance of our implementation and estimate its average complexity.
    - Compare benchmark data with theoretical expected performance required for IVC.
-6. **Investigate Chain of Signatures**
+6. **Create Circuit Components required for IVC**
+   - This involves:
+      - Using poseidon hashes for Fiat-Shamir.
+      - Finding an efficient way to do Scalar Multiplication in circuits.
+      - Encoding our verifiers into circuits.
+7. **Investigate Chain of Signatures**
    - Explore the feasibility of IVC over a chain of signatures to be used in committee based blockchain consensus protocols.
+   - Ideally, we would want a reference implementation to show this idea.
 
 ## Expected Outcomes
 
 - A complete and functional Halo2-based implementation; Plonk with lookups, accumulation schemes and potentially gadgets.
 - A performance analysis comparing the feasibility of using IVC in blockchains.
 - An exploration of potential use cases, particularly in the domain of blockchain scalability.
+- An implementation showing off the concept of Chain of Signatures IVC
 
 ## Methodology
 
