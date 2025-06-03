@@ -24,7 +24,7 @@ use ark_ff::Field;
 use ark_pallas::PallasConfig;
 
 use educe::Educe;
-use log::debug;
+use log::trace;
 use rand::{distributions::Standard, prelude::Distribution, Rng};
 use std::{cell::RefCell, rc::Rc};
 
@@ -213,11 +213,11 @@ impl<Op: PlookupOps, P: SWCurveConfig> Arithmetizer<Op, P> {
 
 #[cfg(test)]
 mod tests {
-    use halo_group::PallasScalar;
-
+    use super::*;
     use crate::arithmetizer::plookup::opsets::EmptyOpSet;
 
-    use halo_accumulation::group::PallasScalar;
+    use ark_ff::Field;
+    use halo_group::PallasScalar;
 
     #[test]
     fn new() {

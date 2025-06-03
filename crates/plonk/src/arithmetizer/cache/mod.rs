@@ -212,7 +212,7 @@ mod tests {
     use crate::arithmetizer::plookup::opsets::EmptyOpSet;
 
     use ark_pallas::PallasConfig;
-    use halo_accumulation::group::PallasScalar;
+    use halo_group::PallasScalar;
 
     #[test]
     fn insert_wire() {

@@ -1,8 +1,5 @@
 #![allow(non_snake_case)]
-use super::{
-    pi::{EvalProofs, Proof, ProofCommitments, ProofEvaluations},
-    transcript::TranscriptProtocol,
-};
+use super::pi::{EvalProofs, Proof, ProofCommitments, ProofEvaluations};
 use crate::{
     circuit::{CircuitPrivate, CircuitPublic},
     pcs::PCS,
@@ -14,8 +11,9 @@ use crate::{
 use ark_ff::Field;
 use ark_poly::Polynomial;
 
+use halo_group::PastaConfig;
+use halo_poseidon::Sponge;
 use log::{debug, info};
-use merlin::Transcript;
 use std::time::Instant;
 
 pub fn prove<R: rand::Rng, P: PastaConfig, PCST: PCS<P>>(
@@ -27,9 +25,11 @@ pub fn prove<R: rand::Rng, P: PastaConfig, PCST: PCS<P>>(
 
     // -------------------- Round 1 --------------------
 
-    let now = Instant::now();
-    transcript.append_points(b"abc", &[w.com.a, w.com.b, w.com.c]);
-    info!("Round 1 took {} s", now.elapsed().as_secs_f64());
+    let r1_now = Instant::now();
+    transcript.absorb_g(&[w.com.a, w.com.b, w.com.c]);
+
+    let r1_time = r1_now.elapsed().as_secs_f64();
+    debug!("Round 1 took {} s", r1_time);
 
     // -------------------- Round 2 --------------------
 
@@ -66,8 +66,7 @@ pub fn prove<R: rand::Rng, P: PastaConfig, PCST: PCS<P>>(
     let zcc = &GrandProduct::<P>::poly(&x.h, _zfcc, _zgcc);
     let zcc_bar = &zcc.e.clone().shift_left().fft_sp();
     let zcc_com = PCST::commit(&zcc.p, x.d, None);
-    transcript.append_point(b"zcc", &zcc_com);
-    info!("Round 3 - A - {} s", now.elapsed().as_secs_f64());
+    transcript.absorb_g(&[zcc_com]);
     // copy constraints
 
     // ε(1 + δ) + a + δb
@@ -84,8 +83,10 @@ pub fn prove<R: rand::Rng, P: PastaConfig, PCST: PCS<P>>(
     let zpl = &GrandProduct::<P>::poly(&x.h, _zfpl, _zgpl);
     let zpl_bar = &zpl.e.clone().shift_left().fft_sp();
     let zpl_com = PCST::commit(&zpl.p, x.d, None);
-    transcript.append_point(b"zpl", &zpl_com);
-    info!("Round 3 took {} s", now.elapsed().as_secs_f64());
+    transcript.absorb_g(&[zpl_com]);
+
+    let r3_time = r3_now.elapsed().as_secs_f64();
+    debug!("Round 3 took {} s", r3_time);
     // plookup
 
     // -------------------- Round 4 --------------------
@@ -94,28 +95,28 @@ pub fn prove<R: rand::Rng, P: PastaConfig, PCST: PCS<P>>(
     // α = H(transcript)
     let alpha = transcript.challenge();
 
-    info!("Round 4A - {} s", now.elapsed().as_secs_f64());
+    info!("Round 4A - {} s", r4_now.elapsed().as_secs_f64());
     let f_gc = &EqnsF::<P>::plonkup_eqn(zeta, w.wsp(), x.qsp(), &x.pip.p, &p.f.p);
-    info!("Round 4C - {} s", now.elapsed().as_secs_f64());
+    info!("Round 4C - {} s", r4_now.elapsed().as_secs_f64());
     let onepoly = &Poly::<P>::new_v(&Scalar::<P>::ONE).p;
     let l1poly = &Poly::<P>::new_li(&x.h, 1);
     let fcc_z1 = &eqns::grand_product1(onepoly, &zcc.p, &l1poly.p);
     let fpl_z1 = &eqns::grand_product1(onepoly, &zpl.p, &l1poly.p);
-    info!("Round 4D - {} s", now.elapsed().as_secs_f64());
+    info!("Round 4D - {} s", r4_now.elapsed().as_secs_f64());
     let fcc_z2 = &eqns::grand_product2(&zcc.p, zfcc, zgcc, zcc_bar);
     let fpl_z2 = &eqns::grand_product2(&zpl.p, zfpl, zgpl, zpl_bar);
-    info!("Round 4E1 - {} s", now.elapsed().as_secs_f64());
+    info!("Round 4E1 - {} s", r4_now.elapsed().as_secs_f64());
     // T(X) = (F_GC(X) + α F_CC1(X) + α² F_CC2(X) + α³ F_PL1(X) + α⁴ F_PL2(X) ) / Zₕ(X)
     let tzh = &EqnsF::<P>::geometric(alpha, [f_gc, fcc_z1, fcc_z2, fpl_z1, fpl_z2]);
-    info!("Round 4E2 - {} s", now.elapsed().as_secs_f64());
+    info!("Round 4E2 - {} s", r4_now.elapsed().as_secs_f64());
     let (t, _) = tzh.divide_by_vanishing_poly(x.h.coset_domain);
-    info!("Round 4E3 - {} s", now.elapsed().as_secs_f64());
+    info!("Round 4E3 - {} s", r4_now.elapsed().as_secs_f64());
     let ts = &Poly::new(t).split(x.h.n());
-    info!("Round 4F - {} s", now.elapsed().as_secs_f64());
+    info!("Round 4F - {} s", r4_now.elapsed().as_secs_f64());
     let ts_coms = PCST::batch_commit(batch_p(ts), x.d, None);
-    info!("Round 4G - {} s", now.elapsed().as_secs_f64());
+    info!("Round 4G - {} s", r4_now.elapsed().as_secs_f64());
 
-    transcript.absorb_g(&ts_coms);
+    transcript.absorb_g(ts_coms.as_slice());
 
     let r4_time = r4_now.elapsed().as_secs_f64();
     debug!("Round 4 took {} s", r4_time);
@@ -136,14 +137,14 @@ pub fn prove<R: rand::Rng, P: PastaConfig, PCST: PCS<P>>(
     let ts_ev = poly::batch_evaluate::<P, _>(ts, ch);
     let zcc_ev = zcc.evaluate(&ch);
     let zpl_ev = zpl.evaluate(&ch);
-    let pl_evs = poly::batch_evaluate::<P, _>(p.base_polys(), ch);
+    let pl_ev = poly::batch_evaluate::<P, _>(p.base_polys(), ch);
     let pl_h1_bar_ev = p.h1_bar.evaluate(&ch);
     let pl_t_bar_ev = p.t_bar.evaluate(&ch);
 
-    transcript.absorb_fr(&ws_ev);
-    transcript.absorb_fr(&qs_ev);
-    transcript.absorb_fr(&ps_ev);
-    transcript.absorb_fr(&pl_evs);
+    transcript.absorb_fr(ws_ev.as_slice());
+    transcript.absorb_fr(qs_ev.as_slice());
+    transcript.absorb_fr(ps_ev.as_slice());
+    transcript.absorb_fr(pl_ev.as_slice());
     transcript.absorb_fr(&[zcc_bar_ev]);
     transcript.absorb_fr(&[zpl_bar_ev]);
     transcript.absorb_fr(ts_ev.as_slice());
@@ -192,7 +193,7 @@ pub fn prove<R: rand::Rng, P: PastaConfig, PCST: PCS<P>>(
             zcc: zcc_ev,
             zpl: zpl_ev,
             ts: ts_ev,
-            pls: pl_evs,
+            pls: pl_ev,
             zcc_bar: zcc_bar_ev,
             zpl_bar: zpl_bar_ev,
             h1_bar: pl_h1_bar_ev,

@@ -106,7 +106,7 @@ mod tests {
     use crate::{scheme::Slots, utils::misc::EnumIter};
 
     use ark_pallas::PallasConfig;
-    use halo_accumulation::group::PallasScalar;
+    use halo_group::PallasScalar;
 
     #[test]
     fn lagrange() {

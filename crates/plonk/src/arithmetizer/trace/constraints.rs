@@ -219,7 +219,7 @@ mod tests {
 
     use ark_ff::Field;
     use ark_pallas::PallasConfig;
-    use halo_accumulation::group::PallasScalar;
+    use halo_group::PallasScalar;
 
     use rand::Rng;
 

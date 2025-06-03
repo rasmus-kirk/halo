@@ -24,7 +24,6 @@ pub(crate) mod tests {
 
     use ark_ff::{BigInteger, PrimeField};
     use ark_pallas::PallasConfig;
-    use halo_accumulation::group::PallasScalar;
 
     use rand::Rng;
 

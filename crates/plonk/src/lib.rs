@@ -3,9 +3,9 @@ pub mod circuit;
 pub mod coset;
 mod gadgets;
 pub mod pcs;
+pub mod protocol;
 mod scheme;
 mod utils;
-
 pub use coset::Coset;
 
 #[cfg(test)]

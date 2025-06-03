@@ -143,10 +143,7 @@ impl<P: SWCurveConfig> CircuitPublic<P> {
     }
 
     pub fn qs(&self) -> impl Iterator<Item = &Poly<P>> {
-        [
-            &self.ql, &self.qr, &self.qo, &self.qm, &self.qc, &self.qk, &self.j,
-        ]
-        .into_iter()
+        [&self.ql, &self.qr, &self.qo, &self.qm, &self.qc, &self.qk, &self.j].into_iter()
     }
 
     pub fn qsp(&self) -> Vec<&DensePolynomial<Scalar<P>>> {

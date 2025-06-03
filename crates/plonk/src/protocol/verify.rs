@@ -11,11 +11,11 @@ use crate::{
     utils::{scalar, Scalar},
 };
 
-use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::Field;
 
 use anyhow::{ensure, Result};
-use merlin::Transcript;
+use halo_group::PastaConfig;
+use halo_poseidon::{Protocols, Sponge};
 
 pub fn verify<P: PastaConfig, PCST: PCS<P>>(
     succint: bool,

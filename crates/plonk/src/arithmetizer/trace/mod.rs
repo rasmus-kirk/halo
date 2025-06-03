@@ -27,7 +27,6 @@ use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::AdditiveGroup;
 
 use educe::Educe;
-use log::info;
 use rand::{distributions::Standard, prelude::Distribution, Rng};
 use std::collections::HashMap;
 
@@ -348,6 +347,7 @@ impl<P: SWCurveConfig> Trace<P> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use ark_ff::Field;
     use ark_pallas::PallasConfig;
     use halo_group::PallasScalar;
@@ -356,10 +356,6 @@ mod tests {
         arithmetizer::{plookup::opsets::EmptyOpSet, Arithmetizer, Wire},
         pcs::PCSPallas,
     };
-
-    use ark_ff::Field;
-    use ark_pallas::PallasConfig;
-    use halo_accumulation::group::PallasScalar;
 
     #[test]
     fn evaluator_values() {
