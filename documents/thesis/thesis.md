@@ -459,21 +459,15 @@ d}$, we have the following protocol:
 \textbf{Output} \\
   \Desc{$\Result(\top, \bot)$}{Either the verifier accepts with $\top$ or rejects with $\bot$}
 \begin{algorithmic}[1]
-  \State Precompute the corresponding entry of the circuit relation; $x\ R\ w$:
-    \Statex \algind \textbf{let} $(x,w) = \mathrm{circuit}(\mathrm{trace}(\mathrm{arithmetize}(f), \vec{x}))$ 
-  \State The prover $P$ computes the proof:
-    \Statex \algind $\pi \gets P(x,w)$
-  \State The verifier $V$ then checks:
-    \Statex \algind \textbf{return} $V(x, \pi)$
+  \State \textbf{let} $(x,w) = \mathrm{circuit} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})$ 
+  \State $\pi \gets P(x,w)$
+  \State \textbf{return} $V(x, \pi)$
   \end{algorithmic}
 \end{algorithm}
 
 TODO - general IVC
 
 # General Protocols
-
-
-
 
 ## Vanishing Argument
 
@@ -504,17 +498,29 @@ $$
 (x,w) = \mathrm{circuit} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})
 $$
 
+## Abstract Gates
+
+Gates $g$ are primitive operations with $n_g \geq 0$ fan in inputs and $m_g \geq 0$ fan out outputs defined with its input wire id(s) of type $\Nb$. i.e. $\text{Add}(x,y) \neq \text{Add}(a,b)$.  Every gate type has its corresponding evaluation function that computes the value(s) of its output(s). e.g. $\text{eval}(\text{Add}(\_,\_), (1,2)) = (3)$.
+
+$$
+\begin{array}{rl}
+\text{Gate} &= \text{GateType} \times \Nb^n \\
+n &: \text{Gate} \to \Nb \\
+m &: \text{Gate} \to \Nb \\
+\text{eval} &: (g: \text{Gate}) \to \Fb^{n_g}_q \to \Fb^{m_g}_q \\
+\end{array}
+$$
+
 ## Arithmetize
 
 Arithmetize turns a program $f$ into an abstract circuit $\wave{f}$, which is a one-to-many-or-none relation between gates $g$ and output wire id(s) $\wave{y}$ or $\bot$ which denotes no output wires. e.g. $(\text{Add}(a,b), c) \in \wave{f}$ corresponds to $\build{a+b=c}{}{}$.
 
-We notate inserting a gate or gadget $f$ to the circuit with $\build{f = \wave{\vec{y}}}{s}{s'}$, $\build{f = \wave{y}}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the state from $s$ to $s'$. State has the form $(u, \wave{f})$ where $u$ is the current uuid for wires.
+We notate inserting a gate or gadget $f$ to the circuit with $\build{f = \wave{\vec{y}}}{s}{s'}$, $\build{f = \wave{y}}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the state from $s$ to $s'$. State has the form $(u, \wave{f})$ where $u$ is the current uuid for wires. 
+A circuit is a composition of gadget(s) and/or gate(s).
 
 Wires annotated as the final output will be appended to $\wave{\vec{Y}}$, i.e. $\build{f=\wave{y}^*}{(\_,\wave{\vec{Y}})}{(\_, \wave{\vec{Y}} \cat \wave{y})}$, which may be omitted notationally.
 
-Gates are primitive operations with $n_g \geq 0$ fan in inputs and $m_g \geq 0$ fan out outputs. A circuit is a composition of gadget(s) and/or gate(s).
-
-These inserts yield new wires. However, wires are reused by an equivalence class on gates. If $g \equiv h$ where $(h,\_) \in \wave{f}$, then $\wave{\vec{y}}$ in $\build{g=\wave{\vec{y}}}{s}{s}$ corresponds to the output wire(s) of $h$, leaving the state unchanged. Equivalence of gates are computed using the equivalence saturation library 'egglog', by @egglog.
+These inserts yield new wires. However, wires are reused by an equivalence class on gates. If $g \equiv h$ where $(h,\_) \in \wave{f}$, then $\wave{\vec{y}}$ in $\build{g=\wave{\vec{y}}}{s}{s}$ corresponds to the output wire(s) of $h$, leaving the state unchanged.
 
 $$
 \begin{aligned}
@@ -530,110 +536,83 @@ $$
 \end{aligned}
 $$
 $$
-\begin{array}{rlrl}
-\text{out} &: (\Nb_\bot + \AbsCirc) \to \Gate \to \Nb^m &
-\text{get} &: \AState \to \Gate \to \AState \times \Nb^m
-\\
-\text{out}(\bot, \_) &= () &
-\multirow{3}{*}{$\text{get}(u, \wave{f}, g)$} &
-\multirow{3}{*}{$=\begin{cases}
-    (u, \wave{f}, \text{out}(\wave{f}, h)) & h \in \Gate^{\wave{f}}_g \\
-    (\text{put}(g, u, \wave{f}), \text{out}(u,g)) & \text{otherwise}
-  \end{cases}
-$}
-\\
+\begin{array}{rl}
+\begin{array}{rl}
+\text{out} &: (\Nb_\bot + \AbsCirc) \to (g: \Gate) \to \Nb^{m_g} \\
+\text{out}(\bot, \_) &= () \\
 \text{out}(u,g) &= (u..u+m_g) \\
 \text{out}(\wave{f}, g)
 &= \text{out}(\min\left(
   \set{\wave{y} \middle\vert (g,\wave{y}) \in \wave{f}}
-\right), g)
-\\ \\
-\text{entries}  &: \Nb \to \Gate \to \AbsCirc &
-\build{g = \wave{\vec{y}}}{s}{s'}
-&= \left(\text{get}(s,g) \overset{?}{=} (s', \wave{\vec{y}})\right) 
+\right), g) \\
 \\
+\text{entries}  &: \Nb \to \Gate \to \AbsCirc \\
 \text{entries}(u,g) &= \begin{cases}
   \set{(g,\wave{y}) \middle\vert \wave{y} \in \text{out}(u,g)}
   & m_g > 0 \\
   \set{(g,\bot)}
   & m_g = 0
-\end{cases} &
-\build{f}{s_1}{s_{k+1}}
-&= \bigwedge\limits_{i \in [k]} \build{f_i}{s_i}{s_{i+1}} 
-\\ \\
-\text{put} &: \Gate \to \AState \to \AState &
-\text{arithmetize} &: (\Fb^n_q \to \Fb^m_q) \to \AbsCirc \times \Nb^{m'}
+\end{cases} \\
 \\
+\text{put} &: \Gate \to \AState \to \AState \\
 \text{put}(g, u, \wave{f}) &= (
   u + m, \wave{f} \cup \text{entries}(u, g)
-) &
+)
+\end{array}
+&
+\begin{array}{rl}
+\text{get} &: \AState \to (g: \Gate) \to \AState \times \Nb^{m_g} \\
+\text{get}(u, \wave{f}, g)
+&= \begin{cases}
+  (u, \wave{f}, \text{out}(\wave{f}, h)) & h \in \Gate^{\wave{f}}_g \\
+  (\text{put}(g, u, \wave{f}), \text{out}(u,g)) & \text{otherwise}
+\end{cases} \\
+\\
+\build{g = \wave{\vec{y}}}{s}{s'}
+&= \left(\text{get}(s,g) \overset{?}{=} (s', \wave{\vec{y}})\right)  \\
+\build{f}{s_1}{s_{k+1}}
+&= \bigwedge\limits_{i \in [k]} \build{f_i}{s_i}{s_{i+1}} \\
+\\
+\text{arithmetize} &: (\Fb^n_q \to \Fb^m_q) \to \AbsCirc \times \Nb^{m'} \\
 \text{arithmetize}(f) &= \maybe{(\wave{f}, \wave{\vec{Y}})}{
   \build{f}{(\text{put}(\text{Input})^n(0,\emptyset), \emptyset)}{(\_, \wave{f}, \wave{\vec{Y}})}
 }
 \end{array}
-$$
-
-get might just be egglog add calls. then saturate and find best for output wires.
-but u need to also search relations / zero output wires involved.
-
-you need to figure out if you can use egglog as the relation / abstract circuit instead.
-
-## Trace
-
-- composition of monotonic functions; kleene fixedpoint theorem
-- continuations
-- resolve
-- stack of wire ids
-- vmap
-
-$$
-\begin{array}{rl}
-\Mono{T} &= T \times \Fb^k_q \to T \times \Fb^{k'}_q
-\\
-\text{MonoC}^T &= \Mono{T} \to \Mono{T}
-\\
-\VMap &= \Nb \rightharpoonup \Fb_q
-\\ \\
-\text{lift} &: \Mono{T} \to \Mono{U \times T}
-\\
-\text{lift}(f) &= (u,s) \mapsto (u,f(s))
-\\ \\
-\text{peek} &: \Fb^{k}_q \to \Fb_q + \bot
-\\
-\text{pop} &: \Fb^k_q \to \Fb^{k'}_q
-\\
-\text{push} &: \Mono{\VMap} \\
-\text{resolve} &: \text{MonoC}^{T \times \VMap}
-\\ \\
-\text{trace} &: T \to \Mono{T\times \VMap} \to \Nb^k \times \AbsCirc \to \Fb^k_q \to T \\
-\text{trace}^t_g(a,\vec{x}) &= \left[
-t'
-\middle\vert
-\text{sup}_{n\in\Nb} \text{resolve}(g)^n (t,\text{init}(a, \vec{x})) = (t',\_)
-\right]
 \end{array}
 $$
 
-- define init as kleene fixedpoint too
-- define peek, pop, push
-- define resolve
+## Trace
 
-### Asserts
-
-- if stack not empty, just apply continuation
-- else if stack empty
-  - get no output gates
-  - if input exists in domain of vmap
-  - then push inputs
-  - if stack still empty, apply continuation
+- MonoT
+  - MonoCT
+  - liftM: lift monotonic function
+  - liftS: lift state
+  - sup: lfp compute
+- VMap
+  - unresolved: vmap to vec to vec
+- peek: F^n to F
+- init(f,Y): Y concat with all assert gate inputs
+- resolve
+- trace
 
 ### Gate Constraints
 
-- append matrix
+$$
+\text{constraints} : \text{Gate} \to \Fb^{n_g}_q \to \Fb^{W \times k}_q \times \text{CMap}
+$$
+
+- think constraints from gate type related to coordinate map for copy
+- peek non empty, append constraint
+- peek empty, append assert gates constraints, mark flag
 
 ### Copy Constraints
 
-- tabulate sigma
+- CMap; wire id to coordinate set
+- peek non empty, update CMap
+- gate flag marked
+  - CMap sets to ordered loops
+  - compute perm matrix
+  - mark flag
 
 ### Lookup Argument Constraints
 
@@ -650,27 +629,33 @@ $$
 - commits? pcdl
 - lookup thunk
 
+# Plonk Protocol
+
+## Prover
+
+## Verifier
+
 # Surkål Circuits
 
 # Gates and Gadgets
 
-| $\Gate = (\vec{x} : \Nb^n, f: \Fb^n_q$ | $\to \Fb^m_q, \_)$         | remarks                 |
+| $g: \Gate$                | $\text{eval}(g, \vec{x})$     | remarks                 |
 |:-------------------------:|:-----------------------------:|:------------------------|
-| Input$_i()$              | $(x_i)$                       | from trace              |
+| Input$_i()$               | $(x_i)$                       | from trace              |
 | Const$_{s,p}()$           | $(s)$                         |                         |
 | Add$(x,y)$                | $(x+y)$                       |                         |
 | Mul$(x,y)$                | $(x \times y)$                |                         |
 | Inv$(x)$                  | $(x^{-1})$                    |                         |
 | Pow7$(x)$                 | $(x^7)$                       |                         |
 | If$(b,x,y)$               | $(b ? x : y)$                 |                         |
-| Lookup$_T(x,y)$          | $\maybe{(z)}{(x,y,z) \in T}$  |                         |
+| Lookup$_T(x,y)$           | $\maybe{(z)}{(x,y,z) \in T}$  |                         |
 | PtAdd$(x_P,y_P,x_Q,y_Q)$  | $(x_R, y_R)$                  | Arkworks point add      |
 | Poseidon$(a,b,c)$         | $(a',b',c')$                  | Mina poseidon 5 rounds  |
 | Public$(x)$               | $()$                          |                         |
 | Bit$(b)$                  | $()$                          |                         |
 | IsAdd$(x,y,z)$            | $()$                          |                         |
 | IsMul$(x,y,z)$            | $()$                          |                         |
-| IsLookup$_T(x,y,z)$      | $()$                          |                         |
+| IsLookup$_T(x,y,z)$       | $()$                          |                         |
 
 ## XOR
 
@@ -746,7 +731,7 @@ $$
     \text{Mul}(0,0) & u \\
     \text{Add}(u,y) & u+1
   \end{array}}, (u+1)\right)}{
-    (u, \wave{f}) = \text{put}(\text{Input}, 1, \set{(\text{Input}, 0)}, \emptyset)
+    (u, \wave{f}) = \text{put}(\text{Input}, 1, \set{(\text{Input}_0, 0)}, \emptyset)
   }
 \\
 &= \maybe{\left(\wave{f} \cup \set{\begin{array}{rl}
@@ -754,13 +739,13 @@ $$
     \text{Add}(u,1) & u+1
   \end{array}}, (u+1) \right)}
   {(u, \wave{f}) = \left(2, \set{\begin{array}{rl}
-    \text{Input} & 0 \\
-    \text{Input} & 1
+    \text{Input}_0 & 0 \\
+    \text{Input}_1 & 1
   \end{array}}\right)}
 \\
 &= \left(\set{\begin{array}{rl}
-  \text{Input} & 0 \\
-  \text{Input} & 1 \\
+  \text{Input}_0 & 0 \\
+  \text{Input}_1 & 1 \\
   \text{Mul}(0,0) & 2 \\
   \text{Add}(2,1) & 3
 \end{array}}, (3)\right)
@@ -807,7 +792,7 @@ $$
 \end{aligned}
 $$
 
-We never remove the mapping in $v$ thus the order is preserved for $v$ despite the fact that the stack $s$ can grow and shrink. To show $t \sqsubseteq t'$ then is to investigate the remaining monotonic continuations for Surkål.
+We never remove the mappings in $v$ thus the order is preserved for $v$ despite the stack $s$ can grow and shrink. To show $t \sqsubseteq t'$ then is to investigate the remaining monotonic continuations for Surkål.
 
 # Bibliography
 
