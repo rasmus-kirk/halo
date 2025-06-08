@@ -15,7 +15,9 @@ bibliography: bibliography.bib
 \newcommand{\Gate}{\text{Gate}}
 \newcommand{\AState}{\text{State}}
 \newcommand{\Mono}[1]{\text{Mono}^{#1}}
+\newcommand{\MonoC}[1]{\text{MonoC}^{#1}}
 \newcommand{\VMap}{\text{VMap}}
+\newcommand{\pto}{\rightharpoonup}
 
 \tableofcontents
 \newpage
@@ -500,14 +502,13 @@ $$
 
 ## Abstract Gates
 
-Gates $g$ are primitive operations with $n_g \geq 0$ fan in inputs and $m_g \geq 0$ fan out outputs defined with its input wire id(s) of type $\Nb$. i.e. $\text{Add}(x,y) \neq \text{Add}(a,b)$.  Every gate type has its corresponding evaluation function that computes the value(s) of its output(s). e.g. $\text{eval}(\text{Add}(\_,\_), (1,2)) = (3)$.
+Gates $g$ are primitive operations with $n_g \geq 0$ fan in inputs and $m_g \geq 0$ fan out outputs defined with its input wire id(s) of type $\Nb$. i.e. $\text{Add}(x,y) \neq \text{Add}(a,b)$.
 
 $$
 \begin{array}{rl}
 \text{Gate} &= \text{GateType} \times \Nb^n \\
 n &: \text{Gate} \to \Nb \\
 m &: \text{Gate} \to \Nb \\
-\text{eval} &: (g: \text{Gate}) \to \Fb^{n_g}_q \to \Fb^{m_g}_q \\
 \end{array}
 $$
 
@@ -581,19 +582,76 @@ $$
 \end{array}
 $$
 
+Note: $\text{Input}_i$ is a gate with zero inputs, and one output wire corresponding to an input of $f$; the top level circuit.
+
 ## Trace
 
-- MonoT
-  - MonoCT
-  - liftM: lift monotonic function
-  - liftS: lift state
-  - sup: lfp compute
-- VMap
-  - unresolved: vmap to vec to vec
-- peek: F^n to F
-- init(f,Y): Y concat with all assert gate inputs
+Before defining trace, we define a framework for monotonic functions with continuations of other monotonic functions and computing its least fixed point.
+
+$$
+\begin{array}{rl}
+\Mono{T} &= T \times \Fb^k_q \to T \times \Fb^{k'}_q \\
+\MonoC{T} &= \Mono{T} \to \Mono{T} \\
+\\
+\text{liftM} &: \Mono{T} \to \Mono{U \times T} \\
+\text{liftM}(f) &= \lambda (u,t). (u, f(t)) \\
+\\
+\text{lfp} &: \Mono{T} \to (T \to T \to \Bb) \to T \to T \to T \\
+\text{lfp}(f, \text{eq}, s, s') &= \begin{cases}
+s & \text{eq}(s, s') \\
+\text{lfp}(f, \text{eq}, s', f(s')) & \text{otherwise}
+\end{cases}
+\end{array}
+$$
+
+The trace is computing the least fixed point of a continuation chain of monotonic functions. The base monotonic function; resolve, computes the values of the wires of $\wave{\vec{Y}}$ given the input wire values.
+
+$$
+\begin{array}{rl}
+\VMap &= \Nb \pto \Fb_q \\
+\text{unresolved} &: \VMap \to \Nb^k \to \Nb^{k'} \\
+\text{unresolved}(v, \wave{\vec{y}}) &= \begin{cases}
+() & \wave{\vec{y}} = () \\
+& \wave{\vec{y}} = \wave{y} \cat \wave{\vec{y}}' \\
+\wave{y} \cat \text{unresolved}(v, \wave{\vec{y}}') & v(\wave{y}) = \bot \\
+\text{unresolved}(v, \wave{\vec{y}}') & \text{otherwise}
+\end{cases} \\
+\\
+\text{init} &: \Gate \to \Nb^k \to \Nb^{k'} \\
+\text{init}(\wave{f}, \wave{\vec{Y}})
+&= \wave{\vec{Y}} \cat \set{\wave{y} \middle\vert ((\_, \wave{\vec{x}}), \bot) \in \wave{f} \land \wave{y} \in \wave{\vec{x}} \setminus \wave{\vec{Y}}} \\
+\\
+\text{resolve} &: \MonoC{T \times \Bb \times \VMap} \\
+\text{resolve}(g, t, v, \_, \wave{\vec{y}}) &= \begin{cases}
+a & \wave{\vec{y}} = () \\
+ & \wave{\vec{y}} = \wave{y} \cat \_ \\
+ & ((i, \wave{\vec{x}}), \wave{y}) \in \wave{f} \\
+ & \wave{\vec{x}}' = \text{unresolved}(v, \wave{\vec{x}}) \\
+b & \wave{\vec{x}}' = () \\
+c & \text{otherwise}
+\end{cases}
+\end{array}
+$$
+
 - resolve
+  - a: if stack empty; mark flag, call continuation
+  - if stack non empty; get unresolved inputs of peek of stack as output
+    - b: if unresolved empty; run eval, update vmap, call continuation
+    - c: if unresolved non empty; push to stack, dont call continuation
+  - continuation g is post composed with pop from stack
 - trace
+
+
+Every gate type has its corresponding evaluation function that computes the value(s) of its output(s). e.g. $\text{eval}(\text{Add}(\_,\_), (1,2)) = (3)$.
+
+$$
+\begin{array}{rl}
+\text{eval} &: (g: \text{Gate}) \to \Fb^{n_g}_q \to \Fb^{m_g}_q 
+\end{array}
+$$
+
+
+
 
 ### Gate Constraints
 
@@ -681,7 +739,18 @@ $$
 
 ## Notation
 
-TODO
+- natruals $\Nb$
+- pointed naturals $\Nb_\bot$
+- finite fields $\Fb_q$
+- vector of a type $T^n$
+- maybe notation
+- vector builder $(s..t)$
+- set min
+- associative flattened tuples $((a,b),c) = (a,b,c)$
+- anonymous function / lambda abstraction $\lambda x. f(x)$
+- partial map $\pto$
+- partial map builder notation $f[x \mapsto y]$
+- empty partial map $\bot$
 
 ## Arithmetize Example
 
