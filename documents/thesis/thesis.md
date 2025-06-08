@@ -739,18 +739,40 @@ $$
 
 ## Notation
 
-- natruals $\Nb$
+types and type formers
+
+- naturals $\Nb$
 - pointed naturals $\Nb_\bot$
 - finite fields $\Fb_q$
-- vector of a type $T^n$
-- maybe notation
-- vector builder $(s..t)$
-- set min
-- associative flattened tuples $((a,b),c) = (a,b,c)$
-- anonymous function / lambda abstraction $\lambda x. f(x)$
-- partial map $\pto$
-- partial map builder notation $f[x \mapsto y]$
-- empty partial map $\bot$
+- vector type $T^n$
+- matrix / tensor type $T^{n \times m}$
+- tuple / product type $T \times U$
+- function type $X \to Y$
+- partial function type $X \pto Y$
+
+term constructors
+
+- empty vector / unit tuple $()$
+- vector term / tuple term $\vec{x} = (x_1, x_2, \cdots , x_n)$
+- vector append / cons $y \cat \vec{x} = (y, x_1, x_2, \cdots x_n), \vec{x} \cat y = (x_1, x_2, \cdots, x_n, y)$
+- matrix / tensors as vectors $\vec{m}: T^{w \times h}, \vec{m}[i,j] = m_{i + h(j-1)}$
+- function term / lambda abstraction $\lambda x. f(x)$
+- empty partial function $\bot$
+- partial function append $f[x \mapsto y]$
+
+util functions
+
+- maybe notation $\maybe{x}{\phi(x)} = \begin{cases} x & \phi(x) \\ \bot \end{cases}$
+- vector of naturals builder $(s..t) = \begin{cases} () & t \leq s \\ s \cat (s+1 .. t) \end{cases}$
+- vector concat $\vec{x} \cat \vec{y} = \begin{cases} \vec{y} & \vec{x} = () \\ \vec{x}' \cat (x \cat \vec{y}) & \vec{x} = \vec{x'} \cat x \end{cases}$
+- vector concat with set $X \cat \vec{x}$; any random ordering of $X$; recursive application of axiom of choice
+- min of a set with total ordering $\min(X)$
+
+identities
+
+- associative product and function types
+- currying $T \to U \to V = (T \times U) \to V$
+- curried / associative tuples $((a,b),c) = (a,b,c) = (a,(b,c))$
 
 ## Arithmetize Example
 
