@@ -502,7 +502,7 @@ $$
 
 ## Abstract Gates
 
-Gates $g$ are primitive operations with $n_g \geq 0$ fan in inputs and $m_g \geq 0$ fan out outputs defined with its input wire id(s) of type $\Nb$. i.e. $\text{Add}(x,y) \neq \text{Add}(a,b)$.
+Gates $g$ are primitive operations with $n_g \geq 0$ fan in inputs and $m_g \geq 0$ fan out outputs defined with its input wire id(s) of type $\Nb$. i.e. $x \neq a \land y \neq b \leftrightarrow \text{Add}(x,y) \neq \text{Add}(a,b)$.
 
 $$
 \begin{array}{rl}
@@ -519,7 +519,7 @@ Arithmetize turns a program $f$ into an abstract circuit $\wave{f}$, which is a 
 We notate inserting a gate or gadget $f$ to the circuit with $\build{f = \wave{\vec{y}}}{s}{s'}$, $\build{f = \wave{y}}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the state from $s$ to $s'$. State has the form $(u, \wave{f})$ where $u$ is the current uuid for wires. 
 A circuit is a composition of gadget(s) and/or gate(s).
 
-Wires annotated as the final output will be appended to $\wave{\vec{Y}}$, i.e. $\build{f=\wave{y}^*}{(\_,\wave{\vec{Y}})}{(\_, \wave{\vec{Y}} \cat \wave{y})}$, which may be omitted notationally.
+Wires annotated with $*$, i.e. $\build{f = \wave{y}^*}{}{}$ are the final output and are appended to $\wave{\vec{Y}}$. They, may be omitted notationally.
 
 These inserts yield new wires. However, wires are reused by an equivalence class on gates. If $g \equiv h$ where $(h,\_) \in \wave{f}$, then $\wave{\vec{y}}$ in $\build{g=\wave{\vec{y}}}{s}{s}$ corresponds to the output wire(s) of $h$, leaving the state unchanged.
 
@@ -571,6 +571,7 @@ $$
 \\
 \build{g = \wave{\vec{y}}}{s}{s'}
 &= \left(\text{get}(s,g) \overset{?}{=} (s', \wave{\vec{y}})\right)  \\
+\build{f=\wave{y}^*}{s}{s'} &= \build{f=\wave{y}}{(s,\wave{\vec{Y}})}{(s', \wave{\vec{Y}} \cat \wave{y})} \\
 \build{f}{s_1}{s_{k+1}}
 &= \bigwedge\limits_{i \in [k]} \build{f_i}{s_i}{s_{i+1}} \\
 \\
@@ -591,10 +592,16 @@ Before defining trace, we define a framework for monotonic functions with contin
 $$
 \begin{array}{rl}
 \Mono{T} &= T \times \Fb^k_q \to T \times \Fb^{k'}_q \\
-\MonoC{T} &= \Mono{T} \to \Mono{T} \\
+\MonoC{T} &= (\MonoC{T} + \Mono{T}) \to \Mono{T} \\
 \\
 \text{liftM} &: \Mono{T} \to \Mono{U \times T} \\
 \text{liftM}(f) &= \lambda (u,t). (u, f(t)) \\
+\\
+\text{pop} &: \Mono{T} \\
+\text{pop}(\wave{\vec{y}}) &= \text{liftM}\left(\begin{cases}
+() & \wave{\vec{y}} = () \\
+\wave{\vec{y}}' & \wave{\vec{y}} = \wave{y} \cat \wave{\vec{y}}' \\
+\end{cases} \right)\\
 \\
 \text{lfp} &: \Mono{T} \to (T \to T \to \Bb) \to T \to T \to T \\
 \text{lfp}(f, \text{eq}, s, s') &= \begin{cases}
@@ -609,6 +616,8 @@ The trace is computing the least fixed point of a continuation chain of monotoni
 $$
 \begin{array}{rl}
 \VMap &= \Nb \pto \Fb_q \\
+\text{State}^T &= T \times \Bb \times \AbsCirc \times \VMap \\
+\\
 \text{unresolved} &: \VMap \to \Nb^k \to \Nb^{k'} \\
 \text{unresolved}(v, \wave{\vec{y}}) &= \begin{cases}
 () & \wave{\vec{y}} = () \\
@@ -617,30 +626,38 @@ $$
 \text{unresolved}(v, \wave{\vec{y}}') & \text{otherwise}
 \end{cases} \\
 \\
+\text{update} &: \AbsCirc \to \VMap \to \Nb \to \VMap \\
+\text{update}(\wave{f}, v, \wave{y}) &= \maybe{
+  v[\wave{\vec{y}} \mapsto \vec{y}]
+}{\begin{array}{rl}
+  (g, \wave{y}) &\in \wave{f} \\
+  g &= (\_, \wave{\vec{x}}) \\
+  x_i &= v(\wave{x}_i) \\
+  \wave{\vec{y}} &= \text{out}(\wave{f}, g) \\
+  \vec{y} &= \text{eval}(g, \wave{\vec{x}}) \\
+\end{array}} \\
+\\
+\text{resolve} &: \MonoC{\text{State}^T} \\
+\text{resolve}_{g}(t, \wave{f}, v, \_, \wave{\vec{y}}) &= \begin{cases}
+g(t, \wave{f}, v,\top,()) & \wave{\vec{y}} = () \\
+ & \wave{\vec{y}} = \wave{y} \cat \_ \\
+\text{pop} (t, \wave{f}, v, \bot, \wave{\vec{y}}) & v(\wave{y}) \neq \bot \\
+ & ((i, \wave{\vec{x}}), \wave{y}) \in \wave{f} \\
+ & \wave{\vec{x}}' = \text{unresolved}(v, \wave{\vec{x}}) \\
+\text{pop} \circ g(t,\wave{f}, v', \bot, \wave{\vec{y}}) & \wave{\vec{x}}' = (), v' = \text{update}(\wave{f}, v, \wave{y})\\
+(t,\wave{f}, v,\bot, \wave{\vec{y}}') & \wave{\vec{y}}' = \wave{\vec{x}}' \cat \wave{\vec{y}}
+\end{cases} \\
+\\
 \text{init} &: \Gate \to \Nb^k \to \Nb^{k'} \\
 \text{init}(\wave{f}, \wave{\vec{Y}})
 &= \wave{\vec{Y}} \cat \set{\wave{y} \middle\vert ((\_, \wave{\vec{x}}), \bot) \in \wave{f} \land \wave{y} \in \wave{\vec{x}} \setminus \wave{\vec{Y}}} \\
 \\
-\text{resolve} &: \MonoC{T \times \Bb \times \VMap} \\
-\text{resolve}(g, t, v, \_, \wave{\vec{y}}) &= \begin{cases}
-a & \wave{\vec{y}} = () \\
- & \wave{\vec{y}} = \wave{y} \cat \_ \\
- & ((i, \wave{\vec{x}}), \wave{y}) \in \wave{f} \\
- & \wave{\vec{x}}' = \text{unresolved}(v, \wave{\vec{x}}) \\
-b & \wave{\vec{x}}' = () \\
-c & \text{otherwise}
-\end{cases}
+\text{trace} &: T \to \MonoC{\text{State}^T} \to \AbsCirc \to \Nb^k \to \Fb^k_q \to \text{State}^T \\
+\text{trace}^t_g(\wave{f}, \wave{\vec{Y}}, \vec{x}) &= \text{lfp}\left(
+  \text{resolve}_g, \lambda \_, (\_, b, \_). b, \bot, (t, \bot, \text{init}(\wave{f}, \wave{\vec{Y}}))
+\right)
 \end{array}
 $$
-
-- resolve
-  - a: if stack empty; mark flag, call continuation
-  - if stack non empty; get unresolved inputs of peek of stack as output
-    - b: if unresolved empty; run eval, update vmap, call continuation
-    - c: if unresolved non empty; push to stack, dont call continuation
-  - continuation g is post composed with pop from stack
-- trace
-
 
 Every gate type has its corresponding evaluation function that computes the value(s) of its output(s). e.g. $\text{eval}(\text{Add}(\_,\_), (1,2)) = (3)$.
 
@@ -749,6 +766,7 @@ types and type formers
 - tuple / product type $T \times U$
 - function type $X \to Y$
 - partial function type $X \pto Y$
+- disjoint union / sum type $T + U$
 
 term constructors
 
@@ -759,6 +777,7 @@ term constructors
 - function term / lambda abstraction $\lambda x. f(x)$
 - empty partial function $\bot$
 - partial function append $f[x \mapsto y]$
+- disjoint union implictly has no constructors when $T \neq U$
 
 util functions
 
@@ -767,6 +786,7 @@ util functions
 - vector concat $\vec{x} \cat \vec{y} = \begin{cases} \vec{y} & \vec{x} = () \\ \vec{x}' \cat (x \cat \vec{y}) & \vec{x} = \vec{x'} \cat x \end{cases}$
 - vector concat with set $X \cat \vec{x}$; any random ordering of $X$; recursive application of axiom of choice
 - min of a set with total ordering $\min(X)$
+- partial function append vector $f[\vec{x} \mapsto \vec{y}] = \begin{cases} f & \vec{x} = \vec{y} = () \\ f[x \mapsto y][\vec{x}' \mapsto \vec{y}'] & \vec{x} = x \cat \vec{x}', \vec{y} = y \cat \vec{y}' \\ \bot \end{cases}$
 
 identities
 
