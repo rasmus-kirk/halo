@@ -587,18 +587,21 @@ Note: $\text{Input}_i$ is a gate with zero inputs, and one output wire correspon
 
 ## Trace
 
-Before defining trace, we define a framework for monotonic functions with continuations of other monotonic functions and computing its least fixed point.
+Before defining trace, we define a framework for monotonic functions with continuations of other monotonic functions and computing its least fixed point. The function operates on a stack modelled as a vector, we notate pop as $\curvearrowleft$.
 
 $$
+\begin{array}{rl}
 \begin{array}{rl}
 \Mono{T} &= T \times \Fb^k_q \to T \times \Fb^{k'}_q \\
 \MonoC{T} &= (\MonoC{T} + \Mono{T}) \to \Mono{T} \\
 \\
 \text{liftM} &: \Mono{T} \to \Mono{U \times T} \\
 \text{liftM}(f) &= \lambda (u,t). (u, f(t)) \\
-\\
-\text{pop} &: \Mono{T} \\
-\text{pop}(\wave{\vec{y}}) &= \text{liftM}\left(\begin{cases}
+\end{array}
+&
+\begin{array}{rl}
+\curvearrowleft &: \Mono{T} \\
+\curvearrowleft(\wave{\vec{y}}) &= \text{liftM}\left(\begin{cases}
 () & \wave{\vec{y}} = () \\
 \wave{\vec{y}}' & \wave{\vec{y}} = \wave{y} \cat \wave{\vec{y}}' \\
 \end{cases} \right)\\
@@ -609,25 +612,30 @@ s & \text{eq}(s, s') \\
 \text{lfp}(f, \text{eq}, s', f(s')) & \text{otherwise}
 \end{cases}
 \end{array}
+\end{array}
 $$
 
-The trace is computing the least fixed point of a continuation chain of monotonic functions. The base monotonic function; resolve, computes the values of the wires of $\wave{\vec{Y}}$ given the input wire values.
+The trace is computing the least fixed point of a continuation chain of monotonic functions. The base monotonic function; resolve (notated $\Downarrow$), computes the values of the wires of $\wave{\vec{Y}}$ given the input wire values by peeking the stack, querying if the input wires are not resolved via $\text{?}$ and updating the $\VMap$ with $\Uparrow$.
 
 $$
 \begin{array}{rl}
 \VMap &= \Nb \pto \Fb_q \\
 \text{State}^T &= T \times \Bb \times \AbsCirc \times \VMap \\
-\\
-\text{unresolved} &: \VMap \to \Nb^k \to \Nb^{k'} \\
-\text{unresolved}(v, \wave{\vec{y}}) &= \begin{cases}
+\end{array}
+$$
+$$
+\begin{array}{rl}
+\begin{array}{rl}
+\text{?} &: \VMap \to \Nb^k \to \Nb^{k'} \\
+\text{?}(v, \wave{\vec{y}}) &= \begin{cases}
 () & \wave{\vec{y}} = () \\
 & \wave{\vec{y}} = \wave{y} \cat \wave{\vec{y}}' \\
-\wave{y} \cat \text{unresolved}(v, \wave{\vec{y}}') & v(\wave{y}) = \bot \\
-\text{unresolved}(v, \wave{\vec{y}}') & \text{otherwise}
+\wave{y} \cat \text{?}(v, \wave{\vec{y}}') & v(\wave{y}) = \bot \\
+\text{?}(v, \wave{\vec{y}}') & \text{otherwise}
 \end{cases} \\
 \\
-\text{update} &: \AbsCirc \to \VMap \to \Nb \to \VMap \\
-\text{update}(\wave{f}, v, \wave{y}) &= \maybe{
+\Uparrow &: \AbsCirc \to \VMap \to \Nb \to \VMap \\
+\Uparrow(\wave{f}, v, \wave{y}) &= \maybe{
   v[\wave{\vec{y}} \mapsto \vec{y}]
 }{\begin{array}{rl}
   (g, \wave{y}) &\in \wave{f} \\
@@ -635,31 +643,39 @@ $$
   x_i &= v(\wave{x}_i) \\
   \wave{\vec{y}} &= \text{out}(\wave{f}, g) \\
   \vec{y} &= \text{eval}(g, \wave{\vec{x}}) \\
-\end{array}} \\
-\\
-\text{resolve} &: \MonoC{\text{State}^T} \\
-\text{resolve}_{g}(t, \wave{f}, v, \_, \wave{\vec{y}}) &= \begin{cases}
+\end{array}}
+\end{array}
+&
+\begin{array}{rl}
+\Downarrow &: \MonoC{\text{State}^T} \\
+\Downarrow_{g}(t, \wave{f}, v, \_, \wave{\vec{y}}) &= \begin{cases}
 g(t, \wave{f}, v,\top,()) & \wave{\vec{y}} = () \\
  & \wave{\vec{y}} = \wave{y} \cat \_ \\
-\text{pop} (t, \wave{f}, v, \bot, \wave{\vec{y}}) & v(\wave{y}) \neq \bot \\
+\curvearrowleft (t, \wave{f}, v, \bot, \wave{\vec{y}}) & v(\wave{y}) \neq \bot \\
  & ((i, \wave{\vec{x}}), \wave{y}) \in \wave{f} \\
- & \wave{\vec{x}}' = \text{unresolved}(v, \wave{\vec{x}}) \\
-\text{pop} \circ g(t,\wave{f}, v', \bot, \wave{\vec{y}}) & \wave{\vec{x}}' = (), v' = \text{update}(\wave{f}, v, \wave{y})\\
+ & \wave{\vec{x}}' = \text{?}(v, \wave{\vec{x}}) \\
+ & \wave{\vec{x}}' = () \\
+\curvearrowleft \circ g(t,\wave{f}, v', \bot, \wave{\vec{y}}) & v' = \Uparrow(\wave{f}, v, \wave{y})\\
 (t,\wave{f}, v,\bot, \wave{\vec{y}}') & \wave{\vec{y}}' = \wave{\vec{x}}' \cat \wave{\vec{y}}
 \end{cases} \\
-\\
+\end{array}
+\end{array}
+$$
+
+$$
+\begin{array}{rl}
 \text{init} &: \Gate \to \Nb^k \to \Nb^{k'} \\
 \text{init}(\wave{f}, \wave{\vec{Y}})
 &= \wave{\vec{Y}} \cat \set{\wave{y} \middle\vert ((\_, \wave{\vec{x}}), \bot) \in \wave{f} \land \wave{y} \in \wave{\vec{x}} \setminus \wave{\vec{Y}}} \\
 \\
 \text{trace} &: T \to \MonoC{\text{State}^T} \to \AbsCirc \to \Nb^k \to \Fb^k_q \to \text{State}^T \\
 \text{trace}^t_g(\wave{f}, \wave{\vec{Y}}, \vec{x}) &= \text{lfp}\left(
-  \text{resolve}_g, \lambda \_, (\_, b, \_). b, \bot, (t, \bot, \text{init}(\wave{f}, \wave{\vec{Y}}))
+  \Downarrow_g, \lambda \_, (\_, b, \_). b, \bot, (t, \bot, \text{init}(\wave{f}, \wave{\vec{Y}}))
 \right)
 \end{array}
 $$
 
-Every gate type has its corresponding evaluation function that computes the value(s) of its output(s). e.g. $\text{eval}(\text{Add}(\_,\_), (1,2)) = (3)$.
+Note: Every gate type has its corresponding evaluation function that computes the value(s) of its output(s). e.g. $\text{eval}(\text{Add}(\_,\_), (1,2)) = (3)$.
 
 $$
 \begin{array}{rl}
