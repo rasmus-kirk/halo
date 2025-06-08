@@ -585,6 +585,8 @@ $$
 
 Note: $\text{Input}_i$ is a gate with zero inputs, and one output wire corresponding to an input of $f$; the top level circuit.
 
+TODO: maybe notate $\circ \text{put}$ limit $i \in [n]$ for $\text{Input}_i$ for a more honest notation.
+
 ## Trace
 
 Before defining trace, we define a framework for monotonic functions with continuations of other monotonic functions and computing its least fixed point. The function operates on a stack modelled as a vector, we notate pop as $\curvearrowleft$.
@@ -592,7 +594,7 @@ Before defining trace, we define a framework for monotonic functions with contin
 $$
 \begin{array}{rl}
 \begin{array}{rl}
-\Mono{T} &= T \times \Fb^k_q \to T \times \Fb^{k'}_q \\
+\Mono{T} &= T \times \Nb^k \to T \times \Nb^{k'} \\
 \MonoC{T} &= (\MonoC{T} + \Mono{T}) \to \Mono{T} \\
 \\
 \text{liftM} &: \Mono{T} \to \Mono{U \times T} \\
@@ -620,7 +622,7 @@ The trace is computing the least fixed point of a continuation chain of monotoni
 $$
 \begin{array}{rl}
 \VMap &= \Nb \pto \Fb_q \\
-\text{State}^T &= T \times \Bb \times \AbsCirc \times \VMap \\
+\text{State}^T &= T \times \AbsCirc \times \VMap \times \Bb \\
 \end{array}
 $$
 $$
@@ -664,13 +666,13 @@ $$
 
 $$
 \begin{array}{rl}
-\text{init} &: \Gate \to \Nb^k \to \Nb^{k'} \\
-\text{init}(\wave{f}, \wave{\vec{Y}})
-&= \wave{\vec{Y}} \cat \set{\wave{y} \middle\vert ((\_, \wave{\vec{x}}), \bot) \in \wave{f} \land \wave{y} \in \wave{\vec{x}} \setminus \wave{\vec{Y}}} \\
+\text{init} &: T \to \AbsCirc \to \Nb^k \to \text{State}^T \\
+\text{init}(t, \wave{f}, \wave{\vec{Y}})
+&= (t, \wave{f}, \bot[(0..|\vec{x}|) \mapsto \vec{x}], \bot, \wave{\vec{Y}} \cat \set{\wave{y} \middle\vert ((\_, \wave{\vec{x}}), \bot) \in \wave{f} \land \wave{y} \in \wave{\vec{x}} \setminus \wave{\vec{Y}}}) \\
 \\
 \text{trace} &: T \to \MonoC{\text{State}^T} \to \AbsCirc \to \Nb^k \to \Fb^k_q \to \text{State}^T \\
 \text{trace}^t_g(\wave{f}, \wave{\vec{Y}}, \vec{x}) &= \text{lfp}\left(
-  \Downarrow_g, \lambda \_, (\_, b, \_). b, \bot, (t, \bot, \text{init}(\wave{f}, \wave{\vec{Y}}))
+  \Downarrow_g, (\lambda \_, (\_, b, \_). b), \bot, \text{init}(t, \wave{f}, \wave{\vec{Y}})
 \right)
 \end{array}
 $$
@@ -696,7 +698,10 @@ $$
 - peek non empty, append constraint
 - peek empty, append assert gates constraints, mark flag
 
+(INPUTS) cant have constraints by definition of resolve that wont call continuation on resolved wireids on stack, otherwise would need to check if wire has constraints instead of just checking if it is in vmap. you could also create INPUT constraints on empty stack. like assert gates.
+
 ### Copy Constraints
+
 
 - CMap; wire id to coordinate set
 - peek non empty, update CMap
