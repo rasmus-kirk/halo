@@ -504,6 +504,8 @@ $$
 
 Gates $g$ are primitive operations with $n_g \geq 0$ fan in inputs and $m_g \geq 0$ fan out outputs defined with its input wire id(s) of type $\Nb$. i.e. $x \neq a \land y \neq b \leftrightarrow \text{Add}(x,y) \neq \text{Add}(a,b)$.
 
+$\text{Add}(x,y)$ is a function that returns $(\text{Add}, (x,y))$ where we abuse the notation $\text{Add}$ to now be a term of $\text{GateType}$ instead of the function.
+
 $$
 \begin{array}{rl}
 \text{Gate} &= \text{GateType} \times \Nb^n \\
@@ -577,25 +579,23 @@ $$
 \\
 \text{arithmetize} &: (\Fb^n_q \to \Fb^m_q) \to \AbsCirc \times \Nb^{m'} \\
 \text{arithmetize}(f) &= \maybe{(\wave{f}, \wave{\vec{Y}})}{
-  \build{f}{(\text{put}(\text{Input})^n(0,\emptyset), \emptyset)}{(\_, \wave{f}, \wave{\vec{Y}})}
+  \build{f}{\left(\mathop{\circ}\limits_{i \in [0..n]}\text{put}(\text{Input}_i)(0,\emptyset), \emptyset \right)}{(\_, \wave{f}, \wave{\vec{Y}})}
 }
 \end{array}
 \end{array}
 $$
 
-Note: $\text{Input}_i$ is a gate with zero inputs, and one output wire corresponding to an input of $f$; the top level circuit.
-
-TODO: maybe notate $\circ \text{put}$ limit $i \in [n]$ for $\text{Input}_i$ for a more honest notation.
+Note: $\text{Input}_i$ is a family of gates with no inputs and one output wire corresponding to an input of the global circuit.
 
 ## Trace
 
-Before defining trace, we define a framework for monotonic functions with continuations of other monotonic functions and computing its least fixed point. The function operates on a stack modelled as a vector, we notate pop as $\curvearrowleft$.
+Before defining trace, we define a framework for monotonic functions with continuations of other monotonic functions and computing its least fixed point via $\text{sup}$. The function operates on a stack modelled as a vector, we notate pop as $\curvearrowleft$.
 
 $$
 \begin{array}{rl}
 \begin{array}{rl}
 \Mono{T} &= T \times \Nb^k \to T \times \Nb^{k'} \\
-\MonoC{T} &= (\MonoC{T} + \Mono{T}) \to \Mono{T} \\
+\MonoC{T} &= \Mono{T} \to \Mono{T} \\
 \\
 \text{liftM} &: \Mono{T} \to \Mono{U \times T} \\
 \text{liftM}(f) &= \lambda (u,t). (u, f(t)) \\
@@ -603,26 +603,26 @@ $$
 &
 \begin{array}{rl}
 \curvearrowleft &: \Mono{T} \\
-\curvearrowleft(\wave{\vec{y}}) &= \text{liftM}\left(\begin{cases}
+\curvearrowleft &= \text{liftM}\left(\lambda \wave{\vec{y}}. \begin{cases}
 () & \wave{\vec{y}} = () \\
 \wave{\vec{y}}' & \wave{\vec{y}} = \wave{y} \cat \wave{\vec{y}}' \\
 \end{cases} \right)\\
 \\
-\text{lfp} &: \Mono{T} \to (T \to T \to \Bb) \to T \to T \to T \\
-\text{lfp}(f, \text{eq}, s, s') &= \begin{cases}
+\text{sup} &: \Mono{T} \to (T \to T \to \Bb) \to T \to T \to T \\
+\text{sup}(f, \text{eq}, s, s') &= \begin{cases}
 s & \text{eq}(s, s') \\
-\text{lfp}(f, \text{eq}, s', f(s')) & \text{otherwise}
+\text{sup}(f, \text{eq}, s', f(s')) & \text{otherwise}
 \end{cases}
 \end{array}
 \end{array}
 $$
 
-The trace is computing the least fixed point of a continuation chain of monotonic functions. The base monotonic function; resolve (notated $\Downarrow$), computes the values of the wires of $\wave{\vec{Y}}$ given the input wire values by peeking the stack, querying if the input wires are not resolved via $\text{?}$ and updating the $\VMap$ with $\Uparrow$.
+The trace is computing the least fixed point of a chain of monotonic functions. The base monotonic function; resolve (notated $\Downarrow$), computes the values of the wires of $\wave{\vec{Y}}$ given the input wire values by peeking the stack, querying if the input wires are not resolved via $\text{?}$. If the inputs are resolved, we can evaluate the output wire values and caching it in the value map; $\VMap$, with $[\cdot]$. The state also contains a flag $\Bb$. If the flag is set, then the state is equal to the previous state when computing in $\text{sup}$.
 
 $$
 \begin{array}{rl}
 \VMap &= \Nb \pto \Fb_q \\
-\text{State}^T &= T \times \AbsCirc \times \VMap \times \Bb \\
+\text{State}^T &= T \times \VMap \times \Bb \\
 \end{array}
 $$
 $$
@@ -636,29 +636,28 @@ $$
 \text{?}(v, \wave{\vec{y}}') & \text{otherwise}
 \end{cases} \\
 \\
-\Uparrow &: \AbsCirc \to \VMap \to \Nb \to \VMap \\
-\Uparrow(\wave{f}, v, \wave{y}) &= \maybe{
+\left[ \cdot \right] &: \VMap \to \AbsCirc \to \Nb \to \VMap \\
+v_{\wave{f}}\left[\wave{y}\right] &= \maybe{
   v[\wave{\vec{y}} \mapsto \vec{y}]
 }{\begin{array}{rl}
-  (g, \wave{y}) &\in \wave{f} \\
-  g &= (\_, \wave{\vec{x}}) \\
+  \wave{f} &\ni (g=(\_, \wave{\vec{x}}), \wave{y}) \\
   x_i &= v(\wave{x}_i) \\
   \wave{\vec{y}} &= \text{out}(\wave{f}, g) \\
-  \vec{y} &= \text{eval}(g, \wave{\vec{x}}) \\
+  \vec{y} &= \text{eval}(g, \vec{x}) \\
 \end{array}}
 \end{array}
 &
 \begin{array}{rl}
-\Downarrow &: \MonoC{\text{State}^T} \\
-\Downarrow_{g}(t, \wave{f}, v, \_, \wave{\vec{y}}) &= \begin{cases}
-g(t, \wave{f}, v,\top,()) & \wave{\vec{y}} = () \\
+\Downarrow &: \AbsCirc \to \MonoC{\text{State}^T} \\
+\Downarrow^{\wave{f}}_{g}(t, v, \_, \wave{\vec{y}}) &= \begin{cases}
+g(t, v,\top,()) & \wave{\vec{y}} = () \\
  & \wave{\vec{y}} = \wave{y} \cat \_ \\
-\curvearrowleft (t, \wave{f}, v, \bot, \wave{\vec{y}}) & v(\wave{y}) \neq \bot \\
- & ((i, \wave{\vec{x}}), \wave{y}) \in \wave{f} \\
+\curvearrowleft (t, v, \bot, \wave{\vec{y}}) & v(\wave{y}) \neq \bot \\
+ & ((\_, \wave{\vec{x}}), \wave{y}) \in \wave{f} \\
  & \wave{\vec{x}}' = \text{?}(v, \wave{\vec{x}}) \\
+\curvearrowleft \circ g(t, v_{\wave{f}}[\wave{y}], \bot, \wave{\vec{y}}) 
  & \wave{\vec{x}}' = () \\
-\curvearrowleft \circ g(t,\wave{f}, v', \bot, \wave{\vec{y}}) & v' = \Uparrow(\wave{f}, v, \wave{y})\\
-(t,\wave{f}, v,\bot, \wave{\vec{y}}') & \wave{\vec{y}}' = \wave{\vec{x}}' \cat \wave{\vec{y}}
+(t, v,\bot, \wave{\vec{x}}' \cat \wave{\vec{y}}) & \text{otherwise}
 \end{cases} \\
 \end{array}
 \end{array}
@@ -666,13 +665,13 @@ $$
 
 $$
 \begin{array}{rl}
-\text{init} &: T \to \AbsCirc \to \Nb^k \to \text{State}^T \\
-\text{init}(t, \wave{f}, \wave{\vec{Y}})
-&= (t, \wave{f}, \bot[(0..|\vec{x}|) \mapsto \vec{x}], \bot, \wave{\vec{Y}} \cat \set{\wave{y} \middle\vert ((\_, \wave{\vec{x}}), \bot) \in \wave{f} \land \wave{y} \in \wave{\vec{x}} \setminus \wave{\vec{Y}}}) \\
+\text{init} &: \AbsCirc \to T \to \Nb^k \to \Fb^n_q \to \text{State}^T \\
+\text{init}_{\wave{f}}(t, \wave{\vec{Y}}, \vec{x})
+&= (t, \bot[(0..|\vec{x}|) \mapsto \vec{x}], \bot, \wave{\vec{Y}} \cat \set{\wave{y} \middle\vert ((\_, \wave{\vec{x}}), \bot) \in \wave{f} \land \wave{y} \in \wave{\vec{x}} \setminus \wave{\vec{Y}}}) \\
 \\
 \text{trace} &: T \to \MonoC{\text{State}^T} \to \AbsCirc \to \Nb^k \to \Fb^k_q \to \text{State}^T \\
-\text{trace}^t_g(\wave{f}, \wave{\vec{Y}}, \vec{x}) &= \text{lfp}\left(
-  \Downarrow_g, (\lambda \_, (\_, b, \_). b), \bot, \text{init}(t, \wave{f}, \wave{\vec{Y}})
+\text{trace}^t_g(\wave{f}, \wave{\vec{Y}}, \vec{x}) &= \text{sup}\left(
+  \Downarrow^{\wave{f}}_g, (\lambda \_, (\_, b, \_). b), (t, \bot, \bot, ()), \text{init}_{\wave{f}}(t, \wave{\vec{Y}}, \vec{x})
 \right)
 \end{array}
 $$
@@ -824,7 +823,7 @@ $$
 \\
 &= \maybe{\left(\wave{f}'', (z)\right)}{
   \build{x^2 + y = z^*}
-    {((u, \wave{f}) = \text{put}(\text{Input})^2(0, \emptyset), \emptyset)}
+    {(u, \wave{f}) = (\text{put}(\text{Input}_0) \circ \text{put}(\text{Input}_1)(0, \emptyset), \emptyset)}
     {(\_, \wave{f}'', (z))}
   }
 \\
@@ -856,14 +855,14 @@ $$
     \text{Mul}(x,x) & u \\
     \text{Add}(u,y) & u+1
   \end{array}}, (u+1)\right)}{
-  (u, \wave{f}) = \text{put}(\text{Input})^2(0, \emptyset)
+  (u, \wave{f}) = \text{put}(\text{Input}_0) \circ \text{put}(\text{Input}_1)(0, \emptyset)
 }
 \\
 &= \maybe{\left(\wave{f} \cup \set{\begin{array}{rl}
     \text{Mul}(0,0) & u \\
     \text{Add}(u,y) & u+1
   \end{array}}, (u+1)\right)}{
-    (u, \wave{f}) = \text{put}(\text{Input}, 1, \set{(\text{Input}_0, 0)}, \emptyset)
+    (u, \wave{f}) = \text{put}(\text{Input}_1, 1, \set{(\text{Input}_0, 0)})
   }
 \\
 &= \maybe{\left(\wave{f} \cup \set{\begin{array}{rl}
@@ -890,26 +889,27 @@ TODO
 
 ## Kleene Fixedpoint Theorem in Trace
 
-Trace is defined as a composition of monotonic functions that has control over their continuations. Thus if the full composition is $f$, then the trace is $\mu x. f(x)$. Given an initial state, it is notated as the supremum. $\text{sup}_{n \in \Nb} f^n(s_0)$, where $n$ is the smallest $n$ such that $f^n(s_0) = f^{n+1}(s_0)$, i.e. the least fixedpoint of $f$. We can compute it recursively or as a stack-based loop.
+Trace is defined as a composition of monotonic functions that has control over their continuations. Thus if the full composition is $f$, then the trace is $\mu x. f(x)$. Given an initial state, it is notated as the supremum. $\text{sup}_{n \in \Nb} f^n(s_0)$, where $n$ is the smallest $n$ such that $f^n(s_0) = f^{n+1}(s_0)$, i.e. the least fixedpoint of $f$. We have shown the recursive definition before. Now we present the iterative definition which will be useful in code implementations to circumvent the recursion limit or stack overflow errors.
 
 \begin{algorithm}[H]
 \caption*{
-  \textbf{sup:} kleene least fixedpoint protocol.
+  \textbf{sup:} iterative kleene least fixedpoint protocol.
 }
 \textbf{Inputs} \\
-  \Desc{$f: T \to T$}{Monotonic function.} \\
-  \Desc{$s_0 : T$}{Initial state.} \\
+  \Desc{$f: \text{State}^T \to \text{State}^T$}{Monotonic function.} \\
+  \Desc{$s_0 : \text{State}^T$}{Initial state.} \\
+  \Desc{$\text{eq}: \text{State}^T \to \text{State}^T \to \Bb$}{Equality predicate on states.} \\
 \textbf{Output} \\
-  \Desc{$s_n : T$}{The state corresponding to the least fixedpoint of $f$.}
+  \Desc{$s_n : \text{State}^T$}{The state corresponding to the least fixedpoint of $f$.}
 \begin{algorithmic}[1]
   \State Initialize variables:
-    \Statex \algind $x := \bot$
-    \Statex \algind $x' := s_0$ 
+    \Statex \algind $s := \bot$
+    \Statex \algind $s' := s_0$ 
   \State Recursive compute:
     \Statex \textbf{do:}
-    \Statex \algind $x := x'$
-    \Statex \algind $x' := f(x)$
-    \Statex \textbf{while} $x \neq x'$
+    \Statex \algind $s := s'$
+    \Statex \algind $s' := f(s')$
+    \Statex \textbf{while} $\text{eq}(s,s') = \bot$
   \State Return the least fixedpoint:
     \Statex \textbf{return} $x$
   \end{algorithmic}
@@ -918,7 +918,7 @@ Trace is defined as a composition of monotonic functions that has control over t
 We can show that the function is monotonic by defining the order on the state, and showing that the function preserves the order. The order is defined as follows:
 
 $$
-(t,v,\vec{s}) \sqsubseteq (t',v',\vec{s'}) \iff
+(t,v,b,\vec{s}) \sqsubseteq (t',v',b',\vec{s'}) \iff
 \begin{aligned}
   &t \not\sqsubseteq t' \Rightarrow \text{dom}(v) \not\subseteq \text{dom}(v') \Rightarrow |s| < |s'|
 \end{aligned}
