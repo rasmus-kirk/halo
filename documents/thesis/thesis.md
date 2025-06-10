@@ -13,9 +13,10 @@ bibliography: bibliography.bib
 \newcommand{\build}[3]{\left\llbracket #1 \right\rrbracket^{#2}_{#3}}
 \newcommand{\AbsCirc}{\text{Circ}}
 \newcommand{\Gate}{\text{Gate}}
-\newcommand{\AState}{\text{State}}
+\newcommand{\AState}{\text{AState}}
 \newcommand{\Mono}[1]{\text{Mono}^{#1}}
 \newcommand{\MonoC}[1]{\text{MonoC}^{#1}}
+\newcommand{\RState}[1]{\text{RState}^{#1}}
 \newcommand{\VMap}{\text{VMap}}
 \newcommand{\pto}{\rightharpoonup}
 
@@ -559,7 +560,7 @@ $$
 \\
 \text{put} &: \Gate \to \AState \to \AState \\
 \text{put}(g, u, \wave{f}) &= (
-  u + m, \wave{f} \cup \text{entries}(u, g)
+  u + m_g, \wave{f} \cup \text{entries}(u, g)
 )
 \end{array}
 &
@@ -579,7 +580,7 @@ $$
 \\
 \text{arithmetize} &: (\Fb^n_q \to \Fb^m_q) \to \AbsCirc \times \Nb^{m'} \\
 \text{arithmetize}(f) &= \maybe{(\wave{f}, \wave{\vec{Y}})}{
-  \build{f}{\left(\mathop{\circ}\limits_{i \in [0..n]}\text{put}(\text{Input}_i)(0,\emptyset), \emptyset \right)}{(\_, \wave{f}, \wave{\vec{Y}})}
+  \build{f}{\left(\mathop{\circ}\limits_{i \in [0..n]}\text{put}(\text{Input}_i)(0,\emptyset), () \right)}{(\_, \wave{f}, \wave{\vec{Y}})}
 }
 \end{array}
 \end{array}
@@ -589,7 +590,7 @@ Note: $\text{Input}_i$ is a family of gates with no inputs and one output wire c
 
 ## Trace
 
-Before defining trace, we define a framework for monotonic functions with continuations of other monotonic functions and computing its least fixed point via $\text{sup}$. The function operates on a stack modelled as a vector, we notate pop as $\curvearrowleft$.
+$\text{trace}$ computes the least fixed point of a chain of monotonic functions using $\text{sup}$. We call the first argument of the function of type $\MonoC{T}$ the continuation, where the resulting monotonic function defines the logic to continue the chain. The monotonic functions at minimum operates on states containing a stack of wire id(s).
 
 $$
 \begin{array}{rl}
@@ -602,12 +603,6 @@ $$
 \end{array}
 &
 \begin{array}{rl}
-\curvearrowleft &: \Mono{T} \\
-\curvearrowleft &= \text{liftM}\left(\lambda \wave{\vec{y}}. \begin{cases}
-() & \wave{\vec{y}} = () \\
-\wave{\vec{y}}' & \wave{\vec{y}} = \wave{y} \cat \wave{\vec{y}}' \\
-\end{cases} \right)\\
-\\
 \text{sup} &: \Mono{T} \to (T \to T \to \Bb) \to T \to T \to T \\
 \text{sup}(f, \text{eq}, s, s') &= \begin{cases}
 s & \text{eq}(s, s') \\
@@ -617,23 +612,44 @@ s & \text{eq}(s, s') \\
 \end{array}
 $$
 
-The trace is computing the least fixed point of a chain of monotonic functions. The base monotonic function; resolve (notated $\Downarrow$), computes the values of the wires of $\wave{\vec{Y}}$ given the input wire values by peeking the stack, querying if the input wires are not resolved via $\text{?}$. If the inputs are resolved, we can evaluate the output wire values and caching it in the value map; $\VMap$, with $[\cdot]$. The state also contains a flag $\Bb$. If the flag is set, then the state is equal to the previous state when computing in $\text{sup}$.
+### Resolve
+
+ Resolve; $\Downarrow$, computes the values of wires $\wave{\vec{Y}}$ and inputs to assert gates given the input wire values $\vec{x}$.
+ 
+ It does this by peeking $\wave{y}$ from the stack $\wave{\vec{y}}$, querying if the input wires are not resolved via $\text{?}$. If the inputs are resolved, we can evaluate the output wire values and cache it in the value map $v$ with $[\cdot]$. Every gate type has its corresponding evaluation function that computes the value(s) of its output(s). e.g. $\text{eval}(\text{Add}(\_,\_), (1,2)) = (3)$.
+ 
+ The state also contains a flag $\Bb$. If the flag is set, then we infer the state is equal to the previous state when computing in $\text{sup}$. This makes equality checking cheap.
 
 $$
 \begin{array}{rl}
+\text{eval} &: (g: \text{Gate}) \to \Fb^{n_g}_q \to \Fb^{m_g}_q 
+\end{array}
+$$
+$$
+\begin{array}{rl}
+\begin{array}{rl}
 \VMap &= \Nb \pto \Fb_q \\
-\text{State}^T &= T \times \VMap \times \Bb \\
+\RState{T} &= T \times \VMap \times \Bb \\
+\end{array}
+&
+\begin{array}{rl}
+\curvearrowleft &: \Mono{T} \\
+\curvearrowleft &= \text{liftM}\left(\lambda \wave{\vec{y}}. \begin{cases}
+() & \wave{\vec{y}} = () \\
+\wave{\vec{y}}' & \wave{\vec{y}} = \wave{y} \cat \wave{\vec{y}}' \\
+\end{cases} \right)
+\end{array}
 \end{array}
 $$
 $$
 \begin{array}{rl}
 \begin{array}{rl}
 \text{?} &: \VMap \to \Nb^k \to \Nb^{k'} \\
-\text{?}(v, \wave{\vec{y}}) &= \begin{cases}
+v \text{?} \wave{\vec{y}} &= \begin{cases}
 () & \wave{\vec{y}} = () \\
 & \wave{\vec{y}} = \wave{y} \cat \wave{\vec{y}}' \\
-\wave{y} \cat \text{?}(v, \wave{\vec{y}}') & v(\wave{y}) = \bot \\
-\text{?}(v, \wave{\vec{y}}') & \text{otherwise}
+\wave{y} \cat v \text{?} \wave{\vec{y}}' & v(\wave{y}) = \bot \\
+v \text{?} \wave{\vec{y}}' & \text{otherwise}
 \end{cases} \\
 \\
 \left[ \cdot \right] &: \VMap \to \AbsCirc \to \Nb \to \VMap \\
@@ -648,13 +664,13 @@ v_{\wave{f}}\left[\wave{y}\right] &= \maybe{
 \end{array}
 &
 \begin{array}{rl}
-\Downarrow &: \AbsCirc \to \MonoC{\text{State}^T} \\
+\Downarrow &: \AbsCirc \to \MonoC{\RState{T}} \\
 \Downarrow^{\wave{f}}_{g}(t, v, \_, \wave{\vec{y}}) &= \begin{cases}
 g(t, v,\top,()) & \wave{\vec{y}} = () \\
  & \wave{\vec{y}} = \wave{y} \cat \_ \\
 \curvearrowleft (t, v, \bot, \wave{\vec{y}}) & v(\wave{y}) \neq \bot \\
  & ((\_, \wave{\vec{x}}), \wave{y}) \in \wave{f} \\
- & \wave{\vec{x}}' = \text{?}(v, \wave{\vec{x}}) \\
+ & \wave{\vec{x}}' = v \text{?} \wave{\vec{x}} \\
 \curvearrowleft \circ g(t, v_{\wave{f}}[\wave{y}], \bot, \wave{\vec{y}}) 
  & \wave{\vec{x}}' = () \\
 (t, v,\bot, \wave{\vec{x}}' \cat \wave{\vec{y}}) & \text{otherwise}
@@ -665,47 +681,44 @@ $$
 
 $$
 \begin{array}{rl}
-\text{init} &: \AbsCirc \to T \to \Nb^k \to \Fb^n_q \to \text{State}^T \\
+\text{init} &: \AbsCirc \to T \to \Nb^k \to \Fb^n_q \to \RState{T} \\
 \text{init}_{\wave{f}}(t, \wave{\vec{Y}}, \vec{x})
-&= (t, \bot[(0..|\vec{x}|) \mapsto \vec{x}], \bot, \wave{\vec{Y}} \cat \set{\wave{y} \middle\vert ((\_, \wave{\vec{x}}), \bot) \in \wave{f} \land \wave{y} \in \wave{\vec{x}} \setminus \wave{\vec{Y}}}) \\
+&= (t, \bot[(0..|\vec{x}|) \mapsto \vec{x}], \bot, \wave{\vec{Y}} \cat \set{\wave{x} \middle\vert ((\_, \wave{\vec{x}}), \bot) \in \wave{f} \land \wave{x} \in \wave{\vec{x}} \setminus \wave{\vec{Y}}}) \\
 \\
-\text{trace} &: T \to \MonoC{\text{State}^T} \to \AbsCirc \to \Nb^k \to \Fb^k_q \to \text{State}^T \\
+\text{trace} &: T \to \Mono{\RState{T}} \to \AbsCirc \to \Nb^k \to \Fb^k_q \to \RState{T} \\
 \text{trace}^t_g(\wave{f}, \wave{\vec{Y}}, \vec{x}) &= \text{sup}\left(
   \Downarrow^{\wave{f}}_g, (\lambda \_, (\_, b, \_). b), (t, \bot, \bot, ()), \text{init}_{\wave{f}}(t, \wave{\vec{Y}}, \vec{x})
 \right)
 \end{array}
 $$
 
-Note: Every gate type has its corresponding evaluation function that computes the value(s) of its output(s). e.g. $\text{eval}(\text{Add}(\_,\_), (1,2)) = (3)$.
-
-$$
-\begin{array}{rl}
-\text{eval} &: (g: \text{Gate}) \to \Fb^{n_g}_q \to \Fb^{m_g}_q 
-\end{array}
-$$
-
-
-
-
 ### Gate Constraints
 
 $$
-\text{constraints} : \text{Gate} \to \Fb^{n_g}_q \to \Fb^{W \times k}_q \times \text{CMap}
+\begin{array}{rl}
+\text{constraints} &: \VMap \to \text{Gate} \to \text{Constraint}^k \\
+\text{Constraint} &= \text{Term} \pto \Fb_q 
+\end{array}
 $$
 
-- think constraints from gate type related to coordinate map for copy
 - peek non empty, append constraint
-- peek empty, append assert gates constraints, mark flag
-
-(INPUTS) cant have constraints by definition of resolve that wont call continuation on resolved wireids on stack, otherwise would need to check if wire has constraints instead of just checking if it is in vmap. you could also create INPUT constraints on empty stack. like assert gates.
+- peek empty
+  - append assert gates constraints
+  - append input constraints
+  - mark flag
 
 ### Copy Constraints
 
+$$
+\begin{array}{rl}
+\text{Row} &= \Nb \\
+\text{coords} &: \text{Row} \to \Gate \to \text{CMap} \\
+\text{CMap} &= \Nb \pto (\text{Term} \times \text{Row})^k
+\end{array}
+$$
 
-- CMap; wire id to coordinate set
 - peek non empty, update CMap
-- gate flag marked
-  - CMap sets to ordered loops
+- peek empty
   - compute perm matrix
   - mark flag
 
@@ -779,7 +792,7 @@ $$
 types and type formers
 
 - naturals $\Nb$
-- pointed naturals $\Nb_\bot$
+- pointed type $T_\bot$, has an (additional) smallest element $\bot$
 - finite fields $\Fb_q$
 - vector type $T^n$
 - matrix / tensor type $T^{n \times m}$
@@ -797,7 +810,7 @@ term constructors
 - function term / lambda abstraction $\lambda x. f(x)$
 - empty partial function $\bot$
 - partial function append $f[x \mapsto y]$
-- disjoint union implictly has no constructors when $T \neq U$
+- disjoint union implictly has no constructors, however we can $\text{inl}(t), \text{inr}(u)$ to avoid ambiguity
 
 util functions
 
