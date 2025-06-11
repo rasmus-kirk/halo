@@ -586,33 +586,25 @@ $$
 \end{array}
 $$
 
-Note: $\text{Input}_i$ is a family of gates with no inputs and one output wire corresponding to an input of the global circuit.
+Note: $\text{Input}_i$ is a family of gates with no inputs and one output wire corresponding to an input of the global circuit. The list of gates available are defined in section on Gates and Gadgets.
 
 ## Trace
 
-$\text{trace}$ computes the least fixed point of a chain of monotonic functions using $\text{sup}$. We call the first argument of the function of type $\MonoC{T}$ the continuation, where the resulting monotonic function defines the logic to continue the chain.
+$\text{trace}$ computes the least fixed point of a composition of monotonic functions using $\text{sup}$. We also call a monotonic function a continuation if it is called by another. We call lift, to extend the state of a monotonic function.
 
 $$
 \begin{array}{rl}
 \begin{array}{rl}
-\Mono{T,U} &= T \to U \\
-\Mono{T} &= \Mono{T,T} \\
-\MonoC{T} &= \Mono{T} \to \Mono{T} \\
-\end{array}
-&
-\begin{array}{rl}
-\text{lift} &: \Mono{T,U} \to \Mono{V \times T, V \times U} \\
+\text{lift} &: (T \to U) \to (V \times T \to V \times U) \\
 \text{lift}(f) &= \lambda (v,t). (v, f(t)) \\
-\end{array}
-\end{array}
-$$
-$$
+\end{array} &
 \begin{array}{rl}
-\text{sup} &: \Mono{T} \to (T \to T \to \Bb) \to T \to T \to T \\
+\text{sup} &: (T \to T) \to (T \to T \to \Bb) \to T \to T \to T \\
 \text{sup}(f, \text{eq}, s, s') &= \begin{cases}
 s & \text{eq}(s, s') \\
 \text{sup}(f, \text{eq}, s', f(s')) & \text{otherwise}
 \end{cases}
+\end{array}
 \end{array}
 $$
 
@@ -645,8 +637,8 @@ $$
 \end{array}
 &
 \begin{array}{rl}
-\curvearrowleft_r &: \Mono{T \times \Nb^k, T \times \Nb^{k'}} \\
-\curvearrowleft_r &= \text{lift}(\curvearrowleft)
+\underset{R}{\curvearrowleft} &: T \times \Nb^k \to T \times \Nb^{k'} \\
+\underset{R}{\curvearrowleft} &= \text{lift}(\curvearrowleft)
 \end{array}
 \end{array}
 $$
@@ -673,14 +665,15 @@ v_{\wave{f}}\left[\wave{y}\right] &= \maybe{
 \end{array}
 &
 \begin{array}{rl}
-\Downarrow &: \AbsCirc \to \MonoC{T \times \RState} \\
+\Downarrow &: \AbsCirc \to (T \times \RState \to T \times \RState) \to \\
+& T \times \RState \to T \times \RState \\
 \Downarrow^{\wave{f}}_{f}(t,v, \_, \wave{\vec{y}}) &= \begin{cases}
 f(t,v,\top,()) & \wave{\vec{y}} = () \\
  & \wave{\vec{y}} = \wave{y} \cat \_ \\
-\curvearrowleft_r (t, v, \bot, \wave{\vec{y}}) & v(\wave{y}) \neq \bot \\
+\underset{R}{\curvearrowleft} (t, v, \bot, \wave{\vec{y}}) & v(\wave{y}) \neq \bot \\
  & ((\_, \wave{\vec{x}}), \wave{y}) \in \wave{f} \\
  & \wave{\vec{x}}' = v \text{?} \wave{\vec{x}} \\
-\curvearrowleft_r \circ f(t, v_{\wave{f}}[\wave{y}], \bot, \wave{\vec{y}}) 
+\underset{R}{\curvearrowleft} \circ f(t, v_{\wave{f}}[\wave{y}], \bot, \wave{\vec{y}}) 
  & \wave{\vec{x}}' = () \\
 (t, v,\bot, \wave{\vec{x}}' \cat \wave{\vec{y}}) & \text{otherwise}
 \end{cases} \\
@@ -694,7 +687,7 @@ $$
 \text{init}_{\wave{f}}(\wave{\vec{Y}}, \vec{x})
 &= (\bot[(0..|\vec{x}|) \mapsto \vec{x}], \bot, \wave{\vec{Y}} \cat \set{\wave{x} \middle\vert ((\_, \wave{\vec{x}}), \bot) \in \wave{f} \land \wave{x} \in \wave{\vec{x}} \setminus \wave{\vec{Y}}}) \\
 \\
-\text{trace} &: T \to \Mono{T \times \RState} \to \AbsCirc \to \Nb^k \to \Fb^k_q \to T \times \RState \\
+\text{trace} &: T \to (T \times \RState \to T \times \RState) \to \AbsCirc \to \Nb^k \to \Fb^k_q \to T \times \RState \\
 \text{trace}^t_f(\wave{f}, \wave{\vec{Y}}, \vec{x}) &= \text{sup}\left(
   \Downarrow^{\wave{f}}_f, (\lambda \_, (\_, b, \_). b), (t, \bot, \bot, ()), (t, \text{init}_{\wave{f}}(\wave{\vec{Y}}, \vec{x}))
 \right)
@@ -703,29 +696,44 @@ $$
 
 ### Gate Constraints
 
+gate computes the gate constraints by pushing the gate with an output of the top of the wire id stack via $\underset{}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation on resolved wires in $\Downarrow$.
+
+When the wire id stack is empty, the push function will push to the gate stack $A^{\wave{f}}$; assert gates and input gates. Thus all assertions, even if not contributing to $\wave{\vec{Y}}$, will be enforced. More on Constraint in the definition of $\text{circuit}$.
+
 $$
 \begin{array}{rl}
-\text{ctrn} &: \VMap \to (g : \text{Gate}) \to \Nb^{m_g} \to \text{Constraint}^k \\ \\
 \text{Term} &= \text{Slot} + \text{Selector} \\
 \text{Constraint} &= \text{Term} \pto \Fb_q \\
+\text{ctrn} &: \VMap \to (g : \text{Gate}) \to \Nb^{m_g} \to \text{Constraint}^k
+\end{array}
+$$
+$$
+\begin{array}{rl}
+\begin{array}{rl}
 \text{GState} &= \text{Constraint}^k \times \Gate^{k'} \times \RState \\
-\text{A}^{\wave{f}} &= \set{g \middle\vert (g, \wave{y}') \in \wave{f} \land \wave{y} = \bot \lor \exists i. \wave{y} = \text{Input}_i } \\
-\\
-\curvearrowleft_g &: \Mono{T \times \text{GState}} \\
-\curvearrowleft_g &= \text{lift} \circ \lambda (\vec{g}, v, b, \wave{\vec{y}}). (\curvearrowleft(\vec{g}), v, b, \wave{\vec{y}}) \\
-\\
-\text{push} &: \AbsCirc \to \Mono{\Gate^k \times \RState, \Gate^{k'} \times \RState} \\
-\text{push}^{\wave{f}}(\vec{g}, v, \_, \wave{\vec{y}}) &= \begin{cases}
-(\text{A}^{\wave{f}} \cat \vec{g}, v, \bot, \wave{\vec{y}})
+A^{\wave{f}} &= \set{g \middle\vert (g, \wave{y}') \in \wave{f} \land \wave{y} = \bot \lor \exists i. \wave{y} = \text{Input}_i }
+\end{array}
+&
+\begin{array}{rl}
+\underset{G}{\curvearrowleft} &: T \times \text{GState} \\
+\underset{G}{\curvearrowleft} &= \text{lift} \circ \lambda (\vec{g}, v, b, \wave{\vec{y}}). (\curvearrowleft(\vec{g}), v, b, \wave{\vec{y}})
+\end{array}
+\end{array}
+$$
+$$
+\begin{array}{rl}
+\underset{G}{\curvearrowright} &: \AbsCirc \to \Gate^k \times \RState \to \Gate^{k'} \times \RState \\
+\underset{G}{\curvearrowright}^{\wave{f}}(\vec{g}, v, \_, \wave{\vec{y}}) &= \begin{cases}
+(A^{\wave{f}} \cat \vec{g}, v, \bot, \wave{\vec{y}})
 & |\wave{\vec{y}}| = |\vec{g}| = 0 \\
   & \wave{\vec{y}} = \wave{y} \cat \_ \\
 (g \cat \vec{g}, v, \bot, \wave{\vec{y}})
 & (g,\wave{y}) \in \wave{f} \\
 (\vec{g}, v, \top, \wave{\vec{y}})
 & \text{otherwise}
-\end{cases} \\
+\end{cases}\\
 \\
-\text{append} &: \AbsCirc \to \Mono{\text{GState}} \\
+\text{append} &: \AbsCirc \to \text{GState} \to \text{GState} \\
 \text{append}^{\wave{f}}(\vec{C}, \vec{g}, v, \_, \wave{\vec{y}}) &= \begin{cases}
 (\vec{C}, (), v, \top, \wave{\vec{y}}) & \vec{g} = () \\
 & \vec{g} = g \cat \_ \\
@@ -733,8 +741,8 @@ $$
 & \vec{C'} = \vec{C} \cat \text{ctrn}(v, g, \text{out}(\wave{f},g)) \\
 \end{cases} \\
 \\
-\text{gate} &: \AbsCirc \to \MonoC{T \times \text{GState}} \\
-\text{gate}^{\wave{f}}_f &= \curvearrowleft_g \circ f \circ \text{lift} \circ \text{append}^{\wave{f}} \circ \text{lift} \circ \text{push}^{\wave{f}}
+\text{gate} &: \AbsCirc \to (T \times \text{GState} \to T \times \text{GState}) \to T \times \text{GState} \to T \times \text{GState} \\
+\text{gate}^{\wave{f}}_f &= \underset{G}{\curvearrowleft} \circ f \circ \text{lift} \circ \text{append}^{\wave{f}} \circ \text{lift} \circ \underset{G}{\curvearrowright}^{\wave{f}}
 \end{array}
 $$
 
@@ -749,7 +757,7 @@ $$
 \end{array}
 $$
 
-- peek non empty, update CMap
+- peek non empty $\vec{g}$, update CMap
 - peek empty
   - compute perm matrix
   - mark flag
