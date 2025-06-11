@@ -625,7 +625,7 @@ $$
 \begin{array}{ccc}
 \begin{array}{rl}
 \VMap &= \Nb \pto \Fb_q \\
-\RState &= \VMap \times \Bb \times \Nb^k \\
+\RState^k &= \VMap \times \Bb \times \Nb^k \\
 \end{array}
 &
 \begin{array}{rl}
@@ -683,11 +683,11 @@ $$
 
 $$
 \begin{array}{rl}
-\text{init} &: \AbsCirc \to T \to \Nb^k \to \Fb^n_q \to \RState \\
+\text{init} &: \AbsCirc \to T \to \Nb^m \to \Fb^n_q \to \RState \\
 \text{init}_{\wave{f}}(\wave{\vec{Y}}, \vec{x})
 &= (\bot[(0..|\vec{x}|) \mapsto \vec{x}], \bot, \wave{\vec{Y}} \cat \set{\wave{x} \middle\vert ((\_, \wave{\vec{x}}), \bot) \in \wave{f} \land \wave{x} \in \wave{\vec{x}} \setminus \wave{\vec{Y}}}) \\
 \\
-\text{trace} &: T \to (T \times \RState \to T \times \RState) \to \AbsCirc \to \Nb^k \to \Fb^k_q \to T \times \RState \\
+\text{trace} &: T \to (T \times \RState \to T \times \RState) \to \AbsCirc \to \Nb^m \to \Fb^n_q \to T \times \RState \\
 \text{trace}^t_f(\wave{f}, \wave{\vec{Y}}, \vec{x}) &= \text{sup}\left(
   \Downarrow^{\wave{f}}_f, (\lambda \_, (\_, b, \_). b), (t, \bot, \bot, ()), (t, \text{init}_{\wave{f}}(\wave{\vec{Y}}, \vec{x}))
 \right)
@@ -696,26 +696,26 @@ $$
 
 ### Gate Constraints
 
-gate computes the gate constraints by pushing the gate with an output of the top of the wire id stack via $\underset{}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation on resolved wires in $\Downarrow$.
+gate computes the gate constraints by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation on resolved wires in $\Downarrow$.
 
-When the wire id stack is empty, the push function will push to the gate stack $A^{\wave{f}}$; assert gates and input gates. Thus all assertions, even if not contributing to $\wave{\vec{Y}}$, will be enforced. More on Constraint in the definition of $\text{circuit}$.
+When the wire id stack $\wave{\vec{y}}$ is empty, $\underset{G}{\curvearrowright}$ will push to assert gates and input gates $A^{\wave{f}}$ to the stack. Thus all assertions, even if not contributing to $\wave{\vec{Y}}$, will be enforced. More on Constraint in the definition of $\text{circuit}$.
 
 $$
 \begin{array}{rl}
 \text{Term} &= \text{Slot} + \text{Selector} \\
-\text{Constraint} &= \text{Term} \pto \Fb_q \\
+\text{Constraint} &= \text{Term} \to \Fb_q \\
 \text{ctrn} &: \VMap \to (g : \text{Gate}) \to \Nb^{m_g} \to \text{Constraint}^k
 \end{array}
 $$
 $$
 \begin{array}{rl}
 \begin{array}{rl}
-\text{GState} &= \text{Constraint}^k \times \Gate^{k'} \times \RState \\
-A^{\wave{f}} &= \set{g \middle\vert (g, \wave{y}') \in \wave{f} \land \wave{y} = \bot \lor \exists i. \wave{y} = \text{Input}_i }
+\text{GState}^{k,k',k''} &= \text{Constraint}^{k''} \times \Gate^{k'} \times \RState^k \\
+A^{\wave{f}} &= \set{g \middle\vert (g, \wave{y}') \in \wave{f} \land (\wave{y} = \bot \lor \exists i. \wave{y} = \text{Input}_i) }
 \end{array}
 &
 \begin{array}{rl}
-\underset{G}{\curvearrowleft} &: T \times \text{GState} \\
+\underset{G}{\curvearrowleft} &: T \times \text{GState}^{k''',k',k} \to T \times \text{GState}^{k''',k'',k} \\
 \underset{G}{\curvearrowleft} &= \text{lift} \circ \lambda (\vec{g}, v, b, \wave{\vec{y}}). (\curvearrowleft(\vec{g}), v, b, \wave{\vec{y}})
 \end{array}
 \end{array}
@@ -737,8 +737,9 @@ $$
 \text{append}^{\wave{f}}(\vec{C}, \vec{g}, v, \_, \wave{\vec{y}}) &= \begin{cases}
 (\vec{C}, (), v, \top, \wave{\vec{y}}) & \vec{g} = () \\
 & \vec{g} = g \cat \_ \\
-(\vec{C}', \vec{g}, v, \bot, \wave{\vec{y}})
-& \vec{C'} = \vec{C} \cat \text{ctrn}(v, g, \text{out}(\wave{f},g)) \\
+& \vec{C}' = \text{ctrn}(v, g, \text{out}(\wave{f},g)) \\
+(\vec{C}'', \vec{g}, v, \bot, \wave{\vec{y}})
+& \vec{C}'' = \vec{C} \cat \vec{C}' \\
 \end{cases} \\
 \\
 \text{gate} &: \AbsCirc \to (T \times \text{GState} \to T \times \text{GState}) \to T \times \text{GState} \to T \times \text{GState} \\
@@ -752,7 +753,7 @@ $$
 \begin{array}{rl}
 \text{Row} &= \Nb \\
 \text{coords} &: \text{Row} \to \Gate \to \text{CMap} \\
-\text{CMap} &= \Nb \pto (\text{Slot} \times \text{Row})^k \\
+\text{CMap} &= (\wave{y} : \Nb) \pto (\text{Slot} \times \text{Row})^{k_{\wave{y}}} \\
 \text{CState} &= \text{CMap} \times \text{GState} \\ 
 \end{array}
 $$
@@ -761,6 +762,7 @@ $$
 - peek empty
   - compute perm matrix
   - mark flag
+- notation for partial map union
 
 ### Lookup Argument Constraints
 
