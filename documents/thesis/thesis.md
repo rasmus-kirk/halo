@@ -16,7 +16,7 @@ bibliography: bibliography.bib
 \newcommand{\AState}{\text{AState}}
 \newcommand{\Mono}[1]{\text{Mono}^{#1}}
 \newcommand{\MonoC}[1]{\text{MonoC}^{#1}}
-\newcommand{\RState}[1]{\text{RState}^{#1}}
+\newcommand{\RState}{\text{RState}}
 \newcommand{\VMap}{\text{VMap}}
 \newcommand{\pto}{\rightharpoonup}
 
@@ -590,25 +590,29 @@ Note: $\text{Input}_i$ is a family of gates with no inputs and one output wire c
 
 ## Trace
 
-$\text{trace}$ computes the least fixed point of a chain of monotonic functions using $\text{sup}$. We call the first argument of the function of type $\MonoC{T}$ the continuation, where the resulting monotonic function defines the logic to continue the chain. The monotonic functions at minimum operates on states containing a stack of wire id(s).
+$\text{trace}$ computes the least fixed point of a chain of monotonic functions using $\text{sup}$. We call the first argument of the function of type $\MonoC{T}$ the continuation, where the resulting monotonic function defines the logic to continue the chain.
 
 $$
 \begin{array}{rl}
 \begin{array}{rl}
-\Mono{T} &= T \times \Nb^k \to T \times \Nb^{k'} \\
+\Mono{T,U} &= T \to U \\
+\Mono{T} &= \Mono{T,T} \\
 \MonoC{T} &= \Mono{T} \to \Mono{T} \\
-\\
-\text{liftM} &: \Mono{T} \to \Mono{U \times T} \\
-\text{liftM}(f) &= \lambda (u,t). (u, f(t)) \\
 \end{array}
 &
+\begin{array}{rl}
+\text{lift} &: \Mono{T,U} \to \Mono{V \times T, V \times U} \\
+\text{lift}(f) &= \lambda (v,t). (v, f(t)) \\
+\end{array}
+\end{array}
+$$
+$$
 \begin{array}{rl}
 \text{sup} &: \Mono{T} \to (T \to T \to \Bb) \to T \to T \to T \\
 \text{sup}(f, \text{eq}, s, s') &= \begin{cases}
 s & \text{eq}(s, s') \\
 \text{sup}(f, \text{eq}, s', f(s')) & \text{otherwise}
 \end{cases}
-\end{array}
 \end{array}
 $$
 
@@ -626,18 +630,23 @@ $$
 \end{array}
 $$
 $$
-\begin{array}{rl}
+\begin{array}{ccc}
 \begin{array}{rl}
 \VMap &= \Nb \pto \Fb_q \\
-\RState{T} &= T \times \VMap \times \Bb \\
+\RState &= \VMap \times \Bb \times \Nb^k \\
 \end{array}
 &
 \begin{array}{rl}
-\curvearrowleft &: \Mono{T} \\
-\curvearrowleft &= \text{liftM}\left(\lambda \wave{\vec{y}}. \begin{cases}
-() & \wave{\vec{y}} = () \\
-\wave{\vec{y}}' & \wave{\vec{y}} = \wave{y} \cat \wave{\vec{y}}' \\
-\end{cases} \right)
+\curvearrowleft &: X^k \to X^{k'} \\
+\curvearrowleft (\vec{x}) &= \begin{cases}
+() & \vec{x} = () \\
+\vec{x}' & \vec{x} = \_ \cat \vec{x}' \\
+\end{cases}
+\end{array}
+&
+\begin{array}{rl}
+\curvearrowleft_r &: \Mono{T \times \Nb^k, T \times \Nb^{k'}} \\
+\curvearrowleft_r &= \text{lift}(\curvearrowleft)
 \end{array}
 \end{array}
 $$
@@ -664,14 +673,14 @@ v_{\wave{f}}\left[\wave{y}\right] &= \maybe{
 \end{array}
 &
 \begin{array}{rl}
-\Downarrow &: \AbsCirc \to \MonoC{\RState{T}} \\
-\Downarrow^{\wave{f}}_{g}(t, v, \_, \wave{\vec{y}}) &= \begin{cases}
-g(t, v,\top,()) & \wave{\vec{y}} = () \\
+\Downarrow &: \AbsCirc \to \MonoC{T \times \RState} \\
+\Downarrow^{\wave{f}}_{f}(t,v, \_, \wave{\vec{y}}) &= \begin{cases}
+f(t,v,\top,()) & \wave{\vec{y}} = () \\
  & \wave{\vec{y}} = \wave{y} \cat \_ \\
-\curvearrowleft (t, v, \bot, \wave{\vec{y}}) & v(\wave{y}) \neq \bot \\
+\curvearrowleft_r (t, v, \bot, \wave{\vec{y}}) & v(\wave{y}) \neq \bot \\
  & ((\_, \wave{\vec{x}}), \wave{y}) \in \wave{f} \\
  & \wave{\vec{x}}' = v \text{?} \wave{\vec{x}} \\
-\curvearrowleft \circ g(t, v_{\wave{f}}[\wave{y}], \bot, \wave{\vec{y}}) 
+\curvearrowleft_r \circ f(t, v_{\wave{f}}[\wave{y}], \bot, \wave{\vec{y}}) 
  & \wave{\vec{x}}' = () \\
 (t, v,\bot, \wave{\vec{x}}' \cat \wave{\vec{y}}) & \text{otherwise}
 \end{cases} \\
@@ -681,13 +690,13 @@ $$
 
 $$
 \begin{array}{rl}
-\text{init} &: \AbsCirc \to T \to \Nb^k \to \Fb^n_q \to \RState{T} \\
-\text{init}_{\wave{f}}(t, \wave{\vec{Y}}, \vec{x})
-&= (t, \bot[(0..|\vec{x}|) \mapsto \vec{x}], \bot, \wave{\vec{Y}} \cat \set{\wave{x} \middle\vert ((\_, \wave{\vec{x}}), \bot) \in \wave{f} \land \wave{x} \in \wave{\vec{x}} \setminus \wave{\vec{Y}}}) \\
+\text{init} &: \AbsCirc \to T \to \Nb^k \to \Fb^n_q \to \RState \\
+\text{init}_{\wave{f}}(\wave{\vec{Y}}, \vec{x})
+&= (\bot[(0..|\vec{x}|) \mapsto \vec{x}], \bot, \wave{\vec{Y}} \cat \set{\wave{x} \middle\vert ((\_, \wave{\vec{x}}), \bot) \in \wave{f} \land \wave{x} \in \wave{\vec{x}} \setminus \wave{\vec{Y}}}) \\
 \\
-\text{trace} &: T \to \Mono{\RState{T}} \to \AbsCirc \to \Nb^k \to \Fb^k_q \to \RState{T} \\
-\text{trace}^t_g(\wave{f}, \wave{\vec{Y}}, \vec{x}) &= \text{sup}\left(
-  \Downarrow^{\wave{f}}_g, (\lambda \_, (\_, b, \_). b), (t, \bot, \bot, ()), \text{init}_{\wave{f}}(t, \wave{\vec{Y}}, \vec{x})
+\text{trace} &: T \to \Mono{T \times \RState} \to \AbsCirc \to \Nb^k \to \Fb^k_q \to T \times \RState \\
+\text{trace}^t_f(\wave{f}, \wave{\vec{Y}}, \vec{x}) &= \text{sup}\left(
+  \Downarrow^{\wave{f}}_f, (\lambda \_, (\_, b, \_). b), (t, \bot, \bot, ()), (t, \text{init}_{\wave{f}}(\wave{\vec{Y}}, \vec{x}))
 \right)
 \end{array}
 $$
@@ -696,16 +705,38 @@ $$
 
 $$
 \begin{array}{rl}
-\text{constraints} &: \VMap \to \text{Gate} \to \text{Constraint}^k \\
-\text{Constraint} &= \text{Term} \pto \Fb_q 
+\text{ctrn} &: \VMap \to (g : \text{Gate}) \to \Nb^{m_g} \to \text{Constraint}^k \\ \\
+\text{Term} &= \text{Slot} + \text{Selector} \\
+\text{Constraint} &= \text{Term} \pto \Fb_q \\
+\text{GState} &= \text{Constraint}^k \times \Gate^{k'} \times \RState \\
+\text{A}^{\wave{f}} &= \set{g \middle\vert (g, \wave{y}') \in \wave{f} \land \wave{y} = \bot \lor \exists i. \wave{y} = \text{Input}_i } \\
+\\
+\curvearrowleft_g &: \Mono{T \times \text{GState}} \\
+\curvearrowleft_g &= \text{lift} \circ \lambda (\vec{g}, v, b, \wave{\vec{y}}). (\curvearrowleft(\vec{g}), v, b, \wave{\vec{y}}) \\
+\\
+\text{push} &: \AbsCirc \to \Mono{\Gate^k \times \RState, \Gate^{k'} \times \RState} \\
+\text{push}^{\wave{f}}(\vec{g}, v, \_, \wave{\vec{y}}) &= \begin{cases}
+(\text{A}^{\wave{f}} \cat \vec{g}, v, \bot, \wave{\vec{y}})
+& |\wave{\vec{y}}| = |\vec{g}| = 0 \\
+  & \wave{\vec{y}} = \wave{y} \cat \_ \\
+(g \cat \vec{g}, v, \bot, \wave{\vec{y}})
+& (g,\wave{y}) \in \wave{f} \\
+(\vec{g}, v, \top, \wave{\vec{y}})
+& \text{otherwise}
+\end{cases} \\
+\\
+\text{append} &: \AbsCirc \to \Mono{\text{GState}} \\
+\text{append}^{\wave{f}}(\vec{C}, \vec{g}, v, \_, \wave{\vec{y}}) &= \begin{cases}
+(\vec{C}, (), v, \top, \wave{\vec{y}}) & \vec{g} = () \\
+& \vec{g} = g \cat \_ \\
+(\vec{C}', \vec{g}, v, \bot, \wave{\vec{y}})
+& \vec{C'} = \vec{C} \cat \text{ctrn}(v, g, \text{out}(\wave{f},g)) \\
+\end{cases} \\
+\\
+\text{gate} &: \AbsCirc \to \MonoC{T \times \text{GState}} \\
+\text{gate}^{\wave{f}}_f &= \curvearrowleft_g \circ f \circ \text{lift} \circ \text{append}^{\wave{f}} \circ \text{lift} \circ \text{push}^{\wave{f}}
 \end{array}
 $$
-
-- peek non empty, append constraint
-- peek empty
-  - append assert gates constraints
-  - append input constraints
-  - mark flag
 
 ### Copy Constraints
 
@@ -713,7 +744,8 @@ $$
 \begin{array}{rl}
 \text{Row} &= \Nb \\
 \text{coords} &: \text{Row} \to \Gate \to \text{CMap} \\
-\text{CMap} &= \Nb \pto (\text{Term} \times \text{Row})^k
+\text{CMap} &= \Nb \pto (\text{Slot} \times \text{Row})^k \\
+\text{CState} &= \text{CMap} \times \text{GState} \\ 
 \end{array}
 $$
 
