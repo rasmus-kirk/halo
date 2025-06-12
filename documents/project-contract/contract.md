@@ -22,23 +22,28 @@ PLONK and accumulation schemes.
 1. **Full Working and Succinct Plonk**
    - Develop a fully functional implementation of the Plonk protocol using Rust and Arkworks.
    - A succinct verifier that can be used for IVC.
-2. **Lookup Arguments in Plonk; Plonkup**
-   - Enable our SNARK construction in Plonk to use lookup arguments.
-3. **Implement Gadgets**
+2. **Implement Gadgets**
    - Construct utility sub-circuits using our Plonk implementation.
-4. **Generalize Plonk and PCDL**
+3. **Generalize Plonk and PCDL**
    - Allow our Plonk and discrete logarithm polynomial commitment scheme to be general over pasta curves.
-5. **Benchmark performance over circuit size**
+4. **Benchmark performance over circuit size**
    - Benchmark the performance of our implementation and estimate its average complexity.
    - Compare benchmark data with theoretical expected performance required for IVC.
-6. **Create Circuit Components required for IVC**
+5. **Create Circuit Components required for IVC**
    - This involves:
       - Using poseidon hashes for Fiat-Shamir.
       - Finding an efficient way to do Scalar Multiplication in circuits.
       - Encoding our verifiers into circuits.
+6. **Extend Plonk to TurboPlonk:**
+   - In order to acheive efficient circuits we aim to implement TurboPlonk[^1]:
+      - TurboPLONK: PLONK arithmetization + custom gates + larger fan-in/fan-out
+      - PlonkUp: PLONK arithmetization + lookup tables using plookup.
+      - UltraPLONK: PLONK arithmetization + custom gates + larger fan-in/fan-out + lookup tables using plookup.
 7. **Investigate Chain of Signatures**
    - Explore the feasibility of IVC over a chain of signatures to be used in committee based blockchain consensus protocols.
    - Ideally, we would want a reference implementation to show this idea.
+
+[^1]: Link: [https://zkjargon.github.io/definitions/plonkish_arithmetization.html](https://zkjargon.github.io/definitions/plonkish_arithmetization.html)
 
 ## Expected Outcomes
 
