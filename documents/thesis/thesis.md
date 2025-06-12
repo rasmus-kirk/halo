@@ -7,6 +7,7 @@ geometry: margin=2cm
 bibliography: bibliography.bib
 ---
 
+
 \newcommand{\maybe}[2]{ \left[ #1 \middle\vert #2 \right]}
 \newcommand{\wave}[1]{ \bar{#1} }
 \newcommand{\set}[1]{ \left\{ #1 \right\}}
@@ -484,14 +485,6 @@ TODO - general IVC
 
 - Haliq
 
-### Copy Constraints
-
-- Haliq
-
-### Lookup Arguments
-
-- Haliq
-
 \newpage
 
 # General Arithmetization Scheme
@@ -505,13 +498,29 @@ $$
 
 Gates $g$ are primitive operations with $n_g \geq 0$ fan in inputs and $m_g \geq 0$ fan out outputs defined with its input wire id(s) of type $\Nb$. i.e. $x \neq a \land y \neq b \leftrightarrow \text{Add}(x,y) \neq \text{Add}(a,b)$.
 
-$\text{Add}(x,y)$ is a function that returns $(\text{Add}, (x,y))$ where we abuse the notation $\text{Add}$ to now be a term of $\text{GateType}$ instead of the function.
+$\text{Add}(x,y)$ is a function call that returns $(\text{Add}, (x,y))$ where $\text{Add}$ in the latter is a term of $\text{GateType}$; not a function.
 
 $$
 \begin{array}{rl}
-\text{Gate} &= \text{GateType} \times \Nb^n \\
-n &: \text{Gate} \to \Nb \\
-m &: \text{Gate} \to \Nb \\
+\text{Gate} &= (g: \text{GateType}) \times \Nb^{n_g} \\
+\end{array}
+$$
+$$
+\begin{array}{ccc}
+\begin{array}{rl}
+n &: \text{Gate} + \text{GateType} \to \Nb \\
+m &: \text{Gate} + \text{GateType} \to \Nb
+\end{array}
+&
+\begin{array}{rl}
+\text{ty} &: (g: \text{Gate}) \to \text{GateType} \\
+\text{ty}(t, \_) &= t
+\end{array}
+&
+\begin{array}{rl}
+\text{in} &: (g: \text{Gate}) \to \Nb^{n_g} \\
+\text{in}(\_, \wave{\vec{x}}) &= \wave{\vec{x}} \\
+\end{array}
 \end{array}
 $$
 
@@ -580,7 +589,7 @@ $$
 \\
 \text{arithmetize} &: (\Fb^n_q \to \Fb^m_q) \to \AbsCirc \times \Nb^{m'} \\
 \text{arithmetize}(f) &= \maybe{(\wave{f}, \wave{\vec{Y}})}{
-  \build{f}{\left(\mathop{\circ}\limits_{i \in [0..n]}\text{put}(\text{Input}_i)(0,\emptyset), () \right)}{(\_, \wave{f}, \wave{\vec{Y}})}
+  \build{f}{\left(\circ_{i \in [0..n]}\text{put}(\text{Input}_i)(0,\emptyset), () \right)}{(\_, \wave{f}, \wave{\vec{Y}})}
 }
 \end{array}
 \end{array}
@@ -590,7 +599,7 @@ Note: $\text{Input}_i$ is a family of gates with no inputs and one output wire c
 
 ## Trace
 
-$\text{trace}$ computes the least fixed point of a composition of monotonic functions using $\text{sup}$. We also call a monotonic function a continuation if it is called by another. We call lift, to extend the state of a monotonic function.
+$\text{trace}$ computes the least fixed point of a composition of monotonic functions using $\text{sup}$. We also call a monotonic function a continuation if it is called by another. We call lift, to extend the argument of a monotonic function.
 
 $$
 \begin{array}{rl}
@@ -612,13 +621,13 @@ $$
 
  Resolve; $\Downarrow$, computes the values of wires $\wave{\vec{Y}}$ and inputs to assert gates given the input wire values $\vec{x}$.
  
- It does this by peeking $\wave{y}$ from the stack $\wave{\vec{y}}$, querying if the input wires are not resolved via $\text{?}$. If the inputs are resolved, we can evaluate the output wire values and cache it in the value map $v$ with $[\cdot]$. Every gate type has its corresponding evaluation function that computes the value(s) of its output(s). e.g. $\text{eval}(\text{Add}(\_,\_), (1,2)) = (3)$.
+ It does this by peeking $\wave{y}$ from the stack $\wave{\vec{y}}$, querying if the input wires are not resolved via $\text{?}$. If the inputs are resolved, we can evaluate the output wire values and cache it in the value map $v$ with $[\cdot]$. Every gate type has its corresponding evaluation function that computes the value(s) of its output(s). e.g. $\text{eval}(\text{Add}, (1,2)) = (3)$.
  
  The state also contains a flag $\Bb$. If the flag is set, then we infer the state is equal to the previous state when computing in $\text{sup}$. This makes equality checking cheap.
 
 $$
 \begin{array}{rl}
-\text{eval} &: (g: \text{Gate}) \to \Fb^{n_g}_q \to \Fb^{m_g}_q 
+\text{eval} &: (g: \text{GateType}) \to \Fb^{n_g}_q \to \Fb^{m_g}_q 
 \end{array}
 $$
 $$
@@ -657,40 +666,26 @@ v \text{?} \wave{\vec{y}}' & \text{otherwise}
 v_{\wave{f}}\left[\wave{y}\right] &= \maybe{
   v[\wave{\vec{y}} \mapsto \vec{y}]
 }{\begin{array}{rl}
-  \wave{f} &\ni (g=(\_, \wave{\vec{x}}), \wave{y}) \\
-  x_i &= v(\wave{x}_i) \\
+  \wave{f} &\ni (g, \wave{y}) \\
   \wave{\vec{y}} &= \text{out}(\wave{f}, g) \\
-  \vec{y} &= \text{eval}(g, \vec{x}) \\
+  \vec{y} &= \text{eval}(\text{ty}(g), v @ \text{in}(g)) \\
 \end{array}}
 \end{array}
 &
 \begin{array}{rl}
-\Downarrow &: \AbsCirc \to (T \times \RState \to T \times \RState) \to \\
-& T \times \RState \to T \times \RState \\
-\Downarrow^{\wave{f}}_{f}(t,v, \_, \wave{\vec{y}}) &= \begin{cases}
+\Downarrow &: (T \times \RState \to T \times \RState) \to \AbsCirc \\
+&\to T \times \RState \to T \times \RState \\
+f \wave{\circ} \Downarrow^{\wave{f}}_R(t,v, \_, \wave{\vec{y}}) &= \begin{cases}
 f(t,v,\top,()) & \wave{\vec{y}} = () \\
  & \wave{\vec{y}} = \wave{y} \cat \_ \\
 \underset{R}{\curvearrowleft} (t, v, \bot, \wave{\vec{y}}) & v(\wave{y}) \neq \bot \\
- & ((\_, \wave{\vec{x}}), \wave{y}) \in \wave{f} \\
- & \wave{\vec{x}}' = v \text{?} \wave{\vec{x}} \\
+ & (g, \wave{y}) \in \wave{f} \\
+ & \wave{\vec{x}} = v \text{?} \text{in}(g) \\
 \underset{R}{\curvearrowleft} \circ f(t, v_{\wave{f}}[\wave{y}], \bot, \wave{\vec{y}}) 
- & \wave{\vec{x}}' = () \\
-(t, v,\bot, \wave{\vec{x}}' \cat \wave{\vec{y}}) & \text{otherwise}
+ & \wave{\vec{x}} = () \\
+(t, v,\bot, \wave{\vec{x}} \cat \wave{\vec{y}}) & \text{otherwise}
 \end{cases} \\
 \end{array}
-\end{array}
-$$
-
-$$
-\begin{array}{rl}
-\text{init} &: \AbsCirc \to T \to \Nb^m \to \Fb^n_q \to \RState \\
-\text{init}_{\wave{f}}(\wave{\vec{Y}}, \vec{x})
-&= (\bot[(0..|\vec{x}|) \mapsto \vec{x}], \bot, \wave{\vec{Y}} \cat \set{\wave{x} \middle\vert ((\_, \wave{\vec{x}}), \bot) \in \wave{f} \land \wave{x} \in \wave{\vec{x}} \setminus \wave{\vec{Y}}}) \\
-\\
-\text{trace} &: T \to (T \times \RState \to T \times \RState) \to \AbsCirc \to \Nb^m \to \Fb^n_q \to T \times \RState \\
-\text{trace}^t_f(\wave{f}, \wave{\vec{Y}}, \vec{x}) &= \text{sup}\left(
-  \Downarrow^{\wave{f}}_f, (\lambda \_, (\_, b, \_). b), (t, \bot, \bot, ()), (t, \text{init}_{\wave{f}}(\wave{\vec{Y}}, \vec{x}))
-\right)
 \end{array}
 $$
 
@@ -698,20 +693,20 @@ $$
 
 gate computes the gate constraints by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation on resolved wires in $\Downarrow$.
 
-When the wire id stack $\wave{\vec{y}}$ is empty, $\underset{G}{\curvearrowright}$ will push to assert gates and input gates $A^{\wave{f}}$ to the stack. Thus all assertions, even if not contributing to $\wave{\vec{Y}}$, will be enforced. More on Constraint in the definition of $\text{circuit}$.
+When the wire id stack $\wave{\vec{y}}$ is empty, $\underset{G}{\curvearrowright}$ will push assert gates and input gates $A^{\wave{f}}$ to the stack. Thus all assertions, even if not contributing to $\wave{\vec{Y}}$, will be enforced. More on Constraint in the definition of $\text{circuit}$.
 
 $$
 \begin{array}{rl}
 \text{Term} &= \text{Slot} + \text{Selector} \\
 \text{Constraint} &= \text{Term} \to \Fb_q \\
-\text{ctrn} &: \VMap \to (g : \text{Gate}) \to \Nb^{m_g} \to \text{Constraint}^k
+\text{ctrn} &: (g : \text{GateType}) \to \Fb_q^{n_g + m_g} \to \text{Constraint}^k
 \end{array}
 $$
 $$
 \begin{array}{rl}
 \begin{array}{rl}
 \text{GState}^{k,k',k''} &= \text{Constraint}^{k''} \times \Gate^{k'} \times \RState^k \\
-A^{\wave{f}} &= \set{g \middle\vert (g, \wave{y}') \in \wave{f} \land (\wave{y} = \bot \lor \exists i. \wave{y} = \text{Input}_i) }
+A^{\wave{f}} &= \set{g \middle\vert (g, \wave{y}) \in \wave{f} \land (\wave{y} = \bot \lor \exists i. \wave{y} = \text{Input}_i) }
 \end{array}
 &
 \begin{array}{rl}
@@ -722,7 +717,9 @@ A^{\wave{f}} &= \set{g \middle\vert (g, \wave{y}') \in \wave{f} \land (\wave{y} 
 $$
 $$
 \begin{array}{rl}
-\underset{G}{\curvearrowright} &: \AbsCirc \to \Gate^k \times \RState \to \Gate^{k'} \times \RState \\
+\begin{array}{rl}
+\underset{G}{\curvearrowright} &: \AbsCirc \to \Gate^k \times \RState \\
+&\to \Gate^{k'} \times \RState \\
 \underset{G}{\curvearrowright}^{\wave{f}}(\vec{g}, v, \_, \wave{\vec{y}}) &= \begin{cases}
 (A^{\wave{f}} \cat \vec{g}, v, \bot, \wave{\vec{y}})
 & |\wave{\vec{y}}| = |\vec{g}| = 0 \\
@@ -731,19 +728,19 @@ $$
 & (g,\wave{y}) \in \wave{f} \\
 (\vec{g}, v, \top, \wave{\vec{y}})
 & \text{otherwise}
-\end{cases}\\
-\\
-\text{append} &: \AbsCirc \to \text{GState} \to \text{GState} \\
-\text{append}^{\wave{f}}(\vec{C}, \vec{g}, v, \_, \wave{\vec{y}}) &= \begin{cases}
+\end{cases}
+\end{array}
+&
+\begin{array}{rl}
+\Downarrow_G &: \AbsCirc \to \text{GState} \to \text{GState} \\
+\Downarrow_G^{\wave{f}}(\vec{C}, \vec{g}, v, \_, \wave{\vec{y}}) &= \begin{cases}
 (\vec{C}, (), v, \top, \wave{\vec{y}}) & \vec{g} = () \\
 & \vec{g} = g \cat \_ \\
-& \vec{C}' = \text{ctrn}(v, g, \text{out}(\wave{f},g)) \\
-(\vec{C}'', \vec{g}, v, \bot, \wave{\vec{y}})
-& \vec{C}'' = \vec{C} \cat \vec{C}' \\
+& \vec{v} = v @ (\text{in}(g) \cat \text{out}(\wave{f},g)) \\
+(\vec{C}', \vec{g}, v, \bot, \wave{\vec{y}})
+& \vec{C}' = \vec{C} \cat \text{ctrn}(\text{ty}(g), \vec{v}) \\
 \end{cases} \\
-\\
-\text{gate} &: \AbsCirc \to (T \times \text{GState} \to T \times \text{GState}) \to T \times \text{GState} \to T \times \text{GState} \\
-\text{gate}^{\wave{f}}_f &= \underset{G}{\curvearrowleft} \circ f \circ \text{lift} \circ \text{append}^{\wave{f}} \circ \text{lift} \circ \underset{G}{\curvearrowright}^{\wave{f}}
+\end{array}
 \end{array}
 $$
 
@@ -751,18 +748,57 @@ $$
 
 $$
 \begin{array}{rl}
+\begin{array}{rl}
 \text{Row} &= \Nb \\
-\text{coords} &: \text{Row} \to \Gate \to \text{CMap} \\
 \text{CMap} &= (\wave{y} : \Nb) \pto (\text{Slot} \times \text{Row})^{k_{\wave{y}}} \\
-\text{CState} &= \text{CMap} \times \text{GState} \\ 
+\text{coords} &: \text{Row} \to \text{GateType} \to \text{CMap}
+\end{array}
+&
+\begin{array}{rl}
+\sqcup &: \text{CMap} \to \text{CMap} \to \text{CMap} \\
+x \sqcup y &= \maybe{z}{\begin{array}{rrl}
+  \forall i. &x(i) \neq \bot \land y(i) \neq \bot &\Leftrightarrow z(i) = x(i) \cat y(i) \\
+  &x(i) \neq \bot \land y(i) = \bot & \Leftrightarrow z(i) = x(i) \\
+  &x(i) = \bot \land y(i) \neq \bot & \Leftrightarrow z(i) = y(i) \\
+  &x(i) = \bot \land y(i) = \bot &\Leftrightarrow z(i) = \bot
+\end{array}}
+\end{array}
+\end{array}
+$$
+$$
+\begin{array}{rl}
+\text{CState} &= \Nb \times \text{CMap} \times \text{GState} \\ \\
+\omega &: \Fb_q \\
+h &: \text{Slot} \to \Fb_q \\
+\text{id} &: \text{Slot} \times \text{Row} \to \Fb_q \\
+\text{id}(s, i) &= h_s \omega^i \\
+\\
+\underset{C}{\curvearrowright} &: \AbsCirc \to \text{CMap} \times \text{GState} \to \text{CMap} \times \text{GState} \\
+\underset{C}{\curvearrowright}^{\wave{f}}(c,\vec{C},\vec{g},v,\_, \wave{\vec{y}}) &= \begin{cases}
+(c,\vec{C},\vec{g},v,\top, \wave{\vec{y}}) & \vec{g} = () \\
+& \vec{g} = g \cat \_ \\
+(c', \vec{C}, \vec{g}, v, \bot, \wave{\vec{y}}) & c' = c \sqcup \text{coords}(|\vec{C}|, \text{ty}(g))
+\end{cases} \\
+\\
+\Downarrow_C &: \text{CState} \to \text{CState} \\
+\Downarrow_C(u,c, \vec{C}, \vec{g}, v, \_, \wave{\vec{y}}) &= \begin{cases}
+& \vec{g} = () \\
+& \vec{l} = c(u) \\
+(u,c, \vec{C}, \vec{g}, v, \top, \wave{\vec{y}})
+& \vec{l} = \bot \\
+? & \text{otherwise}
+\end{cases}
 \end{array}
 $$
 
-- peek non empty $\vec{g}$, update CMap
-- peek empty
-  - compute perm matrix
+- peek empty and c non bot
+  - add sigma to state
+  - change CMap to LoopMap
+  - LoopMap to CMap, actually coord to coord
+  - CMAP eval, on bot returns argument
+  - sigma is matrix of Slot times Row up to N, map apply Cmap eval
+  - set c to bot
   - mark flag
-- notation for partial map union
 
 ### Lookup Argument Constraints
 
@@ -771,17 +807,49 @@ $$
 
 ### Full Surkål Trace
 
-... construct $t$ and $e$ and define $\text{trace} = \text{trace}^t_e$
 
-## Circuit
-
-- fft
-- commits? pcdl
-- lookup thunk
+$$
+\begin{array}{rl}
+\text{init} &: \AbsCirc \to T \to \Nb^m \to \Fb^n_q \to \text{LState} \\
+\text{init}_{\wave{f}}(\wave{\vec{Y}}, \vec{x})
+&= (0, \bot, (), (), \bot[(0..|\vec{x}|) \mapsto \vec{x}], \bot, \wave{\vec{Y}} \cat \set{\wave{x} \middle\vert (g, \bot) \in \wave{f} \land \wave{x} \in \text{in}(g) \setminus \wave{\vec{Y}}}) \\
+\\
+s_0 &: \text{LState} \\
+s_0 &= (0, \bot, (), (), \bot, \bot, ()) \\
+\\
+eq &: \text{LState} \to \text{LState} \to \Bb \\
+eq &= \lambda \_, (\_, \_, \_, \_, \_, b, \_). b \\
+\\
+\text{trace} &: \AbsCirc \to \Nb^m \to \Fb^n_q \to T \times \text{LState} \\
+\text{trace}(\wave{f}, \wave{\vec{Y}}, \vec{x}) &= \text{sup}\left(
+  \underset{G}{\curvearrowleft} \circ \vec{F?} \circ \text{lift} \circ \Downarrow_G^{\wave{f}} \circ \text{lift} \circ \underset{G}{\curvearrowright}^{\wave{f}} \wave{\circ} \Downarrow_R^{\wave{f}}, eq, s_0, \text{init}_{\wave{f}}(\wave{\vec{Y}}, \vec{x})
+\right)
+\end{array}
+$$
 
 # Plonk Protocol
 
+- cosets
+- fft
+- F_GC
+- grand product
+  - cc
+  - pl
+
+
+## Circuit
+
+- polys
+  - slots
+  - permutation polys
+- commits
+- lookup thunk
+
 ## Prover
+
+- cc, pl: Z, f, g
+- quotient poly: t
+- opening poly: W
 
 ## Verifier
 
@@ -860,6 +928,8 @@ util functions
 - vector of naturals builder $(s..t) = \begin{cases} () & t \leq s \\ s \cat (s+1 .. t) \end{cases}$
 - vector concat $\vec{x} \cat \vec{y} = \begin{cases} \vec{y} & \vec{x} = () \\ \vec{x}' \cat (x \cat \vec{y}) & \vec{x} = \vec{x'} \cat x \end{cases}$
 - vector concat with set $X \cat \vec{x}$; any random ordering of $X$; recursive application of axiom of choice
+- vector map $f @ \vec{x} = (f(x_1), f(x_2), \ldots, f(x_n))$
+- vector minus set $\vec{x} \setminus X$ turns $\vec{x}$ to a set and removes all elements in $X$
 - min of a set with total ordering $\min(X)$
 - partial function append vector $f[\vec{x} \mapsto \vec{y}] = \begin{cases} f & \vec{x} = \vec{y} = () \\ f[x \mapsto y][\vec{x}' \mapsto \vec{y}'] & \vec{x} = x \cat \vec{x}', \vec{y} = y \cat \vec{y}' \\ \bot \end{cases}$
 
