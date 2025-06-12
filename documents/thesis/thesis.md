@@ -27,6 +27,428 @@ bibliography: bibliography.bib
 
 # High Level Protocol
 
+### Vanishing
+
+The checks that the verifier makes in Plonk boils down to checking identities
+of the following form:
+
+$$\forall a \in S : f(a) \meq 0$$
+
+For some polynomial $f(X) \in \Fb_{\leq d}$ and some set $S \subset \Fb$. The
+subset, $S$, may be much smaller than $\Fb$ as is the case for Plonk where
+$S = H$. Since we ultimately model the above check with challenge scalars,
+using the entirety of $\Fb$ should lead to much better security. We therefore
+end up with the following checks of the following form instead:
+
+$$\forall \xi \in \Fb : F'(\xi) \meq 0$$
+
+Where $S \subset \Fb$ and $F'$ is defined by combining $F$ with a challenge
+scalar $\a$. Below we present the protocol that lets the verifier query
+polynomial identities of the form $\forall a \in S : F(s) \meq 0$ using a
+PCS. For a series of polynomials, $\{ F_1, F_2, \dots, F_k \} \in \Fb_{\leq
+d}$, we have the following protocol:
+
+\begin{algorithm}[H]
+\caption*{
+  \textbf{Single Polynomial Vanishing Argument Protocol:} Converts queries for polynomial
+  identities ranging over all values $a \in H \subset S$ to a secure
+  non-interactive protocol using polynomial commitments.
+}
+\textbf{Inputs} \\
+  \Desc{$f: \Fb_{\leq d}[X]$}{The polynomial to check identity for.} \\
+\textbf{Output} \\
+  \Desc{$\Result(\top, \bot)$}{
+    Either the verifier accepts with $\top$ or rejects with $\bot$.
+  }
+\begin{algorithmic}[1]
+  \State $P:$ The prover constructs $t(X)$:
+    \Statex \algind $t(X) = \frac{f(X)}{z_S}, \quad z_S(X) = \prod_{s \in S}(X - s)$
+  \State $P \to V:$ then commits to $f(X), t(X)$:
+    \Statex \algind $C_f = \PCCommit(f(X), d, \bot), \quad C_t = \PCCommit(t(X), d, \bot)$
+  \State $V \to P:$ The verifier sends challenge $\xi$ to the prover
+  \State $P \to V:$ The prover sends $(f(\xi) = v_f, \pi_f, t(\xi) = v_t, \pi_f)$ to the verifier.
+  \State $V:$ The verifier then checks:
+    \Statex \algind $\PCCheck(C_f, d, \xi, v_f, \pi_f) \meq \top \; \land$
+    \Statex \algind $\PCCheck(C_t, d, \xi, v_t, \pi_t) \meq \top$
+  \end{algorithmic}
+\end{algorithm}
+
+**Correctness**
+
+For any $\xi \in \Fb \setminus H$, the following holds:
+
+$$
+\begin{aligned}
+p(X) &= f_i(\xi) - t(\xi) z_S(\xi) \\
+     &= f_i(\xi) - \left( \frac{f_i(\xi)}{z_S(\xi)} \right) z_S(\xi) \\
+     &= 0
+\end{aligned}
+$$
+$\qed$
+
+**Soundness**
+
+Due to the factor theorem[^factor-theorem] $z_S(X)$ only divides $f(X)$ if and
+only if all of $\o \in H : f(\o) = 0$. Then from this the Schwartz-Zippel
+Lemma[^schwartz-zippel] states that evaluating a nonzero polynomial on
+inputs chosen randomly from a large enough set is likely to find an input
+that produces a nonzero output. Specifically it ensures that $Pr[P(\xi)]
+\leq \frac{deg(P)}{|\Fb|}$. Clearly $\xi \in \Fb$ is a large enough set as
+$|\Fb| \gg |H|$ and therefore $Pr[P(\xi) | P \neq 0]$ is negligible. Lastly,
+the evaluation checked depends on the soundness of the underlying PCS scheme
+used, but we assume that it has knowledge soundness and binding. From all
+this, we conclude that the above vanishing argument is sound.
+
+[^schwartz-zippel]: The wikipedia page for the Schwartz-Zippel Lemma: [https://en.wikipedia.org/wiki/Schwartz%E2%80%93Zippel_lemma](https://en.wikipedia.org/wiki/Schwartz%E2%80%93Zippel_lemma)
+[^factor-theorem]: The wikipedia page for the Factor Theorem: [https://en.wikipedia.org/wiki/Factor_theorem](https://en.wikipedia.org/wiki/Factor_theorem)
+
+**Extending to multiple $f$'s**
+
+We can use a linear combination of $\a$ to generalize the Single Polynomial
+Vanishing Argument:
+
+\begin{algorithm}[H]
+\caption*{
+  \textbf{Vanishing Argument Protocol:} Converts queries for polynomial
+  identities ranging over all values $a \in H \subset S$ to a secure
+  non-interactive protocol using polynomial commitments.
+}
+\textbf{Inputs} \\
+  \Desc{$\vec{f}: \Fb^k_{\leq d}[X]$}{The polynomial to check identity for.} \\
+\textbf{Output} \\
+  \Desc{$\Result(\top, \bot)$}{
+    Either the verifier accepts with $\top$ or rejects with $\bot$.
+  }
+\begin{algorithmic}[1]
+  \State $P:$ The prover constructs $t(X)$:
+    \Statex \algind $t(X) = \sum_{i \in [k]} \frac{\a^i f_i(X)}{Z_s}, \quad z_S(X) = \prod_{s \in S}(X - s)$
+  \State $P \to V:$ then commits to $t(X)$ and each $f_i(X)$:
+    \Statex \algind $C_{f_i} = \PCCommit(f_i(X), d, \bot), \quad C_t = \PCCommit(t(X), d, \bot)$
+  \State $V \to P:$ The verifier sends challenge $\xi$ to the prover.
+  \State $P \to V:$ The prover sends $(f_i(\xi) = v_{f_i}, \pi_{f_i}, t(\xi) = v_t, \pi_f)$ to the verifier.
+  \State $V:$ The verifier then checks:
+    \Statex \algind $\forall i \in [k] : \PCCheck(C_{f_i}, d, \xi, v_{f_i}, \pi_{f_i}) \meq \top \; \land$
+    \Statex \algind $\PCCheck(C_t, d, \xi, v_t, \pi_t) \meq \top$
+  \end{algorithmic}
+\end{algorithm}
+
+Note that for the Plonk protocol specifically, $S = H = \{ 1, \o, \o^2,
+\dots, \o^{n-1} \}$ for the reason that the vanishing polynomial $z_S(X)$
+then becomes $z_S(X) = X^n - 1$ because $\o$ is a root of unity of order
+$n$. This is much more efficient to compute. The $\a$'s are used since we
+need a linearly independent combination of $f$.
+
+### Batched Evaluation Proofs
+
+If we have $m$ polynomials, $\vec{f}$, that all need to evaluate to
+zero at the same challenge $\xi$, normally, we could construct $m$ opening
+proofs, and verify these. We can, however, use the following technique to
+only create a single opening proofs.
+
+- The prover starts by sending commitments for each $f_i(X)$: $C_{f_i} = \PCCommit(f_i(X), d)$.
+- The verifier sends the challenge $\xi$.
+- The prover sends the evaluations of all $f_i$ ($v_{f_i} = f_i(\xi)$) as well as the single opening proof $\pi_w$ for the batched polynomial $w(X) = \sum_{i = 0}^k \a^i f_i(X)$.
+
+Now, the verifier can construct the commitment ($C_w$) and evaluation ($v_w$)
+to $w$ themselves:
+
+$$
+\begin{aligned}
+  C_w &= \sum_{i = 0}^k \a^i C_{f_i} \\
+  v_w &= \sum_{i = 0}^k \a^i v_{f_i}
+\end{aligned}
+$$
+
+Finally, the verifier finally checks that $\PCCheck(C_w, d, \xi, v_w, \pi_w) \meq \top$
+
+**Correctness:**
+
+The correctness of the protocol is trivial
+
+### Grand Product argument(s)
+
+- Haliq
+
+## Copy Constraint Rewrite
+
+- Haliq
+
+## Plonkup
+
+- Haliq
+
+## How do we write a circuit
+
+- Haliq
+
+## Gadgets
+
+### XOR
+
+### Poseidon
+
+### Range Check
+
+### Foreign Field stuff
+
+## Signatures
+
+## IVC Verifier from Gadgets
+
+### NARK (PLONK)
+
+### Accumulation Verifier
+
+### SuccinctCheck
+
+### Signatures
+
+# Introduction
+
+SNARKs - **S**uccinct **N**on-interactive **AR**guments of **K**nowledge
+have seen increased usage due to their application in blockchains and
+cryptocurrencies. Since it's an _argument of knowledge_, we have a prover
+and a verifier, $(P,V)$, where the prover must prove knowledge of their
+witness $w$. This might seem trivial so far, couldn't the prover just send
+the verifier $w$? However, we also have the requirement of _succinctness_;
+the communication between the prover and verifier must be sublinear.
+
+They usually also function as so called _general-purpose proof schemes_. This
+means that, given any solution to an NP-problem, it will produce a proof
+that the prover knows a solution. Usually, a verifier of the NP-problem
+is compiled to a circuit $R$, then it's proven that $R$ is satisfied
+i.e outputs one ($1 \from R(w)$). Snark constructions are also commonly
+used for zero-knowledge arguments, making them zk-SNARKs, and Plonk also
+supports zero-knowledge arguments.
+
+Notably, this project focuses on implementing the mechanics of the Plonk
+protocol using a commitment scheme, $\PCDL$, based on the discrete log relation,
+as described in the paper "Proof-Carrying Data from Accumulation
+Schemes"[^pcd]. The implementation was done by one of the others in a
+concurrent project[^pcdl]. This means that although original Plonk paper uses
+KZG[^kzg], which relies on a Trusted Setup in order to work, our implementation
+instead uses an Transparent Setup.
+
+Plonk is being used as a part of the Halo recursive proof scheme[^halo],
+that's used by both Zcash's Halo2[^halo2] and Mina's Pickles[^pickles]. Both are
+very similar and can be broken down into the following components:
+
+- **Plonk**: A general-purpose, potentially zero-knowledge, proof scheme.
+- **$\PCDL$**: A Polynomial Commitment Scheme in the Discrete Log setting.
+- **$\ASDL$**: An Accumulation Scheme in the Discrete Log setting.
+- **Pasta**: A Cycle of Elliptic Curves, namely **Pa**llas and Ve**sta**.
+
+This project only focuses on Plonk.
+
+[^pcd]: Proof-Carrying Data from Accumulation Schemes paper: [https://eprint.iacr.org/2020/499](https://eprint.iacr.org/2020/499)
+[^pcdl]: Halo Accumulation Project: [https://github.com/rasmus-kirk/halo-accumulation](https://github.com/rasmus-kirk/halo-accumulation)
+[^kzg]: KZG paper: [https://iacr.org/cryptodb/data/paper.php?pubkey=23846](https://iacr.org/cryptodb/data/paper.php?pubkey=23846)
+[^halo]: Halo paper: [https://eprint.iacr.org/2019/1021](https://eprint.iacr.org/2019/1021)
+[^halo2]: Halo2: [https://zcash.github.io/halo2/](https://zcash.github.io/halo2/)
+[^pickles]: Pickles: [https://o1-labs.github.io/proof-systems/specs/pickles.html](https://o1-labs.github.io/proof-systems/specs/pickles.html)
+
+# Prerequisites
+
+Basic knowledge on elliptic curves, groups, interactive arguments are
+assumed in the following text.
+
+## Polynomial Commitment Schemes
+
+Modern general-purpose (zero-knowledge) proof schemes, such as Sonic[^sonic],
+Marlin[^marlin], and of course Plonk, commonly use PCS's _Polynomial Commitment Schemes_
+for creating their proofs. A PCS allows a prover to prove to a verifier that
+a committed polynomial evaluates to a certain value, $v$, given an evaluation
+input $z$. There are three main functions used to prove this, along with a
+setup routine:
+
+- $\PCSetup(\l, D) \to \pp$
+
+  The setup routine. Given security parameter $\l$ in unary and a maximum
+  degree bound $D$. Creates the public parameters $\pp$.
+
+- $\PCCommit(p: \Fb^{d'}_q[X], d: \Nb, \o: \Option(\Fb_q)) \to \Eb(\Fb_q)$
+
+  Commits to a polynomial $p$ with degree bound $d$ where $d \geq d'$ using
+  optional hiding $\o$.
+
+- $\PCOpen(p: \Fb^{d'}_q[X], C: \Eb(\Fb_q), d: \Nb, z: \Fb_q, \o: \Option(\Fb_q)) \to \EvalProof$
+
+  Creates a proof, $\pi \in \EvalProof$, that the polynomial $p$, with
+  commitment $C$, evaluated at $z$ gives $v = p(z)$, using the hiding input
+  $\o$ if provided.
+
+- $\PCCheck(C: \Eb(\Fb_q), d: \Nb, z: \Fb_q, v: \Fb_q, \pi: \EvalProof) \to \Result(\top, \bot)$
+
+  Checks the proof $\pi$ that claims that the polynomial $p$ that $C$ is a
+  commitment to, evaluates to $v = p(z)$.
+
+A polynomial commitment scheme of course also has soundness and completeness
+properties:
+
+**Completeness:** For every maximum degree bound $D = \poly(\l) \in \Nb$:
+
+$$
+\Pr \left[
+  \begin{array}{c}
+    d \in [d_i]^n_{i=1}, \; \deg(p) \leq d \leq D \\
+    \PCCheck^\rho(C, d, z, v, \pi) = 1
+  \end{array}
+  \middle|
+  \begin{array}{r}
+    \pp \leftarrow \PCSetup^\rho(1^\l, D) \\
+    ([d_i]^n_{i=1}, p, d, z, \o) \leftarrow \Ac^\rho(\pp) \\
+    C \leftarrow \PCCommit^\rho(p, d, \o) \\
+    v \leftarrow p(z) \\
+    \pi \leftarrow \PCOpen^\rho(p, C, d, z; \o)
+  \end{array}
+\right] = 1.
+$$
+
+I.e. an honest prover will convince an honest verifier.
+
+**Soundness:** For every maximum degree bound $D = \poly(\l) \in \Nb$ and
+polynomial-size adversary $\Ac$, there exists an efficient extractor $\Ec$
+such that the following holds:
+
+$$
+\Pr \left[
+  \begin{array}{c}
+    \PCCheck^\rho(C, d, z, v, \pi) = 1 \\
+    \Downarrow \\
+    C = \PCCommit^\rho(p, d, \o) \\
+    v = p(z), \; d \in [d_i]^n_{i=1}, \; \deg(p) \leq d \leq D
+  \end{array}
+  \middle|
+  \begin{array}{r}
+    \rho \leftarrow \Uc(\l) \\
+    \pp \leftarrow \PCSetup^\rho(1^\l, D) \\
+    ([d_i]^n_{i=1}, (C, d, z, v, \pi)) \leftarrow \Ac^\rho(\pp) \\
+    (p, \o) \leftarrow \Ec^\rho(\pp) \\
+  \end{array}
+\right] \leq \negl(\lambda).
+$$
+
+I.e. any adversary, $\Ac$, will not be able to open on a different polynomial,
+than the one they committed to.
+
+[^sonic]: Sonic paper: [https://eprint.iacr.org/2019/099](https://eprint.iacr.org/2019/099)
+[^marlin]: Marlin paper: [https://eprint.iacr.org/2019/1047](https://eprint.iacr.org/2019/1047)
+
+## Fiat-Shamir Heuristic
+
+We use the Fiat-Shamir heuristic to make the entire protocol
+non-interactive. The Fiat-Shamir heuristic turns a public-coin interactive
+proof into a into a non-interactive interactive proof. This is done by
+replacing all random values sent by the verifier to the prover with calls to a
+non-interactive random oracle. In practice a cryptographic hash function $\Hc$
+is used, where the transcript along with any public information[^frozen-heart]
+is hashed using $\Hc$.
+
+[^frozen-heart]: Not using public inputs can lead to a
+vulnerability called "The Frozen Heart Vulnerability". This
+specific vulnerability [have affected some Plonk
+implementations](https://blog.trailofbits.com/2022/04/18/the-frozen-heart-vulnerability-in-plonk/)
+
+# The Protocol
+
+The goal of Plonk is for a prover to convince a verifier of the following
+claim:
+
+**The Claim:** "I know private inputs[^pi] $\vec{x} \in \Fb^n$ s.t. when given
+a public circuit $R$, then $R(\vec{x}) = \vec{y} \in \Fb^m$"
+
+Where the number of the inputs for circuit $R$ is $n$ and the number of the
+outputs is $m$. Let's look at a simple circuit representing the computation
+of $3x^2_1 + 5x_2$:
+
+\begin{figure}
+\centering
+\begin{tikzpicture}
+% First Layer
+\node (input1) at (3, 7) {$x_1$};
+\node (input2) at (5, 7) {$x_2$};
+\node (A) at (1, 7) {$3$};
+\node (B) at (7, 7) {$5$};
+
+    % Second Layer
+    \node[draw, rectangle] (mul21) at (3, 5.5) {$\times$};
+    \node[above left=0.01cm of mul21] {$a_1$};
+    \node[above right=0.01cm of mul21] {$b_1$};
+    \node[below right=0.01cm of mul21] {$c_1$};
+
+    \node[draw, rectangle] (mul22) at (6, 5.5) {$\times$};
+    \node[above left=0.01cm of mul22] {$a_2$};
+    \node[above right=0.01cm of mul22] {$b_2$};
+    \node[below right=0.01cm of mul22] {$c_2$};
+
+    \draw[->] (input1) -- (2, 7) |- (mul21);
+    \draw[->] (input1) -- (4, 7) |- (mul21);
+
+    \draw[->] (input2) -- (5, 6.5) |- (mul22);
+    \draw[->] (B) -- (7, 6.5) |- (mul22);
+
+    % Third Layer
+    \node[draw, rectangle] (mul31) at (2, 4) {$\times$};
+    \node[above left=0.01cm of mul31] {$a_3$};
+    \node[above right=0.01cm of mul31] {$b_3$};
+    \node[below right=0.01cm of mul31] {$c_3$};
+
+    \draw[->] (mul21) -- (3, 4) |- (mul31);
+    \draw[->] (A) -- (1, 4) |- (mul31);
+
+    % Fourth Layer
+    \node[draw, rectangle] (add41) at (4, 2.5) {$+$};
+    \node[above left=0.01cm of add41] {$a_3$};
+    \node[above right=0.01cm of add41] {$b_3$};
+    \node[below right=0.01cm of add41] {$c_3$};
+
+    \draw[->] (mul31) -- (2, 3.5) |- (add41);
+    \draw[->] (mul22) -- (6, 3.5) |- (add41);
+
+    % Fifth Layer
+    \node (output) at (4, 1) { $y_1$ };
+
+    \draw[->] (add41) -- (output);
+
+\end{tikzpicture}
+\caption{A simple circuit}
+\end{figure}
+
+In the above figure the output of the multiplication gate on the right, $c_2$,
+should be equal to the value of the input wire of the addition gate, $b_3$. Plonk
+enforces this using a _copy constraint._ Using this, we can split our desired
+claim into two constraints, that must hold:
+
+- **Gate Constraints:** The gates of circuit $R$ was computed correctly.
+- **Copy Constraints:** Different wires indices representing the same wire,
+  should have the same value.
+
+We will explore how the machinery of Plonk achieves this in the next sections.
+
+[^pi]: Technically, Plonk also supports public inputs, but these
+can also be modelled as constant gates, so we omit public inputs for simplicity.
+
+## Check Conversions
+
+The checks that the verifier makes in Plonk boils down to checking identities
+of the following form:
+
+$$\forall a \in S : F(a) \meq 0$$
+
+For some polynomial $F(X) \in \Fb_{\leq d}$ and some set $S \subset \Fb$. The
+subset, $S$, may be much smaller than $\Fb$ as is the case for Plonk where
+$S = H$. Since we ultimately model the above check with challenge scalars,
+using the entirety of $\Fb$ should lead to much better security. We therefore
+end up with the following checks of the following form instead:
+
+$$\forall \xi \in \Fb : F'(\xi) \meq 0$$
+
+Where $S \subset \Fb$ and $F'$ is defined by combining $F$ with a challenge
+scalar $\a$. Below we present the protocol that lets the verifier query
+polynomial identities of the form $\forall a \in S : F(s) \meq 0$ using a
+PCS. For a series of polynomials, $\{ F_1, F_2, \dots, F_k \} \in \Fb_{\leq
+d}$, we have the following protocol:
+
 \begin{algorithm}[H]
 \caption*{
   \textbf{Surkål:} a plonkish NARK protocol.
