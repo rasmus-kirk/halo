@@ -1,7 +1,5 @@
 #![allow(non_snake_case)]
 
-use std::fmt::Display;
-
 use crate::consts::*;
 use crate::group::{Affine, Point};
 use crate::wrappers::{PastaConfig, WrappedPoint};
@@ -33,7 +31,7 @@ impl<P: PastaConfig> PublicParams<P> {
         let mut m = n;
         for (i, bytes) in P::get_g_data().iter().enumerate() {
             let raw_gs = bincode::decode_from_slice::<Vec<WrappedPoint>, _>(bytes, standard())
-                .expect(format!("Failed to decode G_BLOCKS_NO {}", i).as_str())
+                .unwrap_or_else(|_| panic!("Failed to decode G_BLOCKS_NO {}", i))
                 .0
                 .into_iter()
                 .take(m)
@@ -47,7 +45,8 @@ impl<P: PastaConfig> PublicParams<P> {
             }
         }
         let ((S, H), _): ((WrappedPoint, WrappedPoint), usize) =
-            bincode::decode_from_slice(P::get_sh_data(), standard()).expect(format!("Failed to get SH data for curve {}", P::CURVE_NAME).as_str());
+            bincode::decode_from_slice(P::get_sh_data(), standard())
+                .unwrap_or_else(|_| panic!("Failed to get SH data for curve {}", P::CURVE_NAME));
 
         PublicParams {
             S: P::unwrap_projective(S),

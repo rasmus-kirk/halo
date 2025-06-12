@@ -65,6 +65,7 @@
         runtimeInputs = [mk-pandoc pkgs.fswatch];
         text = ''
           set +e
+          mk-pandoc
           echo "Listening for file changes"
           fswatch --event Updated ./*.md | xargs -n 1 sh -c 'date "+%Y-%m-%d - %H:%M:%S %Z"; mk-pandoc'
         '';
