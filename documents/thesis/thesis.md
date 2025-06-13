@@ -276,24 +276,15 @@ We also introduce an ergonomic way to write circuits that does not require manua
 ## Vanishing Argument
 
 
-The checks that the verifier makes in Plonk boils down to checking identities
-of the following form:
+The checks that the verifier makes in Plonk boils down to checking identities of the following form:
 
 $$\forall a \in S : f(a) \meq 0$$
 
-For some polynomial $f(X) \in \Fb_{\leq d}$ and some set $S \subset \Fb$. The
-subset, $S$, may be much smaller than $\Fb$ as is the case for Plonk where
-$S = H$. Since we ultimately model the above check with challenge scalars,
-using the entirety of $\Fb$ should lead to much better security. We therefore
-end up with the following checks of the following form instead:
+For some polynomial $f(X) \in \Fb_{\leq d}$ and some set $S \subset \Fb$. The subset, $S$, may be much smaller than $\Fb$ as is the case for Plonk where $S = H$. Since we ultimately model the above check with challenge scalars, using the entirety of $\Fb$ should lead to much better security. We therefore end up with the following checks of the following form instead:
 
 $$\forall \xi \in \Fb : F'(\xi) \meq 0$$
 
-Where $S \subset \Fb$ and $F'$ is defined by combining $F$ with a challenge
-scalar $\a$. Below we present the protocol that lets the verifier query
-polynomial identities of the form $\forall a \in S : F(s) \meq 0$ using a
-PCS. For a series of polynomials, $\{ F_1, F_2, \dots, F_k \} \in \Fb_{\leq
-d}$, we have the following protocol:
+Where $S \subset \Fb$ and $F'$ is defined by combining $F$ with a challenge scalar $\a$. Below we present the protocol that lets the verifier query polynomial identities of the form $\forall a \in S : F(s) \meq 0$ using a PCS. For a series of polynomials, $\{ F_1, F_2, \dots, F_k \} \in \Fb_{\leq d}$, we have the following protocol:
 
 \begin{algorithm}[H]
 \caption*{
@@ -335,16 +326,7 @@ $\qed$
 
 **Soundness**
 
-Due to the factor theorem[^factor-theorem] $z_S(X)$ only divides $f(X)$ if and
-only if all of $\o \in H : f(\o) = 0$. Then from this the Schwartz-Zippel
-Lemma[^schwartz-zippel] states that evaluating a nonzero polynomial on
-inputs chosen randomly from a large enough set is likely to find an input
-that produces a nonzero output. Specifically it ensures that $Pr[P(\xi)]
-\leq \frac{deg(P)}{|\Fb|}$. Clearly $\xi \in \Fb$ is a large enough set as
-$|\Fb| \gg |H|$ and therefore $Pr[P(\xi) | P \neq 0]$ is negligible. Lastly,
-the evaluation checked depends on the soundness of the underlying PCS scheme
-used, but we assume that it has knowledge soundness and binding. From all
-this, we conclude that the above vanishing argument is sound.
+Due to the factor theorem[^factor-theorem] $z_S(X)$ only divides $f(X)$ if and only if all of $\o \in H : f(\o) = 0$. Then from this the Schwartz-Zippel Lemma[^schwartz-zippel] states that evaluating a nonzero polynomial on inputs chosen randomly from a large enough set is likely to find an input that produces a nonzero output. Specifically it ensures that $Pr[P(\xi)] \leq \frac{deg(P)}{|\Fb|}$. Clearly $\xi \in \Fb$ is a large enough set as $|\Fb| \gg |H|$ and therefore $Pr[P(\xi) | P \neq 0]$ is negligible. Lastly, the evaluation checked depends on the soundness of the underlying PCS scheme used, but we assume that it has knowledge soundness and binding. From all this, we conclude that the above vanishing argument is sound.
 
 [^schwartz-zippel]: The wikipedia page for the Schwartz-Zippel Lemma: [https://en.wikipedia.org/wiki/Schwartz%E2%80%93Zippel_lemma](https://en.wikipedia.org/wiki/Schwartz%E2%80%93Zippel_lemma)
 [^factor-theorem]: The wikipedia page for the Factor Theorem: [https://en.wikipedia.org/wiki/Factor_theorem](https://en.wikipedia.org/wiki/Factor_theorem)
@@ -379,26 +361,17 @@ Vanishing Argument:
   \end{algorithmic}
 \end{algorithm}
 
-Note that for the Plonk protocol specifically, $S = H = \{ 1, \o, \o^2,
-\dots, \o^{n-1} \}$ for the reason that the vanishing polynomial $z_S(X)$
-then becomes $z_S(X) = X^n - 1$ because $\o$ is a root of unity of order
-$n$. This is much more efficient to compute. The $\a$'s are used since we
-need a linearly independent combination of $f$.
-
+Note that for the Plonk protocol specifically, $S = H = \{ 1, \o, \o^2, \dots, \o^{n-1} \}$ for the reason that the vanishing polynomial $z_S(X)$ then becomes $z_S(X) = X^n - 1$ because $\o$ is a root of unity of order $n$. This is much more efficient to compute. The $\a$'s are used since we need a linearly independent combination of $f$.
 
 ## Batched Evaluation Proofs
 
-If we have $m$ polynomials, $\vec{f}$, that all need to evaluate to
-zero at the same challenge $\xi$, normally, we could construct $m$ opening
-proofs, and verify these. We can, however, use the following technique to
-only create a single opening proofs.
+If we have $m$ polynomials, $\vec{f}$, that all need to evaluate to zero at the same challenge $\xi$, normally, we could construct $m$ opening proofs, and verify these. We can, however, use the following technique to only create a single opening proofs.
 
 - The prover starts by sending commitments for each $f_i(X)$: $C_{f_i} = \PCCommit(f_i(X), d)$.
 - The verifier sends the challenge $\xi$.
 - The prover sends the evaluations of all $f_i$ ($v_{f_i} = f_i(\xi)$) as well as the single opening proof $\pi_w$ for the batched polynomial $w(X) = \sum_{i = 0}^k \a^i f_i(X)$.
 
-Now, the verifier can construct the commitment ($C_w$) and evaluation ($v_w$)
-to $w$ themselves:
+Now, the verifier can construct the commitment ($C_w$) and evaluation ($v_w$) to $w$ themselves:
 
 $$
 \begin{aligned}
@@ -415,7 +388,7 @@ The correctness of the protocol is trivial
 
 ## Grand Product Argument
 
-- Haliq
+TODO
 
 \newpage
 
@@ -445,7 +418,7 @@ m &: \text{Gate} + \text{GateType} \to \Nb
 \end{array}
 &
 \begin{array}{rl}
-\text{ty} &: (g: \text{Gate}) \to \text{GateType} \\
+\text{ty} &: \text{Gate} \to \text{GateType} \\
 \text{ty}(t, \_) &= t
 \end{array}
 &
@@ -527,7 +500,7 @@ $$
 \end{array}
 $$
 
-Note: $\text{Input}_i$ is a family of gates with no inputs and one output wire corresponding to an input of the global circuit. The list of gates available are defined in section on Gates and Gadgets.
+Note: $\text{Input}_i$ is a family of gates with no inputs and one output wire corresponding to an input of the final circuit. The list of gates available are defined in section on Gates and Gadgets.
 
 ## Trace
 
@@ -538,6 +511,7 @@ $$
 \begin{array}{rl}
 \text{lift} &: (T \to U) \to (V \times T \to V \times U) \\
 \text{lift}(f) &= \lambda (v,t). (v, f(t)) \\
+g \circ^{\uparrow} f &= g \circ \text{lift}(f) 
 \end{array} &
 \begin{array}{rl}
 \text{sup} &: (T \to T) \to (T \to T \to \Bb) \to T \to T \to T \\
@@ -551,7 +525,7 @@ $$
 
 ### Resolve
 
- Resolve; $\Downarrow$, computes the values of wires $\wave{\vec{Y}}$ and inputs to assert gates given the input wire values $\vec{x}$.
+ Resolve; $\Downarrow_R$, computes the values of wires $\wave{\vec{Y}}$ and inputs to assert gates given the input wire values $\vec{x}$.
  
  It does this by peeking $\wave{y}$ from the stack $\wave{\vec{y}}$, querying if the input wires are not resolved via $\text{?}$. If the inputs are resolved, we can evaluate the output wire values and cache it in the value map $v$ with $[\cdot]$. Every gate type has its corresponding evaluation function that computes the value(s) of its output(s). e.g. $\text{eval}(\text{Add}, (1,2)) = (3)$.
  
@@ -605,7 +579,7 @@ v_{\wave{f}}\left[\wave{y}\right] &= \maybe{
 \end{array}
 &
 \begin{array}{rl}
-\Downarrow &: (T \times \RState \to T \times \RState) \to \AbsCirc \\
+\Downarrow_R &: (T \times \RState \to T \times \RState) \to \AbsCirc \\
 &\to T \times \RState \to T \times \RState \\
 f \wave{\circ} \Downarrow^{\wave{f}}_R(t,v, \_, \wave{\vec{y}}) &= \begin{cases}
 f(t,v,\top,()) & \wave{\vec{y}} = () \\
@@ -620,6 +594,8 @@ f(t,v,\top,()) & \wave{\vec{y}} = () \\
 \end{array}
 \end{array}
 $$
+
+The rest of the monotonic functions are better motivated when we define the prover.
 
 ### Gate Constraints
 
@@ -699,38 +675,32 @@ x \sqcup y &= \maybe{z}{\begin{array}{rrl}
 $$
 $$
 \begin{array}{rl}
-\text{CState} &= \Nb \times \text{CMap} \times \text{GState} \\ \\
-\omega &: \Fb_q \\
-h &: \text{Slot} \to \Fb_q \\
-\text{id} &: \text{Slot} \times \text{Row} \to \Fb_q \\
-\text{id}(s, i) &= h_s \omega^i \\
+\text{CState} &= \text{CMap} \times \text{GState} \\
 \\
-\underset{C}{\curvearrowright} &: \AbsCirc \to \text{CMap} \times \text{GState} \to \text{CMap} \times \text{GState} \\
-\underset{C}{\curvearrowright}^{\wave{f}}(c,\vec{C},\vec{g},v,\_, \wave{\vec{y}}) &= \begin{cases}
+\Downarrow_C &: \AbsCirc \to \text{CState} \to \text{CState} \\
+\Downarrow_C^{\wave{f}}(c,\vec{C},\vec{g},v,\_, \wave{\vec{y}}) &= \begin{cases}
 (c,\vec{C},\vec{g},v,\top, \wave{\vec{y}}) & \vec{g} = () \\
 & \vec{g} = g \cat \_ \\
 (c', \vec{C}, \vec{g}, v, \bot, \wave{\vec{y}}) & c' = c \sqcup \text{coords}(|\vec{C}|, \text{ty}(g))
 \end{cases} \\
 \\
-\Downarrow_C &: \text{CState} \to \text{CState} \\
-\Downarrow_C(u,c, \vec{C}, \vec{g}, v, \_, \wave{\vec{y}}) &= \begin{cases}
-& \vec{g} = () \\
-& \vec{l} = c(u) \\
-(u,c, \vec{C}, \vec{g}, v, \top, \wave{\vec{y}})
-& \vec{l} = \bot \\
-? & \text{otherwise}
-\end{cases}
+\omega &: \Fb_q \\
+h &: \text{Slot} \to \Fb_q \\
+\text{id} &: \text{Slot} \times \text{Row} \to \Fb_q \\
+\text{id}(s, i) &= h_s \omega^i \\
 \end{array}
 $$
 
-- peek empty and c non bot
-  - add sigma to state
-  - change CMap to LoopMap
-  - LoopMap to CMap, actually coord to coord
-  - CMAP eval, on bot returns argument
-  - sigma is matrix of Slot times Row up to N rows, map apply Cmap eval
-  - set c to bot
-  - mark flag
+- Permutation Matrix
+  - CMAP map func
+    - coord to coord mapping
+    - on bot returns argument
+  - matrix of Slot times Row up to N rows
+  - map apply Cmap map func
+  - apply this after sup of trace in; post: LState -> TraceResult
+    - trace result is probably just a matrix and lookup think
+      - where matrix column is a poly
+      - and has N rows
 
 ### Lookup Argument Constraints
 
@@ -744,17 +714,17 @@ $$
 \begin{array}{rl}
 \text{init} &: \AbsCirc \to T \to \Nb^m \to \Fb^n_q \to \text{LState} \\
 \text{init}_{\wave{f}}(\wave{\vec{Y}}, \vec{x})
-&= (0, \bot, (), (), \bot[(0..|\vec{x}|) \mapsto \vec{x}], \bot, \wave{\vec{Y}} \cat \set{\wave{x} \middle\vert (g, \bot) \in \wave{f} \land \wave{x} \in \text{in}(g) \setminus \wave{\vec{Y}}}) \\
+&= (\bot, (), (), \bot[(0..|\vec{x}|) \mapsto \vec{x}], \bot, \wave{\vec{Y}} \cat \set{\wave{x} \middle\vert (g, \bot) \in \wave{f} \land \wave{x} \in \text{in}(g) \setminus \wave{\vec{Y}}}) \\
 \\
 s_0 &: \text{LState} \\
-s_0 &= (0, \bot, (), (), \bot, \bot, ()) \\
+s_0 &= (\bot, (), (), \bot, \bot, ()) \\
 \\
 eq &: \text{LState} \to \text{LState} \to \Bb \\
-eq &= \lambda \_, (\_, \_, \_, \_, \_, b, \_). b \\
+eq &= \lambda \_, (\_, \_, \_, \_, b, \_). b \\
 \\
 \text{trace} &: \AbsCirc \to \Nb^m \to \Fb^n_q \to T \times \text{LState} \\
 \text{trace}(\wave{f}, \wave{\vec{Y}}, \vec{x}) &= \text{sup}\left(
-  \underset{G}{\curvearrowleft} \circ \vec{F?} \circ \text{lift} \circ \Downarrow_G^{\wave{f}} \circ \text{lift} \circ \underset{G}{\curvearrowright}^{\wave{f}} \wave{\circ} \Downarrow_R^{\wave{f}}, eq, s_0, \text{init}_{\wave{f}}(\wave{\vec{Y}}, \vec{x})
+  \underset{G}{\curvearrowleft} \circ \vec{F?} \circ^\uparrow \Downarrow_C^{\wave{f}} \circ^\uparrow \Downarrow_G^{\wave{f}} \circ^\uparrow \underset{G}{\curvearrowright}^{\wave{f}} \wave{\circ} \Downarrow_R^{\wave{f}}, eq, s_0, \text{init}_{\wave{f}}(\wave{\vec{Y}}, \vec{x})
 \right)
 \end{array}
 $$
