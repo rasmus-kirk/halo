@@ -851,14 +851,14 @@ term constructors
 
 util functions
 
-- maybe notation $\maybe{x}{\phi(x)} = \begin{cases} x & \phi(x) \\ \bot \end{cases}$
+- maybe notation $\maybe{x}{\phi(x)} = \begin{cases} x & \phi(x) \\ \bot & \text{otherwise} \end{cases}$
 - vector of naturals builder $(s..t) = \begin{cases} () & t \leq s \\ s \cat (s+1 .. t) \end{cases}$
 - vector concat $\vec{x} \cat \vec{y} = \begin{cases} \vec{y} & \vec{x} = () \\ \vec{x}' \cat (x \cat \vec{y}) & \vec{x} = \vec{x'} \cat x \end{cases}$
 - vector concat with set $X \cat \vec{x}$; any random ordering of $X$; recursive application of axiom of choice
 - vector map $f @ \vec{x} = (f(x_1), f(x_2), \ldots, f(x_n))$
 - vector minus set $\vec{x} \setminus X$ turns $\vec{x}$ to a set and removes all elements in $X$
 - min of a set with total ordering $\min(X)$
-- partial function append vector $f[\vec{x} \mapsto \vec{y}] = \begin{cases} f & \vec{x} = \vec{y} = () \\ f[x \mapsto y][\vec{x}' \mapsto \vec{y}'] & \vec{x} = x \cat \vec{x}', \vec{y} = y \cat \vec{y}' \\ \bot \end{cases}$
+- partial function append vector $f[\vec{x} \mapsto \vec{y}] = \begin{cases} f & \vec{x} = \vec{y} = () \\ f[x \mapsto y][\vec{x}' \mapsto \vec{y}'] & \vec{x} = x \cat \vec{x}', \vec{y} = y \cat \vec{y}' \\ \bot & \text{otherwise} \end{cases}$
 
 identities
 
@@ -871,12 +871,6 @@ set theoretic notations
 - set of naturals from one $[n] = \set{1,2,\ldots,n-1}$
 - set of naturals with lower bound $[n..m] = \set{n,n+1,\ldots,m-1}$
 - flattened case notation, conditions are propagated to conditions below if they don't contradict.
-  - let $\phi_i$ be a family of predicates / conditions in our cases notation
-  - $\psi^{j}_i = (\forall x,y. \phi_{j}(x) \land \phi_{i}(y) = \bot)$ models a contradiction (always false)
-  - $\psi^i_X = \bigwedge\limits_{x \in X} \psi^i_x$ models all $x \in X$ contradicts with $i$
-  - $\psi^j(\vec{x}) = \bigwedge\limits_{i \in [j+1]} \psi^i_{[i..j+1]} \oplus x_i$ a condition is conjunction of all previous that have not been contradicted before
-  - it is assumed for any two conditions with terms, contain some $\phi_i$ that contradicts
-
 $$
 \begin{array}{rl}
 \begin{cases}
@@ -888,14 +882,8 @@ c & \phi_4(c) \\
 \end{cases} &=
 \begin{cases}
 a & \phi_1(a) \\
-b & \psi^1_{\set{2,3}} \oplus \phi_1(a) \land \psi^2_3 \oplus \phi_2(a) \land \phi_3(b) \\
-c & \psi^1_{\set{2,3,4}} \oplus \phi_1(a) \land \psi^2_{\set{3,4}} \oplus \phi_2(a) \land \psi^3_4 \oplus \phi_3(b) \land \phi_4(c)  \\
-\vdots
-\end{cases} \\
-&= \begin{cases}
-a & \psi^1(\phi_1(a)) \\
-b & \psi^3(\phi_1(a), \phi_2(a), \phi_3(b)) \\
-c & \psi^4(\phi_1(a), \phi_2(a), \phi_3(b), \phi_4(c)) \\
+b(a) & \phi_3(b(a)) \lor \phi_1(a) \lor \phi_2(a) \\
+c(b(a),a) & \phi_4(c(b(a),a)) \lor \phi_1(a) \lor \phi_2(a) \lor \phi_3(b(a)) \\
 \vdots
 \end{cases}
 \end{array}
