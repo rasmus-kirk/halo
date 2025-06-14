@@ -581,7 +581,7 @@ v_{\wave{f}}\left[\wave{y}\right] &= \maybe{
 \begin{array}{rl}
 \Downarrow_R &: (T \times \RState \to T \times \RState) \to \AbsCirc \\
 &\to T \times \RState \to T \times \RState \\
-f \wave{\circ} \Downarrow^{\wave{f}}_R(t,v, \_, \wave{\vec{y}}) &= \begin{cases}
+f \stackrel{\to}{\circ} \Downarrow^{\wave{f}}_R(t,v, \_, \wave{\vec{y}}) &= \begin{cases}
 f(t,v,\top,()) & \wave{\vec{y}} = () \\
  & \wave{\vec{y}} = \wave{y} \cat \_ \\
 \underset{R}{\curvearrowleft} (t, v, \bot, \wave{\vec{y}}) & v(\wave{y}) \neq \bot \\
@@ -641,7 +641,7 @@ $$
 \begin{array}{rl}
 \Downarrow_G &: (T \times \text{GState} \to T \times \text{GState}) \to \AbsCirc \\
 &\to T \times \text{GState} \to T \times \text{GState} \\
-f \wave{\circ} \Downarrow_G^{\wave{f}} &= \underset{G}{\curvearrowleft} \circ f \circ^\uparrow \lambda (\vec{C}, \vec{g}, v, \_, \wave{\vec{y}}). \\
+f \stackrel{\to}{\circ} \Downarrow_G^{\wave{f}} &= \underset{G}{\curvearrowleft} \circ f \circ^\uparrow \lambda (\vec{C}, \vec{g}, v, \_, \wave{\vec{y}}). \\
 &
 \begin{cases}
 (\vec{C}, (), v, \top, \wave{\vec{y}}) & \vec{g} = () \\
@@ -649,7 +649,7 @@ f \wave{\circ} \Downarrow_G^{\wave{f}} &= \underset{G}{\curvearrowleft} \circ f 
 & \vec{v} = v @ (\text{in}(g) \cat \text{out}(\wave{f},g)) \\
 (\vec{C}', \vec{g}, v, \bot, \wave{\vec{y}})
 & \vec{C}' = \vec{C} \cat \text{ctrn}(\text{ty}(g), \vec{v}) \\
-\end{cases} \\
+\end{cases} \circ^\uparrow \underset{G}{\curvearrowright}^{\wave{f}} \\
 \end{array}
 \end{array}
 $$
@@ -658,9 +658,9 @@ $$
 
 $\Downarrow_C$ quotients an ordered set of coordinates in slot positions of $\vec{C}$ by the wire id corresponding to the value there.
 
-This is done by peeking $\vec{g}$ and joining the coordinate loop the gate which corresponds to $\mathtt{ctrn}$.
+This is done by peeking $\vec{g}$ and joining the coordinate loop of the gate. This corresponds to $\mathtt{ctrn}$.
 
-After, trace will transform the coordinate loop to a map from coordinate to coordinate where each term in the quotient maps to its neighbour, and the last maps to the first. This is used to compute the permutation matrix.
+After $\mathtt{sup}$, trace will transform the coordinate loop to a map from coordinate to coordinate where each term in the quotient maps to its neighbour, and the last maps to the first. This is used to compute the permutation matrix.
 $$
 \begin{array}{rl}
 \begin{array}{rl}
@@ -719,21 +719,33 @@ p & \text{otherwise}
 $$
 $$
 \begin{array}{rl}
-\text{id} &: \Fb_q \to (\text{Slot} \to \Fb_q) \to \text{Coord} \to \Fb_q \\
+\begin{array}{rl}
+\text{id} &: \Fb_q \to (\text{Slot} \to \Fb_q) \\
+&\to \text{Coord} \to \Fb_q \\
 \text{id}^{\omega}_h(s, i) &= h_s \omega^i \\
-\\
+\end{array}
+&
+\begin{array}{rl}
 \text{toPerm} &: \Fb_q \to (\text{Slot} \to \Fb_q) \to (N : \Nb) \to \text{CMap} \to (\text{Slot} \to \Fb_q)^N \\
 \text{toPerm}^{\omega}_h(N, c) &= \begin{cases}
 () & N = 0 \\
 \text{toPerm}^{\omega}_{h}(N-1, c) \cat \lambda s. \text{id}^\omega_h \circ c(s,N) & \text{otherwise}
 \end{cases}
 \end{array}
+\end{array}
 $$
 
 ### Lookup Argument Constraints
 
-- $t$ poly eval thunk
-- $f$: get eval corresponding to $(x,y,z)$ when resolve lookup else get 
+- $t$ table
+  - introduce tables; compression formula
+  - sort
+  - capture last entry as default
+- $f$ gate
+  - if gate is lookup, compute compression from $v$
+  - DONT SORT
+  - else use default
+- $h1,h2$; concat $t,f$ sort, then split odds and evens
 
 ### Full Surkål Trace
 
@@ -757,7 +769,7 @@ eq &= \lambda \_, (\_, \_, \_, \_, b, \_). b \\
 \\
 \text{trace} &: \AbsCirc \to \Nb^m \to \Fb^n_q \to \text{TraceResult} \\
 \text{trace}(\wave{f}, \wave{\vec{Y}}, \vec{x}) &= \text{post} \circ \text{sup}\left(
-  \vec{F?} \circ^\uparrow \Downarrow_C^{\wave{f}} \wave{\circ} \Downarrow_G^{\wave{f}} \wave{\circ} \Downarrow_R^{\wave{f}}, eq, s_0, \text{init}_{\wave{f}}(\wave{\vec{Y}}, \vec{x})
+  \Downarrow^{\wave{f}}_L \circ^\uparrow \Downarrow_C^{\wave{f}} \stackrel{\to}{\circ} \Downarrow_G^{\wave{f}} \stackrel{\to}{\circ} \Downarrow_R^{\wave{f}}, eq, s_0, \text{init}_{\wave{f}}(\wave{\vec{Y}}, \vec{x})
 \right)
 \end{array}
 $$
