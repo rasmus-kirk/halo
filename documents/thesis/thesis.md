@@ -525,11 +525,11 @@ $$
 
 ### Resolve
 
- Resolve; $\Downarrow_R$, computes the values of wires $\wave{\vec{Y}}$ and inputs to assert gates given the input wire values $\vec{x}$.
+$\Downarrow_R$ computes the values of wires $\wave{\vec{Y}}$ and inputs to assert gates given the input wire values $\vec{x}$.
  
- It does this by peeking $\wave{y}$ from the stack $\wave{\vec{y}}$, querying if the input wires are not resolved via $\text{?}$. If the inputs are resolved, we can evaluate the output wire values and cache it in the value map $v$ with $[\cdot]$. Every gate type has its corresponding evaluation function that computes the value(s) of its output(s). e.g. $\text{eval}(\text{Add}, (1,2)) = (3)$.
+It does this by peeking $\wave{y}$ from the stack $\wave{\vec{y}}$, querying if the input wires are not resolved via $\text{?}$. If the inputs are resolved, we can evaluate the output wire values and cache it in the value map $v$ with $[\cdot]$. Every gate type has its corresponding evaluation function that computes the value(s) of its output(s). e.g. $\text{eval}(\text{Add}, (1,2)) = (3)$.
  
- The state also contains a flag $\Bb$. If the flag is set, then we infer the state is equal to the previous state when computing in $\text{sup}$. This makes equality checking cheap.
+The state also contains a flag $\Bb$. If the flag is set, then we infer the state is equal to the previous state when computing in $\text{sup}$. This makes equality checking cheap.
 
 $$
 \begin{array}{rl}
@@ -599,10 +599,9 @@ The rest of the monotonic functions are better motivated when we define the prov
 
 ### Gate Constraints
 
-gate computes the gate constraints by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation on resolved wires in $\Downarrow$.
+$\Downarrow_G$ computes the gate constraints by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation on resolved wires in $\Downarrow$.
 
-When the wire id stack $\wave{\vec{y}}$ is empty, $\underset{G}{\curvearrowright}$ will push assert gates and input gates $A^{\wave{f}}$ to the stack. Thus all assertions, even if not contributing to $\wave{\vec{Y}}$, will be enforced. More on Constraint in the definition of $\text{circuit}$.
-
+When the wire id stack $\wave{\vec{y}}$ is empty, $\underset{G}{\curvearrowright}$ will push assert gates and input gates $A^{\wave{f}}$ to the stack.
 $$
 \begin{array}{rl}
 \text{Term} &= \text{Slot} + \text{Selector} \\
@@ -640,8 +639,11 @@ $$
 \end{array}
 &
 \begin{array}{rl}
-\Downarrow_G &: \AbsCirc \to \text{GState} \to \text{GState} \\
-\Downarrow_G^{\wave{f}}(\vec{C}, \vec{g}, v, \_, \wave{\vec{y}}) &= \begin{cases}
+\Downarrow_G &: (T \times \text{GState} \to T \times \text{GState}) \to \AbsCirc \\
+&\to T \times \text{GState} \to T \times \text{GState} \\
+f \wave{\circ} \Downarrow_G^{\wave{f}} &= \underset{G}{\curvearrowleft} \circ f \circ^\uparrow \lambda (\vec{C}, \vec{g}, v, \_, \wave{\vec{y}}). \\
+&
+\begin{cases}
 (\vec{C}, (), v, \top, \wave{\vec{y}}) & \vec{g} = () \\
 & \vec{g} = g \cat \_ \\
 & \vec{v} = v @ (\text{in}(g) \cat \text{out}(\wave{f},g)) \\
@@ -654,53 +656,79 @@ $$
 
 ### Copy Constraints
 
+$\Downarrow_C$ quotients an ordered set of coordinates in slot positions of $\vec{C}$ by the wire id corresponding to the value there.
+
+This is done by peeking $\vec{g}$ and joining the coordinate loop the gate which corresponds to $\mathtt{ctrn}$.
+
+After, trace will transform the coordinate loop to a map from coordinate to coordinate where each term in the quotient maps to its neighbour, and the last maps to the first. This is used to compute the permutation matrix.
 $$
 \begin{array}{rl}
 \begin{array}{rl}
 \text{Row} &= \Nb \\
-\text{CMap} &= (\wave{y} : \Nb) \pto (\text{Slot} \times \text{Row})^{k_{\wave{y}}} \\
-\text{coords} &: \text{Row} \to \text{GateType} \to \text{CMap}
+\text{Coord} &= \text{Slot} \times \text{Row} \\
+\text{CLoop} &= (\wave{y} : \Nb) \pto \text{Coord}^{k_{\wave{y}}} \\
+\text{CMap} &= \text{Coord} \to \text{Coord} \\
+\text{loop} &: \text{Row} \to \text{GateType} \to \text{CLoop}
 \end{array}
 &
 \begin{array}{rl}
-\sqcup &: \text{CMap} \to \text{CMap} \to \text{CMap} \\
-x \sqcup y &= \maybe{z}{\begin{array}{rrl}
-  \forall i. &x(i) \neq \bot \land y(i) \neq \bot &\Leftrightarrow z(i) = x(i) \cat y(i) \\
-  &x(i) \neq \bot \land y(i) = \bot & \Leftrightarrow z(i) = x(i) \\
-  &x(i) = \bot \land y(i) \neq \bot & \Leftrightarrow z(i) = y(i) \\
-  &x(i) = \bot \land y(i) = \bot &\Leftrightarrow z(i) = \bot
-\end{array}}
-\end{array}
-\end{array}
-$$
-$$
-\begin{array}{rl}
-\text{CState} &= \text{CMap} \times \text{GState} \\
-\\
+\text{CState} &= \text{CLoop} \times \text{GState} \\
 \Downarrow_C &: \AbsCirc \to \text{CState} \to \text{CState} \\
 \Downarrow_C^{\wave{f}}(c,\vec{C},\vec{g},v,\_, \wave{\vec{y}}) &= \begin{cases}
 (c,\vec{C},\vec{g},v,\top, \wave{\vec{y}}) & \vec{g} = () \\
 & \vec{g} = g \cat \_ \\
-(c', \vec{C}, \vec{g}, v, \bot, \wave{\vec{y}}) & c' = c \sqcup \text{coords}(|\vec{C}|, \text{ty}(g))
-\end{cases} \\
-\\
-\omega &: \Fb_q \\
-h &: \text{Slot} \to \Fb_q \\
-\text{id} &: \text{Slot} \times \text{Row} \to \Fb_q \\
-\text{id}(s, i) &= h_s \omega^i \\
+(c', \vec{C}, \vec{g}, v, \bot, \wave{\vec{y}}) & c' = c \sqcup \text{loop}(|\vec{C}|, \text{ty}(g))
+\end{cases}
+\end{array}
 \end{array}
 $$
-
-- Permutation Matrix
-  - CMAP map func
-    - coord to coord mapping
-    - on bot returns argument
-  - matrix of Slot times Row up to N rows
-  - map apply Cmap map func
-  - apply this after sup of trace in; post: LState -> TraceResult
-    - trace result is probably just a matrix and lookup think
-      - where matrix column is a poly
-      - and has N rows
+$$
+\begin{array}{rl}
+\begin{array}{rl}
+\sqcup &: \text{CLoop} \to \text{CLoop} \to \text{CLoop} \\
+x \sqcup y &= \begin{cases}
+& \exists i. x(i) \neq \bot \lor y(i) \neq \bot \\
+& z = x[i \mapsto \bot] \sqcup y[i \mapsto \bot] \\
+z[i \mapsto x(i) \cat y(i)] 
+& x(i) \neq \bot \land y(i) \neq \bot \\
+z[i \mapsto x(i)]
+& x(i) \neq \bot \\
+z[i \mapsto y(i)]
+& y(i) \neq \bot \\
+z & \text{otherwise}
+\end{cases}
+\end{array}
+&
+\begin{array}{rl}
+\text{toMap} &: \text{CLoop} \to \text{CMap} \\
+\text{toMap}(c) &= \lambda x.\maybe{p(x) \lor x}{\begin{array}{rl}
+  p &= c \downarrow \bot \\
+  \bot &\neq p(x)
+\end{array}} \\
+c \downarrow p &= \begin{cases}
+& \exists \wave{y}. c(\wave{y}) \neq \bot \\
+& c' = c[\wave{y} \mapsto \bot] \\
+& \vec{l} = l \cat \vec{l_t} = c(\wave{y}) \\
+& \vec{l}' = \vec{l_t} \cat l \\
+p'
+& p' = c' \downarrow p[\vec{l} \mapsto \vec{l}'] \\
+p & \text{otherwise}
+\end{cases} \\
+\end{array}
+\end{array}
+$$
+$$
+\begin{array}{rl}
+\text{id} &: \Fb_q \to (\text{Slot} \to \Fb_q) \to \text{Coord} \to \Fb_q \\
+\text{id}^{\omega}_h(s, i) &= h_s \omega^i \\
+\\
+\text{toPerm} &: \Fb_q \to (\text{Slot} \to \Fb_q) \to (N : \Nb) \to \text{CMap} \to (\text{Slot} \to \Fb_q)^N \\
+\text{toPerm}^{\omega}_h(N, c) &= \begin{cases}
+() & N = 0 \\
+\text{toPerm}^{\omega}_{h}(N-1, c) \cat \lambda s. \text{id}^\omega_h \circ c(s,N) & \text{otherwise}
+\end{cases}
+\end{array}
+$$
 
 ### Lookup Argument Constraints
 
@@ -722,12 +750,20 @@ s_0 &= (\bot, (), (), \bot, \bot, ()) \\
 eq &: \text{LState} \to \text{LState} \to \Bb \\
 eq &= \lambda \_, (\_, \_, \_, \_, b, \_). b \\
 \\
-\text{trace} &: \AbsCirc \to \Nb^m \to \Fb^n_q \to T \times \text{LState} \\
-\text{trace}(\wave{f}, \wave{\vec{Y}}, \vec{x}) &= \text{sup}\left(
-  \underset{G}{\curvearrowleft} \circ \vec{F?} \circ^\uparrow \Downarrow_C^{\wave{f}} \circ^\uparrow \Downarrow_G^{\wave{f}} \circ^\uparrow \underset{G}{\curvearrowright}^{\wave{f}} \wave{\circ} \Downarrow_R^{\wave{f}}, eq, s_0, \text{init}_{\wave{f}}(\wave{\vec{Y}}, \vec{x})
+\text{post} &: \text{LState} \to \text{TraceResult} \\
+\text{post}(c, \vec{C}, \_, \_, \_, \_) &= \maybe{(\text{toPerm}^\omega_h(N,\text{toMap}(c)), \vec{C})}{\begin{array}{rl}
+  compute\ \omega\ and\ h
+\end{array}} \\
+\\
+\text{trace} &: \AbsCirc \to \Nb^m \to \Fb^n_q \to \text{TraceResult} \\
+\text{trace}(\wave{f}, \wave{\vec{Y}}, \vec{x}) &= \text{post} \circ \text{sup}\left(
+  \vec{F?} \circ^\uparrow \Downarrow_C^{\wave{f}} \wave{\circ} \Downarrow_G^{\wave{f}} \wave{\circ} \Downarrow_R^{\wave{f}}, eq, s_0, \text{init}_{\wave{f}}(\wave{\vec{Y}}, \vec{x})
 \right)
 \end{array}
 $$
+
+- compute $N$, $\omega$, $h$
+- expand $\vec{C}$, plookup thunk
 
 # Plonk Protocol
 
@@ -852,6 +888,7 @@ term constructors
 util functions
 
 - maybe notation $\maybe{x}{\phi(x)} = \begin{cases} x & \phi(x) \\ \bot & \text{otherwise} \end{cases}$
+- maybe with default $\maybe{x \lor y}{\phi(x)} = \begin{cases} x & \phi(x) \\ y & \text{otherwise} \end{cases}$
 - vector of naturals builder $(s..t) = \begin{cases} () & t \leq s \\ s \cat (s+1 .. t) \end{cases}$
 - vector concat $\vec{x} \cat \vec{y} = \begin{cases} \vec{y} & \vec{x} = () \\ \vec{x}' \cat (x \cat \vec{y}) & \vec{x} = \vec{x'} \cat x \end{cases}$
 - vector concat with set $X \cat \vec{x}$; any random ordering of $X$; recursive application of axiom of choice
