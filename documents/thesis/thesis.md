@@ -388,6 +388,11 @@ The correctness of the protocol is trivial
 
 ## Grand Product Argument
 
+- motivation
+- naive construction
+- correctness
+- optimized (single inverse)
+
 TODO
 
 \newpage
@@ -509,9 +514,9 @@ $\text{trace}$ computes the least fixed point of a composition of monotonic func
 $$
 \begin{array}{rl}
 \begin{array}{rl}
-\text{lift} &: (T \to U) \to (V \times T \to V \times U) \\
 \text{lift}(f) &= \lambda (v,t). (v, f(t)) \\
-g \circ^{\uparrow} f &= g \circ \text{lift}(f) 
+\text{liftR}(f) &= \lambda(t, v). (f(t), v) \\
+g \circ^{\uparrow} f &= \text{liftR}(g) \circ \text{lift}(f) 
 \end{array} &
 \begin{array}{rl}
 \text{sup} &: (T \to T) \to (T \to T \to \Bb) \to T \to T \to T \\
@@ -528,8 +533,6 @@ $$
 $\Downarrow_R$ computes the values of wires $\wave{\vec{Y}}$ and inputs to assert gates given the input wire values $\vec{x}$.
  
 It does this by peeking $\wave{y}$ from the stack $\wave{\vec{y}}$, querying if the input wires are not resolved via $\text{?}$. If the inputs are resolved, we can evaluate the output wire values and cache it in the value map $v$ with $[\cdot]$. Every gate type has its corresponding evaluation function that computes the value(s) of its output(s). e.g. $\text{eval}(\text{Add}, (1,2)) = (3)$.
- 
-The state also contains a flag $\Bb$. If the flag is set, then we infer the state is equal to the previous state when computing in $\text{sup}$. This makes equality checking cheap.
 
 $$
 \begin{array}{rl}
@@ -540,7 +543,7 @@ $$
 \begin{array}{ccc}
 \begin{array}{rl}
 \VMap &= \Nb \pto \Fb_q \\
-\RState^k &= \VMap \times \Bb \times \Nb^k \\
+\RState^k &= \VMap \times \Nb^k \\
 \end{array}
 &
 \begin{array}{rl}
@@ -581,15 +584,15 @@ v_{\wave{f}}\left[\wave{y}\right] &= \maybe{
 \begin{array}{rl}
 \Downarrow_R &: (T \times \RState \to T \times \RState) \to \AbsCirc \\
 &\to T \times \RState \to T \times \RState \\
-f \stackrel{\to}{\circ} \Downarrow^{\wave{f}}_R(t,v, \_, \wave{\vec{y}}) &= \begin{cases}
-f(t,v,\top,()) & \wave{\vec{y}} = () \\
+f \stackrel{\to}{\circ} \Downarrow^{\wave{f}}_R(t,v, \wave{\vec{y}}) &= \begin{cases}
+f(t,v,()) & \wave{\vec{y}} = () \\
  & \wave{\vec{y}} = \wave{y} \cat \_ \\
-\underset{R}{\curvearrowleft} (t, v, \bot, \wave{\vec{y}}) & v(\wave{y}) \neq \bot \\
+\underset{R}{\curvearrowleft} (t, v, \wave{\vec{y}}) & v(\wave{y}) \neq \bot \\
  & (g, \wave{y}) \in \wave{f} \\
  & \wave{\vec{x}} = v \text{?} \text{in}(g) \\
-\underset{R}{\curvearrowleft} \circ f(t, v_{\wave{f}}[\wave{y}], \bot, \wave{\vec{y}}) 
+\underset{R}{\curvearrowleft} \circ f(t, v_{\wave{f}}[\wave{y}], \wave{\vec{y}}) 
  & \wave{\vec{x}} = () \\
-(t, v,\bot, \wave{\vec{x}} \cat \wave{\vec{y}}) & \text{otherwise}
+(t, v, \wave{\vec{x}} \cat \wave{\vec{y}}) & \text{otherwise}
 \end{cases} \\
 \end{array}
 \end{array}
@@ -618,7 +621,7 @@ A^{\wave{f}} &= \set{g \middle\vert (g, \wave{y}) \in \wave{f} \land (\wave{y} =
 &
 \begin{array}{rl}
 \underset{G}{\curvearrowleft} &: T \times \text{GState}^{k''',k',k} \to T \times \text{GState}^{k''',k'',k} \\
-\underset{G}{\curvearrowleft} &= \text{lift} \circ \lambda (\vec{g}, v, b, \wave{\vec{y}}). (\curvearrowleft(\vec{g}), v, b, \wave{\vec{y}})
+\underset{G}{\curvearrowleft} &= \text{lift} \circ \text{liftR}(\curvearrowleft : \text{Gate}^k \to \text{Gate}^{k'})
 \end{array}
 \end{array}
 $$
@@ -627,13 +630,13 @@ $$
 \begin{array}{rl}
 \underset{G}{\curvearrowright} &: \AbsCirc \to \Gate^k \times \RState \\
 &\to \Gate^{k'} \times \RState \\
-\underset{G}{\curvearrowright}^{\wave{f}}(\vec{g}, v, \_, \wave{\vec{y}}) &= \begin{cases}
-(A^{\wave{f}} \cat \vec{g}, v, \bot, \wave{\vec{y}})
+\stackrel{\wave{f}}{\underset{G}{\curvearrowright}}(\vec{g}, v, \wave{\vec{y}}) &= \begin{cases}
+(A^{\wave{f}} \cat \vec{g}, v, \wave{\vec{y}})
 & |\wave{\vec{y}}| = |\vec{g}| = 0 \\
-  & \wave{\vec{y}} = \wave{y} \cat \_ \\
-(g \cat \vec{g}, v, \bot, \wave{\vec{y}})
+& \wave{\vec{y}} = \wave{y} \cat \_ \\
+(g \cat \vec{g}, v, \wave{\vec{y}})
 & (g,\wave{y}) \in \wave{f} \\
-(\vec{g}, v, \top, \wave{\vec{y}})
+(\vec{g}, v, \wave{\vec{y}})
 & \text{otherwise}
 \end{cases}
 \end{array}
@@ -641,15 +644,15 @@ $$
 \begin{array}{rl}
 \Downarrow_G &: (T \times \text{GState} \to T \times \text{GState}) \to \AbsCirc \\
 &\to T \times \text{GState} \to T \times \text{GState} \\
-f \stackrel{\to}{\circ} \Downarrow_G^{\wave{f}} &= \underset{G}{\curvearrowleft} \circ f \circ^\uparrow \lambda (\vec{C}, \vec{g}, v, \_, \wave{\vec{y}}). \\
+f \stackrel{\to}{\circ} \Downarrow_G^{\wave{f}} &= \underset{G}{\curvearrowleft} \circ f \circ^\uparrow \lambda (\vec{C}, \vec{g}, v). \\
 &
 \begin{cases}
-(\vec{C}, (), v, \top, \wave{\vec{y}}) & \vec{g} = () \\
+(\vec{C}, (), v) & \vec{g} = () \\
 & \vec{g} = g \cat \_ \\
 & \vec{v} = v @ (\text{in}(g) \cat \text{out}(\wave{f},g)) \\
-(\vec{C}', \vec{g}, v, \bot, \wave{\vec{y}})
+(\vec{C}', \vec{g}, v)
 & \vec{C}' = \vec{C} \cat \text{ctrn}(\text{ty}(g), \vec{v}) \\
-\end{cases} \circ^\uparrow \underset{G}{\curvearrowright}^{\wave{f}} \\
+\end{cases} \circ^\uparrow \stackrel{\wave{f}}{\underset{G}{\curvearrowright}} \\
 \end{array}
 \end{array}
 $$
@@ -674,10 +677,10 @@ $$
 \begin{array}{rl}
 \text{CState} &= \text{CLoop} \times \text{GState} \\
 \Downarrow_C &: \AbsCirc \to \text{CState} \to \text{CState} \\
-\Downarrow_C^{\wave{f}}(c,\vec{C},\vec{g},v,\_, \wave{\vec{y}}) &= \begin{cases}
-(c,\vec{C},\vec{g},v,\top, \wave{\vec{y}}) & \vec{g} = () \\
+\Downarrow_C^{\wave{f}} &= \text{liftR} \circ \lambda (c,\vec{C},\vec{g}). \begin{cases}
+(c,\vec{C},\vec{g}) & \vec{g} = () \\
 & \vec{g} = g \cat \_ \\
-(c', \vec{C}, \vec{g}, v, \bot, \wave{\vec{y}}) & c' = c \sqcup \text{loop}(|\vec{C}|, \text{ty}(g))
+(c', \vec{C}, \vec{g}) & c' = c \sqcup \text{loop}(|\vec{C}|, \text{ty}(g))
 \end{cases}
 \end{array}
 \end{array}
@@ -701,17 +704,17 @@ z & \text{otherwise}
 &
 \begin{array}{rl}
 \text{toMap} &: \text{CLoop} \to \text{CMap} \\
-\text{toMap}(c) &= \lambda x.\maybe{p(x) \lor x}{\begin{array}{rl}
-  p &= c \downarrow \bot \\
-  \bot &\neq p(x)
-\end{array}} \\
+\text{toMap}(c) &= \maybe{\lambda x. \begin{cases}
+p(x) & p(x) \neq \bot \\
+x & \text{otherwise}
+\end{cases}}{
+  p = c \downarrow \bot} \\
 c \downarrow p &= \begin{cases}
 & \exists \wave{y}. c(\wave{y}) \neq \bot \\
 & c' = c[\wave{y} \mapsto \bot] \\
 & \vec{l} = l \cat \vec{l_t} = c(\wave{y}) \\
+c' \downarrow p[\vec{l} \mapsto \vec{l}']
 & \vec{l}' = \vec{l_t} \cat l \\
-p'
-& p' = c' \downarrow p[\vec{l} \mapsto \vec{l}'] \\
 p & \text{otherwise}
 \end{cases} \\
 \end{array}
@@ -754,17 +757,17 @@ $$
 \begin{array}{rl}
 \text{init} &: \AbsCirc \to T \to \Nb^m \to \Fb^n_q \to \text{LState} \\
 \text{init}_{\wave{f}}(\wave{\vec{Y}}, \vec{x})
-&= (\bot, (), (), \bot[(0..|\vec{x}|) \mapsto \vec{x}], \bot, \wave{\vec{Y}} \cat \set{\wave{x} \middle\vert (g, \bot) \in \wave{f} \land \wave{x} \in \text{in}(g) \setminus \wave{\vec{Y}}}) \\
+&= (\bot, \bot, (), (), \bot[(0..|\vec{x}|) \mapsto \vec{x}], \wave{\vec{Y}} \cat \set{\wave{x} \middle\vert (g, \bot) \in \wave{f} \land \wave{x} \in \text{in}(g) \setminus \wave{\vec{Y}}}) \\
 \\
 s_0 &: \text{LState} \\
-s_0 &= (\bot, (), (), \bot, \bot, ()) \\
+s_0 &= (\bot, \bot, (), (), \bot, ()) \\
 \\
 eq &: \text{LState} \to \text{LState} \to \Bb \\
-eq &= \lambda \_, (\_, \_, \_, \_, b, \_). b \\
+eq &= \lambda \_, (b, \_, \_, \_, \_, \_). b \\
 \\
 \text{post} &: \text{LState} \to \text{TraceResult} \\
 \text{post}(c, \vec{C}, \_, \_, \_, \_) &= \maybe{(\text{toPerm}^\omega_h(N,\text{toMap}(c)), \vec{C})}{\begin{array}{rl}
-  compute\ \omega\ and\ h
+  compute\ N, \omega\ and\ h
 \end{array}} \\
 \\
 \text{trace} &: \AbsCirc \to \Nb^m \to \Fb^n_q \to \text{TraceResult} \\
@@ -797,6 +800,9 @@ $$
 
 ## Prover
 
+- list of formulas
+  - table compression
+  - F_GC
 - cc, pl: Z, f, g
 - quotient poly: t
 - opening poly: W
@@ -828,7 +834,7 @@ TODO
 
 # Gates and Gadgets
 
-TODO: ctrn and coords too
+TODO: ctrn and loop too
 
 | $g: \Gate$                | $\text{eval}(g, \vec{x})$     | remarks                 |
 |:-------------------------:|:-----------------------------:|:------------------------|
