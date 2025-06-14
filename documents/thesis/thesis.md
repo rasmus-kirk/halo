@@ -7,203 +7,25 @@ geometry: margin=2cm
 bibliography: bibliography.bib
 ---
 
+
 \newcommand{\maybe}[2]{ \left[ #1 \middle\vert #2 \right]}
 \newcommand{\wave}[1]{ \bar{#1} }
 \newcommand{\set}[1]{ \left\{ #1 \right\}}
 \newcommand{\build}[3]{\left\llbracket #1 \right\rrbracket^{#2}_{#3}}
 \newcommand{\AbsCirc}{\text{Circ}}
 \newcommand{\Gate}{\text{Gate}}
-\newcommand{\AState}{\text{State}}
+\newcommand{\AState}{\text{AState}}
 \newcommand{\Mono}[1]{\text{Mono}^{#1}}
+\newcommand{\MonoC}[1]{\text{MonoC}^{#1}}
+\newcommand{\RState}{\text{RState}}
 \newcommand{\VMap}{\text{VMap}}
+\newcommand{\pto}{\rightharpoonup}
 
 \tableofcontents
 \newpage
 
 
 # Abstract
-
-# Security Proofs
-
-# High Level Protocol
-
-### Vanishing
-
-The checks that the verifier makes in Plonk boils down to checking identities
-of the following form:
-
-$$\forall a \in S : f(a) \meq 0$$
-
-For some polynomial $f(X) \in \Fb_{\leq d}$ and some set $S \subset \Fb$. The
-subset, $S$, may be much smaller than $\Fb$ as is the case for Plonk where
-$S = H$. Since we ultimately model the above check with challenge scalars,
-using the entirety of $\Fb$ should lead to much better security. We therefore
-end up with the following checks of the following form instead:
-
-$$\forall \xi \in \Fb : F'(\xi) \meq 0$$
-
-Where $S \subset \Fb$ and $F'$ is defined by combining $F$ with a challenge
-scalar $\a$. Below we present the protocol that lets the verifier query
-polynomial identities of the form $\forall a \in S : F(s) \meq 0$ using a
-PCS. For a series of polynomials, $\{ F_1, F_2, \dots, F_k \} \in \Fb_{\leq
-d}$, we have the following protocol:
-
-\begin{algorithm}[H]
-\caption*{
-  \textbf{Single Polynomial Vanishing Argument Protocol:} Converts queries for polynomial
-  identities ranging over all values $a \in H \subset S$ to a secure
-  non-interactive protocol using polynomial commitments.
-}
-\textbf{Inputs} \\
-  \Desc{$f: \Fb_{\leq d}[X]$}{The polynomial to check identity for.} \\
-\textbf{Output} \\
-  \Desc{$\Result(\top, \bot)$}{
-    Either the verifier accepts with $\top$ or rejects with $\bot$.
-  }
-\begin{algorithmic}[1]
-  \State $P:$ The prover constructs $t(X)$:
-    \Statex \algind $t(X) = \frac{f(X)}{z_S}, \quad z_S(X) = \prod_{s \in S}(X - s)$
-  \State $P \to V:$ then commits to $f(X), t(X)$:
-    \Statex \algind $C_f = \PCCommit(f(X), d, \bot), \quad C_t = \PCCommit(t(X), d, \bot)$
-  \State $V \to P:$ The verifier sends challenge $\xi$ to the prover
-  \State $P \to V:$ The prover sends $(f(\xi) = v_f, \pi_f, t(\xi) = v_t, \pi_f)$ to the verifier.
-  \State $V:$ The verifier then checks:
-    \Statex \algind $\PCCheck(C_f, d, \xi, v_f, \pi_f) \meq \top \; \land$
-    \Statex \algind $\PCCheck(C_t, d, \xi, v_t, \pi_t) \meq \top$
-  \end{algorithmic}
-\end{algorithm}
-
-**Correctness**
-
-For any $\xi \in \Fb \setminus H$, the following holds:
-
-$$
-\begin{aligned}
-p(X) &= f_i(\xi) - t(\xi) z_S(\xi) \\
-     &= f_i(\xi) - \left( \frac{f_i(\xi)}{z_S(\xi)} \right) z_S(\xi) \\
-     &= 0
-\end{aligned}
-$$
-$\qed$
-
-**Soundness**
-
-Due to the factor theorem[^factor-theorem] $z_S(X)$ only divides $f(X)$ if and
-only if all of $\o \in H : f(\o) = 0$. Then from this the Schwartz-Zippel
-Lemma[^schwartz-zippel] states that evaluating a nonzero polynomial on
-inputs chosen randomly from a large enough set is likely to find an input
-that produces a nonzero output. Specifically it ensures that $Pr[P(\xi)]
-\leq \frac{deg(P)}{|\Fb|}$. Clearly $\xi \in \Fb$ is a large enough set as
-$|\Fb| \gg |H|$ and therefore $Pr[P(\xi) | P \neq 0]$ is negligible. Lastly,
-the evaluation checked depends on the soundness of the underlying PCS scheme
-used, but we assume that it has knowledge soundness and binding. From all
-this, we conclude that the above vanishing argument is sound.
-
-[^schwartz-zippel]: The wikipedia page for the Schwartz-Zippel Lemma: [https://en.wikipedia.org/wiki/Schwartz%E2%80%93Zippel_lemma](https://en.wikipedia.org/wiki/Schwartz%E2%80%93Zippel_lemma)
-[^factor-theorem]: The wikipedia page for the Factor Theorem: [https://en.wikipedia.org/wiki/Factor_theorem](https://en.wikipedia.org/wiki/Factor_theorem)
-
-**Extending to multiple $f$'s**
-
-We can use a linear combination of $\a$ to generalize the Single Polynomial
-Vanishing Argument:
-
-\begin{algorithm}[H]
-\caption*{
-  \textbf{Vanishing Argument Protocol:} Converts queries for polynomial
-  identities ranging over all values $a \in H \subset S$ to a secure
-  non-interactive protocol using polynomial commitments.
-}
-\textbf{Inputs} \\
-  \Desc{$\vec{f}: \Fb^k_{\leq d}[X]$}{The polynomial to check identity for.} \\
-\textbf{Output} \\
-  \Desc{$\Result(\top, \bot)$}{
-    Either the verifier accepts with $\top$ or rejects with $\bot$.
-  }
-\begin{algorithmic}[1]
-  \State $P:$ The prover constructs $t(X)$:
-    \Statex \algind $t(X) = \sum_{i \in [k]} \frac{\a^i f_i(X)}{Z_s}, \quad z_S(X) = \prod_{s \in S}(X - s)$
-  \State $P \to V:$ then commits to $t(X)$ and each $f_i(X)$:
-    \Statex \algind $C_{f_i} = \PCCommit(f_i(X), d, \bot), \quad C_t = \PCCommit(t(X), d, \bot)$
-  \State $V \to P:$ The verifier sends challenge $\xi$ to the prover.
-  \State $P \to V:$ The prover sends $(f_i(\xi) = v_{f_i}, \pi_{f_i}, t(\xi) = v_t, \pi_f)$ to the verifier.
-  \State $V:$ The verifier then checks:
-    \Statex \algind $\forall i \in [k] : \PCCheck(C_{f_i}, d, \xi, v_{f_i}, \pi_{f_i}) \meq \top \; \land$
-    \Statex \algind $\PCCheck(C_t, d, \xi, v_t, \pi_t) \meq \top$
-  \end{algorithmic}
-\end{algorithm}
-
-Note that for the Plonk protocol specifically, $S = H = \{ 1, \o, \o^2,
-\dots, \o^{n-1} \}$ for the reason that the vanishing polynomial $z_S(X)$
-then becomes $z_S(X) = X^n - 1$ because $\o$ is a root of unity of order
-$n$. This is much more efficient to compute. The $\a$'s are used since we
-need a linearly independent combination of $f$.
-
-### Batched Evaluation Proofs
-
-If we have $m$ polynomials, $\vec{f}$, that all need to evaluate to
-zero at the same challenge $\xi$, normally, we could construct $m$ opening
-proofs, and verify these. We can, however, use the following technique to
-only create a single opening proofs.
-
-- The prover starts by sending commitments for each $f_i(X)$: $C_{f_i} = \PCCommit(f_i(X), d)$.
-- The verifier sends the challenge $\xi$.
-- The prover sends the evaluations of all $f_i$ ($v_{f_i} = f_i(\xi)$) as well as the single opening proof $\pi_w$ for the batched polynomial $w(X) = \sum_{i = 0}^k \a^i f_i(X)$.
-
-Now, the verifier can construct the commitment ($C_w$) and evaluation ($v_w$)
-to $w$ themselves:
-
-$$
-\begin{aligned}
-  C_w &= \sum_{i = 0}^k \a^i C_{f_i} \\
-  v_w &= \sum_{i = 0}^k \a^i v_{f_i}
-\end{aligned}
-$$
-
-Finally, the verifier finally checks that $\PCCheck(C_w, d, \xi, v_w, \pi_w) \meq \top$
-
-**Correctness:**
-
-The correctness of the protocol is trivial
-
-### Grand Product argument(s)
-
-- Haliq
-
-## Copy Constraint Rewrite
-
-- Haliq
-
-## Plonkup
-
-- Haliq
-
-## How do we write a circuit
-
-- Haliq
-
-## Gadgets
-
-### XOR
-
-### Poseidon
-
-### Range Check
-
-### Foreign Field stuff
-
-## Signatures
-
-## IVC Verifier from Gadgets
-
-### NARK (PLONK)
-
-### Accumulation Verifier
-
-### SuccinctCheck
-
-### Signatures
-
-# Introduction
 
 SNARKs - **S**uccinct **N**on-interactive **AR**guments of **K**nowledge
 have seen increased usage due to their application in blockchains and
@@ -246,6 +68,8 @@ This project only focuses on Plonk.
 [^halo]: Halo paper: [https://eprint.iacr.org/2019/1021](https://eprint.iacr.org/2019/1021)
 [^halo2]: Halo2: [https://zcash.github.io/halo2/](https://zcash.github.io/halo2/)
 [^pickles]: Pickles: [https://o1-labs.github.io/proof-systems/specs/pickles.html](https://o1-labs.github.io/proof-systems/specs/pickles.html)
+
+TODO (new abstract)
 
 # Prerequisites
 
@@ -349,17 +173,24 @@ vulnerability called "The Frozen Heart Vulnerability". This
 specific vulnerability [have affected some Plonk
 implementations](https://blog.trailofbits.com/2022/04/18/the-frozen-heart-vulnerability-in-plonk/)
 
+# Security Proofs
+
+# High Level Protocol
+
 # The Protocol
+
+TODO (IVC)
 
 The goal of Plonk is for a prover to convince a verifier of the following
 claim:
 
-**The Claim:** "I know private inputs[^pi] $\vec{x} \in \Fb^n$ s.t. when given
-a public circuit $R$, then $R(\vec{x}) = \vec{y} \in \Fb^m$"
+**The Claim:** "I know the possibly private input output pair of some program $f$"
 
-Where the number of the inputs for circuit $R$ is $n$ and the number of the
-outputs is $m$. Let's look at a simple circuit representing the computation
-of $3x^2_1 + 5x_2$:
+$$
+f(\vec{x}) = \vec{y}
+$$
+
+Let's look at a simple arithmetization $\build{3x^2_1 + 5x_2}{}{}$:
 
 \begin{figure}
 \centering
@@ -414,21 +245,563 @@ of $3x^2_1 + 5x_2$:
 \caption{A simple circuit}
 \end{figure}
 
-In the above figure the output of the multiplication gate on the right, $c_2$,
-should be equal to the value of the input wire of the addition gate, $b_3$. Plonk
-enforces this using a _copy constraint._ Using this, we can split our desired
-claim into two constraints, that must hold:
+In the above figure the output of the multiplication gate on the right, $c_2$, should be equal to the value of the input wire of the addition gate, $b_3$.
+Plonk enforces this with _copy constraints_.
 
-- **Gate Constraints:** The gates of circuit $R$ was computed correctly.
-- **Copy Constraints:** Different wires indices representing the same wire,
-  should have the same value.
+Moreover, some gates are defined as a lookup table.
+The gates of the circuit also have 0 or more fan-in inputs and outputs.
+This leads to a good foundation for custom gates.
+We also use bulletproofs / discrete log for our polynomial commitment scheme.
+This makes our NARK a hyperplonk-ish protocol.
+We also introduce an ergonomic way to write circuits that does not require manually populating the trace matrix. Thus, at a high level our NARK protocol is as follows:
 
-We will explore how the machinery of Plonk achieves this in the next sections.
+\begin{algorithm}[H]
+\caption*{
+  \textbf{Surkål:} a plonkish NARK protocol.
+}
+\textbf{Inputs} \\
+  \Desc{$f: \Fb^n_q \to \Fb^m_q$}{The program.} \\
+  \Desc{$\vec{x} \in \Fb^n_q$}{The possibly private input to the program $f$} \\
+\textbf{Output} \\
+  \Desc{$\Result(\top, \bot)$}{Either the verifier accepts with $\top$ or rejects with $\bot$}
+\begin{algorithmic}[1]
+  \State \textbf{let} $(x,w) = \mathrm{circuit} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})$ 
+  \State $\pi \gets P(x,w)$
+  \State \textbf{return} $V(x, \pi)$
+  \end{algorithmic}
+\end{algorithm}
 
-[^pi]: Technically, Plonk also supports public inputs, but these
-can also be modelled as constant gates, so we omit public inputs for simplicity.
+# General Protocols
 
-## Check Conversions
+## Vanishing Argument
+
+
+The checks that the verifier makes in Plonk boils down to checking identities of the following form:
+
+$$\forall a \in S : f(a) \meq 0$$
+
+For some polynomial $f(X) \in \Fb_{\leq d}$ and some set $S \subset \Fb$. The subset, $S$, may be much smaller than $\Fb$ as is the case for Plonk where $S = H$. Since we ultimately model the above check with challenge scalars, using the entirety of $\Fb$ should lead to much better security. We therefore end up with the following checks of the following form instead:
+
+$$\forall \xi \in \Fb : F'(\xi) \meq 0$$
+
+Where $S \subset \Fb$ and $F'$ is defined by combining $F$ with a challenge scalar $\a$. Below we present the protocol that lets the verifier query polynomial identities of the form $\forall a \in S : F(s) \meq 0$ using a PCS. For a series of polynomials, $\{ F_1, F_2, \dots, F_k \} \in \Fb_{\leq d}$, we have the following protocol:
+
+\begin{algorithm}[H]
+\caption*{
+  \textbf{Single Polynomial Vanishing Argument Protocol:} Converts queries for polynomial
+  identities ranging over all values $a \in H \subset S$ to a secure
+  non-interactive protocol using polynomial commitments.
+}
+\textbf{Inputs} \\
+  \Desc{$f: \Fb_{\leq d}[X]$}{The polynomial to check identity for.} \\
+\textbf{Output} \\
+  \Desc{$\Result(\top, \bot)$}{
+    Either the verifier accepts with $\top$ or rejects with $\bot$.
+  }
+\begin{algorithmic}[1]
+  \State $P:$ The prover constructs $t(X)$:
+    \Statex \algind $t(X) = \frac{f(X)}{z_S}, \quad z_S(X) = \prod_{s \in S}(X - s)$
+  \State $P \to V:$ then commits to $f(X), t(X)$:
+    \Statex \algind $C_f = \PCCommit(f(X), d, \bot), \quad C_t = \PCCommit(t(X), d, \bot)$
+  \State $V \to P:$ The verifier sends challenge $\xi$ to the prover
+  \State $P \to V:$ The prover sends $(f(\xi) = v_f, \pi_f, t(\xi) = v_t, \pi_f)$ to the verifier.
+  \State $V:$ The verifier then checks:
+    \Statex \algind $\PCCheck(C_f, d, \xi, v_f, \pi_f) \meq \top \; \land$
+    \Statex \algind $\PCCheck(C_t, d, \xi, v_t, \pi_t) \meq \top$
+  \end{algorithmic}
+\end{algorithm}
+
+**Correctness**
+
+For any $\xi \in \Fb \setminus H$, the following holds:
+
+$$
+\begin{aligned}
+p(X) &= f_i(\xi) - t(\xi) z_S(\xi) \\
+     &= f_i(\xi) - \left( \frac{f_i(\xi)}{z_S(\xi)} \right) z_S(\xi) \\
+     &= 0
+\end{aligned}
+$$
+$\qed$
+
+**Soundness**
+
+Due to the factor theorem[^factor-theorem] $z_S(X)$ only divides $f(X)$ if and only if all of $\o \in H : f(\o) = 0$. Then from this the Schwartz-Zippel Lemma[^schwartz-zippel] states that evaluating a nonzero polynomial on inputs chosen randomly from a large enough set is likely to find an input that produces a nonzero output. Specifically it ensures that $Pr[P(\xi)] \leq \frac{deg(P)}{|\Fb|}$. Clearly $\xi \in \Fb$ is a large enough set as $|\Fb| \gg |H|$ and therefore $Pr[P(\xi) | P \neq 0]$ is negligible. Lastly, the evaluation checked depends on the soundness of the underlying PCS scheme used, but we assume that it has knowledge soundness and binding. From all this, we conclude that the above vanishing argument is sound.
+
+[^schwartz-zippel]: The wikipedia page for the Schwartz-Zippel Lemma: [https://en.wikipedia.org/wiki/Schwartz%E2%80%93Zippel_lemma](https://en.wikipedia.org/wiki/Schwartz%E2%80%93Zippel_lemma)
+[^factor-theorem]: The wikipedia page for the Factor Theorem: [https://en.wikipedia.org/wiki/Factor_theorem](https://en.wikipedia.org/wiki/Factor_theorem)
+
+**Extending to multiple $f$'s**
+
+We can use a linear combination of $\a$ to generalize the Single Polynomial
+Vanishing Argument:
+
+\begin{algorithm}[H]
+\caption*{
+  \textbf{Vanishing Argument Protocol:} Converts queries for polynomial
+  identities ranging over all values $a \in H \subset S$ to a secure
+  non-interactive protocol using polynomial commitments.
+}
+\textbf{Inputs} \\
+  \Desc{$\vec{f}: \Fb^k_{\leq d}[X]$}{The polynomial to check identity for.} \\
+\textbf{Output} \\
+  \Desc{$\Result(\top, \bot)$}{
+    Either the verifier accepts with $\top$ or rejects with $\bot$.
+  }
+\begin{algorithmic}[1]
+  \State $P:$ The prover constructs $t(X)$:
+    \Statex \algind $t(X) = \sum_{i \in [k]} \frac{\a^i f_i(X)}{Z_s}, \quad z_S(X) = \prod_{s \in S}(X - s)$
+  \State $P \to V:$ then commits to $t(X)$ and each $f_i(X)$:
+    \Statex \algind $C_{f_i} = \PCCommit(f_i(X), d, \bot), \quad C_t = \PCCommit(t(X), d, \bot)$
+  \State $V \to P:$ The verifier sends challenge $\xi$ to the prover.
+  \State $P \to V:$ The prover sends $(f_i(\xi) = v_{f_i}, \pi_{f_i}, t(\xi) = v_t, \pi_f)$ to the verifier.
+  \State $V:$ The verifier then checks:
+    \Statex \algind $\forall i \in [k] : \PCCheck(C_{f_i}, d, \xi, v_{f_i}, \pi_{f_i}) \meq \top \; \land$
+    \Statex \algind $\PCCheck(C_t, d, \xi, v_t, \pi_t) \meq \top$
+  \end{algorithmic}
+\end{algorithm}
+
+Note that for the Plonk protocol specifically, $S = H = \{ 1, \o, \o^2, \dots, \o^{n-1} \}$ for the reason that the vanishing polynomial $z_S(X)$ then becomes $z_S(X) = X^n - 1$ because $\o$ is a root of unity of order $n$. This is much more efficient to compute. The $\a$'s are used since we need a linearly independent combination of $f$.
+
+## Batched Evaluation Proofs
+
+If we have $m$ polynomials, $\vec{f}$, that all need to evaluate to zero at the same challenge $\xi$, normally, we could construct $m$ opening proofs, and verify these. We can, however, use the following technique to only create a single opening proofs.
+
+- The prover starts by sending commitments for each $f_i(X)$: $C_{f_i} = \PCCommit(f_i(X), d)$.
+- The verifier sends the challenge $\xi$.
+- The prover sends the evaluations of all $f_i$ ($v_{f_i} = f_i(\xi)$) as well as the single opening proof $\pi_w$ for the batched polynomial $w(X) = \sum_{i = 0}^k \a^i f_i(X)$.
+
+Now, the verifier can construct the commitment ($C_w$) and evaluation ($v_w$) to $w$ themselves:
+
+$$
+\begin{aligned}
+  C_w &= \sum_{i = 0}^k \a^i C_{f_i} \\
+  v_w &= \sum_{i = 0}^k \a^i v_{f_i}
+\end{aligned}
+$$
+
+Finally, the verifier finally checks that $\PCCheck(C_w, d, \xi, v_w, \pi_w) \meq \top$
+
+**Correctness:**
+
+The correctness of the protocol is trivial
+
+## Grand Product Argument
+
+TODO
+
+\newpage
+
+# General Arithmetization Scheme
+
+We define the functions in the following pipeline:
+$$
+(x,w) = \mathrm{circuit} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})
+$$
+
+## Abstract Gates
+
+Gates $g$ are primitive operations with $n_g \geq 0$ fan in inputs and $m_g \geq 0$ fan out outputs defined with its input wire id(s) of type $\Nb$. i.e. $x \neq a \land y \neq b \leftrightarrow \text{Add}(x,y) \neq \text{Add}(a,b)$.
+
+$\text{Add}(x,y)$ is a function call that returns $(\text{Add}, (x,y))$ where $\text{Add}$ in the latter is a term of $\text{GateType}$; not a function.
+
+$$
+\begin{array}{rl}
+\text{Gate} &= (g: \text{GateType}) \times \Nb^{n_g} \\
+\end{array}
+$$
+$$
+\begin{array}{ccc}
+\begin{array}{rl}
+n &: \text{Gate} + \text{GateType} \to \Nb \\
+m &: \text{Gate} + \text{GateType} \to \Nb
+\end{array}
+&
+\begin{array}{rl}
+\text{ty} &: \text{Gate} \to \text{GateType} \\
+\text{ty}(t, \_) &= t
+\end{array}
+&
+\begin{array}{rl}
+\text{in} &: (g: \text{Gate}) \to \Nb^{n_g} \\
+\text{in}(\_, \wave{\vec{x}}) &= \wave{\vec{x}} \\
+\end{array}
+\end{array}
+$$
+
+## Arithmetize
+
+Arithmetize turns a program $f$ into an abstract circuit $\wave{f}$, which is a one-to-many-or-none relation between gates $g$ and output wire id(s) $\wave{y}$ or $\bot$ which denotes no output wires. e.g. $(\text{Add}(a,b), c) \in \wave{f}$ corresponds to $\build{a+b=c}{}{}$.
+
+We notate inserting a gate or gadget $f$ to the circuit with $\build{f = \wave{\vec{y}}}{s}{s'}$, $\build{f = \wave{y}}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the state from $s$ to $s'$. State has the form $(u, \wave{f})$ where $u$ is the current uuid for wires. 
+A circuit is a composition of gadget(s) and/or gate(s).
+
+Wires annotated with $*$, i.e. $\build{f = \wave{y}^*}{}{}$ are the final output and are appended to $\wave{\vec{Y}}$. They, may be omitted notationally.
+
+These inserts yield new wires. However, wires are reused by an equivalence class on gates. If $g \equiv h$ where $(h,\_) \in \wave{f}$, then $\wave{\vec{y}}$ in $\build{g=\wave{\vec{y}}}{s}{s}$ corresponds to the output wire(s) of $h$, leaving the state unchanged.
+
+$$
+\begin{aligned}
+\AbsCirc &= \set{
+  \wave{f} \subset \Gate \times \Nb_\bot \middle\vert
+  \forall (g,\wave{y}),(h,\wave{y}) \in \wave{f}. \wave{y} \neq \bot \implies g = h
+} \\
+\Gate^{\wave{f}}_g &= \set{h \in \Gate \middle\vert
+  (h, \_) \in \wave{f} \land h \equiv g
+}
+\\
+\AState &= \Nb \times \AbsCirc
+\end{aligned}
+$$
+$$
+\begin{array}{rl}
+\begin{array}{rl}
+\text{out} &: (\Nb_\bot + \AbsCirc) \to (g: \Gate) \to \Nb^{m_g} \\
+\text{out}(\bot, \_) &= () \\
+\text{out}(u,g) &= (u..u+m_g) \\
+\text{out}(\wave{f}, g)
+&= \text{out}(\min\left(
+  \set{\wave{y} \middle\vert (g,\wave{y}) \in \wave{f}}
+\right), g) \\
+\\
+\text{entries}  &: \Nb \to \Gate \to \AbsCirc \\
+\text{entries}(u,g) &= \begin{cases}
+  \set{(g,\wave{y}) \middle\vert \wave{y} \in \text{out}(u,g)}
+  & m_g > 0 \\
+  \set{(g,\bot)}
+  & m_g = 0
+\end{cases} \\
+\\
+\text{put} &: \Gate \to \AState \to \AState \\
+\text{put}(g, u, \wave{f}) &= (
+  u + m_g, \wave{f} \cup \text{entries}(u, g)
+)
+\end{array}
+&
+\begin{array}{rl}
+\text{get} &: \AState \to (g: \Gate) \to \AState \times \Nb^{m_g} \\
+\text{get}(u, \wave{f}, g)
+&= \begin{cases}
+  (u, \wave{f}, \text{out}(\wave{f}, h)) & h \in \Gate^{\wave{f}}_g \\
+  (\text{put}(g, u, \wave{f}), \text{out}(u,g)) & \text{otherwise}
+\end{cases} \\
+\\
+\build{g = \wave{\vec{y}}}{s}{s'}
+&= \left(\text{get}(s,g) \overset{?}{=} (s', \wave{\vec{y}})\right)  \\
+\build{f=\wave{y}^*}{s}{s'} &= \build{f=\wave{y}}{(s,\wave{\vec{Y}})}{(s', \wave{\vec{Y}} \cat \wave{y})} \\
+\build{f}{s_1}{s_{k+1}}
+&= \bigwedge\limits_{i \in [k]} \build{f_i}{s_i}{s_{i+1}} \\
+\\
+\text{arithmetize} &: (\Fb^n_q \to \Fb^m_q) \to \AbsCirc \times \Nb^{m'} \\
+\text{arithmetize}(f) &= \maybe{(\wave{f}, \wave{\vec{Y}})}{
+  \build{f}{\left(\circ_{i \in [0..n]}\text{put}(\text{Input}_i)(0,\emptyset), () \right)}{(\_, \wave{f}, \wave{\vec{Y}})}
+}
+\end{array}
+\end{array}
+$$
+
+Note: $\text{Input}_i$ is a family of gates with no inputs and one output wire corresponding to an input of the final circuit. The list of gates available are defined in section on Gates and Gadgets.
+
+## Trace
+
+$\text{trace}$ computes the least fixed point of a composition of monotonic functions using $\text{sup}$. We also call a monotonic function a continuation if it is called by another. We call lift, to extend the argument of a monotonic function.
+
+$$
+\begin{array}{rl}
+\begin{array}{rl}
+\text{lift} &: (T \to U) \to (V \times T \to V \times U) \\
+\text{lift}(f) &= \lambda (v,t). (v, f(t)) \\
+g \circ^{\uparrow} f &= g \circ \text{lift}(f) 
+\end{array} &
+\begin{array}{rl}
+\text{sup} &: (T \to T) \to (T \to T \to \Bb) \to T \to T \to T \\
+\text{sup}(f, \text{eq}, s, s') &= \begin{cases}
+s & \text{eq}(s, s') \\
+\text{sup}(f, \text{eq}, s', f(s')) & \text{otherwise}
+\end{cases}
+\end{array}
+\end{array}
+$$
+
+### Resolve
+
+$\Downarrow_R$ computes the values of wires $\wave{\vec{Y}}$ and inputs to assert gates given the input wire values $\vec{x}$.
+ 
+It does this by peeking $\wave{y}$ from the stack $\wave{\vec{y}}$, querying if the input wires are not resolved via $\text{?}$. If the inputs are resolved, we can evaluate the output wire values and cache it in the value map $v$ with $[\cdot]$. Every gate type has its corresponding evaluation function that computes the value(s) of its output(s). e.g. $\text{eval}(\text{Add}, (1,2)) = (3)$.
+ 
+The state also contains a flag $\Bb$. If the flag is set, then we infer the state is equal to the previous state when computing in $\text{sup}$. This makes equality checking cheap.
+
+$$
+\begin{array}{rl}
+\text{eval} &: (g: \text{GateType}) \to \Fb^{n_g}_q \to \Fb^{m_g}_q 
+\end{array}
+$$
+$$
+\begin{array}{ccc}
+\begin{array}{rl}
+\VMap &= \Nb \pto \Fb_q \\
+\RState^k &= \VMap \times \Bb \times \Nb^k \\
+\end{array}
+&
+\begin{array}{rl}
+\curvearrowleft &: X^k \to X^{k'} \\
+\curvearrowleft (\vec{x}) &= \begin{cases}
+() & \vec{x} = () \\
+\vec{x}' & \vec{x} = \_ \cat \vec{x}' \\
+\end{cases}
+\end{array}
+&
+\begin{array}{rl}
+\underset{R}{\curvearrowleft} &: T \times \Nb^k \to T \times \Nb^{k'} \\
+\underset{R}{\curvearrowleft} &= \text{lift}(\curvearrowleft)
+\end{array}
+\end{array}
+$$
+$$
+\begin{array}{rl}
+\begin{array}{rl}
+\text{?} &: \VMap \to \Nb^k \to \Nb^{k'} \\
+v \text{?} \wave{\vec{y}} &= \begin{cases}
+() & \wave{\vec{y}} = () \\
+& \wave{\vec{y}} = \wave{y} \cat \wave{\vec{y}}' \\
+\wave{y} \cat v \text{?} \wave{\vec{y}}' & v(\wave{y}) = \bot \\
+v \text{?} \wave{\vec{y}}' & \text{otherwise}
+\end{cases} \\
+\\
+\left[ \cdot \right] &: \VMap \to \AbsCirc \to \Nb \to \VMap \\
+v_{\wave{f}}\left[\wave{y}\right] &= \maybe{
+  v[\wave{\vec{y}} \mapsto \vec{y}]
+}{\begin{array}{rl}
+  \wave{f} &\ni (g, \wave{y}) \\
+  \wave{\vec{y}} &= \text{out}(\wave{f}, g) \\
+  \vec{y} &= \text{eval}(\text{ty}(g), v @ \text{in}(g)) \\
+\end{array}}
+\end{array}
+&
+\begin{array}{rl}
+\Downarrow_R &: (T \times \RState \to T \times \RState) \to \AbsCirc \\
+&\to T \times \RState \to T \times \RState \\
+f \stackrel{\to}{\circ} \Downarrow^{\wave{f}}_R(t,v, \_, \wave{\vec{y}}) &= \begin{cases}
+f(t,v,\top,()) & \wave{\vec{y}} = () \\
+ & \wave{\vec{y}} = \wave{y} \cat \_ \\
+\underset{R}{\curvearrowleft} (t, v, \bot, \wave{\vec{y}}) & v(\wave{y}) \neq \bot \\
+ & (g, \wave{y}) \in \wave{f} \\
+ & \wave{\vec{x}} = v \text{?} \text{in}(g) \\
+\underset{R}{\curvearrowleft} \circ f(t, v_{\wave{f}}[\wave{y}], \bot, \wave{\vec{y}}) 
+ & \wave{\vec{x}} = () \\
+(t, v,\bot, \wave{\vec{x}} \cat \wave{\vec{y}}) & \text{otherwise}
+\end{cases} \\
+\end{array}
+\end{array}
+$$
+
+The rest of the monotonic functions are better motivated when we define the prover.
+
+### Gate Constraints
+
+$\Downarrow_G$ computes the gate constraints by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation on resolved wires in $\Downarrow$.
+
+When the wire id stack $\wave{\vec{y}}$ is empty, $\underset{G}{\curvearrowright}$ will push assert gates and input gates $A^{\wave{f}}$ to the stack.
+$$
+\begin{array}{rl}
+\text{Term} &= \text{Slot} + \text{Selector} \\
+\text{Constraint} &= \text{Term} \to \Fb_q \\
+\text{ctrn} &: (g : \text{GateType}) \to \Fb_q^{n_g + m_g} \to \text{Constraint}^k
+\end{array}
+$$
+$$
+\begin{array}{rl}
+\begin{array}{rl}
+\text{GState}^{k,k',k''} &= \text{Constraint}^{k''} \times \Gate^{k'} \times \RState^k \\
+A^{\wave{f}} &= \set{g \middle\vert (g, \wave{y}) \in \wave{f} \land (\wave{y} = \bot \lor \exists i. \wave{y} = \text{Input}_i) }
+\end{array}
+&
+\begin{array}{rl}
+\underset{G}{\curvearrowleft} &: T \times \text{GState}^{k''',k',k} \to T \times \text{GState}^{k''',k'',k} \\
+\underset{G}{\curvearrowleft} &= \text{lift} \circ \lambda (\vec{g}, v, b, \wave{\vec{y}}). (\curvearrowleft(\vec{g}), v, b, \wave{\vec{y}})
+\end{array}
+\end{array}
+$$
+$$
+\begin{array}{rl}
+\begin{array}{rl}
+\underset{G}{\curvearrowright} &: \AbsCirc \to \Gate^k \times \RState \\
+&\to \Gate^{k'} \times \RState \\
+\underset{G}{\curvearrowright}^{\wave{f}}(\vec{g}, v, \_, \wave{\vec{y}}) &= \begin{cases}
+(A^{\wave{f}} \cat \vec{g}, v, \bot, \wave{\vec{y}})
+& |\wave{\vec{y}}| = |\vec{g}| = 0 \\
+  & \wave{\vec{y}} = \wave{y} \cat \_ \\
+(g \cat \vec{g}, v, \bot, \wave{\vec{y}})
+& (g,\wave{y}) \in \wave{f} \\
+(\vec{g}, v, \top, \wave{\vec{y}})
+& \text{otherwise}
+\end{cases}
+\end{array}
+&
+\begin{array}{rl}
+\Downarrow_G &: (T \times \text{GState} \to T \times \text{GState}) \to \AbsCirc \\
+&\to T \times \text{GState} \to T \times \text{GState} \\
+f \stackrel{\to}{\circ} \Downarrow_G^{\wave{f}} &= \underset{G}{\curvearrowleft} \circ f \circ^\uparrow \lambda (\vec{C}, \vec{g}, v, \_, \wave{\vec{y}}). \\
+&
+\begin{cases}
+(\vec{C}, (), v, \top, \wave{\vec{y}}) & \vec{g} = () \\
+& \vec{g} = g \cat \_ \\
+& \vec{v} = v @ (\text{in}(g) \cat \text{out}(\wave{f},g)) \\
+(\vec{C}', \vec{g}, v, \bot, \wave{\vec{y}})
+& \vec{C}' = \vec{C} \cat \text{ctrn}(\text{ty}(g), \vec{v}) \\
+\end{cases} \circ^\uparrow \underset{G}{\curvearrowright}^{\wave{f}} \\
+\end{array}
+\end{array}
+$$
+
+### Copy Constraints
+
+$\Downarrow_C$ quotients an ordered set of coordinates in slot positions of $\vec{C}$ by the wire id corresponding to the value there.
+
+This is done by peeking $\vec{g}$ and joining the coordinate loop of the gate. This corresponds to $\mathtt{ctrn}$.
+
+After $\mathtt{sup}$, trace will transform the coordinate loop to a map from coordinate to coordinate where each term in the quotient maps to its neighbour, and the last maps to the first. This is used to compute the permutation matrix.
+$$
+\begin{array}{rl}
+\begin{array}{rl}
+\text{Row} &= \Nb \\
+\text{Coord} &= \text{Slot} \times \text{Row} \\
+\text{CLoop} &= (\wave{y} : \Nb) \pto \text{Coord}^{k_{\wave{y}}} \\
+\text{CMap} &= \text{Coord} \to \text{Coord} \\
+\text{loop} &: \text{Row} \to \text{GateType} \to \text{CLoop}
+\end{array}
+&
+\begin{array}{rl}
+\text{CState} &= \text{CLoop} \times \text{GState} \\
+\Downarrow_C &: \AbsCirc \to \text{CState} \to \text{CState} \\
+\Downarrow_C^{\wave{f}}(c,\vec{C},\vec{g},v,\_, \wave{\vec{y}}) &= \begin{cases}
+(c,\vec{C},\vec{g},v,\top, \wave{\vec{y}}) & \vec{g} = () \\
+& \vec{g} = g \cat \_ \\
+(c', \vec{C}, \vec{g}, v, \bot, \wave{\vec{y}}) & c' = c \sqcup \text{loop}(|\vec{C}|, \text{ty}(g))
+\end{cases}
+\end{array}
+\end{array}
+$$
+$$
+\begin{array}{rl}
+\begin{array}{rl}
+\sqcup &: \text{CLoop} \to \text{CLoop} \to \text{CLoop} \\
+x \sqcup y &= \begin{cases}
+& \exists i. x(i) \neq \bot \lor y(i) \neq \bot \\
+& z = x[i \mapsto \bot] \sqcup y[i \mapsto \bot] \\
+z[i \mapsto x(i) \cat y(i)] 
+& x(i) \neq \bot \land y(i) \neq \bot \\
+z[i \mapsto x(i)]
+& x(i) \neq \bot \\
+z[i \mapsto y(i)]
+& y(i) \neq \bot \\
+z & \text{otherwise}
+\end{cases}
+\end{array}
+&
+\begin{array}{rl}
+\text{toMap} &: \text{CLoop} \to \text{CMap} \\
+\text{toMap}(c) &= \lambda x.\maybe{p(x) \lor x}{\begin{array}{rl}
+  p &= c \downarrow \bot \\
+  \bot &\neq p(x)
+\end{array}} \\
+c \downarrow p &= \begin{cases}
+& \exists \wave{y}. c(\wave{y}) \neq \bot \\
+& c' = c[\wave{y} \mapsto \bot] \\
+& \vec{l} = l \cat \vec{l_t} = c(\wave{y}) \\
+& \vec{l}' = \vec{l_t} \cat l \\
+p'
+& p' = c' \downarrow p[\vec{l} \mapsto \vec{l}'] \\
+p & \text{otherwise}
+\end{cases} \\
+\end{array}
+\end{array}
+$$
+$$
+\begin{array}{rl}
+\begin{array}{rl}
+\text{id} &: \Fb_q \to (\text{Slot} \to \Fb_q) \\
+&\to \text{Coord} \to \Fb_q \\
+\text{id}^{\omega}_h(s, i) &= h_s \omega^i \\
+\end{array}
+&
+\begin{array}{rl}
+\text{toPerm} &: \Fb_q \to (\text{Slot} \to \Fb_q) \to (N : \Nb) \to \text{CMap} \to (\text{Slot} \to \Fb_q)^N \\
+\text{toPerm}^{\omega}_h(N, c) &= \begin{cases}
+() & N = 0 \\
+\text{toPerm}^{\omega}_{h}(N-1, c) \cat \lambda s. \text{id}^\omega_h \circ c(s,N) & \text{otherwise}
+\end{cases}
+\end{array}
+\end{array}
+$$
+
+### Lookup Argument Constraints
+
+- $t$ table
+  - introduce tables; compression formula
+  - sort
+  - capture last entry as default
+- $f$ gate
+  - if gate is lookup, compute compression from $v$
+  - DONT SORT
+  - else use default
+- $h1,h2$; concat $t,f$ sort, then split odds and evens
+
+### Full Surkål Trace
+
+
+$$
+\begin{array}{rl}
+\text{init} &: \AbsCirc \to T \to \Nb^m \to \Fb^n_q \to \text{LState} \\
+\text{init}_{\wave{f}}(\wave{\vec{Y}}, \vec{x})
+&= (\bot, (), (), \bot[(0..|\vec{x}|) \mapsto \vec{x}], \bot, \wave{\vec{Y}} \cat \set{\wave{x} \middle\vert (g, \bot) \in \wave{f} \land \wave{x} \in \text{in}(g) \setminus \wave{\vec{Y}}}) \\
+\\
+s_0 &: \text{LState} \\
+s_0 &= (\bot, (), (), \bot, \bot, ()) \\
+\\
+eq &: \text{LState} \to \text{LState} \to \Bb \\
+eq &= \lambda \_, (\_, \_, \_, \_, b, \_). b \\
+\\
+\text{post} &: \text{LState} \to \text{TraceResult} \\
+\text{post}(c, \vec{C}, \_, \_, \_, \_) &= \maybe{(\text{toPerm}^\omega_h(N,\text{toMap}(c)), \vec{C})}{\begin{array}{rl}
+  compute\ \omega\ and\ h
+\end{array}} \\
+\\
+\text{trace} &: \AbsCirc \to \Nb^m \to \Fb^n_q \to \text{TraceResult} \\
+\text{trace}(\wave{f}, \wave{\vec{Y}}, \vec{x}) &= \text{post} \circ \text{sup}\left(
+  \Downarrow^{\wave{f}}_L \circ^\uparrow \Downarrow_C^{\wave{f}} \stackrel{\to}{\circ} \Downarrow_G^{\wave{f}} \stackrel{\to}{\circ} \Downarrow_R^{\wave{f}}, eq, s_0, \text{init}_{\wave{f}}(\wave{\vec{Y}}, \vec{x})
+\right)
+\end{array}
+$$
+
+- compute $N$, $\omega$, $h$
+- expand $\vec{C}$, plookup thunk
+
+# Plonk Protocol
+
+- cosets
+- fft
+- F_GC
+- grand product
+  - cc
+  - pl
+
+
+## Circuit
+
+- polys
+  - slots
+  - permutation polys
+- commits
+- lookup thunk
+
+## Prover
+
+- cc, pl: Z, f, g
+- quotient poly: t
+- opening poly: W
+
+## Verifier
 
 The checks that the verifier makes in Plonk boils down to checking identities
 of the following form:
@@ -449,228 +822,31 @@ polynomial identities of the form $\forall a \in S : F(s) \meq 0$ using a
 PCS. For a series of polynomials, $\{ F_1, F_2, \dots, F_k \} \in \Fb_{\leq
 d}$, we have the following protocol:
 
-\begin{algorithm}[H]
-\caption*{
-  \textbf{Surkål:} a plonkish NARK protocol.
-}
-\textbf{Inputs} \\
-  \Desc{$f: \Fb^n_q \to \Fb^m_q$}{The program being proved.} \\
-  \Desc{$\vec{x} \in \Fb^n_q$}{The possibly private input to the program $f$} \\
-\textbf{Output} \\
-  \Desc{$\Result(\top, \bot)$}{Either the verifier accepts with $\top$ or rejects with $\bot$}
-\begin{algorithmic}[1]
-  \State Precompute the corresponding entry of the circuit relation; $x\ R\ w$:
-    \Statex \algind \textbf{let} $(x,w) = \mathrm{circuit}(\mathrm{trace}(\mathrm{arithmetize}(f), \vec{x}))$ 
-  \State The prover $P$ computes the proof:
-    \Statex \algind $\pi \gets P(x,w)$
-  \State The verifier $V$ then checks:
-    \Statex \algind \textbf{return} $V(x, \pi)$
-  \end{algorithmic}
-\end{algorithm}
-
-TODO - general IVC
-
-# General Protocols
-
-
-
-
-## Vanishing Argument
-
-- Rasmus
-
-## Batched Evaluation Proofs
-
-- Rasmus
-
-## Grand Product Argument
-
-- Haliq
-
-### Copy Constraints
-
-- Haliq
-
-### Lookup Arguments
-
-- Haliq
-
-\newpage
-
-# General Arithmetization Scheme
-
-We define the functions in the following pipeline:
-$$
-(x,w) = \mathrm{circuit} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})
-$$
-
-## Arithmetize
-
-Arithmetize turns a program $f$ into an abstract circuit $\wave{f}$, which is a one-to-many-or-none relation between gates $g$ and output wire id(s) $\wave{y}$ or $\bot$ which denotes no output wires. e.g. $(\text{Add}(a,b), c) \in \wave{f}$ corresponds to $\build{a+b=c}{}{}$.
-
-We notate inserting a gate or gadget $f$ to the circuit with $\build{f = \wave{\vec{y}}}{s}{s'}$, $\build{f = \wave{y}}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the state from $s$ to $s'$. State has the form $(u, \wave{f})$ where $u$ is the current uuid for wires.
-
-Wires annotated as the final output will be appended to $\wave{\vec{Y}}$, i.e. $\build{f=\wave{y}^*}{(\_,\wave{\vec{Y}})}{(\_, \wave{\vec{Y}} \cat \wave{y})}$, which may be omitted notationally.
-
-Gates are primitive operations with $n_g \geq 0$ fan in inputs and $m_g \geq 0$ fan out outputs. A circuit is a composition of gadget(s) and/or gate(s).
-
-These inserts yield new wires. However, wires are reused by an equivalence class on gates. If $g \equiv h$ where $(h,\_) \in \wave{f}$, then $\wave{\vec{y}}$ in $\build{g=\wave{\vec{y}}}{s}{s}$ corresponds to the output wire(s) of $h$, leaving the state unchanged. Equivalence of gates are computed using the equivalence saturation library 'egglog', by @egglog.
-
-$$
-\begin{aligned}
-\AbsCirc &= \set{
-  \wave{f} \subset \Gate \times \Nb_\bot \middle\vert
-  \forall (g,\wave{y}),(h,\wave{y}) \in \wave{f}. \wave{y} \neq \bot \implies g = h
-} \\
-\Gate^{\wave{f}}_g &= \set{h \in \Gate \middle\vert
-  (h, \_) \in \wave{f} \land h \equiv g
-}
-\\
-\AState &= \Nb \times \AbsCirc
-\end{aligned}
-$$
-$$
-\begin{array}{rlrl}
-\text{out} &: (\Nb_\bot + \AbsCirc) \to \Gate \to \Nb^m &
-\text{get} &: \AState \to \Gate \to \AState \times \Nb^m
-\\
-\text{out}(\bot, \_) &= () &
-\multirow{3}{*}{$\text{get}(u, \wave{f}, g)$} &
-\multirow{3}{*}{$=\begin{cases}
-    (u, \wave{f}, \text{out}(\wave{f}, h)) & h \in \Gate^{\wave{f}}_g \\
-    (\text{put}(g, u, \wave{f}), \text{out}(u,g)) & \text{otherwise}
-  \end{cases}
-$}
-\\
-\text{out}(u,g) &= (u..u+m_g) \\
-\text{out}(\wave{f}, g)
-&= \text{out}(\min\left(
-  \set{\wave{y} \middle\vert (g,\wave{y}) \in \wave{f}}
-\right), g)
-\\ \\
-\text{entries}  &: \Nb \to \Gate \to \AbsCirc &
-\build{g = \wave{\vec{y}}}{s}{s'}
-&= \left(\text{get}(s,g) \overset{?}{=} (s', \wave{\vec{y}})\right) 
-\\
-\text{entries}(u,g) &= \begin{cases}
-  \set{(g,\wave{y}) \middle\vert \wave{y} \in \text{out}(u,g)}
-  & m_g > 0 \\
-  \set{(g,\bot)}
-  & m_g = 0
-\end{cases} &
-\build{f}{s_1}{s_{k+1}}
-&= \bigwedge\limits_{i \in [k]} \build{f_i}{s_i}{s_{i+1}} 
-\\ \\
-\text{put} &: \Gate \to \AState \to \AState &
-\text{arithmetize} &: (\Fb^n_q \to \Fb^m_q) \to \AbsCirc \times \Nb^{m'}
-\\
-\text{put}(g, u, \wave{f}) &= (
-  u + m, \wave{f} \cup \text{entries}(u, g)
-) &
-\text{arithmetize}(f) &= \maybe{(\wave{f}, \wave{\vec{Y}})}{
-  \build{f}{(\text{put}(\text{Input})^n(0,\emptyset), \emptyset)}{(\_, \wave{f}, \wave{\vec{Y}})}
-}
-\end{array}
-$$
-
-get might just be egglog add calls. then saturate and find best for output wires.
-but u need to also search relations / zero output wires involved.
-
-you need to figure out if you can use egglog as the relation / abstract circuit instead.
-
-## Trace
-
-- composition of monotonic functions; kleene fixedpoint theorem
-- continuations
-- resolve
-- stack of wire ids
-- vmap
-
-$$
-\begin{array}{rl}
-\Mono{T} &= T \times \Fb^k_q \to T \times \Fb^{k'}_q
-\\
-\text{MonoC}^T &= \Mono{T} \to \Mono{T}
-\\
-\VMap &= \Nb \rightharpoonup \Fb_q
-\\ \\
-\text{lift} &: \Mono{T} \to \Mono{U \times T}
-\\
-\text{lift}(f) &= (u,s) \mapsto (u,f(s))
-\\ \\
-\text{peek} &: \Fb^{k}_q \to \Fb_q + \bot
-\\
-\text{pop} &: \Fb^k_q \to \Fb^{k'}_q
-\\
-\text{push} &: \Mono{\VMap} \\
-\text{resolve} &: \text{MonoC}^{T \times \VMap}
-\\ \\
-\text{trace} &: T \to \Mono{T\times \VMap} \to \Nb^k \times \AbsCirc \to \Fb^k_q \to T \\
-\text{trace}^t_g(a,\vec{x}) &= \left[
-t'
-\middle\vert
-\text{sup}_{n\in\Nb} \text{resolve}(g)^n (t,\text{init}(a, \vec{x})) = (t',\_)
-\right]
-\end{array}
-$$
-
-- define init as kleene fixedpoint too
-- define peek, pop, push
-- define resolve
-
-### Asserts
-
-- if stack not empty, just apply continuation
-- else if stack empty
-  - get no output gates
-  - if input exists in domain of vmap
-  - then push inputs
-  - if stack still empty, apply continuation
-
-### Gate Constraints
-
-- append matrix
-
-### Copy Constraints
-
-- tabulate sigma
-
-### Lookup Argument Constraints
-
-- $t$ poly eval thunk
-- $f$: get eval corresponding to $(x,y,z)$ when resolve lookup else get 
-
-### Full Surkål Trace
-
-... construct $t$ and $e$ and define $\text{trace} = \text{trace}^t_e$
-
-## Circuit
-
-- fft
-- commits? pcdl
-- lookup thunk
+TODO
 
 # Surkål Circuits
 
 # Gates and Gadgets
 
-| $\Gate = (\vec{x} : \Nb^n, f: \Fb^n_q$ | $\to \Fb^m_q, \_)$         | remarks                 |
+TODO: ctrn and coords too
+
+| $g: \Gate$                | $\text{eval}(g, \vec{x})$     | remarks                 |
 |:-------------------------:|:-----------------------------:|:------------------------|
-| Input$_i()$              | $(x_i)$                       | from trace              |
+| Input$_i()$               | $(x_i)$                       | from trace              |
 | Const$_{s,p}()$           | $(s)$                         |                         |
 | Add$(x,y)$                | $(x+y)$                       |                         |
 | Mul$(x,y)$                | $(x \times y)$                |                         |
 | Inv$(x)$                  | $(x^{-1})$                    |                         |
 | Pow7$(x)$                 | $(x^7)$                       |                         |
 | If$(b,x,y)$               | $(b ? x : y)$                 |                         |
-| Lookup$_T(x,y)$          | $\maybe{(z)}{(x,y,z) \in T}$  |                         |
+| Lookup$_T(x,y)$           | $\maybe{(z)}{(x,y,z) \in T}$  |                         |
 | PtAdd$(x_P,y_P,x_Q,y_Q)$  | $(x_R, y_R)$                  | Arkworks point add      |
 | Poseidon$(a,b,c)$         | $(a',b',c')$                  | Mina poseidon 5 rounds  |
 | Public$(x)$               | $()$                          |                         |
 | Bit$(b)$                  | $()$                          |                         |
 | IsAdd$(x,y,z)$            | $()$                          |                         |
 | IsMul$(x,y,z)$            | $()$                          |                         |
-| IsLookup$_T(x,y,z)$      | $()$                          |                         |
+| IsLookup$_T(x,y,z)$       | $()$                          |                         |
 
 ## XOR
 
@@ -696,7 +872,71 @@ $$
 
 ## Notation
 
-TODO
+TODO make to a neat table, and include notation in plonk report
+
+types and type formers
+
+- naturals $\Nb$
+- pointed type $T_\bot$, has an (additional) smallest element $\bot$
+- finite fields $\Fb_q$
+- vector type $T^n$
+- matrix / tensor type $T^{n \times m}$
+- tuple / product type $T \times U$
+- function type $X \to Y$
+- partial function type $X \pto Y$
+- disjoint union / sum type $T + U$
+
+term constructors
+
+- empty vector / unit tuple $()$
+- vector term / tuple term $\vec{x} = (x_1, x_2, \cdots , x_n)$
+- vector append / cons $y \cat \vec{x} = (y, x_1, x_2, \cdots x_n), \vec{x} \cat y = (x_1, x_2, \cdots, x_n, y)$
+- matrix / tensors as vectors $\vec{m}: T^{w \times h}, \vec{m}[i,j] = m_{i + h(j-1)}$
+- function term / lambda abstraction $\lambda x. f(x)$
+- empty partial function $\bot$
+- partial function append $f[x \mapsto y]$
+- disjoint union implictly has no constructors, however we can $\text{inl}(t), \text{inr}(u)$ to avoid ambiguity
+
+util functions
+
+- maybe notation $\maybe{x}{\phi(x)} = \begin{cases} x & \phi(x) \\ \bot & \text{otherwise} \end{cases}$
+- maybe with default $\maybe{x \lor y}{\phi(x)} = \begin{cases} x & \phi(x) \\ y & \text{otherwise} \end{cases}$
+- vector of naturals builder $(s..t) = \begin{cases} () & t \leq s \\ s \cat (s+1 .. t) \end{cases}$
+- vector concat $\vec{x} \cat \vec{y} = \begin{cases} \vec{y} & \vec{x} = () \\ \vec{x}' \cat (x \cat \vec{y}) & \vec{x} = \vec{x'} \cat x \end{cases}$
+- vector concat with set $X \cat \vec{x}$; any random ordering of $X$; recursive application of axiom of choice
+- vector map $f @ \vec{x} = (f(x_1), f(x_2), \ldots, f(x_n))$
+- vector minus set $\vec{x} \setminus X$ turns $\vec{x}$ to a set and removes all elements in $X$
+- min of a set with total ordering $\min(X)$
+- partial function append vector $f[\vec{x} \mapsto \vec{y}] = \begin{cases} f & \vec{x} = \vec{y} = () \\ f[x \mapsto y][\vec{x}' \mapsto \vec{y}'] & \vec{x} = x \cat \vec{x}', \vec{y} = y \cat \vec{y}' \\ \bot & \text{otherwise} \end{cases}$
+
+identities
+
+- associative product and function types
+- currying $T \to U \to V = (T \times U) \to V$
+- curried / associative tuples $((a,b),c) = (a,b,c) = (a,(b,c))$
+
+set theoretic notations
+
+- set of naturals from one $[n] = \set{1,2,\ldots,n-1}$
+- set of naturals with lower bound $[n..m] = \set{n,n+1,\ldots,m-1}$
+- flattened case notation, conditions are propagated to conditions below if they don't contradict.
+$$
+\begin{array}{rl}
+\begin{cases}
+a & \phi_1(a) \\
+ & \phi_2(a) \\
+b & \phi_3(b) \\
+c & \phi_4(c) \\
+\vdots
+\end{cases} &=
+\begin{cases}
+a & \phi_1(a) \\
+b(a) & \phi_3(b(a)) \lor \phi_1(a) \lor \phi_2(a) \\
+c(b(a),a) & \phi_4(c(b(a),a)) \lor \phi_1(a) \lor \phi_2(a) \lor \phi_3(b(a)) \\
+\vdots
+\end{cases}
+\end{array}
+$$
 
 ## Arithmetize Example
 
@@ -707,7 +947,7 @@ $$
 \\
 &= \maybe{\left(\wave{f}'', (z)\right)}{
   \build{x^2 + y = z^*}
-    {((u, \wave{f}) = \text{put}(\text{Input})^2(0, \emptyset), \emptyset)}
+    {(u, \wave{f}) = (\text{put}(\text{Input}_0) \circ \text{put}(\text{Input}_1)(0, \emptyset), \emptyset)}
     {(\_, \wave{f}'', (z))}
   }
 \\
@@ -739,14 +979,14 @@ $$
     \text{Mul}(x,x) & u \\
     \text{Add}(u,y) & u+1
   \end{array}}, (u+1)\right)}{
-  (u, \wave{f}) = \text{put}(\text{Input})^2(0, \emptyset)
+  (u, \wave{f}) = \text{put}(\text{Input}_0) \circ \text{put}(\text{Input}_1)(0, \emptyset)
 }
 \\
 &= \maybe{\left(\wave{f} \cup \set{\begin{array}{rl}
     \text{Mul}(0,0) & u \\
     \text{Add}(u,y) & u+1
   \end{array}}, (u+1)\right)}{
-    (u, \wave{f}) = \text{put}(\text{Input}, 1, \set{(\text{Input}, 0)}, \emptyset)
+    (u, \wave{f}) = \text{put}(\text{Input}_1, 1, \set{(\text{Input}_0, 0)})
   }
 \\
 &= \maybe{\left(\wave{f} \cup \set{\begin{array}{rl}
@@ -754,18 +994,22 @@ $$
     \text{Add}(u,1) & u+1
   \end{array}}, (u+1) \right)}
   {(u, \wave{f}) = \left(2, \set{\begin{array}{rl}
-    \text{Input} & 0 \\
-    \text{Input} & 1
+    \text{Input}_0 & 0 \\
+    \text{Input}_1 & 1
   \end{array}}\right)}
 \\
 &= \left(\set{\begin{array}{rl}
-  \text{Input} & 0 \\
-  \text{Input} & 1 \\
+  \text{Input}_0 & 0 \\
+  \text{Input}_1 & 1 \\
   \text{Mul}(0,0) & 2 \\
   \text{Add}(2,1) & 3
 \end{array}}, (3)\right)
 \end{aligned}
 $$
+
+## Trace Example
+
+TODO
 
 ## Defining Equivalence of Gates with Egglog
 
@@ -773,26 +1017,27 @@ TODO
 
 ## Kleene Fixedpoint Theorem in Trace
 
-Trace is defined as a composition of monotonic functions that has control over their continuations. Thus if the full composition is $f$, then the trace is $\mu x. f(x)$. Given an initial state, it is notated as the supremum. $\text{sup}_{n \in \Nb} f^n(s_0)$, where $n$ is the smallest $n$ such that $f^n(s_0) = f^{n+1}(s_0)$, i.e. the least fixedpoint of $f$. We can compute it recursively or as a stack-based loop.
+Trace is defined as a composition of monotonic functions that has control over their continuations. Thus if the full composition is $f$, then the trace is $\mu x. f(x)$. Given an initial state, it is notated as the supremum. $\text{sup}_{n \in \Nb} f^n(s_0)$, where $n$ is the smallest $n$ such that $f^n(s_0) = f^{n+1}(s_0)$, i.e. the least fixedpoint of $f$. We have shown the recursive definition before. Now we present the iterative definition which will be useful in code implementations to circumvent the recursion limit or stack overflow errors.
 
 \begin{algorithm}[H]
 \caption*{
-  \textbf{sup:} kleene least fixedpoint protocol.
+  \textbf{sup:} iterative kleene least fixedpoint protocol.
 }
 \textbf{Inputs} \\
-  \Desc{$f: T \to T$}{Monotonic function.} \\
-  \Desc{$s_0 : T$}{Initial state.} \\
+  \Desc{$f: \text{State}^T \to \text{State}^T$}{Monotonic function.} \\
+  \Desc{$s_0 : \text{State}^T$}{Initial state.} \\
+  \Desc{$\text{eq}: \text{State}^T \to \text{State}^T \to \Bb$}{Equality predicate on states.} \\
 \textbf{Output} \\
-  \Desc{$s_n : T$}{The state corresponding to the least fixedpoint of $f$.}
+  \Desc{$s_n : \text{State}^T$}{The state corresponding to the least fixedpoint of $f$.}
 \begin{algorithmic}[1]
   \State Initialize variables:
-    \Statex \algind $x := \bot$
-    \Statex \algind $x' := s_0$ 
+    \Statex \algind $s := \bot$
+    \Statex \algind $s' := s_0$ 
   \State Recursive compute:
     \Statex \textbf{do:}
-    \Statex \algind $x := x'$
-    \Statex \algind $x' := f(x)$
-    \Statex \textbf{while} $x \neq x'$
+    \Statex \algind $s := s'$
+    \Statex \algind $s' := f(s')$
+    \Statex \textbf{while} $\text{eq}(s,s') = \bot$
   \State Return the least fixedpoint:
     \Statex \textbf{return} $x$
   \end{algorithmic}
@@ -801,13 +1046,15 @@ Trace is defined as a composition of monotonic functions that has control over t
 We can show that the function is monotonic by defining the order on the state, and showing that the function preserves the order. The order is defined as follows:
 
 $$
-(t,v,\vec{s}) \sqsubseteq (t',v',\vec{s'}) \iff
+(t,v,b,\vec{s}) \sqsubseteq (t',v',b',\vec{s'}) \iff
 \begin{aligned}
   &t \not\sqsubseteq t' \Rightarrow \text{dom}(v) \not\subseteq \text{dom}(v') \Rightarrow |s| < |s'|
 \end{aligned}
 $$
 
-We never remove the mapping in $v$ thus the order is preserved for $v$ despite the fact that the stack $s$ can grow and shrink. To show $t \sqsubseteq t'$ then is to investigate the remaining monotonic continuations for Surkål.
+We never remove the mappings in $v$ thus the order is preserved for $v$ despite the stack $s$ can grow and shrink. To show $t \sqsubseteq t'$ then is to investigate the remaining monotonic continuations for Surkål.
+
+TODO: cleanup and make full preorder relation definition, i.e. $s \sqsubseteq f(s)$
 
 # Bibliography
 
