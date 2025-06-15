@@ -161,7 +161,7 @@ pub fn plonk_proof_verify(c: &mut Criterion) {
     group.finish();
 }
 
-fn write_csv(data: &Vec<Vec<f32>>) -> Result<()> {
+fn write_csv(data: &[Vec<f32>]) -> Result<()> {
     // Get the current directory (project root)
     let current_dir = env::current_dir()?;
 

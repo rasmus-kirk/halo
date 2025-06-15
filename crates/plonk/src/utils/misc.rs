@@ -3,20 +3,6 @@ use std::{
     fmt::{Debug, Display},
 };
 
-#[cfg(test)]
-pub mod tests {
-    use std::sync::Once;
-
-    static INIT: Once = Once::new();
-
-    pub fn on_debug() {
-        INIT.call_once(|| {
-            env_logger::Builder::from_default_env().init();
-        });
-        std::env::set_var("RUST_LOG", "debug");
-    }
-}
-
 pub fn is_debug() -> bool {
     env::var("RUST_LOG").as_deref() == Ok("debug")
 }
@@ -77,5 +63,19 @@ pub trait EnumIter:
     fn id(self) -> usize;
     fn un_id(id: usize) -> Self {
         Self::iter().nth(id).unwrap()
+    }
+}
+
+#[cfg(test)]
+pub mod tests {
+    use std::sync::Once;
+
+    static INIT: Once = Once::new();
+
+    pub fn on_debug() {
+        INIT.call_once(|| {
+            env_logger::Builder::from_default_env().init();
+        });
+        std::env::set_var("RUST_LOG", "debug");
     }
 }

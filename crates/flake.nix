@@ -62,7 +62,7 @@
             pkgs.rustToolchain
             (pkgs.writeShellScriptBin "check-all" ''
               cd ${self}
-              cargo fmt --all -- --check &&
+              check-fmt &&
               echo "-------------------- Format ✅ --------------------" &&
               check-lint &&
               echo "-------------------- Lint ✅ --------------------" &&
@@ -76,7 +76,7 @@
               cargo clippy --all-targets --all-features -- -D warnings
             '')
             (pkgs.writeShellScriptBin "check-test" ''
-              cargo test --all-features
+              cargo test
             '')
           ];
         };

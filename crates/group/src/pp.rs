@@ -24,6 +24,10 @@ impl<P: PastaConfig> PublicParams<P> {
     }
 
     pub fn new(n: usize) -> Self {
+        assert!(
+            !cfg!(feature = "bootstrap"),
+            "Can't initialize public parameters in bootstrap mode!"
+        );
         assert!(n.is_power_of_two());
         assert!(n <= N);
 
@@ -81,7 +85,7 @@ impl<P: PastaConfig> PublicParams<P> {
         match P::get_loaded_public_params().get() {
             Some(&_) => P::get_loaded_public_params().get().unwrap(),
             // If no public params have been set, set to max.
-            // This will degrade performance, but always work.
+            // This will degrade performance (slightly), but always work.
             None => {
                 let _ = P::get_loaded_public_params().set(PublicParams::new(N));
                 P::get_loaded_public_params().get().unwrap()
