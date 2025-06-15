@@ -61,7 +61,6 @@
             pkgs.rust-bin.nightly."${rustFmtVersion}".rustfmt
             pkgs.rustToolchain
             (pkgs.writeShellScriptBin "check-all" ''
-              cd ${self}
               check-fmt &&
               echo "-------------------- Format ✅ --------------------" &&
               check-lint &&
