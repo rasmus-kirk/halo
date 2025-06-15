@@ -8,12 +8,12 @@
       },
       "locked": {
         "lastModified": 1,
-        "narHash": "sha256-dX5gHIEIGqLN6OhRdnQ7CDm2pqJzM9CnLNzd15X+sjI=",
-        "path": "/nix/store/jrna8wj8wg7hj4kwvsbl6nax303axvrd-source/documents/project-contract",
+        "narHash": "sha256-ZzXYJBn9n15Uz1Ry2dzW1cd7hnP4c2BuVPlu4wy3RGc=",
+        "path": "/nix/store/nf84fx88cqba2lwyfvbv5lmh3bfzm8b3-source/documents/project-contract",
         "type": "path"
       },
       "original": {
-        "path": "/nix/store/jrna8wj8wg7hj4kwvsbl6nax303axvrd-source/documents/project-contract",
+        "path": "/nix/store/nf84fx88cqba2lwyfvbv5lmh3bfzm8b3-source/documents/project-contract",
         "type": "path"
       }
     },
@@ -49,12 +49,12 @@
       },
       "locked": {
         "lastModified": 1,
-        "narHash": "sha256-ZmYS9eMBfOkV1vYzd2lnyGXnUgTJEBxD42W/IJ9n9Jo=",
-        "path": "/nix/store/jrna8wj8wg7hj4kwvsbl6nax303axvrd-source/documents/thesis",
+        "narHash": "sha256-8ovdUmOHvM41uBN3kBN209S7aYajYbctNBrSyD2X7xk=",
+        "path": "/nix/store/nf84fx88cqba2lwyfvbv5lmh3bfzm8b3-source/documents/thesis",
         "type": "path"
       },
       "original": {
-        "path": "/nix/store/jrna8wj8wg7hj4kwvsbl6nax303axvrd-source/documents/thesis",
+        "path": "/nix/store/nf84fx88cqba2lwyfvbv5lmh3bfzm8b3-source/documents/thesis",
         "type": "path"
       }
     },
@@ -65,11 +65,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1741594814,
-        "narHash": "sha256-YPAIywsWZVhQuy/cPJLi3PiWgoWDrqvQCBytXeSQYCk=",
+        "lastModified": 1750027175,
+        "narHash": "sha256-6XM+hg3Zal2EqeDmTSpFyrvYLgM81BhFtLjA93nYA6Q=",
         "owner": "rasmus-kirk",
         "repo": "website-builder",
-        "rev": "e0239195b33103a4923011d8e96ef39a3397631b",
+        "rev": "3825733413b78fe6cd4498cef8b339ae1e0a6a0e",
         "type": "github"
       },
       "original": {
