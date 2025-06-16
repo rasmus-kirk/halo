@@ -532,7 +532,9 @@ $$
 
 $\Downarrow_R$ computes the values of wires $\abst{\vec{Y}}$ and inputs to assert gates given the input wire values $\vec{x}$.
  
-It does this by peeking from the stack $\abst{\vec{y}}$, querying $\text{?}$ for unresolved input wires, otherwise it will evaluate the output wire values and cache it in the value map $v$ with $[\cdot]$. Every gate type has an evaluation of its output(s). e.g. $\text{eval}(\text{Add}, (1,2)) = (3)$.
+It does this by peeking from the stack $\abst{\vec{y}}$, querying $\text{?}$ for unresolved input wires, otherwise it will evaluate the output wire values and cache it in the value map $v$ with $[\cdot]$.
+
+Every gate type has an program for its output value(s). e.g. $\text{eval}(\text{Add}, (1,2)) = (3)$.
 
 $$
 \begin{array}{rl}
@@ -582,7 +584,7 @@ v_{\abst{f}}\left[\abst{y}\right] &= \maybe{
 \end{array}
 &
 \begin{array}{rl}
-\Downarrow_R &: (T \times \RState \to T \times \RState) \to \AbsCirc \\
+\stackrel{\to}{\circ} \Downarrow_R &: (T \times \RState \to T \times \RState) \to \AbsCirc \\
 &\to T \times \RState \to T \times \RState \\
 f \stackrel{\to}{\circ} \Downarrow^{\abst{f}}_R(t,v, \abst{\vec{y}}) &= \begin{cases}
 f(t,v,()) & \abst{\vec{y}} = () \\
@@ -598,22 +600,27 @@ f(t,v,()) & \abst{\vec{y}} = () \\
 \end{array}
 $$
 $$
-\begin{array}{rl}
+\begin{array}{ccc}
 \begin{array}{rl}
 \dagger_R &: \RState \to \Bb \\
 \dagger_R(\_, \abst{\vec{y}}) &= |\abst{\vec{y}}| = 0 
 \end{array}
 &
 \begin{array}{rl}
-\iota_R &: \RState \\
-\iota_R &= (\bot, ())
+s &: \Nb^m \to \Fb_q^n \to \RState \\
+s^{\abst{\vec{Y}}}_{\vec{x}} &= (\bot[(0..|\vec{x}|) \mapsto \vec{x}], \abst{\vec{Y}} \cat \set{\abst{x} \middle\vert (g, \bot) \in \abst{f} \land \abst{x} \in \text{in}(g) \setminus \abst{\vec{Y}}})
+\end{array}
+&
+\begin{array}{rl}
+s_0 &: \RState \\
+s_0 &= (\bot, ())
 \end{array}
 \end{array}
 $$
 
 ### Gate Constraints
 
-$\Downarrow_G$ computes the gate constraints by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation on resolved wires in $\Downarrow$.
+$\Downarrow_G$ computes the gate constraints by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation on resolved wires in $\Downarrow_R$.
 
 When the wire id stack $\abst{\vec{y}}$ is empty, $\underset{G}{\curvearrowright}$ will push assert gates and input gates $A^{\abst{f}}$ to the stack.
 $$
@@ -636,15 +643,16 @@ A^{\abst{f}} &= \set{g \middle\vert (g, \abst{y}) \in \abst{f} \land (\abst{y} =
 \end{array}
 &
 \begin{array}{rl}
-\Downarrow_G &: (T \times \text{GState} \to T \times \text{GState}) \to \AbsCirc \\
+\stackrel{\to}{\circ} \Downarrow_G &: (T \times \text{GState} \to T \times \text{GState}) \to \AbsCirc \\
 &\to T \times \text{GState} \to T \times \text{GState} \\
 f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \underset{G}{\curvearrowleft} \circ f \circ^\uparrow \lambda (\vec{C}, \vec{g}, b, v). \\
 &\begin{cases}
-(\vec{C}, (), b, v) & \vec{g} = () \\
 & \vec{g} = g \cat \_ \\
 & \vec{v} = v @ (\text{in}(g) \cat \text{out}(\abst{f},g)) \\
 (\vec{C}', \vec{g}, b, v)
 & \vec{C}' = \vec{C} \cat \text{ctrn}(\text{ty}(g), \vec{v}) \\
+(\vec{C}, (), b, v)
+& \text{otherwise}
 \end{cases} \\
 &\circ^\uparrow \lambda(\vec{g}, b, v, \abst{\vec{y}}). \\
 &\begin{cases}
@@ -667,12 +675,9 @@ $\Downarrow_C$ quotients an ordered set of coordinates in slot positions of $\ve
 
 This is done by peeking $\vec{g}$ and joining $c$ with the coordinate loop of the gate. This corresponds to $\mathtt{ctrn}$.
 
-After computing the loops as quotients $c$ with all gates, we mark a flag $\Bb$ which starts the next phase computing the coordinate map $m$ from coordinate to its neighbour in $c$.
-
-With $m$ we compute the permutation of the slots in $\vec{C}$.
+After computing the loops as quotients $c$ with all gates, we mark a flag $\Bb$ that starts computing the coordinate map $m$ from coordinate to its neighbour in $c$ which then is used to compute the permutation $\vec{\sigma}$ of the slots in $\vec{C}$.
 $$
 \begin{array}{rl}
-\begin{array}{c}
 \begin{array}{rl}
 \text{Coord} &= \text{Slot} \times \Nb \\
 \text{CLoop} &= (\abst{y} : \Nb) \pto \text{Coord}^{k_{\abst{y}}} \\
@@ -692,19 +697,13 @@ x[i \mapsto x(i) \cat \vec{l}] \sqcup y'
 x[i \mapsto \vec{l}] \sqcup y'
 & \text{otherwise}
 \end{cases} \\
-\end{array} \\
-\begin{array}{rl}
-\begin{array}{rl}
+\\
 \dagger_C &: \text{CState} \to \Bb \\
 \dagger_C &= \lambda (N, \_, \_, b, c, \_). \\
-&N = 0 \land b = \top \land c = \bot
-\end{array}
-&
-\begin{array}{rl}
+&N = 0 \land b = \top \land c = \bot \\
+\\
 \iota_C &: \text{GState} \to \text{CState} \\
 \iota_C(s) &= (0, (), \bot, \bot, \bot, s)
-\end{array}
-\end{array}
 \end{array}
 &
 \begin{array}{rl}
@@ -735,8 +734,10 @@ x[i \mapsto \vec{l}] \sqcup y'
 \end{cases} \\
 & \circ^\uparrow \lambda (b, c,\vec{C},\vec{g}). \\
 &\begin{cases}
-(\bot, c \sqcup \text{loop}(|\vec{C}|, \text{ty}(g)), \vec{C}, \vec{g})
 & \neg b \land \vec{g} = g \cat \_ \\
+& r = |\vec{C}|/|\text{Term}| \\
+(\bot, c \sqcup l, \vec{C}, \vec{g})
+& l = \text{loop}(r, \text{ty}(g)) \\
 (\top, c, \vec{C}, \vec{g}) & \text{otherwise}
 \end{cases} \\
 \end{array}
@@ -756,17 +757,35 @@ TODO
 
 
 $$
+\begin{array}{cc}
 \begin{array}{rl}
-\text{trace} &: \AbsCirc \to \Nb^m \to \Fb^n_q \to \text{Coord}^{|\text{Slot}| \times k} \times \Fb_q^{|\text{Term}| \times k} \\
+\text{get} &: \text{LState} \to \text{TraceResult} \\
+\text{get} &= \lambda (\_, \vec{\sigma}, \_, \_, \_, \vec{C}, \_, \_, \_, \_). (\vec{\sigma}, \vec{C}) \\
+\end{array}
+&
+\begin{array}{rl}
+\text{eq} &: \text{LState} \times \text{LState} \to \Bb \\
+\text{eq}(\_, x) &= \bigwedge\limits_{\dagger \in \set{\dagger_L, \dagger_C, \dagger_G, \dagger_R}} \maybe{\dagger(s)}{x=(\_,s)} \\
+\end{array}
+\end{array}
+$$
+$$
+\begin{array}{ccc}
+\begin{array}{rl}
+\Downarrow &: \AbsCirc \to \text{LState} \to \text{LState} \\
+\Downarrow^{\abst{f}} &= \Downarrow^{\abst{f}}_L \circ^\uparrow \Downarrow_C \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} \stackrel{\to}{\circ} \Downarrow_R^{\abst{f}} \\
+\end{array}
+&
+\begin{array}{rl}
+\iota &: \text{RState} \to \text{LState} \\
+\iota &= \iota_L \circ \iota_C \circ \iota_G \\
+\end{array}
+&
+\begin{array}{rl}
+\text{trace} &: \AbsCirc \to \Nb^m \to \Fb^n_q \to \text{TraceResult} \\
 \text{trace}(\abst{f}, \abst{\vec{Y}}, \vec{x})
-&= \maybe{p \circ \text{sup}(\Downarrow^{\abst{f}}_L \circ^\uparrow \Downarrow_C \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} \stackrel{\to}{\circ} \Downarrow_R^{\abst{f}},eq,s_0,s)}{\begin{array}{rl}
-  eq &= \lambda(\_,x).\bigwedge\limits_{\dagger \in \set{\dagger_L, \dagger_C, \dagger_G, \dagger_R}} \maybe{\dagger(s)}{x=(\_,s)} \\
-  v &= \bot[(0..|\vec{x}|) \mapsto \vec{x}] \\
-  \abst{\vec{y}} &= \abst{\vec{Y}} \cat \set{\abst{x} \middle\vert (g, \bot) \in \abst{f} \land \abst{x} \in \text{in}(g) \setminus \abst{\vec{Y}}} \\
-  s &= \iota_L \circ \iota_C \circ \iota_G (v, \abst{\vec{y}}) \\
-  s_0 &= \iota_L \circ \iota_C \circ \iota_G (\iota_R) \\
-  p &= \lambda(\_, \vec{\sigma}, \_, \_, \_, \vec{C}, \_, \_, \_ , \_) . (\vec{\sigma}, \vec{C}) \\
-\end{array}}
+&= \text{get} \circ \text{sup}(\Downarrow^{\abst{f}},\text{eq},\iota(s_0),\iota(s^{\abst{\vec{Y}}}_{\vec{x}}))
+\end{array}
 \end{array}
 $$
 
