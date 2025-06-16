@@ -599,8 +599,15 @@ f(t,v,()) & \abst{\vec{y}} = () \\
 $$
 $$
 \begin{array}{rl}
-\text{done}_R &: \RState \to \Bb \\
-\text{done}_R(\_, \abst{\vec{y}}) &= |\abst{\vec{y}}| = 0 
+\begin{array}{rl}
+\Omega_R &: \RState \to \Bb \\
+\Omega_R(\_, \abst{\vec{y}}) &= |\abst{\vec{y}}| = 0 
+\end{array}
+&
+\begin{array}{rl}
+s_0^R &: \RState \\
+s_0^R &= (\bot, ())
+\end{array}
 \end{array}
 $$
 
@@ -612,14 +619,13 @@ When the wire id stack $\abst{\vec{y}}$ is empty, $\underset{G}{\curvearrowright
 $$
 \begin{array}{rl}
 \text{Term} &= \text{Slot} + \text{Selector} \\
-\text{Constraint} &= \text{Term} \to \Fb_q \\
-\text{ctrn} &: (g : \text{GateType}) \to \Fb_q^{n_g + m_g} \to \text{Constraint}^k
+\text{ctrn} &: (g : \text{GateType}) \to \Fb_q^{n_g + m_g} \to \Fb_q^{|\text{Term}| \times k}
 \end{array}
 $$
 $$
 \begin{array}{rl}
 \begin{array}{rl}
-\text{GState}^{k,k',k''} &= \text{Constraint}^{k''} \times \Gate^{k'} \times \Bb \times \RState^k \\
+\text{GState}^{k,k',k''} &= \Fb_q^{|\text{Term}| \times k''} \times \Gate^{k'} \times \Bb \times \RState^k \\
 A^{\abst{f}} &= \set{g \middle\vert (g, \abst{y}) \in \abst{f} \land (\abst{y} = \bot \lor \exists i. \abst{y} = \text{Input}_i) }
 \end{array}
 &
@@ -654,8 +660,15 @@ f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \underset{G}{\curvearrowleft}
 $$
 $$
 \begin{array}{rl}
-\text{done}_G &: \text{GState} \to \Bb \\
-\text{done}_G(\_, \vec{g}, b, \_) &= |\vec{g}| = 0 \land b = \top
+\begin{array}{rl}
+\Omega_G &: \text{GState} \to \Bb \\
+\Omega_G(\_, \vec{g}, b, \_) &= |\vec{g}| = 0 \land b = \top
+\end{array}
+&
+\begin{array}{rl}
+s_0^G &: \text{RState} \to \text{GState} \\
+s_0^G(s) &= ((), (), \bot, s)
+\end{array}
 \end{array}
 $$
 
@@ -670,13 +683,15 @@ After computing the loops as quotients $c$ with all gates, we mark a flag $\Bb$ 
 With $m$ we compute the permutation of the slots in $\vec{C}$.
 $$
 \begin{array}{rl}
+\begin{array}{c}
 \begin{array}{rl}
 \text{Coord} &= \text{Slot} \times \Nb \\
 \text{CLoop} &= (\abst{y} : \Nb) \pto \text{Coord}^{k_{\abst{y}}} \\
 \text{CMap} &= \text{Coord} \pto \text{Coord} \\
 \text{loop} &: \text{Row} \to \text{GateType} \to \text{CLoop} \\
 \\
-\text{CState}^{k,k'} &= \Nb \times \Fb_q^{|\text{Slot}| \times k} \times \text{CMap} \times \Bb \times \text{CLoop} \times \text{GState}^{k'}\\
+\text{CState}^{k,k'} &= \Nb \times \text{Coord}^{|\text{Slot}| \times k} \times \text{CMap} \times \\
+&\Bb \times \text{CLoop} \times \text{GState}^{k'}\\
 \\
 \sqcup &: \text{CLoop} \to \text{CLoop} \to \text{CLoop} \\
 x \sqcup y &= \begin{cases}
@@ -688,10 +703,19 @@ x[i \mapsto x(i) \cat \vec{l}] \sqcup y'
 x[i \mapsto \vec{l}] \sqcup y'
 & \text{otherwise}
 \end{cases} \\
-\\
-\text{done}_C &: \text{CState} \to \Bb \\
-\text{done}_C &= \lambda (N, \_, \_, b, c, \_). \\
+\end{array} \\
+\begin{array}{rl}
+\begin{array}{rl}
+\Omega_C &: \text{CState} \to \Bb \\
+\Omega_C &= \lambda (N, \_, \_, b, c, \_). \\
 &N = 0 \land b = \top \land c = \bot
+\end{array}
+&
+\begin{array}{rl}
+s_0^C &: \text{GState} \to \text{CState} \\
+s_0^C(s) &= (0, (), \bot, \bot, \bot, s)
+\end{array}
+\end{array}
 \end{array}
 &
 \begin{array}{rl}
@@ -709,7 +733,8 @@ x[i \mapsto \vec{l}] \sqcup y'
 & \vec{l} = l \cat \vec{l}' = c(\abst{y}) \\
 (0, (), m', \top, c', \vec{C})
 & m' = m[\vec{l} \mapsto \vec{l}' \cat l] \\
-(|\vec{C}|, (), m, \top, \bot, \vec{C}) & N = 0 \\
+& N' = |\vec{C}| / |\text{Term}| \\
+(N', (), m, \top, \bot, \vec{C}) & N = 0 \land \vec{\sigma} = () \\
 (N, \vec{\sigma}, m, \top, \bot, \vec{C}) &\text{otherwise} 
 \end{cases} \\
 & \circ^\uparrow \lambda (b, c,\vec{C},\vec{g}). \\
@@ -740,24 +765,22 @@ $$
 
 $$
 \begin{array}{rl}
-\text{init} &: \AbsCirc \to T \to \Nb^m \to \Fb^n_q \to \text{LState} \\
-\text{init}_{\abst{f}}(\abst{\vec{Y}}, \vec{x})
-&= (0, (), \bot, \bot, \bot, (), (), \bot[(0..|\vec{x}|) \mapsto \vec{x}], \abst{\vec{Y}} \cat \set{\abst{x} \middle\vert (g, \bot) \in \abst{f} \land \abst{x} \in \text{in}(g) \setminus \abst{\vec{Y}}}) \\
-\\
-s_0 &: \text{LState} \\
-s_0 &= (0, (), \bot, \bot, \bot, (), (), \bot, \bot, ()) \\
-\\
-\text{trace} &: \AbsCirc \to \Nb^m \to \Fb^n_q \to \text{TraceResult} \\
-\text{trace}(\abst{f}, \abst{\vec{Y}}, \vec{x}) &= \text{post} \circ \text{sup}\left(
-  \Downarrow^{\abst{f}}_L \circ^\uparrow \Downarrow_C \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} \stackrel{\to}{\circ} \Downarrow_R^{\abst{f}}, eq, s_0, \text{init}_{\abst{f}}(\abst{\vec{Y}}, \vec{x})
-\right)
+\text{trace} &: \AbsCirc \to \Nb^m \to \Fb^n_q \to \text{Coord}^{|\text{Slot}| \times k} \times \Fb_q^{|\text{Term}| \times k} \\
+\text{trace}(\abst{f}, \abst{\vec{Y}}, \vec{x})
+&= \lambda(\_, \vec{\sigma}, \_, \_, \_, \vec{C}, \_, \_, \_ , \_) . (\vec{\sigma}, \vec{C}) \circ \\
+&\text{sup}\left(\begin{array}{cccl}
+  \Downarrow^{\abst{f}}_L \circ^\uparrow &\Downarrow_C \stackrel{\to}{\circ} &\Downarrow_G^{\abst{f}} \stackrel{\to}{\circ} &\Downarrow_R^{\abst{f}}, \\
+  \Omega_L \circ &\Omega_C \circ &\Omega_G \circ &\Omega_R \circ \lambda(\_,x).x, \\
+  s^L_0 \circ &s^C_0 \circ &s^G_0 @ &s^R_0, \\
+  s^L_0 \circ &s^C_0 \circ &s^G_0 @ &\left( 
+    \begin{array}{l}
+      \bot[(0..|\vec{x}|) \mapsto \vec{x}] \\
+      \abst{\vec{Y}} \cat \set{\abst{x} \middle\vert (g, \bot) \in \abst{f} \land \abst{x} \in \text{in}(g) \setminus \abst{\vec{Y}}}
+    \end{array}
+  \right)
+\end{array}\right)
 \end{array}
 $$
-
-- compute $N$, $\omega$, $h$
-- expand $\vec{C}$, plookup thunk to N
-- remove post
-- add done: State -> B, for each, and use that for eq
 
 # Plonk Protocol
 
@@ -771,6 +794,8 @@ $$
 
 ## Circuit
 
+- compute $N$, $\omega$, $h$
+- expand $\vec{C}$, plookup thunk to N
 - polys
   - slots
   - permutation polys
