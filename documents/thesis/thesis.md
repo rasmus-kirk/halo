@@ -626,7 +626,6 @@ When the wire id stack $\abst{\vec{y}}$ is empty, $\underset{G}{\curvearrowright
 $$
 \begin{array}{rl}
 \begin{array}{rl}
-\text{Term} &= \text{Slot} + \text{Selector} \\
 \text{ctrn} &: (g : \text{GateType}) \to \Fb_q^{n_g + m_g} \to \Fb_q^{|\text{Term}| \times k} \\
 \\
 \text{GState}^{k,k',k''} &= \Fb_q^{|\text{Term}| \times k''} \times \Gate^{k'} \times \Bb \times \RState^k \\
@@ -813,32 +812,52 @@ $$
 \end{array}
 $$
 
-# Plonk Protocol
-
-TODO: move defn of terms in G here
-- cosets
-- fft
-- F_GC
-- grand product
-  - cc
-  - pl
-
-
 ## Circuit
 
-- compute $N$, $\omega$, $h$
-- expand $\vec{C}$, plookup thunk to N
+- prereq explainer
+  - cosets
+  - fft
+
+$$
+\begin{array}{rl}
+\text{Term} &= \text{Slot} + \text{Selector} \\
+\\
+\text{nextPow2} &: \Nb \to \Nb \\
+\text{nextPow2}(n) &= 2^{\lceil \log_2 (n) \rceil} \\
+\\
+\text{unity} &: \Nb \to \Fb_q \\
+\text{unity}(N) &= \maybe{\omega}{
+\begin{array}{rl}
+  \omega &\in \Fb_q \\
+  \omega^N &= 1 \\
+  \forall k \in [N]. \omega^k &\neq 1
+\end{array}
+}\\
+\\
+\text{circuit} &: \text{TraceResult} \to R \\
+\text{circuit}(\vec{L}, \vec{\sigma}, \vec{C}) &= \begin{cases}
+a
+& N = \text{nextPow2}(\max(|\vec{t}|, |\vec{C}|) + \text{blind})\\
+& \omega = \text{unity}(N) \\
+\end{cases}
+\end{array}
+$$
+
+- compute $h$
+- compute table vector $\vec{t}$
+- expand $\vec{C}$, plookup thunk to N - blind
 - polys
-  - slots
+  - terms (move defn of terms in G here)
   - permutation polys
+  - lookup thunk
 - commits
-- lookup thunk
+  - look at code
+
+# Plonk Protocol
 
 ## Prover
 
-- list of formulas
-  - table compression
-  - F_GC
+- F_GC
 - cc, pl: Z, f, g
 - quotient poly: t
 - opening poly: W
