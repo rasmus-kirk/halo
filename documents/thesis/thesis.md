@@ -605,8 +605,8 @@ $$
 \end{array}
 &
 \begin{array}{rl}
-s_0^R &: \RState \\
-s_0^R &= (\bot, ())
+\iota_R &: \RState \\
+\iota_R &= (\bot, ())
 \end{array}
 \end{array}
 $$
@@ -625,14 +625,14 @@ $$
 \text{GState}^{k,k',k''} &= \Fb_q^{|\text{Term}| \times k''} \times \Gate^{k'} \times \Bb \times \RState^k \\
 A^{\abst{f}} &= \set{g \middle\vert (g, \abst{y}) \in \abst{f} \land (\abst{y} = \bot \lor \exists i. \abst{y} = \text{Input}_i) } \\
 \\
-\underset{G}{\curvearrowleft} &: T \times \text{GState}^{k''',k',k} \to T \times \text{GState}^{k''',k'',k} \\
+\underset{G}{\curvearrowleft} &: T \times \text{GState}^{k''',k,k''} \to T \times \text{GState}^{k''',k',k''} \\
 \underset{G}{\curvearrowleft} &= \text{lift} \circ \text{liftR}(\curvearrowleft : \text{Gate}^k \to \text{Gate}^{k'}) \\
 \\
 \dagger_G &: \text{GState} \to \Bb \\
 \dagger_G(\_, \vec{g}, b, \_) &= |\vec{g}| = 0 \land b = \top \\
 \\
-s_0^G &: \text{RState} \to \text{GState} \\
-s_0^G(s) &= ((), (), \bot, s)
+\iota_G &: \text{RState} \to \text{GState} \\
+\iota_G(s) &= ((), (), \bot, s)
 \end{array}
 &
 \begin{array}{rl}
@@ -701,8 +701,8 @@ x[i \mapsto \vec{l}] \sqcup y'
 \end{array}
 &
 \begin{array}{rl}
-s_0^C &: \text{GState} \to \text{CState} \\
-s_0^C(s) &= (0, (), \bot, \bot, \bot, s)
+\iota_C &: \text{GState} \to \text{CState} \\
+\iota_C(s) &= (0, (), \bot, \bot, \bot, s)
 \end{array}
 \end{array}
 \end{array}
@@ -712,27 +712,32 @@ s_0^C(s) &= (0, (), \bot, \bot, \bot, s)
 \Downarrow_C &= \lambda (N, \vec{\sigma}, m). \\
 &\begin{cases}
 (0, \vec{\sigma}, m) & N = 0 \\
+& f = \lambda s.m(s, N) \\
 (N-1, \sigma \cat \vec{\sigma},m)
-& \sigma = (\lambda s.m(s, N)) @ (\text{Slot}..)
+& \sigma = f @ (\text{Slot}..)
 \end{cases} \\
 & \circ^\uparrow \lambda(N, \vec{\sigma}, m, b,c, \vec{C}). \\
 &\begin{cases}
-(0, (), m,\bot, c, \vec{C}) & b = \bot \\
-& \exists \abst{y}. c(\abst{y}) \neq \bot \\
+& b \land c = \bot \\
+(|\vec{C}| / |\text{Term}|, (), m, \top, \bot, \vec{C})
+& N = 0 \land  \vec{\sigma} = () \\
+(N, \vec{\sigma}, m, b, c, \vec{C})
+& \text{otherwise}
+\end{cases} \\
+& \circ^\uparrow \lambda(m, b, c). \\
+&\begin{cases}
+& b \land \exists \abst{y}. c(\abst{y}) \neq \bot \\
 & c' = c[\abst{y} \mapsto \bot] \\
 & \vec{l} = l \cat \vec{l}' = c(\abst{y}) \\
-(0, (), m', \top, c', \vec{C})
+(m', \top, c')
 & m' = m[\vec{l} \mapsto \vec{l}' \cat l] \\
-& N' = |\vec{C}| / |\text{Term}| \\
-(N', (), m, \top, \bot, \vec{C}) & N = 0 \land \vec{\sigma} = () \\
-(N, \vec{\sigma}, m, \top, \bot, \vec{C}) &\text{otherwise} 
+(m, b, c) & \text{otherwise}
 \end{cases} \\
 & \circ^\uparrow \lambda (b, c,\vec{C},\vec{g}). \\
 &\begin{cases}
-(\top, c, \vec{C}, \vec{g})
-& \vec{g} = () \lor b = \top \\
-& \vec{g} = g \cat \_ \\
-(\bot, c', \vec{C}, \vec{g}) & c' = c \sqcup \text{loop}(|\vec{C}|, \text{ty}(g))
+(\bot, c \sqcup \text{loop}(|\vec{C}|, \text{ty}(g)), \vec{C}, \vec{g})
+& \neg b \land \vec{g} = g \cat \_ \\
+(\top, c, \vec{C}, \vec{g}) & \text{otherwise}
 \end{cases} \\
 \end{array}
 \end{array}
@@ -742,15 +747,10 @@ $$
 
 TODO
 
-- $t$ table
-  - introduce tables; compression formula
-  - sort
-  - capture last entry as default
 - $f$ gate
+  - peek gate
   - if gate is lookup, compute compression from $v$
-  - DONT SORT
-  - else use default
-- $h1,h2$; concat $t,f$ sort, then split odds and evens
+  - is chi -> F or bot
 
 ### Full Surkål Trace
 
@@ -759,18 +759,14 @@ $$
 \begin{array}{rl}
 \text{trace} &: \AbsCirc \to \Nb^m \to \Fb^n_q \to \text{Coord}^{|\text{Slot}| \times k} \times \Fb_q^{|\text{Term}| \times k} \\
 \text{trace}(\abst{f}, \abst{\vec{Y}}, \vec{x})
-&= \lambda(\_, \vec{\sigma}, \_, \_, \_, \vec{C}, \_, \_, \_ , \_) . (\vec{\sigma}, \vec{C}) \circ \\
-&\text{sup}\left(\begin{array}{clccccl}
-  \Downarrow^{\abst{f}}_L &\circ^\uparrow &\Downarrow_C &\stackrel{\to}{\circ} &\Downarrow_G^{\abst{f}} &\stackrel{\to}{\circ} &\Downarrow_R^{\abst{f}}, \\
-  \dagger_L &\circ &\dagger_C &\circ &\dagger_G &\circ &\dagger_R \circ \lambda(\_,x).x, \\
-  s^L_0 &\circ &s^C_0 &\circ &s^G_0 &@ &s^R_0, \\
-  s^L_0 &\circ &s^C_0 &\circ &s^G_0 &@ &\left( 
-    \begin{array}{l}
-      \bot[(0..|\vec{x}|) \mapsto \vec{x}] \\
-      \abst{\vec{Y}} \cat \set{\abst{x} \middle\vert (g, \bot) \in \abst{f} \land \abst{x} \in \text{in}(g) \setminus \abst{\vec{Y}}}
-    \end{array}
-  \right)
-\end{array}\right)
+&= \maybe{p \circ \text{sup}(\Downarrow^{\abst{f}}_L \circ^\uparrow \Downarrow_C \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} \stackrel{\to}{\circ} \Downarrow_R^{\abst{f}},eq,s_0,s)}{\begin{array}{rl}
+  eq &= \lambda(\_,x).\bigwedge\limits_{\dagger \in \set{\dagger_L, \dagger_C, \dagger_G, \dagger_R}} \maybe{\dagger(s)}{x=(\_,s)} \\
+  v &= \bot[(0..|\vec{x}|) \mapsto \vec{x}] \\
+  \abst{\vec{y}} &= \abst{\vec{Y}} \cat \set{\abst{x} \middle\vert (g, \bot) \in \abst{f} \land \abst{x} \in \text{in}(g) \setminus \abst{\vec{Y}}} \\
+  s &= \iota_L \circ \iota_C \circ \iota_G (v, \abst{\vec{y}}) \\
+  s_0 &= \iota_L \circ \iota_C \circ \iota_G (\iota_R) \\
+  p &= \lambda(\_, \vec{\sigma}, \_, \_, \_, \vec{C}, \_, \_, \_ , \_) . (\vec{\sigma}, \vec{C}) \\
+\end{array}}
 \end{array}
 $$
 
@@ -1028,7 +1024,7 @@ TODO
 
 ## Kleene Fixedpoint Theorem in Trace
 
-Trace is defined as a composition of monotonic functions that has control over their continuations. Thus if the full composition is $f$, then the trace is $\mu x. f(x)$. Given an initial state, it is notated as the supremum. $\text{sup}_{n \in \Nb} f^n(s_0)$, where $n$ is the smallest $n$ such that $f^n(s_0) = f^{n+1}(s_0)$, i.e. the least fixedpoint of $f$. We have shown the recursive definition before. Now we present the iterative definition which will be useful in code implementations to circumvent the recursion limit or stack overflow errors.
+Trace is defined as a composition of monotonic functions that has control over their continuations. Thus if the full composition is $f$, then the trace is $\mu x. f(x)$. Given an initial state, it is notated as the supremum. $\text{sup}_{n \in \Nb} f^n(\iota)$, where $n$ is the smallest $n$ such that $f^n(\iota) = f^{n+1}(\iota)$, i.e. the least fixedpoint of $f$. We have shown the recursive definition before. Now we present the iterative definition which will be useful in code implementations to circumvent the recursion limit or stack overflow errors.
 
 \begin{algorithm}[H]
 \caption*{
@@ -1036,14 +1032,14 @@ Trace is defined as a composition of monotonic functions that has control over t
 }
 \textbf{Inputs} \\
   \Desc{$f: \text{State}^T \to \text{State}^T$}{Monotonic function.} \\
-  \Desc{$s_0 : \text{State}^T$}{Initial state.} \\
+  \Desc{$\iota : \text{State}^T$}{Initial state.} \\
   \Desc{$\text{eq}: \text{State}^T \to \text{State}^T \to \Bb$}{Equality predicate on states.} \\
 \textbf{Output} \\
   \Desc{$s_n : \text{State}^T$}{The state corresponding to the least fixedpoint of $f$.}
 \begin{algorithmic}[1]
   \State Initialize variables:
     \Statex \algind $s := \bot$
-    \Statex \algind $s' := s_0$ 
+    \Statex \algind $s' := \iota$ 
   \State Recursive compute:
     \Statex \textbf{do:}
     \Statex \algind $s := s'$
