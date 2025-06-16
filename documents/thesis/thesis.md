@@ -743,38 +743,6 @@ x[i \mapsto \vec{l}] \sqcup y'
 \end{array}
 $$
 
-### Lookup Argument Constraints
-
-$\Downarrow_L$ simply marks the gates that are lookups. This informs the evaluations of lookup polynomials.
-
-$$
-\begin{array}{rl}
-\begin{array}{rl}
-\text{LState}^{k,k'} &= \Bb^k \times \text{CState}^{k'} \\
-\\
-\dagger_L &: \text{LState} \to \Bb \\
-\dagger_L(\_, \vec{g}) &= \vec{g} = () \\
-\\
-\iota_L &: \text{CState} \to \text{LState} \\
-\iota_L(s) &= ((), s)
-\end{array}
-&
-\begin{array}{rl}
-\Downarrow_L &: \text{LState} \to \text{LState} \\
-\Downarrow_L &= \lambda (\vec{L}, N, \vec{\sigma}, m, b, c, \vec{C}, \vec{g}). \\
-&\begin{cases}
-(\vec{L}, N, \vec{\sigma}, m, b, c, \vec{C}, ()) & \vec{g} = () \\
-& \vec{g} = g \cat \_ \\
-& \exists T. \text{ty}(g) = \text{Lookup}_T \\
-(\vec{L} \cat \top, N, \vec{\sigma}, m, b, c, \vec{C}, \vec{g})
-& \lor \text{ty}(g) = \text{IsLookup}_T \\
-(\vec{L} \cat \bot, N, \vec{\sigma}, m, b, c, \vec{C}, \vec{g})
-& \text{otherwise}
-\end{cases}
-\end{array}
-\end{array}
-$$
-
 ### Full Surkål Trace
 
 We conclude the full trace definition as follows:
@@ -782,32 +750,32 @@ We conclude the full trace definition as follows:
 $$
 \begin{array}{cc}
 \begin{array}{rl}
-\text{get} &: \text{LState} \to \text{TraceResult} \\
-\text{get} &= \lambda (\vec{L}, \_, \vec{\sigma}, \_, \_, \_, \vec{C}, \_, \_, \_, \_). (\vec{L}, \vec{\sigma}, \vec{C}) \\
+\text{res} &: \text{CState} \to \text{TraceResult} \\
+\text{res} &= \lambda (\_, \vec{\sigma}, \_, \_, \_, \vec{C}, \_, \_, \_, \_). (\vec{\sigma}, \vec{C}) \\
 \end{array}
 &
 \begin{array}{rl}
-\text{eq} &: \text{LState} \times \text{LState} \to \Bb \\
-\text{eq}(\_, x) &= \bigwedge\limits_{\dagger \in \set{\dagger_L, \dagger_C, \dagger_G, \dagger_R}} \maybe{\dagger(s)}{x=(\_,s)} \\
+\text{eq} &: \text{CState} \times \text{CState} \to \Bb \\
+\text{eq}(\_, x) &= \bigwedge\limits_{\dagger \in \set{\dagger_C, \dagger_G, \dagger_R}} \maybe{\dagger(s)}{x=(\_,s)} \\
 \end{array}
 \end{array}
 $$
 $$
 \begin{array}{ccc}
 \begin{array}{rl}
-\Downarrow &: \AbsCirc \to \text{LState} \to \text{LState} \\
-\Downarrow^{\abst{f}} &= \Downarrow_L \circ^\uparrow \Downarrow_C \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} \stackrel{\to}{\circ} \Downarrow_R^{\abst{f}} \\
+\Downarrow &: \AbsCirc \to \text{CState} \to \text{CState} \\
+\Downarrow^{\abst{f}} &= \Downarrow_C \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} \stackrel{\to}{\circ} \Downarrow_R^{\abst{f}} \\
 \end{array}
 &
 \begin{array}{rl}
-\iota &: \text{RState} \to \text{LState} \\
-\iota &= \iota_L \circ \iota_C \circ \iota_G \\
+\iota &: \text{RState} \to \text{CState} \\
+\iota &= \iota_C \circ \iota_G \\
 \end{array}
 &
 \begin{array}{rl}
 \text{trace} &: \AbsCirc \to \Nb^m \to \Fb^n_q \to \text{TraceResult} \\
 \text{trace}(\abst{f}, \abst{\vec{Y}}, \vec{x})
-&= \text{get} \circ \text{sup}(\Downarrow^{\abst{f}},\text{eq},\iota(s_0),\iota(s^{\abst{\vec{Y}}}_{\vec{x}}))
+&= \text{res} \circ \text{sup}(\Downarrow^{\abst{f}},\text{eq},\iota(s_0),\iota(s^{\abst{\vec{Y}}}_{\vec{x}}))
 \end{array}
 \end{array}
 $$
@@ -815,15 +783,17 @@ $$
 ## Circuit
 
 - prereq explainer
-  - cosets
-  - fft
+  - $\omega$: roots of unity / fft
+  - $k_s$: cosets as id for slots
 
 $$
 \begin{array}{rl}
-\text{Term} &= \text{Slot} + \text{Selector} \\
+\text{Term} &= \text{Slot} + \text{Selector} + \set{J} \\
+\text{Lookup} &= \set{T, F, H_1, H_2} \\
+\text{PolyType} &= \text{Slot} + \text{Selector} + \text{Lookup} \\
 \\
-\text{nextPow2} &: \Nb \to \Nb \\
-\text{nextPow2}(n) &= 2^{\lceil \log_2 (n) \rceil} \\
+\text{pow2} &: \Nb \to \Nb \\
+\text{pow2}(n) &= 2^{\lceil \log_2 (n) \rceil} \\
 \\
 \text{unity} &: \Nb \to \Fb_q \\
 \text{unity}(N) &= \maybe{\omega}{
@@ -835,23 +805,37 @@ $$
 }\\
 \\
 \text{circuit} &: \text{TraceResult} \to R \\
-\text{circuit}(\vec{L}, \vec{\sigma}, \vec{C}) &= \begin{cases}
+\text{circuit}(\vec{\sigma}, \vec{C}) &= \begin{cases}
 a
-& N = \text{nextPow2}(\max(|\vec{t}|, |\vec{C}|) + \text{blind})\\
+& N = \text{pow2}(\max(|\vec{t}|, |\vec{C}|) + \text{blind})\\
 & \omega = \text{unity}(N) \\
 \end{cases}
 \end{array}
 $$
 
-- compute $h$
-- compute table vector $\vec{t}$
-- expand $\vec{C}$, plookup thunk to N - blind
-- polys
-  - terms (move defn of terms in G here)
-  - permutation polys
-  - lookup thunk
+- compute $h$; $k_s : \Fb_q^{|\text{Slot}|}$
+- lookup thunk
+  - up to $N$ minus blind rows
+  - table vector $\vec{t}$
+  - query vector $\vec{f}$ using $\vec{C}$ in $A,B,C,j$
+  - grand product $\vec{h_1}, \vec{h_2}$
+- expand $\vec{C}$
+- expand $\vec{\sigma}$
+- fft + cache
 - commits
   - look at code
+
+notation ideas
+
+- $w[A,i] = \vec{C}[A,i]$ cache
+- $x[Q_l,i] = \vec{C}[Q_l,i]$ cache
+- $x[Q_l](x) = \text{fft}(\vec{C}[Q_l])(x)$ poly eval
+- $x[A] = \bot$ does not exist
+- $w[\zeta,T,i] = ?[T,i]$ thunk cache
+- $w[\zeta,T](x) = \text{fft}(?[T])(x)$ thunk poly eval
+- $w[\mathcal{C}_A] = \PCCommit(\text{fft}(?[T]), \ldots)$ commit of $A$
+
+notation for finite type indexing of vectors / matrices / tensors
 
 # Plonk Protocol
 
@@ -889,7 +873,7 @@ TODO
 
 # Gates and Gadgets
 
-TODO: ctrn and loop too
+TODO: ctrn and loop too; term (in ctrn) includes $j$ lookup table index
 
 | $g: \Gate$                | $\text{eval}(g, \vec{x})$     | remarks                 |
 |:-------------------------:|:-----------------------------:|:------------------------|
