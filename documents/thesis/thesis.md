@@ -600,8 +600,8 @@ $$
 $$
 \begin{array}{rl}
 \begin{array}{rl}
-\Omega_R &: \RState \to \Bb \\
-\Omega_R(\_, \abst{\vec{y}}) &= |\abst{\vec{y}}| = 0 
+\dagger_R &: \RState \to \Bb \\
+\dagger_R(\_, \abst{\vec{y}}) &= |\abst{\vec{y}}| = 0 
 \end{array}
 &
 \begin{array}{rl}
@@ -618,35 +618,36 @@ $\Downarrow_G$ computes the gate constraints by pushing the gate with an output 
 When the wire id stack $\abst{\vec{y}}$ is empty, $\underset{G}{\curvearrowright}$ will push assert gates and input gates $A^{\abst{f}}$ to the stack.
 $$
 \begin{array}{rl}
+\begin{array}{rl}
 \text{Term} &= \text{Slot} + \text{Selector} \\
-\text{ctrn} &: (g : \text{GateType}) \to \Fb_q^{n_g + m_g} \to \Fb_q^{|\text{Term}| \times k}
-\end{array}
-$$
-$$
-\begin{array}{rl}
-\begin{array}{rl}
+\text{ctrn} &: (g : \text{GateType}) \to \Fb_q^{n_g + m_g} \to \Fb_q^{|\text{Term}| \times k} \\
+\\
 \text{GState}^{k,k',k''} &= \Fb_q^{|\text{Term}| \times k''} \times \Gate^{k'} \times \Bb \times \RState^k \\
-A^{\abst{f}} &= \set{g \middle\vert (g, \abst{y}) \in \abst{f} \land (\abst{y} = \bot \lor \exists i. \abst{y} = \text{Input}_i) }
+A^{\abst{f}} &= \set{g \middle\vert (g, \abst{y}) \in \abst{f} \land (\abst{y} = \bot \lor \exists i. \abst{y} = \text{Input}_i) } \\
+\\
+\underset{G}{\curvearrowleft} &: T \times \text{GState}^{k''',k',k} \to T \times \text{GState}^{k''',k'',k} \\
+\underset{G}{\curvearrowleft} &= \text{lift} \circ \text{liftR}(\curvearrowleft : \text{Gate}^k \to \text{Gate}^{k'}) \\
+\\
+\dagger_G &: \text{GState} \to \Bb \\
+\dagger_G(\_, \vec{g}, b, \_) &= |\vec{g}| = 0 \land b = \top \\
+\\
+s_0^G &: \text{RState} \to \text{GState} \\
+s_0^G(s) &= ((), (), \bot, s)
 \end{array}
 &
 \begin{array}{rl}
-\underset{G}{\curvearrowleft} &: T \times \text{GState}^{k''',k',k} \to T \times \text{GState}^{k''',k'',k} \\
-\underset{G}{\curvearrowleft} &= \text{lift} \circ \text{liftR}(\curvearrowleft : \text{Gate}^k \to \text{Gate}^{k'})
-\end{array}
-\end{array}
-$$
-$$
-\begin{array}{rl}
-\Downarrow_G &: (T \times \text{GState} \to T \times \text{GState}) \to \AbsCirc \to T \times \text{GState} \to T \times \text{GState} \\
-f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \underset{G}{\curvearrowleft} \circ f \circ^\uparrow \lambda (\vec{C}, \vec{g}, b, v).
-\begin{cases}
+\Downarrow_G &: (T \times \text{GState} \to T \times \text{GState}) \to \AbsCirc \\
+&\to T \times \text{GState} \to T \times \text{GState} \\
+f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \underset{G}{\curvearrowleft} \circ f \circ^\uparrow \lambda (\vec{C}, \vec{g}, b, v). \\
+&\begin{cases}
 (\vec{C}, (), b, v) & \vec{g} = () \\
 & \vec{g} = g \cat \_ \\
 & \vec{v} = v @ (\text{in}(g) \cat \text{out}(\abst{f},g)) \\
 (\vec{C}', \vec{g}, b, v)
 & \vec{C}' = \vec{C} \cat \text{ctrn}(\text{ty}(g), \vec{v}) \\
-\end{cases} \circ^\uparrow \lambda(\vec{g}, b, v, \abst{\vec{y}}).
-\begin{cases}
+\end{cases} \\
+&\circ^\uparrow \lambda(\vec{g}, b, v, \abst{\vec{y}}). \\
+&\begin{cases}
 & b = \bot \\
 (A^{\abst{f}} \cat \vec{g}, \top, v, \abst{\vec{y}})
 & |\abst{\vec{y}}| = |\vec{g}| = 0 \\
@@ -656,18 +657,6 @@ f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \underset{G}{\curvearrowleft}
 (\vec{g}, b, v, \abst{\vec{y}})
 & \text{otherwise}
 \end{cases}
-\end{array}
-$$
-$$
-\begin{array}{rl}
-\begin{array}{rl}
-\Omega_G &: \text{GState} \to \Bb \\
-\Omega_G(\_, \vec{g}, b, \_) &= |\vec{g}| = 0 \land b = \top
-\end{array}
-&
-\begin{array}{rl}
-s_0^G &: \text{RState} \to \text{GState} \\
-s_0^G(s) &= ((), (), \bot, s)
 \end{array}
 \end{array}
 $$
@@ -706,8 +695,8 @@ x[i \mapsto \vec{l}] \sqcup y'
 \end{array} \\
 \begin{array}{rl}
 \begin{array}{rl}
-\Omega_C &: \text{CState} \to \Bb \\
-\Omega_C &= \lambda (N, \_, \_, b, c, \_). \\
+\dagger_C &: \text{CState} \to \Bb \\
+\dagger_C &= \lambda (N, \_, \_, b, c, \_). \\
 &N = 0 \land b = \top \land c = \bot
 \end{array}
 &
@@ -720,10 +709,11 @@ s_0^C(s) &= (0, (), \bot, \bot, \bot, s)
 &
 \begin{array}{rl}
 \Downarrow_C &: \text{CState} \to \text{CState} \\
-\Downarrow_C &= \text{liftR} @ \lambda (N, \vec{\sigma}, m). \\
+\Downarrow_C &= \lambda (N, \vec{\sigma}, m). \\
 &\begin{cases}
 (0, \vec{\sigma}, m) & N = 0 \\
-(N-1, m @ (\text{Slot}..) \cat \vec{\sigma},m) & \text{otherwise}
+(N-1, \sigma \cat \vec{\sigma},m)
+& \sigma = (\lambda s.m(s, N)) @ (\text{Slot}..)
 \end{cases} \\
 & \circ^\uparrow \lambda(N, \vec{\sigma}, m, b,c, \vec{C}). \\
 &\begin{cases}
@@ -750,6 +740,8 @@ $$
 
 ### Lookup Argument Constraints
 
+TODO
+
 - $t$ table
   - introduce tables; compression formula
   - sort
@@ -768,11 +760,11 @@ $$
 \text{trace} &: \AbsCirc \to \Nb^m \to \Fb^n_q \to \text{Coord}^{|\text{Slot}| \times k} \times \Fb_q^{|\text{Term}| \times k} \\
 \text{trace}(\abst{f}, \abst{\vec{Y}}, \vec{x})
 &= \lambda(\_, \vec{\sigma}, \_, \_, \_, \vec{C}, \_, \_, \_ , \_) . (\vec{\sigma}, \vec{C}) \circ \\
-&\text{sup}\left(\begin{array}{cccl}
-  \Downarrow^{\abst{f}}_L \circ^\uparrow &\Downarrow_C \stackrel{\to}{\circ} &\Downarrow_G^{\abst{f}} \stackrel{\to}{\circ} &\Downarrow_R^{\abst{f}}, \\
-  \Omega_L \circ &\Omega_C \circ &\Omega_G \circ &\Omega_R \circ \lambda(\_,x).x, \\
-  s^L_0 \circ &s^C_0 \circ &s^G_0 @ &s^R_0, \\
-  s^L_0 \circ &s^C_0 \circ &s^G_0 @ &\left( 
+&\text{sup}\left(\begin{array}{clccccl}
+  \Downarrow^{\abst{f}}_L &\circ^\uparrow &\Downarrow_C &\stackrel{\to}{\circ} &\Downarrow_G^{\abst{f}} &\stackrel{\to}{\circ} &\Downarrow_R^{\abst{f}}, \\
+  \dagger_L &\circ &\dagger_C &\circ &\dagger_G &\circ &\dagger_R \circ \lambda(\_,x).x, \\
+  s^L_0 &\circ &s^C_0 &\circ &s^G_0 &@ &s^R_0, \\
+  s^L_0 &\circ &s^C_0 &\circ &s^G_0 &@ &\left( 
     \begin{array}{l}
       \bot[(0..|\vec{x}|) \mapsto \vec{x}] \\
       \abst{\vec{Y}} \cat \set{\abst{x} \middle\vert (g, \bot) \in \abst{f} \land \abst{x} \in \text{in}(g) \setminus \abst{\vec{Y}}}
@@ -781,6 +773,8 @@ $$
 \end{array}\right)
 \end{array}
 $$
+
+TODO: need to introduce slots and terms in G
 
 # Plonk Protocol
 
