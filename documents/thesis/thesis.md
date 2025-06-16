@@ -746,21 +746,45 @@ $$
 
 ### Lookup Argument Constraints
 
-TODO
+$\Downarrow_L$ simply marks the gates that are lookups. This informs the evaluations of lookup polynomials.
 
-- $f$ gate
-  - peek gate
-  - if gate is lookup, compute compression from $v$
-  - is chi -> F or bot
+$$
+\begin{array}{rl}
+\begin{array}{rl}
+\text{LState}^{k,k'} &= \Bb^k \times \text{CState}^{k'} \\
+\\
+\dagger_L &: \text{LState} \to \Bb \\
+\dagger_L(\_, \vec{g}) &= \vec{g} = () \\
+\\
+\iota_L &: \text{CState} \to \text{LState} \\
+\iota_L(s) &= ((), s)
+\end{array}
+&
+\begin{array}{rl}
+\Downarrow_L &: \text{LState} \to \text{LState} \\
+\Downarrow_L &= \lambda (\vec{L}, N, \vec{\sigma}, m, b, c, \vec{C}, \vec{g}). \\
+&\begin{cases}
+(\vec{L}, N, \vec{\sigma}, m, b, c, \vec{C}, ()) & \vec{g} = () \\
+& \vec{g} = g \cat \_ \\
+& \exists T. \text{ty}(g) = \text{Lookup}_T \\
+(\vec{L} \cat \top, N, \vec{\sigma}, m, b, c, \vec{C}, \vec{g})
+& \lor \text{ty}(g) = \text{IsLookup}_T \\
+(\vec{L} \cat \bot, N, \vec{\sigma}, m, b, c, \vec{C}, \vec{g})
+& \text{otherwise}
+\end{cases}
+\end{array}
+\end{array}
+$$
 
 ### Full Surkål Trace
 
+We conclude the full trace definition as follows:
 
 $$
 \begin{array}{cc}
 \begin{array}{rl}
 \text{get} &: \text{LState} \to \text{TraceResult} \\
-\text{get} &= \lambda (\_, \vec{\sigma}, \_, \_, \_, \vec{C}, \_, \_, \_, \_). (\vec{\sigma}, \vec{C}) \\
+\text{get} &= \lambda (\vec{L}, \_, \vec{\sigma}, \_, \_, \_, \vec{C}, \_, \_, \_, \_). (\vec{L}, \vec{\sigma}, \vec{C}) \\
 \end{array}
 &
 \begin{array}{rl}
@@ -773,7 +797,7 @@ $$
 \begin{array}{ccc}
 \begin{array}{rl}
 \Downarrow &: \AbsCirc \to \text{LState} \to \text{LState} \\
-\Downarrow^{\abst{f}} &= \Downarrow^{\abst{f}}_L \circ^\uparrow \Downarrow_C \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} \stackrel{\to}{\circ} \Downarrow_R^{\abst{f}} \\
+\Downarrow^{\abst{f}} &= \Downarrow_L \circ^\uparrow \Downarrow_C \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} \stackrel{\to}{\circ} \Downarrow_R^{\abst{f}} \\
 \end{array}
 &
 \begin{array}{rl}
@@ -789,10 +813,9 @@ $$
 \end{array}
 $$
 
-TODO: need to introduce slots and terms in G
-
 # Plonk Protocol
 
+TODO: move defn of terms in G here
 - cosets
 - fft
 - F_GC
