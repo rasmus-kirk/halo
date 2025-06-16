@@ -829,11 +829,12 @@ notation ideas
 
 - $w[A,i] = \vec{C}[A,i]$ cache
 - $x[Q_l,i] = \vec{C}[Q_l,i]$ cache
-- $x[Q_l](x) = \text{fft}(\vec{C}[Q_l])(x)$ poly eval
+- $x[Q_l] = \text{fft}(\vec{C}[Q_l])$ poly
 - $x[A] = \bot$ does not exist
-- $w[\zeta,T,i] = ?[T,i]$ thunk cache
-- $w[\zeta,T](x) = \text{fft}(?[T])(x)$ thunk poly eval
-- $w[\mathcal{C}_A] = \PCCommit(\text{fft}(?[T]), \ldots)$ commit of $A$
+- $w_\zeta[T,i] = ?[T,i]$ thunk cache
+- $w_\zeta[T] = \text{fft}(?[T])$ thunk poly
+- $w[\mathcal{C}_A] = \PCCommit(\text{fft}(\vec{C}[A]), \ldots)$ commit
+- $w_\zeta[\mathcal{C}_T] = \PCCommit(\text{fft}(?[T]), \ldots)$ commit thunk
 
 notation for finite type indexing of vectors / matrices / tensors
 
