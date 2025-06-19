@@ -9,11 +9,11 @@
       "locked": {
         "lastModified": 1,
         "narHash": "sha256-ZzXYJBn9n15Uz1Ry2dzW1cd7hnP4c2BuVPlu4wy3RGc=",
-        "path": "/nix/store/62kd5b8vjmfqqm502pp9f0mpz5za3nsf-source/documents/project-contract",
+        "path": "/nix/store/kggdz0ca7kffk5pvlgvv25wyzw54wkgz-source/documents/project-contract",
         "type": "path"
       },
       "original": {
-        "path": "/nix/store/62kd5b8vjmfqqm502pp9f0mpz5za3nsf-source/documents/project-contract",
+        "path": "/nix/store/kggdz0ca7kffk5pvlgvv25wyzw54wkgz-source/documents/project-contract",
         "type": "path"
       }
     },
@@ -50,11 +50,11 @@
       "locked": {
         "lastModified": 1,
         "narHash": "sha256-d8J4p1xpJYehU8idno7hSmevoHcv7NoYC/KgHqZlfl4=",
-        "path": "/nix/store/62kd5b8vjmfqqm502pp9f0mpz5za3nsf-source/documents/thesis",
+        "path": "/nix/store/kggdz0ca7kffk5pvlgvv25wyzw54wkgz-source/documents/thesis",
         "type": "path"
       },
       "original": {
-        "path": "/nix/store/62kd5b8vjmfqqm502pp9f0mpz5za3nsf-source/documents/thesis",
+        "path": "/nix/store/kggdz0ca7kffk5pvlgvv25wyzw54wkgz-source/documents/thesis",
         "type": "path"
       }
     },

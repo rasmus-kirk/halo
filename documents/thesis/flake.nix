@@ -70,8 +70,8 @@
         runtimeInputs = [pkgs.nodePackages_latest.cspell];
         text = ''watch --color cspell --color "**/*.md"'';
       };
-      report = pkgs.stdenv.mkDerivation {
-        name = "report";
+      thesis = pkgs.stdenv.mkDerivation {
+        name = "thesis";
         src = ./.;
         buildInputs = latexPkgs;
         phases = ["unpackPhase" "buildPhase"];
@@ -82,7 +82,7 @@
         '';
       };
       in {
-        default = report;
+        default = thesis;
         loop = mk-pandoc-loop;
         pandoc = mk-pandoc;
         spellcheck = spellcheck;
