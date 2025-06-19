@@ -1,0 +1,687 @@
+# Arithmetization Scheme
+
+We define the functions in the following pipeline:
+$$
+(x,w) = \mathrm{circuit} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})
+$$
+
+## Dunno where to put this for now
+
+In the above figure the output of the multiplication gate on the right, $c_2$, should be equal to the value of the input wire of the addition gate, $b_3$.
+Plonk enforces this with _copy constraints_.
+
+Moreover, some gates are defined as a lookup table.
+The gates of the circuit also have 0 or more fan-in inputs and outputs.
+This leads to a good foundation for custom gates.
+We also use bulletproofs / discrete log for our polynomial commitment scheme.
+This makes our NARK a hyperplonk-ish protocol.
+We also introduce an ergonomic way to write circuits that does not require manually populating the trace matrix. Thus, at a high level our NARK protocol is as follows:
+
+\begin{algorithm}[H]
+\caption*{
+  \textbf{Surkål:} a plonkish NARK protocol.
+}
+\textbf{Inputs} \\
+  \Desc{$f: \Fb^n_q \to \Fb^m_q$}{The program.} \\
+  \Desc{$\vec{x} \in \Fb^n_q$}{The possibly private input to the program $f$} \\
+\textbf{Output} \\
+  \Desc{$\Result(\top, \bot)$}{Either the verifier accepts with $\top$ or rejects with $\bot$}
+\begin{algorithmic}[1]
+  \State \textbf{let} $(x,w) = \mathrm{circuit} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})$ 
+  \State $\pi \gets P(x,w)$
+  \State \textbf{return} $V(x, \pi)$
+  \end{algorithmic}
+\end{algorithm}
+
+## Gates and Gadgets
+
+TODO: ctrn and loop too; term (in ctrn) includes $j$ lookup table index
+
+| $g: \Gate$                | $\text{eval}(g, \vec{x})$     | remarks                 |
+|:-------------------------:|:-----------------------------:|:------------------------|
+| Input$_i()$               | $(x_i)$                       | from trace              |
+| Const$_{s,p}()$           | $(s)$                         |                         |
+| Add$(x,y)$                | $(x+y)$                       |                         |
+| Mul$(x,y)$                | $(x \times y)$                |                         |
+| Inv$(x)$                  | $(x^{-1})$                    |                         |
+| Pow7$(x)$                 | $(x^7)$                       |                         |
+| If$(b,x,y)$               | $(b ? x : y)$                 |                         |
+| Lookup$_T(x,y)$           | $\maybe{(z)}{(x,y,z) \in T}$  |                         |
+| PtAdd$(x_P,y_P,x_Q,y_Q)$  | $(x_R, y_R)$                  | Arkworks point add      |
+| Poseidon$(a,b,c)$         | $(a',b',c')$                  | Mina poseidon 5 rounds  |
+| Public$(x)$               | $()$                          |                         |
+| Bit$(b)$                  | $()$                          |                         |
+| IsAdd$(x,y,z)$            | $()$                          |                         |
+| IsMul$(x,y,z)$            | $()$                          |                         |
+| IsLookup$_T(x,y,z)$       | $()$                          |                         |
+
+
+## Abstract Gates
+
+Gates $g$ are primitive operations with $n_g \geq 0$ fan in inputs and $m_g \geq 0$ fan out outputs defined with its input wire id(s) of type $\Nb$. i.e. $x \neq a \land y \neq b \leftrightarrow \text{Add}(x,y) \neq \text{Add}(a,b)$.
+
+$\text{Add}(x,y)$ is a function call that returns $(\text{Add}, (x,y))$ where $\text{Add}$ in the latter is a term of $\text{GateType}$; not a function.
+
+$$
+\begin{array}{rl}
+\text{Gate} &= (g: \text{GateType}) \times \Nb^{n_g} \\
+\end{array}
+$$
+$$
+\begin{array}{ccc}
+\begin{array}{rl}
+n &: \text{Gate} + \text{GateType} \to \Nb \\
+m &: \text{Gate} + \text{GateType} \to \Nb
+\end{array}
+&
+\begin{array}{rl}
+\text{ty} &: \text{Gate} \to \text{GateType} \\
+\text{ty}(t, \_) &= t
+\end{array}
+&
+\begin{array}{rl}
+\text{in} &: (g: \text{Gate}) \to \Nb^{n_g} \\
+\text{in}(\_, \abst{\vec{x}}) &= \abst{\vec{x}} \\
+\end{array}
+\end{array}
+$$
+
+## Arithmetize
+
+Arithmetize turns a program $f$ into an abstract circuit $\abst{f}$, which is a one-to-many-or-none relation between gates $g$ and output wire id(s) $\abst{y}$ or $\bot$ which denotes no output wires. e.g. $(\text{Add}(a,b), c) \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$.
+
+We notate inserting a gate or gadget $f$ to the circuit with $\build{f = \abst{\vec{y}}}{s}{s'}$, $\build{f = \abst{y}}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the state from $s$ to $s'$. State is of the form $(u, \abst{f})$ where $u$ is the current uuid for wires. 
+A circuit / gadget is a composition of gates.
+
+Wires annotated with $*$, i.e. $\build{f = \abst{y}^*}{}{}$ are the final output and are appended to $\abst{\vec{Y}}$. They, may be omitted notationally.
+
+These inserts yield new wires. However, wires are reused by an equivalence class on gates. If $g \equiv h$ where $(h,\_) \in \abst{f}$, then $\abst{\vec{y}}$ in $\build{g=\abst{\vec{y}}}{s}{s}$ corresponds to the output wire(s) of $h$, leaving the state unchanged.
+
+$$
+\begin{aligned}
+\AbsCirc &= \set{
+  \abst{f} \subset \Gate \times \Nb_\bot \middle\vert
+  \forall (g,\abst{y}),(h,\abst{y}) \in \abst{f}. \abst{y} \neq \bot \implies g = h
+} \\
+\Gate^{\abst{f}}_g &= \set{h \in \Gate \middle\vert
+  (h, \_) \in \abst{f} \land h \equiv g
+}
+\\
+\AState &= \Nb \times \AbsCirc
+\end{aligned}
+$$
+$$
+\begin{array}{rl}
+\begin{array}{rl}
+\text{out} &: (\Nb_\bot + \AbsCirc) \to (g: \Gate) \to \Nb^{m_g} \\
+\text{out}(\bot, \_) &= () \\
+\text{out}(u,g) &= (u..u+m_g) \\
+\text{out}(\abst{f}, g)
+&= \text{out}(\min\left(
+  \set{\abst{y} \middle\vert (g,\abst{y}) \in \abst{f}}
+\right), g) \\
+\\
+\text{entries}  &: \Nb \to \Gate \to \AbsCirc \\
+\text{entries}(u,g) &= \begin{cases}
+  \set{(g,\abst{y}) \middle\vert \abst{y} \in \text{out}(u,g)}
+  & m_g > 0 \\
+  \set{(g,\bot)}
+  & m_g = 0
+\end{cases} \\
+\\
+\text{put} &: \Gate \to \AState \to \AState \\
+\text{put}(g, u, \abst{f}) &= (
+  u + m_g, \abst{f} \cup \text{entries}(u, g)
+)
+\end{array}
+&
+\begin{array}{rl}
+\text{get} &: \AState \to (g: \Gate) \to \AState \times \Nb^{m_g} \\
+\text{get}(u, \abst{f}, g)
+&= \begin{cases}
+  (u, \abst{f}, \text{out}(\abst{f}, h)) & h \in \Gate^{\abst{f}}_g \\
+  (\text{put}(g, u, \abst{f}), \text{out}(u,g)) & \text{otherwise}
+\end{cases} \\
+\\
+\build{g = \abst{\vec{y}}}{s}{s'}
+&= \left(\text{get}(s,g) \overset{?}{=} (s', \abst{\vec{y}})\right)  \\
+\build{f=\abst{y}^*}{s}{s'} &= \build{f=\abst{y}}{(s,\abst{\vec{Y}})}{(s', \abst{\vec{Y}} \cat \abst{y})} \\
+\build{f}{s_1}{s_{k+1}}
+&= \bigwedge\limits_{i \in [k]} \build{f_i}{s_i}{s_{i+1}} \\
+\\
+\text{arithmetize} &: (\Fb^n_q \to \Fb^m_q) \to \AbsCirc \times \Nb^{m'} \\
+\text{arithmetize}(f) &= \maybe{(\abst{f}, \abst{\vec{Y}})}{
+  \build{f}{\left(\circ_{i \in [0..n]}\text{put}(\text{Input}_i)(0,\emptyset), () \right)}{(\_, \abst{f}, \abst{\vec{Y}})}
+}
+\end{array}
+\end{array}
+$$
+
+Note: $\text{Input}_i$ is a family of gates with no inputs and one output wire corresponding to an input of the final circuit. The list of gates available are defined in section on Gates and Gadgets.
+
+## Trace
+
+$\text{trace}$ computes the least fixed point of a composition of monotonic functions using $\text{sup}$. We also call a monotonic function a continuation if it is called by another. We call lift, to extend the argument of a monotonic function.
+
+$$
+\begin{array}{rl}
+\begin{array}{rl}
+\text{lift}(f) &= \lambda (v,t). (v, f(t)) \\
+\text{liftR}(f) &= \lambda(t, v). (f(t), v) \\
+g \circ^{\uparrow} f &= \text{liftR}(g) \circ \text{lift}(f) 
+\end{array} &
+\begin{array}{rl}
+\text{sup} &: (T \to T) \to (T \to T \to \Bb) \to T \to T \to T \\
+\text{sup}(f, \text{eq}, s, s') &= \begin{cases}
+s & \text{eq}(s, s') \\
+\text{sup}(f, \text{eq}, s', f(s')) & \text{otherwise}
+\end{cases}
+\end{array}
+\end{array}
+$$
+
+### Resolve
+
+$\Downarrow_R$ computes the values of wires $\abst{\vec{Y}}$ and inputs to assert gates given the input wire values $\vec{x}$.
+ 
+It does this by peeking from the stack $\abst{\vec{y}}$, querying $\text{?}$ for unresolved input wires, otherwise it will evaluate the output wire values and cache it in the value map $v$ with $[\cdot]$.
+
+Every gate type has an program for its output value(s). e.g. $\text{eval}(\text{Add}, (1,2)) = (3)$.
+
+$$
+\begin{array}{rl}
+\text{eval} &: (g: \text{GateType}) \to \Fb^{n_g}_q \to \Fb^{m_g}_q 
+\end{array}
+$$
+$$
+\begin{array}{ccc}
+\begin{array}{rl}
+\VMap &= \Nb \pto \Fb_q \\
+\RState^k &= \VMap \times \Nb^k \\
+\end{array}
+&
+\begin{array}{rl}
+\curvearrowleft &: X^k \to X^{k'} \\
+\curvearrowleft (\vec{x}) &= \begin{cases}
+() & \vec{x} = () \\
+\vec{x}' & \vec{x} = \_ \cat \vec{x}' \\
+\end{cases}
+\end{array}
+&
+\begin{array}{rl}
+\underset{R}{\curvearrowleft} &: T \times \Nb^k \to T \times \Nb^{k'} \\
+\underset{R}{\curvearrowleft} &= \text{lift}(\curvearrowleft)
+\end{array}
+\end{array}
+$$
+$$
+\begin{array}{rl}
+\begin{array}{rl}
+\text{?} &: \VMap \to \Nb^k \to \Nb^{k'} \\
+v \text{?} \abst{\vec{y}} &= \begin{cases}
+() & \abst{\vec{y}} = () \\
+& \abst{\vec{y}} = \abst{y} \cat \abst{\vec{y}}' \\
+\abst{y} \cat v \text{?} \abst{\vec{y}}' & v(\abst{y}) = \bot \\
+v \text{?} \abst{\vec{y}}' & \text{otherwise}
+\end{cases} \\
+\\
+\left[ \cdot \right] &: \VMap \to \AbsCirc \to \Nb \to \VMap \\
+v_{\abst{f}}\left[\abst{y}\right] &= \maybe{
+  v[\abst{\vec{y}} \mapsto \vec{y}]
+}{\begin{array}{rl}
+  \abst{f} &\ni (g, \abst{y}) \\
+  \abst{\vec{y}} &= \text{out}(\abst{f}, g) \\
+  \vec{y} &= \text{eval}(\text{ty}(g), v @ \text{in}(g)) \\
+\end{array}}
+\end{array}
+&
+\begin{array}{rl}
+\stackrel{\to}{\circ} \Downarrow_R &: (T \times \RState \to T \times \RState) \to \AbsCirc \\
+&\to T \times \RState \to T \times \RState \\
+f \stackrel{\to}{\circ} \Downarrow^{\abst{f}}_R(t,v, \abst{\vec{y}}) &= \begin{cases}
+f(t,v,()) & \abst{\vec{y}} = () \\
+ & \abst{\vec{y}} = \abst{y} \cat \_ \\
+\underset{R}{\curvearrowleft} (t, v, \abst{\vec{y}}) & v(\abst{y}) \neq \bot \\
+ & (g, \abst{y}) \in \abst{f} \\
+ & \abst{\vec{x}} = v \text{?} \text{in}(g) \\
+\underset{R}{\curvearrowleft} \circ f(t, v_{\abst{f}}[\abst{y}], \abst{\vec{y}}) 
+ & \abst{\vec{x}} = () \\
+(t, v, \abst{\vec{x}} \cat \abst{\vec{y}}) & \text{otherwise}
+\end{cases} \\
+\end{array}
+\end{array}
+$$
+$$
+\begin{array}{ccc}
+\begin{array}{rl}
+\dagger_R &: \RState \to \Bb \\
+\dagger_R(\_, \abst{\vec{y}}) &= |\abst{\vec{y}}| = 0 
+\end{array}
+&
+\begin{array}{rl}
+s &: \Nb^m \to \Fb_q^n \to \RState \\
+s^{\abst{\vec{Y}}}_{\vec{x}} &= (\bot[(0..|\vec{x}|) \mapsto \vec{x}], \abst{\vec{Y}} \cat \set{\abst{x} \middle\vert (g, \bot) \in \abst{f} \land \abst{x} \in \text{in}(g) \setminus \abst{\vec{Y}}})
+\end{array}
+&
+\begin{array}{rl}
+s_0 &: \RState \\
+s_0 &= (\bot, ())
+\end{array}
+\end{array}
+$$
+
+### Gate Constraints
+
+$\Downarrow_G$ computes the gate constraints by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation on resolved wires in $\Downarrow_R$.
+
+When the wire id stack $\abst{\vec{y}}$ is empty, $\underset{G}{\curvearrowright}$ will push assert gates and input gates $A^{\abst{f}}$ to the stack.
+$$
+\begin{array}{rl}
+\begin{array}{rl}
+\text{ctrn} &: (g : \text{GateType}) \to \Fb_q^{n_g + m_g} \to \Fb_q^{|\text{Term}| \times k} \\
+\\
+\text{GState}^{k,k',k''} &= \Fb_q^{|\text{Term}| \times k''} \times \Gate^{k'} \times \Bb \times \RState^k \\
+A^{\abst{f}} &= \set{g \middle\vert (g, \abst{y}) \in \abst{f} \land (\abst{y} = \bot \lor \exists i. \abst{y} = \text{Input}_i) } \\
+\\
+\underset{G}{\curvearrowleft} &: T \times \text{GState}^{k''',k,k''} \to T \times \text{GState}^{k''',k',k''} \\
+\underset{G}{\curvearrowleft} &= \text{lift} \circ \text{liftR}(\curvearrowleft : \text{Gate}^k \to \text{Gate}^{k'}) \\
+\\
+\dagger_G &: \text{GState} \to \Bb \\
+\dagger_G(\_, \vec{g}, b, \_) &= |\vec{g}| = 0 \land b = \top \\
+\\
+\iota_G &: \text{RState} \to \text{GState} \\
+\iota_G(s) &= ((), (), \bot, s)
+\end{array}
+&
+\begin{array}{rl}
+\stackrel{\to}{\circ} \Downarrow_G &: (T \times \text{GState} \to T \times \text{GState}) \to \AbsCirc \\
+&\to T \times \text{GState} \to T \times \text{GState} \\
+f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \underset{G}{\curvearrowleft} \circ f \circ^\uparrow \lambda (\vec{C}, \vec{g}, b, v). \\
+&\begin{cases}
+& \vec{g} = g \cat \_ \\
+& \vec{v} = v @ (\text{in}(g) \cat \text{out}(\abst{f},g)) \\
+(\vec{C}', \vec{g}, b, v)
+& \vec{C}' = \vec{C} \cat \text{ctrn}(\text{ty}(g), \vec{v}) \\
+(\vec{C}, (), b, v)
+& \text{otherwise}
+\end{cases} \\
+&\circ^\uparrow \lambda(\vec{g}, b, v, \abst{\vec{y}}). \\
+&\begin{cases}
+& b = \bot \\
+(A^{\abst{f}} \cat \vec{g}, \top, v, \abst{\vec{y}})
+& |\abst{\vec{y}}| = |\vec{g}| = 0 \\
+& \abst{\vec{y}} = \abst{y} \cat \_ \\
+(g \cat \vec{g}, b, v, \abst{\vec{y}})
+& (g,\abst{y}) \in \abst{f} \\
+(\vec{g}, b, v, \abst{\vec{y}})
+& \text{otherwise}
+\end{cases}
+\end{array}
+\end{array}
+$$
+
+### Copy Constraints
+
+$\Downarrow_C$ quotients an ordered set of coordinates in slot positions of $\vec{C}$ by the wire id corresponding to the value there.
+
+This is done by peeking $\vec{g}$ and joining $c$ with the coordinate loop of the gate. This corresponds to $\mathtt{ctrn}$.
+
+After computing the loops as quotients $c$ with all gates, we mark a flag $\Bb$ that starts computing the coordinate map $m$ from coordinate to its neighbour in $c$ which then is used to compute the permutation $\vec{\sigma}$ of the slots in $\vec{C}$.
+$$
+\begin{array}{rl}
+\begin{array}{rl}
+\text{Coord} &= \text{Slot} \times \Nb \\
+\text{CLoop} &= (\abst{y} : \Nb) \pto \text{Coord}^{k_{\abst{y}}} \\
+\text{CMap} &= \text{Coord} \pto \text{Coord} \\
+\text{loop} &: \text{Row} \to \text{GateType} \to \text{CLoop} \\
+\\
+\text{CState}^{k,k'} &= \Nb \times \text{Coord}^{|\text{Slot}| \times k} \times \text{CMap} \times \\
+&\Bb \times \text{CLoop} \times \text{GState}^{k'}\\
+\\
+\sqcup &: \text{CLoop} \to \text{CLoop} \to \text{CLoop} \\
+x \sqcup y &= \begin{cases}
+x & y = \bot \\
+& \exists i. y(i) = \vec{l} \\
+& y' = y[i \mapsto \bot] \\
+x[i \mapsto x(i) \cat \vec{l}] \sqcup y'
+& x(i) \neq \bot \\
+x[i \mapsto \vec{l}] \sqcup y'
+& \text{otherwise}
+\end{cases} \\
+\\
+\dagger_C &: \text{CState} \to \Bb \\
+\dagger_C &= \lambda (N, \_, \_, b, c, \_). \\
+&N = 0 \land b = \top \land c = \bot \\
+\\
+\iota_C &: \text{GState} \to \text{CState} \\
+\iota_C(s) &= (0, (), \bot, \bot, \bot, s)
+\end{array}
+&
+\begin{array}{rl}
+\Downarrow_C &: \text{CState} \to \text{CState} \\
+\Downarrow_C &= \lambda (N, \vec{\sigma}, m). \\
+&\begin{cases}
+(0, \vec{\sigma}, m) & N = 0 \\
+& f = \lambda s.m(s, N) \\
+(N-1, \sigma \cat \vec{\sigma},m)
+& \sigma = f @ (\text{Slot}..)
+\end{cases} \\
+& \circ^\uparrow \lambda(N, \vec{\sigma}, m, b,c, \vec{C}). \\
+&\begin{cases}
+& b \land c = \bot \\
+(|\vec{C}| / |\text{Term}|, (), m, \top, \bot, \vec{C})
+& N = 0 \land  \vec{\sigma} = () \\
+(N, \vec{\sigma}, m, b, c, \vec{C})
+& \text{otherwise}
+\end{cases} \\
+& \circ^\uparrow \lambda(m, b, c). \\
+&\begin{cases}
+& b \land \exists \abst{y}. c(\abst{y}) \neq \bot \\
+& c' = c[\abst{y} \mapsto \bot] \\
+& \vec{l} = l \cat \vec{l}' = c(\abst{y}) \\
+(m', \top, c')
+& m' = m[\vec{l} \mapsto \vec{l}' \cat l] \\
+(m, b, c) & \text{otherwise}
+\end{cases} \\
+& \circ^\uparrow \lambda (b, c,\vec{C},\vec{g}). \\
+&\begin{cases}
+& \neg b \land \vec{g} = g \cat \_ \\
+& r = |\vec{C}|/|\text{Term}| \\
+(\bot, c \sqcup l, \vec{C}, \vec{g})
+& l = \text{loop}(r, \text{ty}(g)) \\
+(\top, c, \vec{C}, \vec{g}) & \text{otherwise}
+\end{cases} \\
+\end{array}
+\end{array}
+$$
+
+### Full Surkål Trace
+
+We conclude the full trace definition as follows:
+
+$$
+\begin{array}{cc}
+\begin{array}{rl}
+\text{res} &: \text{CState} \to \text{TraceResult} \\
+\text{res} &= \lambda (\_, \vec{\sigma}, \_, \_, \_, \vec{C}, \_, \_, \_, \_). (\vec{\sigma}, \vec{C}) \\
+\end{array}
+&
+\begin{array}{rl}
+\text{eq} &: \text{CState} \times \text{CState} \to \Bb \\
+\text{eq}(\_, x) &= \bigwedge\limits_{\dagger \in \set{\dagger_C, \dagger_G, \dagger_R}} \maybe{\dagger(s)}{x=(\_,s)} \\
+\end{array}
+\end{array}
+$$
+$$
+\begin{array}{ccc}
+\begin{array}{rl}
+\Downarrow &: \AbsCirc \to \text{CState} \to \text{CState} \\
+\Downarrow^{\abst{f}} &= \Downarrow_C \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} \stackrel{\to}{\circ} \Downarrow_R^{\abst{f}} \\
+\end{array}
+&
+\begin{array}{rl}
+\iota &: \text{RState} \to \text{CState} \\
+\iota &= \iota_C \circ \iota_G \\
+\end{array}
+&
+\begin{array}{rl}
+\text{trace} &: \AbsCirc \to \Nb^m \to \Fb^n_q \to \text{TraceResult} \\
+\text{trace}(\abst{f}, \abst{\vec{Y}}, \vec{x})
+&= \text{res} \circ \text{sup}(\Downarrow^{\abst{f}},\text{eq},\iota(s_0),\iota(s^{\abst{\vec{Y}}}_{\vec{x}}))
+\end{array}
+\end{array}
+$$
+
+## Circuit
+
+- prereq explainer
+  - $\omega$: roots of unity / fft
+  - $k_s$: cosets as id for slots
+
+$$
+\begin{array}{rl}
+\text{Term} &= \text{Slot} + \text{Selector} + \set{J} \\
+\text{Lookup} &= \set{T, F, H_1, H_2} \\
+\text{PolyType} &= \text{Slot} + \text{Selector} + \text{Lookup} \\
+\\
+\text{pow2} &: \Nb \to \Nb \\
+\text{pow2}(n) &= 2^{\lceil \log_2 (n) \rceil} \\
+\\
+\text{unity} &: \Nb \to \Fb_q \\
+\text{unity}(N) &= \maybe{\omega}{
+\begin{array}{rl}
+  \omega &\in \Fb_q \\
+  \omega^N &= 1 \\
+  \forall k \in [N]. \omega^k &\neq 1
+\end{array}
+}\\
+\\
+\text{circuit} &: \text{TraceResult} \to R \\
+\text{circuit}(\vec{\sigma}, \vec{C}) &= \begin{cases}
+a
+& N = \text{pow2}(\max(|\vec{t}|, |\vec{C}|) + \text{blind})\\
+& \omega = \text{unity}(N) \\
+\end{cases}
+\end{array}
+$$
+
+- compute $h$; $k_s : \Fb_q^{|\text{Slot}|}$
+- lookup thunk
+  - up to $N$ minus blind rows
+  - table vector $\vec{t}$
+  - query vector $\vec{f}$ using $\vec{C}$ in $A,B,C,j$
+  - grand product $\vec{h_1}, \vec{h_2}$
+- expand $\vec{C}$
+- expand $\vec{\sigma}$
+- fft + cache
+- commits
+  - look at code
+
+notation ideas
+
+- $w[A,i] = \vec{C}[A,i]$ cache
+- $x[Q_l,i] = \vec{C}[Q_l,i]$ cache
+- $x[Q_l] = \text{fft}(\vec{C}[Q_l])$ poly
+- $x[A] = \bot$ does not exist
+- $w_\zeta[T,i] = ?[T,i]$ thunk cache
+- $w_\zeta[T] = \text{fft}(?[T])$ thunk poly
+- $w[\mathcal{C}_A] = \PCCommit(\text{fft}(\vec{C}[A]), \ldots)$ commit
+- $w_\zeta[\mathcal{C}_T] = \PCCommit(\text{fft}(?[T]), \ldots)$ commit thunk
+
+notation for finite type indexing of vectors / matrices / tensors
+
+
+## Arithmetize Example
+
+Example of the arithmetization of $x^2 + y$ with gates Input, Mul$(a,b)$ and Add$(a,b)$ all with $m=1$:
+$$
+\begin{aligned}
+&\text{arithmetize}((x,y) \mapsto (x^2 + y))
+\\
+&= \maybe{\left(\abst{f}'', (z)\right)}{
+  \build{x^2 + y = z^*}
+    {(u, \abst{f}) = (\text{put}(\text{Input}_0) \circ \text{put}(\text{Input}_1)(0, \emptyset), \emptyset)}
+    {(\_, \abst{f}'', (z))}
+  }
+\\
+&= \maybe{\left(\abst{f}'', (z)\right)}{\build{\begin{array}{l}
+  x \times x = t \\
+  t + y = z^*
+\end{array}}{(u, \abst{f}, \emptyset)}{(\_, \abst{f}'', (z))}}
+\\
+&= \maybe{\left(\abst{f}'', (z)\right)}{\begin{array}{l}
+  \build{x \times x = t}{(u, \abst{f})}{(u', \abst{f}')} \\
+  \build{t + y = z^*}{(u', \abst{f}', \emptyset)}{(\_, \abst{f}'', (z))}
+\end{array}}
+\\
+&= \maybe{\left(\abst{f}'', (z)\right)}{\begin{array}{rl}
+  \text{get}(u, \abst{f}, \text{Mul}(x,x)) &= (u', \abst{f}', (t)) \\
+  \text{get}(u', \abst{f}', \text{Add}(t,y)) &= (\_, \abst{f}'', (z))
+\end{array}}
+\\ 
+&= \maybe{\left(\abst{f}'', (z)\right)}{\begin{array}{rl}
+  (u+1, \abst{f} \cup \set{(\text{Mul}(x,x), u)}, (u)) &= (u', \abst{f}', (t)) \\
+  \text{get}(u', \abst{f}', \text{Add}(t,y)) &= (\_, \abst{f}'', (z))
+\end{array}}
+\\
+&= \maybe{\left(\abst{f}'', (z)\right)}{
+  \text{get}(u+1, \abst{f} \cup \set{(\text{Mul}(x,x))}, \text{Add}(u,y)) = (\_, \abst{f}'', (z))
+}
+\\
+&= \maybe{\left(\abst{f} \cup \set{\begin{array}{rl}
+    \text{Mul}(x,x) & u \\
+    \text{Add}(u,y) & u+1
+  \end{array}}, (u+1)\right)}{
+  (u, \abst{f}) = \text{put}(\text{Input}_0) \circ \text{put}(\text{Input}_1)(0, \emptyset)
+}
+\\
+&= \maybe{\left(\abst{f} \cup \set{\begin{array}{rl}
+    \text{Mul}(0,0) & u \\
+    \text{Add}(u,y) & u+1
+  \end{array}}, (u+1)\right)}{
+    (u, \abst{f}) = \text{put}(\text{Input}_1, 1, \set{(\text{Input}_0, 0)})
+  }
+\\
+&= \maybe{\left(\abst{f} \cup \set{\begin{array}{rl}
+    \text{Mul}(0,0) & u \\
+    \text{Add}(u,1) & u+1
+  \end{array}}, (u+1) \right)}
+  {(u, \abst{f}) = \left(2, \set{\begin{array}{rl}
+    \text{Input}_0 & 0 \\
+    \text{Input}_1 & 1
+  \end{array}}\right)}
+\\
+&= \left(\set{\begin{array}{rl}
+  \text{Input}_0 & 0 \\
+  \text{Input}_1 & 1 \\
+  \text{Mul}(0,0) & 2 \\
+  \text{Add}(2,1) & 3
+\end{array}}, (3)\right)
+\end{aligned}
+$$
+
+## Trace Example
+
+TODO
+
+## Defining Equivalence of Gates with Egglog
+
+TODO
+
+## Kleene Fixedpoint Theorem in Trace
+
+Trace is defined as a composition of monotonic functions that has control over their continuations. Thus if the full composition is $f$, then the trace is $\mu x. f(x)$. Given an initial state, it is notated as the supremum. $\text{sup}_{n \in \Nb} f^n(\iota)$, where $n$ is the smallest $n$ such that $f^n(\iota) = f^{n+1}(\iota)$, i.e. the least fixedpoint of $f$. We have shown the recursive definition before. Now we present the iterative definition which will be useful in code implementations to circumvent the recursion limit or stack overflow errors.
+
+\begin{algorithm}[H]
+\caption*{
+  \textbf{sup:} iterative kleene least fixedpoint protocol.
+}
+\textbf{Inputs} \\
+  \Desc{$f: \text{State}^T \to \text{State}^T$}{Monotonic function.} \\
+  \Desc{$\iota : \text{State}^T$}{Initial state.} \\
+  \Desc{$\text{eq}: \text{State}^T \to \text{State}^T \to \Bb$}{Equality predicate on states.} \\
+\textbf{Output} \\
+  \Desc{$s_n : \text{State}^T$}{The state corresponding to the least fixedpoint of $f$.}
+\begin{algorithmic}[1]
+  \State Initialize variables:
+    \Statex \algind $s := \bot$
+    \Statex \algind $s' := \iota$ 
+  \State Recursive compute:
+    \Statex \textbf{do:}
+    \Statex \algind $s := s'$
+    \Statex \algind $s' := f(s')$
+    \Statex \textbf{while} $\text{eq}(s,s') = \bot$
+  \State Return the least fixedpoint:
+    \Statex \textbf{return} $x$
+  \end{algorithmic}
+\end{algorithm}
+
+We can show that the function is monotonic by defining the order on the state, and showing that the function preserves the order. The order is defined as follows:
+
+$$
+(t,v,b,\vec{s}) \sqsubseteq (t',v',b',\vec{s'}) \iff
+\begin{aligned}
+  &t \not\sqsubseteq t' \Rightarrow \text{dom}(v) \not\subseteq \text{dom}(v') \Rightarrow |s| < |s'|
+\end{aligned}
+$$
+
+We never remove the mappings in $v$ thus the order is preserved for $v$ despite the stack $s$ can grow and shrink. To show $t \sqsubseteq t'$ then is to investigate the remaining monotonic continuations for Surkål.
+
+TODO: cleanup and make full preorder relation definition, i.e. $s \sqsubseteq f(s)$
+
+## Notation
+
+TODO make to a neat table, and include notation in plonk report
+
+types and type formers
+
+- naturals $\Nb$
+- pointed type $T_\bot$, has an (additional) smallest element $\bot$
+- finite fields $\Fb_q$
+- vector type $T^n$
+- matrix / tensor type $T^{n \times m}$
+- tuple / product type $T \times U$
+- function type $X \to Y$
+- partial function type $X \pto Y$
+- disjoint union / sum type $T + U$
+
+term constructors
+
+- empty vector / unit tuple $()$
+- vector term / tuple term $\vec{x} = (x_1, x_2, \cdots , x_n)$
+- vector append / cons $y \cat \vec{x} = (y, x_1, x_2, \cdots x_n), \vec{x} \cat y = (x_1, x_2, \cdots, x_n, y)$
+- vector of enumeration of a finite ordered type $(X..) = (x_1, x_2, \ldots x_n)$
+- matrix / tensors as vectors $\vec{m}: T^{w \times h}, \vec{m}[i,j] = m_{i + h(j-1)}$
+- function term / lambda abstraction $\lambda x. f(x)$
+- function term by evaluations $\lambda[x \mapsto f(x)]$, implying $f(x)$ is evaluated upon construction for all $x$
+- empty partial function $\bot$
+- partial function append $f[x \mapsto y]$
+- disjoint union implictly has no constructors, however we can $\text{inl}(t), \text{inr}(u)$ to avoid ambiguity
+
+util functions
+
+- maybe notation $\maybe{x}{\phi(x)} = \begin{cases} x & \phi(x) \\ \bot & \text{otherwise} \end{cases}$
+- maybe with default $\maybe{x \lor y}{\phi(x)} = \begin{cases} x & \phi(x) \\ y & \text{otherwise} \end{cases}$
+- vector of naturals builder $(s..t) = \begin{cases} () & t \leq s \\ s \cat (s+1 .. t) \end{cases}$
+- vector concat $\vec{x} \cat \vec{y} = \begin{cases} \vec{y} & \vec{x} = () \\ \vec{x}' \cat (x \cat \vec{y}) & \vec{x} = \vec{x'} \cat x \end{cases}$
+- vector concat with set $X \cat \vec{x}$; any random ordering of $X$; recursive application of axiom of choice
+- function application $f @ x = f(x)$
+- vector map $f @ \vec{x} = (f(x_1), f(x_2), \ldots, f(x_n))$
+- vector minus set $\vec{x} \setminus X$ turns $\vec{x}$ to a set and removes all elements in $X$
+- min of a set with total ordering $\min(X)$
+- partial function append vector $f[\vec{x} \mapsto \vec{y}] = \begin{cases} & \vec{x} = x \cat \vec{x}' \\ f[x \mapsto y][\vec{x}' \mapsto \vec{y}'] & \vec{y} = y \cat \vec{y}' \\ f & \text{otherwise} \end{cases}$
+
+identities
+
+- associative product and function types
+- currying $T \to U \to V = (T \times U) \to V$
+- curried / associative tuples $((a,b),c) = (a,b,c) = (a,(b,c))$
+
+set theoretic notations
+
+- set of naturals from one $[n] = \set{1,2,\ldots,n-1}$
+- set of naturals with lower bound $[n..m] = \set{n,n+1,\ldots,m-1}$
+- flattened case notation, conditions are propagated to conditions below if they don't contradict.
+- if a case has no term, the next termed case must satisfy it, but subsequent cases need not (note the $\land \phi_2(a))$
+$$
+\begin{array}{rl}
+\begin{cases}
+a & \phi_1(a) \\
+ & \phi_2(a) \\
+b & \phi_3(b) \\
+c & \phi_4(c) \\
+\vdots
+\end{cases} &=
+\begin{cases}
+a & \phi_1(a) \\
+b(a) & (\phi_3(b(a)) \lor \phi_1(a)) \land \phi_2(a) \\
+c(b(a),a) & \phi_4(c(b(a),a)) \lor \phi_1(a) \lor \phi_2(a) \lor \phi_3(b(a)) \\
+\vdots
+\end{cases}
+\end{array}
+$$
+
+conventions
+- $\abst{x}$ is an abstract of a thing, e.g. $\abst{f}$ is an abstract circuit, $\abst{y}$ is an abstract output wire (id)
+
+

@@ -53,7 +53,7 @@
           }
           {
             title = "Report";
-            location = "/thesis/report.pdf";
+            location = "/thesis/thesis.pdf";
           }
           {
             title = "Project Contract";

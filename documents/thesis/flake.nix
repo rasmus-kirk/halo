@@ -29,30 +29,20 @@
         name = "mk-pandoc-script";
         runtimeInputs = latexPkgs;
         text = ''
-          # Loop through each .md file in the folder
-          for filename in ./*.md; do
-              pandoc "$filename" \
-                -H header.tex \
-                --citeproc \
-                --metadata date="$(date -d "@${toString self.lastModified}" -u "+%Y-%m-%d - %H:%M:%S %Z")" \
-                --highlight-style gruvbox.theme \
-                -o "$1/''${filename%.md}.pdf"
-          done
-        '';
-      };
-      debug = pkgs.writeShellApplication {
-        name = "mk-pandoc-debug";
-        runtimeInputs = latexPkgs;
-        text = ''
-          # Loop through each .md file in the folder
-          for filename in ./*.md; do
-              pandoc "$filename" \
-                -H header.tex \
-                --citeproc \
-                --metadata date -d @$(git show -s --format=%ct) -u "+%Y-%m-%d - %H:%M:%S %Z" \
-                --highlight-style gruvbox.theme \
-                -o "$1/''${filename%.md}.tex"
-          done
+          pandoc \
+            ./01-introduction/index.md \
+            ./02-prerequisites/index.md \
+            ./03-chain-of-signatures/index.md \
+            ./04-pcdl/index.md \
+            ./05-asdl/index.md \
+            ./06-plonk/index.md \
+            ./07-arithmetization-scheme/index.md \
+            ./thesis.md \
+            -H header.tex \
+            --citeproc \
+            --metadata date="$(date -d "@${toString self.lastModified}" -u "+%Y-%m-%d - %H:%M:%S %Z")" \
+            --highlight-style gruvbox.theme \
+            -o "$1/thesis.pdf"
         '';
       };
       mk-pandoc = pkgs.writeShellApplication {
@@ -73,12 +63,12 @@
       spellcheck = pkgs.writeShellApplication {
         name = "spellcheck";
         runtimeInputs = [pkgs.nodePackages_latest.cspell];
-        text = ''cspell "*.md"'';
+        text = ''cspell "**/*.md"'';
       };
       spellcheck-watch = pkgs.writeShellApplication {
         name = "spellcheck";
         runtimeInputs = [pkgs.nodePackages_latest.cspell];
-        text = ''watch --color cspell --color "*.md"'';
+        text = ''watch --color cspell --color "**/*.md"'';
       };
       report = pkgs.stdenv.mkDerivation {
         name = "report";
@@ -95,7 +85,6 @@
         default = report;
         loop = mk-pandoc-loop;
         pandoc = mk-pandoc;
-        debug = debug;
         spellcheck = spellcheck;
         spellcheck-watch = spellcheck-watch;
       });
