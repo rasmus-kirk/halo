@@ -7,7 +7,7 @@ geometry: margin=2cm
 bibliography: bibliography.bib
 abstract: This is an abstract
 toc: true
-thanks: We would like to express my gratitude to escpecially Hamidreza Khoshakhlagh.
+thanks: We would like to express our gratitude to escpecially Hamidreza Khoshakhlagh.
 geometry: margin=2cm
 citation-style: acm-siggraph
 link-citations: true
@@ -20,3 +20,4 @@ toccolor: black
 
 # Bibliography
 
+a

@@ -1,29 +1,22 @@
 # Arithmetization Scheme
 
-We define the functions in the following pipeline:
-$$
-(x,w) = \mathrm{circuit} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})
-$$
+Our (zk)-NARK protocol has the following features:
 
-## Dunno where to put this for now
+1. arithmetization using add and mul gates (PLONK)
+2. larger fan-in and fan-out custom gates (TurboPLONK)
+3. Lookup tables (UltraPlonk)
+4. pedersen commitment scheme (Halo2)
+5. Ergonomic multi type wire arithmetization (Surkål)
 
-In the above figure the output of the multiplication gate on the right, $c_2$, should be equal to the value of the input wire of the addition gate, $b_3$.
-Plonk enforces this with _copy constraints_.
-
-Moreover, some gates are defined as a lookup table.
-The gates of the circuit also have 0 or more fan-in inputs and outputs.
-This leads to a good foundation for custom gates.
-We also use bulletproofs / discrete log for our polynomial commitment scheme.
-This makes our NARK a hyperplonk-ish protocol.
-We also introduce an ergonomic way to write circuits that does not require manually populating the trace matrix. Thus, at a high level our NARK protocol is as follows:
+The arithmetization scheme is agnostic of gates, lookup tables and trace, thus can potentially be extended for other variants of PLONK. At a high level, the PLONK protocol is as follows:
 
 \begin{algorithm}[H]
 \caption*{
   \textbf{Surkål:} a plonkish NARK protocol.
 }
 \textbf{Inputs} \\
-  \Desc{$f: \Fb^n_q \to \Fb^m_q$}{The program.} \\
-  \Desc{$\vec{x} \in \Fb^n_q$}{The possibly private input to the program $f$} \\
+  \Desc{$f: W@\vec{t_{in}} \to W@\vec{t_{out}}$}{The program.} \\
+  \Desc{$\vec{x} \in W@\vec{t_{in}}$}{The possibly private input to the program $f$} \\
 \textbf{Output} \\
   \Desc{$\Result(\top, \bot)$}{Either the verifier accepts with $\top$ or rejects with $\bot$}
 \begin{algorithmic}[1]
@@ -33,38 +26,44 @@ We also introduce an ergonomic way to write circuits that does not require manua
   \end{algorithmic}
 \end{algorithm}
 
-## Gates and Gadgets
-
-TODO: ctrn and loop too; term (in ctrn) includes $j$ lookup table index
-
-| $g: \Gate$                | $\text{eval}(g, \vec{x})$     | remarks                 |
-|:-------------------------:|:-----------------------------:|:------------------------|
-| Input$_i()$               | $(x_i)$                       | from trace              |
-| Const$_{s,p}()$           | $(s)$                         |                         |
-| Add$(x,y)$                | $(x+y)$                       |                         |
-| Mul$(x,y)$                | $(x \times y)$                |                         |
-| Inv$(x)$                  | $(x^{-1})$                    |                         |
-| Pow7$(x)$                 | $(x^7)$                       |                         |
-| If$(b,x,y)$               | $(b ? x : y)$                 |                         |
-| Lookup$_T(x,y)$           | $\maybe{(z)}{(x,y,z) \in T}$  |                         |
-| PtAdd$(x_P,y_P,x_Q,y_Q)$  | $(x_R, y_R)$                  | Arkworks point add      |
-| Poseidon$(a,b,c)$         | $(a',b',c')$                  | Mina poseidon 5 rounds  |
-| Public$(x)$               | $()$                          |                         |
-| Bit$(b)$                  | $()$                          |                         |
-| IsAdd$(x,y,z)$            | $()$                          |                         |
-| IsMul$(x,y,z)$            | $()$                          |                         |
-| IsLookup$_T(x,y,z)$       | $()$                          |                         |
-
+We define the functions in the following pipeline:
+$$
+(x,w) = \mathrm{circuit} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})
+$$
 
 ## Abstract Gates
 
-Gates $g$ are primitive operations with $n_g \geq 0$ fan in inputs and $m_g \geq 0$ fan out outputs defined with its input wire id(s) of type $\Nb$. i.e. $x \neq a \land y \neq b \leftrightarrow \text{Add}(x,y) \neq \text{Add}(a,b)$.
+Wires are an abstraction of a carrier of concrete values for the program $f$. They are definitionally a pair of unique identifier (UUID) of type $\Nb$ and a type tag $\WireType$.
+
+$T_i$ is the family of types involved in $f$. $W$ maps the wire type tag to the value's type the wire is carrying. e.g. $W(p) = \Fb_p, W(q) = \Fb_q$.
+
+$$
+\begin{array}{ccc}
+\begin{array}{rl}
+\WireType &= \set{t_1, t_2, \ldots, t_n} \\
+W &= \Pi(i: \WireType, T_i: \mathcal{U}) \\
+\Wire &= \Nb \times \WireType \\
+\end{array}
+&
+\begin{array}{rl}
+\text{ty} &: \Wire \to \WireType \\
+\text{ty}(\_, t) &= t \\
+\end{array}
+&
+\begin{array}{rl}
+\text{id} &: \Wire \to \Nb \\
+\text{id}(i, \_) &= i \\
+\end{array}
+\end{array}
+$$
+
+Gates $g$ are primitive operations with $n_g \geq 0$ fan in inputs and $m_g \geq 0$ fan out outputs defined with its input wire(s) i.e. $x \neq a \land y \neq b \leftrightarrow \text{Add}(x,y) \neq \text{Add}(a,b)$.
 
 $\text{Add}(x,y)$ is a function call that returns $(\text{Add}, (x,y))$ where $\text{Add}$ in the latter is a term of $\text{GateType}$; not a function.
 
 $$
 \begin{array}{rl}
-\text{Gate} &= (g: \text{GateType}) \times \Nb^{n_g} \\
+\text{Gate} &= (g: \text{GateType}) \times \Wire^{n_g} \\
 \end{array}
 $$
 $$
@@ -80,7 +79,7 @@ m &: \text{Gate} + \text{GateType} \to \Nb
 \end{array}
 &
 \begin{array}{rl}
-\text{in} &: (g: \text{Gate}) \to \Nb^{n_g} \\
+\text{in} &: (g: \text{Gate}) \to \Wire^{n_g} \\
 \text{in}(\_, \abst{\vec{x}}) &= \abst{\vec{x}} \\
 \end{array}
 \end{array}
@@ -88,7 +87,7 @@ $$
 
 ## Arithmetize
 
-Arithmetize turns a program $f$ into an abstract circuit $\abst{f}$, which is a one-to-many-or-none relation between gates $g$ and output wire id(s) $\abst{y}$ or $\bot$ which denotes no output wires. e.g. $(\text{Add}(a,b), c) \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$.
+Arithmetize turns a program $f$ into an abstract circuit $\abst{f}$, which is a one-to-many-or-none relation between gates $g$ and output wire(s) $\abst{y}$ or $\bot$ which denotes no output wires. e.g. $(\text{Add}(a,b), c) \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$.
 
 We notate inserting a gate or gadget $f$ to the circuit with $\build{f = \abst{\vec{y}}}{s}{s'}$, $\build{f = \abst{y}}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the state from $s$ to $s'$. State is of the form $(u, \abst{f})$ where $u$ is the current uuid for wires. 
 A circuit / gadget is a composition of gates.
@@ -100,7 +99,7 @@ These inserts yield new wires. However, wires are reused by an equivalence class
 $$
 \begin{aligned}
 \AbsCirc &= \set{
-  \abst{f} \subset \Gate \times \Nb_\bot \middle\vert
+  \abst{f} \subset \Gate \times \Option(\Nb) \middle\vert
   \forall (g,\abst{y}),(h,\abst{y}) \in \abst{f}. \abst{y} \neq \bot \implies g = h
 } \\
 \Gate^{\abst{f}}_g &= \set{h \in \Gate \middle\vert
@@ -113,7 +112,7 @@ $$
 $$
 \begin{array}{rl}
 \begin{array}{rl}
-\text{out} &: (\Nb_\bot + \AbsCirc) \to (g: \Gate) \to \Nb^{m_g} \\
+\text{out} &: (\Option(\Nb) + \AbsCirc) \to (g: \Gate) \to \Nb^{m_g} \\
 \text{out}(\bot, \_) &= () \\
 \text{out}(u,g) &= (u..u+m_g) \\
 \text{out}(\abst{f}, g)
@@ -159,16 +158,19 @@ $$
 
 Note: $\text{Input}_i$ is a family of gates with no inputs and one output wire corresponding to an input of the final circuit. The list of gates available are defined in section on Gates and Gadgets.
 
+TODO update for types
+
 ## Trace
+
+TODO assert WireType = {p,q} here onwards
 
 $\text{trace}$ computes the least fixed point of a composition of monotonic functions using $\text{sup}$. We also call a monotonic function a continuation if it is called by another. We call lift, to extend the argument of a monotonic function.
 
 $$
 \begin{array}{rl}
 \begin{array}{rl}
-\text{lift}(f) &= \lambda (v,t). (v, f(t)) \\
-\text{liftR}(f) &= \lambda(t, v). (f(t), v) \\
-g \circ^{\uparrow} f &= \text{liftR}(g) \circ \text{lift}(f) 
+\text{lift}(f) &= \lambda (v,t,u). (v, f(t),u) \\
+g \circ^{\uparrow} f &= \text{lift}(g) \circ \text{lift}(f) 
 \end{array} &
 \begin{array}{rl}
 \text{sup} &: (T \to T) \to (T \to T \to \Bb) \to T \to T \to T \\
@@ -270,6 +272,8 @@ s_0 &= (\bot, ())
 \end{array}
 $$
 
+TODO update for types
+
 ### Gate Constraints
 
 $\Downarrow_G$ computes the gate constraints by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation on resolved wires in $\Downarrow_R$.
@@ -284,7 +288,7 @@ $$
 A^{\abst{f}} &= \set{g \middle\vert (g, \abst{y}) \in \abst{f} \land (\abst{y} = \bot \lor \exists i. \abst{y} = \text{Input}_i) } \\
 \\
 \underset{G}{\curvearrowleft} &: T \times \text{GState}^{k''',k,k''} \to T \times \text{GState}^{k''',k',k''} \\
-\underset{G}{\curvearrowleft} &= \text{lift} \circ \text{liftR}(\curvearrowleft : \text{Gate}^k \to \text{Gate}^{k'}) \\
+\underset{G}{\curvearrowleft} &= \text{lift}(\curvearrowleft : \text{Gate}^k \to \text{Gate}^{k'}) \\
 \\
 \dagger_G &: \text{GState} \to \Bb \\
 \dagger_G(\_, \vec{g}, b, \_) &= |\vec{g}| = 0 \land b = \top \\
@@ -319,6 +323,8 @@ f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \underset{G}{\curvearrowleft}
 \end{array}
 \end{array}
 $$
+
+TODO update for types
 
 ### Copy Constraints
 
@@ -395,6 +401,8 @@ x[i \mapsto \vec{l}] \sqcup y'
 \end{array}
 $$
 
+TODO update for types; table $\vec{C}$ per type
+
 ### Full Surkål Trace
 
 We conclude the full trace definition as follows:
@@ -431,6 +439,28 @@ $$
 \end{array}
 \end{array}
 $$
+
+### Concrete Gate Definitions
+
+TODO: ctrn and loop too; term (in ctrn) includes $j$ lookup table index
+
+| $g: \Gate$                | $\text{eval}(g, \vec{x})$     | remarks                 |
+|:-------------------------:|:-----------------------------:|:------------------------|
+| Input$_i()$               | $(x_i)$                       | from trace              |
+| Const$_{s,p}()$           | $(s)$                         |                         |
+| Add$(x,y)$                | $(x+y)$                       |                         |
+| Mul$(x,y)$                | $(x \times y)$                |                         |
+| Inv$(x)$                  | $(x^{-1})$                    |                         |
+| Pow7$(x)$                 | $(x^7)$                       |                         |
+| If$(b,x,y)$               | $(b ? x : y)$                 |                         |
+| Lookup$_T(x,y)$           | $\maybe{(z)}{(x,y,z) \in T}$  |                         |
+| PtAdd$(x_P,y_P,x_Q,y_Q)$  | $(x_R, y_R)$                  | Arkworks point add      |
+| Poseidon$(a,b,c)$         | $(a',b',c')$                  | Mina poseidon 5 rounds  |
+| Public$(x)$               | $()$                          |                         |
+| Bit$(b)$                  | $()$                          |                         |
+| IsAdd$(x,y,z)$            | $()$                          |                         |
+| IsMul$(x,y,z)$            | $()$                          |                         |
+| IsLookup$_T(x,y,z)$       | $()$                          |                         |
 
 ## Circuit
 
@@ -615,6 +645,7 @@ TODO make to a neat table, and include notation in plonk report
 
 types and type formers
 
+- universe/ type of all types $\mathcal{U}$
 - naturals $\Nb$
 - pointed type $T_\bot$, has an (additional) smallest element $\bot$
 - finite fields $\Fb_q$
@@ -654,6 +685,7 @@ util functions
 identities
 
 - associative product and function types
+- unit type as identity for product types $T \times () = T$ i.e. $(t,()) = t$
 - currying $T \to U \to V = (T \times U) \to V$
 - curried / associative tuples $((a,b),c) = (a,b,c) = (a,(b,c))$
 
