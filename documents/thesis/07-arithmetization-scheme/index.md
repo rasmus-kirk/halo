@@ -1,65 +1,40 @@
 # Arithmetization Scheme
 
-Our (zk)-NARK protocol has the following features:
+We now define the functions in the pipeline: $\mathrm{circuit} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})$
 
-1. arithmetization using add and mul gates (PLONK)
-2. larger fan-in and fan-out custom gates (TurboPLONK)
-3. Lookup tables (UltraPlonk)
-4. pedersen commitment scheme (Halo2)
-5. Ergonomic multi type wire arithmetization (Surkål)
+## Arithmetize
 
-The arithmetization scheme is agnostic of gates, lookup tables and trace, thus can potentially be extended for other variants of PLONK. At a high level, the PLONK protocol is as follows:
-
-\begin{algorithm}[H]
-\caption*{
-  \textbf{Surkål:} a plonkish NARK protocol.
-}
-\textbf{Inputs} \\
-  \Desc{$f: W@\vec{t_{in}} \to W@\vec{t_{out}}$}{The program.} \\
-  \Desc{$\vec{x} \in W@\vec{t_{in}}$}{The possibly private input to the program $f$} \\
-\textbf{Output} \\
-  \Desc{$\Result(\top, \bot)$}{Either the verifier accepts with $\top$ or rejects with $\bot$}
-\begin{algorithmic}[1]
-  \State \textbf{let} $(x,w) = \mathrm{circuit} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})$ 
-  \State $\pi \gets P(x,w)$
-  \State \textbf{return} $V(x, \pi)$
-  \end{algorithmic}
-\end{algorithm}
-
-We define the functions in the following pipeline:
-$$
-(x,w) = \mathrm{circuit} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})
-$$
-
-## Abstract Gates
-
-Wires are an abstraction of a carrier of concrete values for the program $f$. They are definitionally a pair of unique identifier (UUID) of type $\Nb$ and a type tag $\WireType$.
-
-$T_i$ is the family of types involved in $f$. $W$ maps the wire type tag to the value's type the wire is carrying. e.g. $W(p) = \Fb_p, W(q) = \Fb_q$.
+Wires $\abst{x}$ are abstract representations of values $x$, defined as a triple of unique identifier; uuid, output index of its gate and a wire type tag. $W$ maps the tag to the value's type e.g. $W(p) = \Fb_p, W(q) = \Fb_q$.
 
 $$
-\begin{array}{ccc}
+\begin{array}{cccc}
 \begin{array}{rl}
 \WireType &= \set{t_1, t_2, \ldots, t_n} \\
-W &= \Pi(i: \WireType, T_i: \mathcal{U}) \\
-\Wire &= \Nb \times \WireType \\
+W_t &: \mathcal{U} \\
+\Wire &= \Nb \times \Nb \times \WireType \\
 \end{array}
 &
 \begin{array}{rl}
-\ty &: \Wire \to \WireType \\
+\ty &: \Wire \\
+&\to \WireType \\
 \ty(\_, t) &= t \\
 \end{array}
 &
 \begin{array}{rl}
-\id &: \Wire \to \Nb \\
+\id &: \Wire \\
+&\to \Nb \\
 \id(i, \_) &= i \\
+\end{array}
+&
+\begin{array}{rl}
+\idx &: \Wire \\
+&\to \Nb \\
+\idx(\_, i, \_) &= i \\
 \end{array}
 \end{array}
 $$
 
-Gates $g$ are primitive operations with $n_g \geq 0$ fan in inputs and $m_g \geq 0$ fan out outputs defined with its input wire(s) i.e. $x \neq a \land y \neq b \leftrightarrow \text{Add}(x,y) \neq \text{Add}(a,b)$.
-
-$\text{Add}(x,y)$ is a function call of a gate constructor that returns $(\text{Add}, (x,y))$ where $\text{Add}$ in the latter is a term of $\GateType$; not a function.
+Gates $g$ are primitive operations with $n_g \geq 0$ fan-in inputs and $m_g \geq 0$ fan-out outputs defined with its input wire(s).
 
 $$
 \begin{array}{rl}
@@ -85,61 +60,99 @@ m &: \Gate + \GateType \to \Nb
 \end{array}
 $$
 
-Arithmetize turns a program $f$ into an abstract circuit $\abst{f}$, which is a one-to-many-or-none relation between gates $g$ and output wire(s) $\abst{\vec{y}}$ or $\bot$ which denotes no output wires. e.g. $(\text{Add}(a,b), c) \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$.
+Gate constructors type check $\abst{\vec{x}}$. e.g. $\text{Add}(\abst{a},\abst{b}) = (\text{Add}, (\abst{a},\abst{b}))$ type checks $\abst{a}, \abst{b}$ for the $\text{Add}$ gate type.
+
+$$
+\begin{array}{cc}
+\begin{array}{rl}
+\text{inty} &: \GateType \to \WireType^{n_g} \\
+\text{outty} &: \GateType \to \WireType^{m_g}
+\end{array}
+&
+\begin{array}{rl}
+\cdot ( \cdot ) &: (g: \GateType) \to \Wire^{n_g} \to \Gate \\
+g(\abst{\vec{x}}) &= \maybe{(g,\abst{\vec{x}})}{\forall i \in [n_g]. \text{inty}(g)_{i} = \ty(\abst{x}_i)}
+\end{array}
+\end{array}
+$$
+
+Arithmetize turns a program $f$ into an abstract circuit $\abst{f}$, which is a one-to-many-or-none relation between gates $g$ and output wire(s) $\abst{y}$ or $\bot$ for none. e.g. $(\text{Add}(\abst{a},\abst{b}), \abst{c}) \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$. $\abst{f}$ are also acyclic.
 
 \begin{center}
-\begin{tabular}{ c c c }
+\begin{tabular}{ c c c c }
 \begin{tikzpicture}[
   baseline={(current bounding box.center)},
   wire/.style={->, thick},
-  label/.style={font=\small}
+  label/.style={font=\small},
+  port/.style={draw, minimum width=0.5cm, minimum height=1cm, inner sep=1pt}
 ]
 
-% Gate box
-\node[draw, minimum width=1.5cm, minimum height=3.5cm, anchor=center] (G) at (0,0) {$g$};
+% Main Add box
+\node[draw, minimum width=1.5cm, minimum height=2cm] (G) at (0,0) {};
 
-% Input wires (manually positioned)
-\node[label, anchor=east] (x1) at (-2, 1.2) {$\abst{x}_1$};
-\node[label, anchor=east] (x2) at (-2, 0.4) {$\abst{x}_2$};
-\node[label, anchor=east] (xn) at (-2, -1.2) {$\abst{x}_n$};
+% Add label centered
+\node at ($(G.center)+(0.25,0)$) {Add};
 
-\draw[wire] (x1) -- (G.west |- x1);
-\draw[wire] (x2) -- (G.west |- x2);
-\node at (-2, -0.4) {$\vdots$};
-\draw[wire] (xn) -- (G.west |- xn);
+% Embedded input ports (inside left side of Add box)
+\node[port, anchor=west] (a) at ($(G.west)+(0,0.5)$) {$\abst{a}$};
+\node[port, anchor=west] (b) at ($(G.west)+(0,-0.5)$) {$\abst{b}$};
 
-% Output wires (manually positioned)
-\node[label, anchor=west] (y1) at (2, 1.2) {$\abst{y}_1$};
-\node[label, anchor=west] (y2) at (2, 0.4) {$\abst{y}_2$};
-\node[label, anchor=west] (ym) at (2, -1.2) {$\abst{y}_m$};
+% Input wires into embedded ports
+\draw[wire] ($(a.west)-(0.4,0)$) -- (a.west);
+\draw[wire] ($(b.west)-(0.4,0)$) -- (b.west);
+
+% Output wire and label
+\node[label, anchor=west] (c) at ($(G.east)+(0.5,0)$) {$\abst{c}$};
+\draw[wire] (G.east) -- (c);
+
+\end{tikzpicture}
+&
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)},
+  wire/.style={->, thick},
+  label/.style={font=\small},
+  port/.style={draw, minimum width=0.6cm, minimum height=0.5cm, inner sep=1pt}
+]
+
+% Main gate box
+\node[draw, minimum width=1.8cm, minimum height=2cm] (G) at (0,0) {};
+\node at ($(G.center)+(0.25,0)$) {$\ty(g)$};
+
+% Embedded input ports (left side)
+\node[port, anchor=west] (x1) at ($(G.west)+(0, 0.75)$) {$\abst{x}_1$};
+\node[port, anchor=west] (x2) at ($(G.west)+(0, 0.25)$) {$\abst{x}_2$};
+\node[label, anchor=west] at ($(G.west)+(0, -0.25)$) {$\vdots$};
+\node[port, anchor=west] (xn) at ($(G.west)+(0, -0.75)$) {$\abst{x}_{n_g}$};
+
+% Input wires
+\draw[wire] ($(x1.west)-(.4,0)$) -- (x1.west);
+\draw[wire] ($(x2.west)-(.4,0)$) -- (x2.west);
+\draw[wire] ($(xn.west)-(.4,0)$) -- (xn.west);
+
+% Output wires
+\node[label, anchor=west] (y1) at ($(G.east)+(0.5, 0.75)$) {$\abst{y}_1$};
+\node[label, anchor=west] (y2) at ($(G.east)+(0.5, 0.25)$) {$\abst{y}_2$};
+\node at ($(G.east)+(0.5, -0.25)$) {$\vdots$};
+\node[label, anchor=west] (ym) at ($(G.east)+(0.5, -0.75)$) {$\abst{y}_{m_g}$};
 
 \draw[wire] (G.east |- y1) -- (y1);
 \draw[wire] (G.east |- y2) -- (y2);
-\node at (2, -0.4) {$\vdots$};
 \draw[wire] (G.east |- ym) -- (ym);
 
 \end{tikzpicture}
 &
-$\Leftrightarrow$
+$\Longleftrightarrow$
 &
 \begin{math}
 \begin{array}{rl}
-\tin(g) &= (\abst{x}_1, \abst{x}_2, \ldots, \abst{x}_n) \\
-(g, \abst{y}_1) &\in \abst{f} \\
-(g, \abst{y}_2) &\in \abst{f} \\
-\vdots \\
-(g, \abst{y}_m) &\in \abst{f} \\
+(\abst{x}_1, \abst{x}_2, \ldots, \abst{x}_{n_g}) &= \tin(g) \\
+\set{(g, \abst{y}_1), (g, \abst{y}_2), (g, \abst{y}_{m_g})} &\subseteq \abst{f}
 \end{array}
 \end{math}
 \end{tabular}
 \end{center}
 
-$\abst{f}$ thus is isomorphic to a possibly disconnected directed acyclic graph due to $m_g \geq 0$, in contrast to $m_g = 1$ where it would then be a tree with the root being an auxilliary gate of all outputs of the circuit.
-
-## Arithmetize
-
-We notate inserting a gate or gadget $f$ to the circuit with $\build{f = \abst{\vec{y}}}{s}{s'}$, $\build{f = \abst{y}}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the state from $s$ to $s'$. State is of the form $(u, \abst{f})$ where $u$ is the current uuid for wires. 
-A circuit / gadget is a composition of gates.
+We notate inserting a gate or gadget $f$ to the abstract circuit with predicates $\build{f = \abst{\vec{y}}}{s}{s'}$, $\build{f = \abst{y}}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the state; $s=(u, \abst{f})$ where $u$ is the current uuid, from $s$ to $s'$. Composition via $\bigwedge \build{f}{}{}$ denotes gadgets.
 
 Wires annotated with $*$, i.e. $\build{f = \abst{y}^*}{}{}$, are the final output and are appended to $\abst{\vec{Y}}$. They, may be omitted notationally.
 
@@ -149,7 +162,10 @@ $$
 \begin{aligned}
 \AbsCirc &= \set{
   \abst{f} \subset \Gate \times \Option(\Nb) \middle\vert
-  \forall (g,\abst{y}),(h,\abst{y}) \in \abst{f}. \abst{y} \neq \bot \implies g = h
+  \begin{array}{l}
+  \forall (g,\abst{y}),(h,\abst{y}) \in \abst{f}. \abst{y} \neq \bot \implies g = h \\
+  \forall (g,\abst{y}) \in \abst{f}. \abst{y} \neq \bot \implies \max(\id@\tin(g)) < \min \left(\set{\id(\abst{y}) \middle\vert (g, \abst{y}) \in \abst{f}} \right)
+  \end{array}
 } \\
 \Gate^{\abst{f}}_g &= \set{h \in \Gate \middle\vert
   (h, \_) \in \abst{f} \land h \equiv g
@@ -205,13 +221,11 @@ $$
 \end{array}
 $$
 
-Note: $\text{Input}_i$ is a family of gates with no inputs and one output wire corresponding to an input of the final circuit. The list of gates available are defined in section on Gates and Gadgets.
+Note: $\text{Input}_i$ is a family of gates with no inputs and one output wire corresponding to an input of the final circuit. The list of gates available are defined at the end of the following subsection.
 
-TODO update for types
+TODO update for types; out uses idx, Input has type tag
 
 ## Trace
-
-TODO assert WireType = {p,q} here onwards
 
 $\text{trace}$ computes the least fixed point of a composition of monotonic functions using $\text{sup}$. We also call a monotonic function a continuation if it is called by another. We call lift, to extend the argument of a monotonic function.
 
@@ -231,7 +245,7 @@ s & \text{eq}(s, s') \\
 \end{array}
 $$
 
-Note: for each monotonic function below, we notate $\dagger$ as a check if the state has saturated in which the fixpoint compute can terminate. Wheras $\iota$ is the initial state or a constructor of it.
+Note: for each monotonic function below, we notate $\dagger$ as a check if the state has saturated in which the fixpoint compute can terminate. Wheras $s$ is the initial state and $\iota$ a constructor of it.
 
 ### Resolve
 
@@ -323,9 +337,13 @@ s_0 &= (\bot, ())
 \end{array}
 $$
 
-TODO update for types
+TODO update for types; use idx for vmap defn
 
 ### Gate Constraints
+
+TODO assert WireType = {p,q} here onwards; bar notation $\bar{p} = q$
+
+TODO diagram for ctrn mapping of gate to rows in $\vec{C}$.. vector parallel to Term, values are index of input and output value vector.. this can be used for loop too?!?!?!
 
 $\Downarrow_G$ computes the gate constraints by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation on resolved wires in $\Downarrow_R$.
 
@@ -571,6 +589,7 @@ notation ideas
 - $w_\zeta[T] = \text{fft}(?[T])$ thunk poly
 - $w[\mathcal{C}_A] = \PCCommit(\text{fft}(\vec{C}[A]), \ldots)$ commit
 - $w_\zeta[\mathcal{C}_T] = \PCCommit(\text{fft}(?[T]), \ldots)$ commit thunk
+- $w[t,A,i]$ typed indexing (or maybe we dont need to if we split into two runs of prover and verifier)
 
 notation for finite type indexing of vectors / matrices / tensors
 
@@ -739,7 +758,7 @@ util functions
 identities
 
 - associative product and function types
-- unit type as identity for product types $T \times () = T$ i.e. $(t,()) = t$
+- unit type as identity for product types $T \times () = T$ i.e. $(t,()) = (t)$
 - currying $T \to U \to V = (T \times U) \to V$
 - curried / associative tuples $((a,b),c) = (a,b,c) = (a,(b,c))$
 
@@ -768,6 +787,7 @@ c(b(a),a) & \phi_4(c(b(a),a)) \lor \phi_1(a) \lor \phi_2(a) \lor \phi_3(b(a)) \\
 $$
 
 conventions
-- $\abst{x}$ is an abstract of a thing, e.g. $\abst{f}$ is an abstract circuit, $\abst{y}$ is an abstract output wire (id)
+
+- $\abst{x}$ is an abstract of a thing, e.g. $\abst{f}$ is an abstract circuit, $\abst{y}$ is an abstract value / wire
 
 

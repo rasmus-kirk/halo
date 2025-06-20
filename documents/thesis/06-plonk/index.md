@@ -1,6 +1,35 @@
-# PLONK
+# Surkål: a \plonk-ish NARK protocol
 
-We will present Plonk[^our-plonk] by constructing and arguing for the
+Our NARK protocol has the following features:
+
+1. arithmetization using add and mul gates (\plonk)
+2. arbitrary fan-in and fan-out custom gates (Turbo-\plonk)
+3. arbitrary lookup tables via \plookup (Ultra-\plonk)
+4. pedersen polynomial commitment scheme (Halo2)
+5. ergonomic multi type wire arithmetization (Surkål)
+6. circuits over cycle of curves via pasta curves (Surkål)
+
+The arithmetization scheme is agnostic of gates, lookup tables and trace, thus can potentially be extended for other variants of \plonk-ish protocols.
+
+At a high level, the full NARK protocol used is as follows:
+
+\begin{algorithm}[H]
+\caption*{
+  \textbf{Surkål:} a plonkish NARK protocol.
+}
+\textbf{Inputs} \\
+  \Desc{$f: W@\vec{t_{in}} \to W@\vec{t_{out}}$}{The program.} \\
+  \Desc{$\vec{x} \in W@\vec{t_{in}}$}{The possibly private input to the program $f$} \\
+\textbf{Output} \\
+  \Desc{$\Result(\top, \bot)$}{Either the verifier accepts with $\top$ or rejects with $\bot$}
+\begin{algorithmic}[1]
+  \State \textbf{let} $(x,w) = \mathrm{circuit} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})$ 
+  \State $\pi \gets P(x,w)$
+  \State \textbf{return} $V(x, \pi)$
+  \end{algorithmic}
+\end{algorithm}
+
+We will present our \plonk-ish protocol[^our-plonk] by constructing and arguing for the
 individual arguments in the next sections.
 
 [^our-plonk]: There are many variations of Plonk, our variant has the
@@ -154,10 +183,10 @@ The correctness of the protocol is trivial
 
 <!-- TODO: Haliq -->
 
-## Copy Constraint Rewrite
+## Copy Constraints
 
 <!-- TODO: Haliq -->
 
-## Plonkup
+## \plookup
 
 <!-- TODO: Haliq -->
