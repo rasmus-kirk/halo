@@ -20,4 +20,3 @@ toccolor: black
 
 # Bibliography
 
-a

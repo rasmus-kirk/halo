@@ -46,53 +46,102 @@ W &= \Pi(i: \WireType, T_i: \mathcal{U}) \\
 \end{array}
 &
 \begin{array}{rl}
-\text{ty} &: \Wire \to \WireType \\
-\text{ty}(\_, t) &= t \\
+\ty &: \Wire \to \WireType \\
+\ty(\_, t) &= t \\
 \end{array}
 &
 \begin{array}{rl}
-\text{id} &: \Wire \to \Nb \\
-\text{id}(i, \_) &= i \\
+\id &: \Wire \to \Nb \\
+\id(i, \_) &= i \\
 \end{array}
 \end{array}
 $$
 
 Gates $g$ are primitive operations with $n_g \geq 0$ fan in inputs and $m_g \geq 0$ fan out outputs defined with its input wire(s) i.e. $x \neq a \land y \neq b \leftrightarrow \text{Add}(x,y) \neq \text{Add}(a,b)$.
 
-$\text{Add}(x,y)$ is a function call that returns $(\text{Add}, (x,y))$ where $\text{Add}$ in the latter is a term of $\text{GateType}$; not a function.
+$\text{Add}(x,y)$ is a function call of a gate constructor that returns $(\text{Add}, (x,y))$ where $\text{Add}$ in the latter is a term of $\GateType$; not a function.
 
 $$
 \begin{array}{rl}
-\text{Gate} &= (g: \text{GateType}) \times \Wire^{n_g} \\
+\Gate &= (g: \GateType) \times \Wire^{n_g} \\
 \end{array}
 $$
 $$
 \begin{array}{ccc}
 \begin{array}{rl}
-n &: \text{Gate} + \text{GateType} \to \Nb \\
-m &: \text{Gate} + \text{GateType} \to \Nb
+n &: \Gate + \GateType \to \Nb \\
+m &: \Gate + \GateType \to \Nb
 \end{array}
 &
 \begin{array}{rl}
-\text{ty} &: \text{Gate} \to \text{GateType} \\
-\text{ty}(t, \_) &= t
+\ty &: \Gate \to \GateType \\
+\ty(t, \_) &= t
 \end{array}
 &
 \begin{array}{rl}
-\text{in} &: (g: \text{Gate}) \to \Wire^{n_g} \\
-\text{in}(\_, \abst{\vec{x}}) &= \abst{\vec{x}} \\
+\tin &: (g: \Gate) \to \Wire^{n_g} \\
+\tin(\_, \abst{\vec{x}}) &= \abst{\vec{x}} \\
 \end{array}
 \end{array}
 $$
 
-## Arithmetize
+Arithmetize turns a program $f$ into an abstract circuit $\abst{f}$, which is a one-to-many-or-none relation between gates $g$ and output wire(s) $\abst{\vec{y}}$ or $\bot$ which denotes no output wires. e.g. $(\text{Add}(a,b), c) \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$.
 
-Arithmetize turns a program $f$ into an abstract circuit $\abst{f}$, which is a one-to-many-or-none relation between gates $g$ and output wire(s) $\abst{y}$ or $\bot$ which denotes no output wires. e.g. $(\text{Add}(a,b), c) \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$.
+\begin{center}
+\begin{tabular}{ c c c }
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)},
+  wire/.style={->, thick},
+  label/.style={font=\small}
+]
+
+% Gate box
+\node[draw, minimum width=1.5cm, minimum height=3.5cm, anchor=center] (G) at (0,0) {$g$};
+
+% Input wires (manually positioned)
+\node[label, anchor=east] (x1) at (-2, 1.2) {$\abst{x}_1$};
+\node[label, anchor=east] (x2) at (-2, 0.4) {$\abst{x}_2$};
+\node[label, anchor=east] (xn) at (-2, -1.2) {$\abst{x}_n$};
+
+\draw[wire] (x1) -- (G.west |- x1);
+\draw[wire] (x2) -- (G.west |- x2);
+\node at (-2, -0.4) {$\vdots$};
+\draw[wire] (xn) -- (G.west |- xn);
+
+% Output wires (manually positioned)
+\node[label, anchor=west] (y1) at (2, 1.2) {$\abst{y}_1$};
+\node[label, anchor=west] (y2) at (2, 0.4) {$\abst{y}_2$};
+\node[label, anchor=west] (ym) at (2, -1.2) {$\abst{y}_m$};
+
+\draw[wire] (G.east |- y1) -- (y1);
+\draw[wire] (G.east |- y2) -- (y2);
+\node at (2, -0.4) {$\vdots$};
+\draw[wire] (G.east |- ym) -- (ym);
+
+\end{tikzpicture}
+&
+$\Leftrightarrow$
+&
+\begin{math}
+\begin{array}{rl}
+\tin(g) &= (\abst{x}_1, \abst{x}_2, \ldots, \abst{x}_n) \\
+(g, \abst{y}_1) &\in \abst{f} \\
+(g, \abst{y}_2) &\in \abst{f} \\
+\vdots \\
+(g, \abst{y}_m) &\in \abst{f} \\
+\end{array}
+\end{math}
+\end{tabular}
+\end{center}
+
+$\abst{f}$ thus is isomorphic to a possibly disconnected directed acyclic graph due to $m_g \geq 0$, in contrast to $m_g = 1$ where it would then be a tree with the root being an auxilliary gate of all outputs of the circuit.
+
+## Arithmetize
 
 We notate inserting a gate or gadget $f$ to the circuit with $\build{f = \abst{\vec{y}}}{s}{s'}$, $\build{f = \abst{y}}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the state from $s$ to $s'$. State is of the form $(u, \abst{f})$ where $u$ is the current uuid for wires. 
 A circuit / gadget is a composition of gates.
 
-Wires annotated with $*$, i.e. $\build{f = \abst{y}^*}{}{}$ are the final output and are appended to $\abst{\vec{Y}}$. They, may be omitted notationally.
+Wires annotated with $*$, i.e. $\build{f = \abst{y}^*}{}{}$, are the final output and are appended to $\abst{\vec{Y}}$. They, may be omitted notationally.
 
 These inserts yield new wires. However, wires are reused by an equivalence class on gates. If $g \equiv h$ where $(h,\_) \in \abst{f}$, then $\abst{\vec{y}}$ in $\build{g=\abst{\vec{y}}}{s}{s}$ corresponds to the output wire(s) of $h$, leaving the state unchanged.
 
@@ -112,17 +161,17 @@ $$
 $$
 \begin{array}{rl}
 \begin{array}{rl}
-\text{out} &: (\Option(\Nb) + \AbsCirc) \to (g: \Gate) \to \Nb^{m_g} \\
-\text{out}(\bot, \_) &= () \\
-\text{out}(u,g) &= (u..u+m_g) \\
-\text{out}(\abst{f}, g)
-&= \text{out}(\min\left(
+\out &: (\Option(\Nb) + \AbsCirc) \to (g: \Gate) \to \Nb^{m_g} \\
+\out(\bot, \_) &= () \\
+\out(u,g) &= (u..u+m_g) \\
+\out(\abst{f}, g)
+&= \out(\min\left(
   \set{\abst{y} \middle\vert (g,\abst{y}) \in \abst{f}}
 \right), g) \\
 \\
 \text{entries}  &: \Nb \to \Gate \to \AbsCirc \\
 \text{entries}(u,g) &= \begin{cases}
-  \set{(g,\abst{y}) \middle\vert \abst{y} \in \text{out}(u,g)}
+  \set{(g,\abst{y}) \middle\vert \abst{y} \in \out(u,g)}
   & m_g > 0 \\
   \set{(g,\bot)}
   & m_g = 0
@@ -138,8 +187,8 @@ $$
 \text{get} &: \AState \to (g: \Gate) \to \AState \times \Nb^{m_g} \\
 \text{get}(u, \abst{f}, g)
 &= \begin{cases}
-  (u, \abst{f}, \text{out}(\abst{f}, h)) & h \in \Gate^{\abst{f}}_g \\
-  (\text{put}(g, u, \abst{f}), \text{out}(u,g)) & \text{otherwise}
+  (u, \abst{f}, \out(\abst{f}, h)) & h \in \Gate^{\abst{f}}_g \\
+  (\text{put}(g, u, \abst{f}), \out(u,g)) & \otherwise
 \end{cases} \\
 \\
 \build{g = \abst{\vec{y}}}{s}{s'}
@@ -169,30 +218,32 @@ $\text{trace}$ computes the least fixed point of a composition of monotonic func
 $$
 \begin{array}{rl}
 \begin{array}{rl}
-\text{lift}(f) &= \lambda (v,t,u). (v, f(t),u) \\
-g \circ^{\uparrow} f &= \text{lift}(g) \circ \text{lift}(f) 
+\lift(f) &= \lambda (v,t,u). (v, f(t),u) \\
+g \circ^{\uparrow} f &= \lift(g) \circ \lift(f) 
 \end{array} &
 \begin{array}{rl}
 \text{sup} &: (T \to T) \to (T \to T \to \Bb) \to T \to T \to T \\
 \text{sup}(f, \text{eq}, s, s') &= \begin{cases}
 s & \text{eq}(s, s') \\
-\text{sup}(f, \text{eq}, s', f(s')) & \text{otherwise}
+\text{sup}(f, \text{eq}, s', f(s')) & \otherwise
 \end{cases}
 \end{array}
 \end{array}
 $$
 
+Note: for each monotonic function below, we notate $\dagger$ as a check if the state has saturated in which the fixpoint compute can terminate. Wheras $\iota$ is the initial state or a constructor of it.
+
 ### Resolve
 
 $\Downarrow_R$ computes the values of wires $\abst{\vec{Y}}$ and inputs to assert gates given the input wire values $\vec{x}$.
  
-It does this by peeking from the stack $\abst{\vec{y}}$, querying $\text{?}$ for unresolved input wires, otherwise it will evaluate the output wire values and cache it in the value map $v$ with $[\cdot]$.
+It does this by peeking from the stack $\abst{\vec{y}}$, querying $\text{?}$ for unresolved input wires, otherwise it will evaluate the output wire values and cache it in the value map $v$ with $[\cdot]$. The continuation $f$ and stack pop $\curvearrowleft$ are called after.
 
 Every gate type has an program for its output value(s). e.g. $\text{eval}(\text{Add}, (1,2)) = (3)$.
 
 $$
 \begin{array}{rl}
-\text{eval} &: (g: \text{GateType}) \to \Fb^{n_g}_q \to \Fb^{m_g}_q 
+\text{eval} &: (g: \GateType) \to \Fb^{n_g}_q \to \Fb^{m_g}_q 
 \end{array}
 $$
 $$
@@ -212,7 +263,7 @@ $$
 &
 \begin{array}{rl}
 \underset{R}{\curvearrowleft} &: T \times \Nb^k \to T \times \Nb^{k'} \\
-\underset{R}{\curvearrowleft} &= \text{lift}(\curvearrowleft)
+\underset{R}{\curvearrowleft} &= \lift(\curvearrowleft)
 \end{array}
 \end{array}
 $$
@@ -224,7 +275,7 @@ v \text{?} \abst{\vec{y}} &= \begin{cases}
 () & \abst{\vec{y}} = () \\
 & \abst{\vec{y}} = \abst{y} \cat \abst{\vec{y}}' \\
 \abst{y} \cat v \text{?} \abst{\vec{y}}' & v(\abst{y}) = \bot \\
-v \text{?} \abst{\vec{y}}' & \text{otherwise}
+v \text{?} \abst{\vec{y}}' & \otherwise
 \end{cases} \\
 \\
 \left[ \cdot \right] &: \VMap \to \AbsCirc \to \Nb \to \VMap \\
@@ -232,8 +283,8 @@ v_{\abst{f}}\left[\abst{y}\right] &= \maybe{
   v[\abst{\vec{y}} \mapsto \vec{y}]
 }{\begin{array}{rl}
   \abst{f} &\ni (g, \abst{y}) \\
-  \abst{\vec{y}} &= \text{out}(\abst{f}, g) \\
-  \vec{y} &= \text{eval}(\text{ty}(g), v @ \text{in}(g)) \\
+  \abst{\vec{y}} &= \out(\abst{f}, g) \\
+  \vec{y} &= \text{eval}(\ty(g), v @ \tin(g)) \\
 \end{array}}
 \end{array}
 &
@@ -245,10 +296,10 @@ f(t,v,()) & \abst{\vec{y}} = () \\
  & \abst{\vec{y}} = \abst{y} \cat \_ \\
 \underset{R}{\curvearrowleft} (t, v, \abst{\vec{y}}) & v(\abst{y}) \neq \bot \\
  & (g, \abst{y}) \in \abst{f} \\
- & \abst{\vec{x}} = v \text{?} \text{in}(g) \\
+ & \abst{\vec{x}} = v \text{?} \tin(g) \\
 \underset{R}{\curvearrowleft} \circ f(t, v_{\abst{f}}[\abst{y}], \abst{\vec{y}}) 
  & \abst{\vec{x}} = () \\
-(t, v, \abst{\vec{x}} \cat \abst{\vec{y}}) & \text{otherwise}
+(t, v, \abst{\vec{x}} \cat \abst{\vec{y}}) & \otherwise
 \end{cases} \\
 \end{array}
 \end{array}
@@ -262,7 +313,7 @@ $$
 &
 \begin{array}{rl}
 s &: \Nb^m \to \Fb_q^n \to \RState \\
-s^{\abst{\vec{Y}}}_{\vec{x}} &= (\bot[(0..|\vec{x}|) \mapsto \vec{x}], \abst{\vec{Y}} \cat \set{\abst{x} \middle\vert (g, \bot) \in \abst{f} \land \abst{x} \in \text{in}(g) \setminus \abst{\vec{Y}}})
+s^{\abst{\vec{Y}}}_{\vec{x}} &= (\bot[(0..|\vec{x}|) \mapsto \vec{x}], \abst{\vec{Y}} \cat \set{\abst{x} \middle\vert (g, \bot) \in \abst{f} \land \abst{x} \in \tin(g) \setminus \abst{\vec{Y}}})
 \end{array}
 &
 \begin{array}{rl}
@@ -282,13 +333,13 @@ When the wire id stack $\abst{\vec{y}}$ is empty, $\underset{G}{\curvearrowright
 $$
 \begin{array}{rl}
 \begin{array}{rl}
-\text{ctrn} &: (g : \text{GateType}) \to \Fb_q^{n_g + m_g} \to \Fb_q^{|\text{Term}| \times k} \\
+\text{ctrn} &: (g : \GateType) \to \Fb_q^{n_g + m_g} \to \Fb_q^{|\text{Term}| \times k} \\
 \\
 \text{GState}^{k,k',k''} &= \Fb_q^{|\text{Term}| \times k''} \times \Gate^{k'} \times \Bb \times \RState^k \\
 A^{\abst{f}} &= \set{g \middle\vert (g, \abst{y}) \in \abst{f} \land (\abst{y} = \bot \lor \exists i. \abst{y} = \text{Input}_i) } \\
 \\
 \underset{G}{\curvearrowleft} &: T \times \text{GState}^{k''',k,k''} \to T \times \text{GState}^{k''',k',k''} \\
-\underset{G}{\curvearrowleft} &= \text{lift}(\curvearrowleft : \text{Gate}^k \to \text{Gate}^{k'}) \\
+\underset{G}{\curvearrowleft} &= \lift(\curvearrowleft : \Gate^k \to \Gate^{k'}) \\
 \\
 \dagger_G &: \text{GState} \to \Bb \\
 \dagger_G(\_, \vec{g}, b, \_) &= |\vec{g}| = 0 \land b = \top \\
@@ -303,11 +354,11 @@ A^{\abst{f}} &= \set{g \middle\vert (g, \abst{y}) \in \abst{f} \land (\abst{y} =
 f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \underset{G}{\curvearrowleft} \circ f \circ^\uparrow \lambda (\vec{C}, \vec{g}, b, v). \\
 &\begin{cases}
 & \vec{g} = g \cat \_ \\
-& \vec{v} = v @ (\text{in}(g) \cat \text{out}(\abst{f},g)) \\
+& \vec{v} = v @ (\tin(g) \cat \out(\abst{f},g)) \\
 (\vec{C}', \vec{g}, b, v)
-& \vec{C}' = \vec{C} \cat \text{ctrn}(\text{ty}(g), \vec{v}) \\
+& \vec{C}' = \vec{C} \cat \text{ctrn}(\ty(g), \vec{v}) \\
 (\vec{C}, (), b, v)
-& \text{otherwise}
+& \otherwise
 \end{cases} \\
 &\circ^\uparrow \lambda(\vec{g}, b, v, \abst{\vec{y}}). \\
 &\begin{cases}
@@ -318,28 +369,29 @@ f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \underset{G}{\curvearrowleft}
 (g \cat \vec{g}, b, v, \abst{\vec{y}})
 & (g,\abst{y}) \in \abst{f} \\
 (\vec{g}, b, v, \abst{\vec{y}})
-& \text{otherwise}
+& \otherwise
 \end{cases}
 \end{array}
 \end{array}
 $$
 
-TODO update for types
+TODO update for types; table $\vec{C}$ per type
 
 ### Copy Constraints
 
-$\Downarrow_C$ quotients an ordered set of coordinates in slot positions of $\vec{C}$ by the wire id corresponding to the value there.
+$\Downarrow_C$ quotients an ordered set; coordinate loop, of slot positions of $\vec{C}$ by the wire id corresponding to the value there.
 
-This is done by peeking $\vec{g}$ and joining $c$ with the coordinate loop of the gate. This corresponds to $\mathtt{ctrn}$.
+This is done by peeking $\vec{g}$ and joining $c$ with the coordinate loop of the gate using $\sqcup$. This corresponds to $\mathtt{ctrn}$.
 
-After computing the loops as quotients $c$ with all gates, we mark a flag $\Bb$ that starts computing the coordinate map $m$ from coordinate to its neighbour in $c$ which then is used to compute the permutation $\vec{\sigma}$ of the slots in $\vec{C}$.
+After computing the coordinate loop of the full circuit, we mark a flag $\Bb$ that starts computing the coordinate map $m$ from coordinate to its neighbour in $c$ which then is used to compute the permutation $\vec{\sigma}$ of the slots in $\vec{C}$.
+
 $$
 \begin{array}{rl}
 \begin{array}{rl}
 \text{Coord} &= \text{Slot} \times \Nb \\
 \text{CLoop} &= (\abst{y} : \Nb) \pto \text{Coord}^{k_{\abst{y}}} \\
 \text{CMap} &= \text{Coord} \pto \text{Coord} \\
-\text{loop} &: \text{Row} \to \text{GateType} \to \text{CLoop} \\
+\text{loop} &: \text{Row} \to \GateType \to \text{CLoop} \\
 \\
 \text{CState}^{k,k'} &= \Nb \times \text{Coord}^{|\text{Slot}| \times k} \times \text{CMap} \times \\
 &\Bb \times \text{CLoop} \times \text{GState}^{k'}\\
@@ -352,7 +404,7 @@ x & y = \bot \\
 x[i \mapsto x(i) \cat \vec{l}] \sqcup y'
 & x(i) \neq \bot \\
 x[i \mapsto \vec{l}] \sqcup y'
-& \text{otherwise}
+& \otherwise
 \end{cases} \\
 \\
 \dagger_C &: \text{CState} \to \Bb \\
@@ -378,7 +430,7 @@ x[i \mapsto \vec{l}] \sqcup y'
 (|\vec{C}| / |\text{Term}|, (), m, \top, \bot, \vec{C})
 & N = 0 \land  \vec{\sigma} = () \\
 (N, \vec{\sigma}, m, b, c, \vec{C})
-& \text{otherwise}
+& \otherwise
 \end{cases} \\
 & \circ^\uparrow \lambda(m, b, c). \\
 &\begin{cases}
@@ -387,21 +439,21 @@ x[i \mapsto \vec{l}] \sqcup y'
 & \vec{l} = l \cat \vec{l}' = c(\abst{y}) \\
 (m', \top, c')
 & m' = m[\vec{l} \mapsto \vec{l}' \cat l] \\
-(m, b, c) & \text{otherwise}
+(m, b, c) & \otherwise
 \end{cases} \\
 & \circ^\uparrow \lambda (b, c,\vec{C},\vec{g}). \\
 &\begin{cases}
 & \neg b \land \vec{g} = g \cat \_ \\
 & r = |\vec{C}|/|\text{Term}| \\
 (\bot, c \sqcup l, \vec{C}, \vec{g})
-& l = \text{loop}(r, \text{ty}(g)) \\
-(\top, c, \vec{C}, \vec{g}) & \text{otherwise}
+& l = \text{loop}(r, \ty(g)) \\
+(\top, c, \vec{C}, \vec{g}) & \otherwise
 \end{cases} \\
 \end{array}
 \end{array}
 $$
 
-TODO update for types; table $\vec{C}$ per type
+TODO update for types; permutation $\vec{\sigma}$ per type
 
 ### Full Surkål Trace
 
@@ -461,6 +513,8 @@ TODO: ctrn and loop too; term (in ctrn) includes $j$ lookup table index
 | IsAdd$(x,y,z)$            | $()$                          |                         |
 | IsMul$(x,y,z)$            | $()$                          |                         |
 | IsLookup$_T(x,y,z)$       | $()$                          |                         |
+
+TODO Concrete lookup table definitions here as well
 
 ## Circuit
 
@@ -555,7 +609,7 @@ $$
 \end{array}}
 \\
 &= \maybe{\left(\abst{f}'', (z)\right)}{
-  \text{get}(u+1, \abst{f} \cup \set{(\text{Mul}(x,x))}, \text{Add}(u,y)) = (\_, \abst{f}'', (z))
+  \text{get}(u+1, \abst{f} \cup \set{(\text{Mul}(x,x), u)}, \text{Add}(u,y)) = (\_, \abst{f}'', (z))
 }
 \\
 &= \maybe{\left(\abst{f} \cup \set{\begin{array}{rl}
@@ -671,8 +725,8 @@ term constructors
 
 util functions
 
-- maybe notation $\maybe{x}{\phi(x)} = \begin{cases} x & \phi(x) \\ \bot & \text{otherwise} \end{cases}$
-- maybe with default $\maybe{x \lor y}{\phi(x)} = \begin{cases} x & \phi(x) \\ y & \text{otherwise} \end{cases}$
+- maybe notation $\maybe{x}{\phi(x)} = \begin{cases} x & \phi(x) \\ \bot & \otherwise \end{cases}$
+- maybe with default $\maybe{x \lor y}{\phi(x)} = \begin{cases} x & \phi(x) \\ y & \otherwise \end{cases}$
 - vector of naturals builder $(s..t) = \begin{cases} () & t \leq s \\ s \cat (s+1 .. t) \end{cases}$
 - vector concat $\vec{x} \cat \vec{y} = \begin{cases} \vec{y} & \vec{x} = () \\ \vec{x}' \cat (x \cat \vec{y}) & \vec{x} = \vec{x'} \cat x \end{cases}$
 - vector concat with set $X \cat \vec{x}$; any random ordering of $X$; recursive application of axiom of choice
@@ -680,7 +734,7 @@ util functions
 - vector map $f @ \vec{x} = (f(x_1), f(x_2), \ldots, f(x_n))$
 - vector minus set $\vec{x} \setminus X$ turns $\vec{x}$ to a set and removes all elements in $X$
 - min of a set with total ordering $\min(X)$
-- partial function append vector $f[\vec{x} \mapsto \vec{y}] = \begin{cases} & \vec{x} = x \cat \vec{x}' \\ f[x \mapsto y][\vec{x}' \mapsto \vec{y}'] & \vec{y} = y \cat \vec{y}' \\ f & \text{otherwise} \end{cases}$
+- partial function append vector $f[\vec{x} \mapsto \vec{y}] = \begin{cases} & \vec{x} = x \cat \vec{x}' \\ f[x \mapsto y][\vec{x}' \mapsto \vec{y}'] & \vec{y} = y \cat \vec{y}' \\ f & \otherwise \end{cases}$
 
 identities
 
