@@ -163,15 +163,7 @@ Finally, the verifier finally checks that $\PCCheck(C_w, d, \xi, v_w, \pi_w) \me
 
 The correctness of the protocol is trivial
 
-### Grand Product argument(s)
-
-TODO
-
-### Copy Constraints
-
-TODO
-
-### \plookup
+### Grand Product Argument
 
 TODO
 
