@@ -11,8 +11,7 @@ Our NARK protocol has the following:
 
 The arithmetization scheme is agnostic of types of values, gates, lookup tables and trace, thus can potentially be extended for other variants of \plonk-ish protocols.
 
-We will present our \plonk-ish protocol[^our-plonk] by constructing and arguing for the
-individual arguments in the next sections.
+We will present our protocol[^our-plonk] by constructing and arguing for the individual arguments in the next sections.
 
 [^our-plonk]: There are many variations of \plonk, our variant has the
 feature-set of [Ultra-\plonk](https://zkjargon.github.io/definitions/plonkish_arithmetization.html#plonkish-variants-and-extensions),

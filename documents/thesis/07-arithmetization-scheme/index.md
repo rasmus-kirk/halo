@@ -578,29 +578,28 @@ $$
 
 ### Iterative Fixpoint Compute
 
-Trace is defined as a composition of monotonic functions that has control over their continuations. Thus if the full composition is $f$, then the trace is $\mu x. f(x)$. Given an initial state, it is notated as the supremum. $\text{sup}_{n \in \Nb} f^n(s_0)$, where $n$ is the smallest $n$ such that $f^n(s_0) = f^{n+1}(s_0)$, i.e. the least fixedpoint of $f$. We have shown the recursive definition before. Now we present the iterative definition which will be useful in code implementations to circumvent the recursion limit or stack overflow errors.
+The fixpoint of a monotone function $f$ notated $\mu s. f(s)$ can be computed using the kleene fixpoint theorem $\text{sup}_{n \in \Nb} f^n(s_0)$ where $n$ is the smallest $n$ such that $f^n(s_0) = f^{n+1}(s_0)$.
+
+Or as per defined in $\text{trace}$ recursively with the call $\text{sup}(f,=,\bot,s_0)$. Now we present the iterative definition used in code implementations to circumvent the recursion limit or stack overflow errors.
 
 \begin{algorithm}[H]
 \caption*{
-  \textbf{sup:} iterative kleene least fixedpoint protocol.
+  \textbf{sup:} iterative kleene fixpoint theorem
 }
 \textbf{Inputs} \\
-  \Desc{$f: \text{State}^T \to \text{State}^T$}{Monotonic function.} \\
-  \Desc{$s_0 : \text{State}^T$}{Initial state.} \\
-  \Desc{$\text{eq}: \text{State}^T \to \text{State}^T \to \Bb$}{Equality predicate on states.} \\
+  \Desc{$f: \text{State} \to \text{State}$}{Monotonic function.} \\
+  \Desc{$s_0 : \text{State}$}{Initial state.} \\
+  \Desc{$\text{eq}: \text{State} \to \text{State} \to \Bb$}{Equality predicate on states.} \\
 \textbf{Output} \\
-  \Desc{$s_n : \text{State}^T$}{The state corresponding to the least fixedpoint of $f$.}
+  \Desc{$s : \text{State}$}{Fixpoint of $f$.}
 \begin{algorithmic}[1]
-  \State Initialize variables:
-    \Statex \algind $s := \bot$
-    \Statex \algind $s' := s_0$ 
-  \State Recursive compute:
-    \Statex \textbf{do:}
-    \Statex \algind $s := s'$
-    \Statex \algind $s' := f(s')$
-    \Statex \textbf{while} $\text{eq}(s,s') = \bot$
-  \State Return the least fixedpoint:
-    \Statex \textbf{return} $x$
+  \State $s := \bot$
+  \State $s' := s_0$ 
+  \State \textbf{do:}
+    \State \algind $s := s'$
+    \State \algind $s' := f(s')$
+    \State \textbf{while} $\neg\text{eq}(s,s')$
+  \State \textbf{return} $s$
   \end{algorithmic}
 \end{algorithm}
 
