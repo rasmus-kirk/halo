@@ -1,8 +1,6 @@
-# Arithmetization Scheme
+## Arithmetize
 
 We now define the functions in the pipeline: $\mathrm{circuit} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})$
-
-## Arithmetize
 
 Wires $\abst{x}$ are abstract representations of values $x$, defined as a triple of unique identifier; uuid, output index of its gate and a wire type tag. $W$ maps the tag to the value's type e.g. $W(p) = \Fb_p, W(q) = \Fb_q$.
 
@@ -10,26 +8,23 @@ $$
 \begin{array}{cccc}
 \begin{array}{rl}
 \WireType &= \set{t_1, t_2, \ldots, t_n} \\
-W_t &: \mathcal{U} \\
 \Wire &= \Nb \times \Nb \times \WireType \\
+W &: \WireType \to \mathcal{U} \\
 \end{array}
 &
 \begin{array}{rl}
-\ty &: \Wire \\
-&\to \WireType \\
-\ty(\_, t) &= t \\
+\id &: \Wire \to \Nb \\
+\id &= \lambda(i, \_). i \\
 \end{array}
 &
 \begin{array}{rl}
-\id &: \Wire \\
-&\to \Nb \\
-\id(i, \_) &= i \\
+\idx &: \Wire \to \Nb \\
+\idx &= \lambda(\_, i, \_). i \\
 \end{array}
 &
 \begin{array}{rl}
-\idx &: \Wire \\
-&\to \Nb \\
-\idx(\_, i, \_) &= i \\
+\ty &: \Wire \to \WireType \\
+\ty &= \lambda(\_, t). t \\
 \end{array}
 \end{array}
 $$
@@ -70,13 +65,15 @@ $$
 \end{array}
 &
 \begin{array}{rl}
-\cdot ( \cdot ) &: (g: \GateType) \to \Wire^{n_g} \to \Gate \\
+- ( - ) &: (g: \GateType) \to \Wire^{n_g} \to \Gate \\
 g(\abst{\vec{x}}) &= \maybe{(g,\abst{\vec{x}})}{\forall i \in [n_g]. \text{inty}(g)_{i} = \ty(\abst{x}_i)}
 \end{array}
 \end{array}
 $$
 
 Arithmetize turns a program $f$ into an abstract circuit $\abst{f}$, which is a one-to-many-or-none relation between gates $g$ and output wire(s) $\abst{y}$ or $\bot$ for none. e.g. $(\text{Add}(\abst{a},\abst{b}), \abst{c}) \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$. $\abst{f}$ are also acyclic.
+
+TODO maybe make command for tikz gates? then u can output_wires.tikz() to produce tikz code; change to top down direction to align with IVC diagram?
 
 \begin{center}
 \begin{tabular}{ c c c c }
@@ -152,11 +149,11 @@ $\Longleftrightarrow$
 \end{tabular}
 \end{center}
 
-We notate inserting a gate or gadget $f$ to the abstract circuit with predicates $\build{f = \abst{\vec{y}}}{s}{s'}$, $\build{f = \abst{y}}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the state; $s=(u, \abst{f})$ where $u$ is the current uuid, from $s$ to $s'$. Composition via $\bigwedge \build{f}{}{}$ denotes gadgets.
+We notate inserting a gate or gadget $f$ to the abstract circuit with predicates $\build{f = \vec{y}}{s}{s'}$, $\build{f = y}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the state; $s=(u, \abst{f})$ where $u$ is the current uuid, from $s$ to $s'$. Composition via $\bigwedge \build{f}{}{}$ denotes gadgets.
 
-Wires annotated with $*$, i.e. $\build{f = \abst{y}^*}{}{}$, are the final output and are appended to $\abst{\vec{Y}}$. They, may be omitted notationally.
+Wires annotated with $*$, i.e. $\build{f = y^*}{}{}$, are the final output and are appended to $\abst{\vec{Y}}$. They, may be omitted notationally.
 
-These inserts yield new wires. However, wires are reused by an equivalence class on gates. If $g \equiv h$ where $(h,\_) \in \abst{f}$, then $\abst{\vec{y}}$ in $\build{g=\abst{\vec{y}}}{s}{s}$ corresponds to the output wire(s) of $h$, leaving the state unchanged.
+These inserts yield new wires. However, wires are reused by an equivalence class on gates. If $g \equiv h$ where $(h,\_) \in \abst{f}$, then $\abst{\vec{y}}$ in $\build{g=\vec{y}}{s}{s}$ corresponds to the output wire(s) of $h$, leaving the state unchanged.
 
 $$
 \begin{aligned}
@@ -207,9 +204,9 @@ $$
   (\text{put}(g, u, \abst{f}), \out(u,g)) & \otherwise
 \end{cases} \\
 \\
-\build{g = \abst{\vec{y}}}{s}{s'}
+\build{g = \vec{y}}{s}{s'}
 &= \left(\text{get}(s,g) \overset{?}{=} (s', \abst{\vec{y}})\right)  \\
-\build{f=\abst{y}^*}{s}{s'} &= \build{f=\abst{y}}{(s,\abst{\vec{Y}})}{(s', \abst{\vec{Y}} \cat \abst{y})} \\
+\build{f=y^*}{s}{s'} &= \build{f=y}{(s,\abst{\vec{Y}})}{(s', \abst{\vec{Y}} \cat \abst{y})} \\
 \build{f}{s_1}{s_{k+1}}
 &= \bigwedge\limits_{i \in [k]} \build{f_i}{s_i}{s_{i+1}} \\
 \\
@@ -224,6 +221,77 @@ $$
 Note: $\text{Input}_i$ is a family of gates with no inputs and one output wire corresponding to an input of the final circuit. The list of gates available are defined at the end of the following subsection.
 
 TODO update for types; out uses idx, Input has type tag
+
+### Correctness Example
+
+Example of the arithmetization of $\build{x^2 + y}{}{}$
+$$
+\begin{aligned}
+&\text{arithmetize}((x,y) \mapsto (x^2 + y))
+\\
+&= \maybe{\left(\abst{f}'', (\abst{z})\right)}{
+  \build{x^2 + y = z^*}
+    {(u, \abst{f}) = (\text{put}(\text{Input}_0) \circ \text{put}(\text{Input}_1)(0, \emptyset), \emptyset)}
+    {(\_, \abst{f}'', (\abst{z}))}
+  }
+\\
+&= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\build{\begin{array}{l}
+  x \times x = t \\
+  t + y = z^*
+\end{array}}{(u, \abst{f}, \emptyset)}{(\_, \abst{f}'', (\abst{z}))}}
+\\
+&= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\begin{array}{l}
+  \build{x \times x = t}{(u, \abst{f})}{(u', \abst{f}')} \\
+  \build{t + y = z^*}{(u', \abst{f}', \emptyset)}{(\_, \abst{f}'', (\abst{z}))}
+\end{array}}
+\\
+&= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\begin{array}{rl}
+  \text{get}(u, \abst{f}, \text{Mul}(\abst{x},\abst{x})) &= (u', \abst{f}', (\abst{t})) \\
+  \text{get}(u', \abst{f}', \text{Add}(\abst{t},\abst{y})) &= (\_, \abst{f}'', (\abst{z}))
+\end{array}}
+\\ 
+&= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\begin{array}{rl}
+  (u+1, \abst{f} \cup \set{(\text{Mul}(\abst{x},\abst{x}), u)}, (u)) &= (u', \abst{f}', (\abst{t})) \\
+  \text{get}(u', \abst{f}', \text{Add}(\abst{t},\abst{y})) &= (\_, \abst{f}'', (\abst{z}))
+\end{array}}
+\\
+&= \maybe{\left(\abst{f}'', (\abst{z})\right)}{
+  \text{get}(u+1, \abst{f} \cup \set{(\text{Mul}(\abst{x},\abst{x}), u)}, \text{Add}(u,\abst{y})) = (\_, \abst{f}'', (\abst{z}))
+}
+\\
+&= \maybe{\left(\abst{f} \cup \set{\begin{array}{rl}
+    \text{Mul}(\abst{x},\abst{x}) & u \\
+    \text{Add}(u,\abst{y}) & u+1
+  \end{array}}, (u+1)\right)}{
+  (u, \abst{f}) = \text{put}(\text{Input}_0) \circ \text{put}(\text{Input}_1)(0, \emptyset)
+}
+\\
+&= \maybe{\left(\abst{f} \cup \set{\begin{array}{rl}
+    \text{Mul}(0,0) & u \\
+    \text{Add}(u,\abst{y}) & u+1
+  \end{array}}, (u+1)\right)}{
+    (u, \abst{f}) = \text{put}(\text{Input}_1, 1, \set{(\text{Input}_0, 0)})
+  }
+\\
+&= \maybe{\left(\abst{f} \cup \set{\begin{array}{rl}
+    \text{Mul}(0,0) & u \\
+    \text{Add}(u,1) & u+1
+  \end{array}}, (u+1) \right)}
+  {(u, \abst{f}) = \left(2, \set{\begin{array}{rl}
+    \text{Input}_0 & 0 \\
+    \text{Input}_1 & 1
+  \end{array}}\right)}
+\\
+&= \left(\set{\begin{array}{rl}
+  \text{Input}_0 & 0 \\
+  \text{Input}_1 & 1 \\
+  \text{Mul}(0,0) & 2 \\
+  \text{Add}(2,1) & 3
+\end{array}}, (3)\right)
+\end{aligned}
+$$
+
+TODO use types for wires
 
 ## Trace
 
@@ -341,8 +409,6 @@ TODO update for types; use idx for vmap defn
 
 ### Gate Constraints
 
-TODO assert WireType = {p,q} here onwards; bar notation $\bar{p} = q$
-
 TODO diagram for ctrn mapping of gate to rows in $\vec{C}$.. vector parallel to Term, values are index of input and output value vector.. this can be used for loop too?!?!?!
 
 $\Downarrow_G$ computes the gate constraints by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation on resolved wires in $\Downarrow_R$.
@@ -381,7 +447,7 @@ f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \underset{G}{\curvearrowleft}
 &\circ^\uparrow \lambda(\vec{g}, b, v, \abst{\vec{y}}). \\
 &\begin{cases}
 & b = \bot \\
-(A^{\abst{f}} \cat \vec{g}, \top, v, \abst{\vec{y}})
+(A^{\abst{f}} \cat (), \top, v, ())
 & |\abst{\vec{y}}| = |\vec{g}| = 0 \\
 & \abst{\vec{y}} = \abst{y} \cat \_ \\
 (g \cat \vec{g}, b, v, \abst{\vec{y}})
@@ -473,7 +539,7 @@ $$
 
 TODO update for types; permutation $\vec{\sigma}$ per type
 
-### Full Surkål Trace
+### Full $\Surkal$ Trace
 
 We conclude the full trace definition as follows:
 
@@ -510,7 +576,53 @@ $$
 \end{array}
 $$
 
+### Iterative Fixpoint Compute
+
+Trace is defined as a composition of monotonic functions that has control over their continuations. Thus if the full composition is $f$, then the trace is $\mu x. f(x)$. Given an initial state, it is notated as the supremum. $\text{sup}_{n \in \Nb} f^n(s_0)$, where $n$ is the smallest $n$ such that $f^n(s_0) = f^{n+1}(s_0)$, i.e. the least fixedpoint of $f$. We have shown the recursive definition before. Now we present the iterative definition which will be useful in code implementations to circumvent the recursion limit or stack overflow errors.
+
+\begin{algorithm}[H]
+\caption*{
+  \textbf{sup:} iterative kleene least fixedpoint protocol.
+}
+\textbf{Inputs} \\
+  \Desc{$f: \text{State}^T \to \text{State}^T$}{Monotonic function.} \\
+  \Desc{$s_0 : \text{State}^T$}{Initial state.} \\
+  \Desc{$\text{eq}: \text{State}^T \to \text{State}^T \to \Bb$}{Equality predicate on states.} \\
+\textbf{Output} \\
+  \Desc{$s_n : \text{State}^T$}{The state corresponding to the least fixedpoint of $f$.}
+\begin{algorithmic}[1]
+  \State Initialize variables:
+    \Statex \algind $s := \bot$
+    \Statex \algind $s' := s_0$ 
+  \State Recursive compute:
+    \Statex \textbf{do:}
+    \Statex \algind $s := s'$
+    \Statex \algind $s' := f(s')$
+    \Statex \textbf{while} $\text{eq}(s,s') = \bot$
+  \State Return the least fixedpoint:
+    \Statex \textbf{return} $x$
+  \end{algorithmic}
+\end{algorithm}
+
+
+### Monotonicity Proof
+
+We can show that the function is monotonic by defining the order on the state, and showing that the function preserves the order. The order is defined as follows:
+
+$$
+(t,v,b,\vec{s}) \sqsubseteq (t',v',b',\vec{s'}) \iff
+\begin{aligned}
+  &t \not\sqsubseteq t' \Rightarrow \text{dom}(v) \not\subseteq \text{dom}(v') \Rightarrow |s| < |s'|
+\end{aligned}
+$$
+
+We never remove the mappings in $v$ thus the order is preserved for $v$ despite the stack $s$ can grow and shrink. To show $t \sqsubseteq t'$ then is to investigate the remaining monotonic continuations for $\Surkal$.
+
+TODO: cleanup and make full preorder relation definition, i.e. $s \sqsubseteq f(s)$
+
 ### Concrete Gate Definitions
+
+TODO assert WireType = {p,q} here onwards; bar notation $\bar{p} = q$
 
 TODO: ctrn and loop too; term (in ctrn) includes $j$ lookup table index
 
@@ -533,6 +645,10 @@ TODO: ctrn and loop too; term (in ctrn) includes $j$ lookup table index
 | IsLookup$_T(x,y,z)$       | $()$                          |                         |
 
 TODO Concrete lookup table definitions here as well
+
+### Correctness Example
+
+TODO
 
 ## Circuit
 
@@ -593,126 +709,21 @@ notation ideas
 
 notation for finite type indexing of vectors / matrices / tensors
 
-
-## Arithmetize Example
-
-Example of the arithmetization of $x^2 + y$ with gates Input, Mul$(a,b)$ and Add$(a,b)$ all with $m=1$:
-$$
-\begin{aligned}
-&\text{arithmetize}((x,y) \mapsto (x^2 + y))
-\\
-&= \maybe{\left(\abst{f}'', (z)\right)}{
-  \build{x^2 + y = z^*}
-    {(u, \abst{f}) = (\text{put}(\text{Input}_0) \circ \text{put}(\text{Input}_1)(0, \emptyset), \emptyset)}
-    {(\_, \abst{f}'', (z))}
-  }
-\\
-&= \maybe{\left(\abst{f}'', (z)\right)}{\build{\begin{array}{l}
-  x \times x = t \\
-  t + y = z^*
-\end{array}}{(u, \abst{f}, \emptyset)}{(\_, \abst{f}'', (z))}}
-\\
-&= \maybe{\left(\abst{f}'', (z)\right)}{\begin{array}{l}
-  \build{x \times x = t}{(u, \abst{f})}{(u', \abst{f}')} \\
-  \build{t + y = z^*}{(u', \abst{f}', \emptyset)}{(\_, \abst{f}'', (z))}
-\end{array}}
-\\
-&= \maybe{\left(\abst{f}'', (z)\right)}{\begin{array}{rl}
-  \text{get}(u, \abst{f}, \text{Mul}(x,x)) &= (u', \abst{f}', (t)) \\
-  \text{get}(u', \abst{f}', \text{Add}(t,y)) &= (\_, \abst{f}'', (z))
-\end{array}}
-\\ 
-&= \maybe{\left(\abst{f}'', (z)\right)}{\begin{array}{rl}
-  (u+1, \abst{f} \cup \set{(\text{Mul}(x,x), u)}, (u)) &= (u', \abst{f}', (t)) \\
-  \text{get}(u', \abst{f}', \text{Add}(t,y)) &= (\_, \abst{f}'', (z))
-\end{array}}
-\\
-&= \maybe{\left(\abst{f}'', (z)\right)}{
-  \text{get}(u+1, \abst{f} \cup \set{(\text{Mul}(x,x), u)}, \text{Add}(u,y)) = (\_, \abst{f}'', (z))
-}
-\\
-&= \maybe{\left(\abst{f} \cup \set{\begin{array}{rl}
-    \text{Mul}(x,x) & u \\
-    \text{Add}(u,y) & u+1
-  \end{array}}, (u+1)\right)}{
-  (u, \abst{f}) = \text{put}(\text{Input}_0) \circ \text{put}(\text{Input}_1)(0, \emptyset)
-}
-\\
-&= \maybe{\left(\abst{f} \cup \set{\begin{array}{rl}
-    \text{Mul}(0,0) & u \\
-    \text{Add}(u,y) & u+1
-  \end{array}}, (u+1)\right)}{
-    (u, \abst{f}) = \text{put}(\text{Input}_1, 1, \set{(\text{Input}_0, 0)})
-  }
-\\
-&= \maybe{\left(\abst{f} \cup \set{\begin{array}{rl}
-    \text{Mul}(0,0) & u \\
-    \text{Add}(u,1) & u+1
-  \end{array}}, (u+1) \right)}
-  {(u, \abst{f}) = \left(2, \set{\begin{array}{rl}
-    \text{Input}_0 & 0 \\
-    \text{Input}_1 & 1
-  \end{array}}\right)}
-\\
-&= \left(\set{\begin{array}{rl}
-  \text{Input}_0 & 0 \\
-  \text{Input}_1 & 1 \\
-  \text{Mul}(0,0) & 2 \\
-  \text{Add}(2,1) & 3
-\end{array}}, (3)\right)
-\end{aligned}
-$$
-
-## Trace Example
+### Correctness Example
 
 TODO
 
-## Defining Equivalence of Gates with Egglog
+## $\SurkalProver$
 
 TODO
 
-## Kleene Fixedpoint Theorem in Trace
+## $\SurkalVerifier$
 
-Trace is defined as a composition of monotonic functions that has control over their continuations. Thus if the full composition is $f$, then the trace is $\mu x. f(x)$. Given an initial state, it is notated as the supremum. $\text{sup}_{n \in \Nb} f^n(\iota)$, where $n$ is the smallest $n$ such that $f^n(\iota) = f^{n+1}(\iota)$, i.e. the least fixedpoint of $f$. We have shown the recursive definition before. Now we present the iterative definition which will be useful in code implementations to circumvent the recursion limit or stack overflow errors.
+TODO
 
-\begin{algorithm}[H]
-\caption*{
-  \textbf{sup:} iterative kleene least fixedpoint protocol.
-}
-\textbf{Inputs} \\
-  \Desc{$f: \text{State}^T \to \text{State}^T$}{Monotonic function.} \\
-  \Desc{$\iota : \text{State}^T$}{Initial state.} \\
-  \Desc{$\text{eq}: \text{State}^T \to \text{State}^T \to \Bb$}{Equality predicate on states.} \\
-\textbf{Output} \\
-  \Desc{$s_n : \text{State}^T$}{The state corresponding to the least fixedpoint of $f$.}
-\begin{algorithmic}[1]
-  \State Initialize variables:
-    \Statex \algind $s := \bot$
-    \Statex \algind $s' := \iota$ 
-  \State Recursive compute:
-    \Statex \textbf{do:}
-    \Statex \algind $s := s'$
-    \Statex \algind $s' := f(s')$
-    \Statex \textbf{while} $\text{eq}(s,s') = \bot$
-  \State Return the least fixedpoint:
-    \Statex \textbf{return} $x$
-  \end{algorithmic}
-\end{algorithm}
+\appendix
 
-We can show that the function is monotonic by defining the order on the state, and showing that the function preserves the order. The order is defined as follows:
-
-$$
-(t,v,b,\vec{s}) \sqsubseteq (t',v',b',\vec{s'}) \iff
-\begin{aligned}
-  &t \not\sqsubseteq t' \Rightarrow \text{dom}(v) \not\subseteq \text{dom}(v') \Rightarrow |s| < |s'|
-\end{aligned}
-$$
-
-We never remove the mappings in $v$ thus the order is preserved for $v$ despite the stack $s$ can grow and shrink. To show $t \sqsubseteq t'$ then is to investigate the remaining monotonic continuations for Surkål.
-
-TODO: cleanup and make full preorder relation definition, i.e. $s \sqsubseteq f(s)$
-
-## Notation
+# Notation
 
 TODO make to a neat table, and include notation in plonk report
 

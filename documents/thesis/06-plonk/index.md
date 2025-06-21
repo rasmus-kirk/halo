@@ -1,4 +1,4 @@
-# Surkål: a \plonk-ish NARK protocol
+# Surkål: The Ultra-\plonk-ish NARK protocol
 
 Our NARK protocol has the following features:
 
@@ -181,12 +181,12 @@ The correctness of the protocol is trivial
 
 ## Grand Product argument(s)
 
-<!-- TODO: Haliq -->
+TODO
 
-## Copy Constraints
+### Copy Constraints
 
-<!-- TODO: Haliq -->
+TODO
 
-## \plookup
+### \plookup
 
-<!-- TODO: Haliq -->
+TODO
