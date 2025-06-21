@@ -227,7 +227,7 @@ TODO update for types; out uses idx, Input has type tag
 Example of the arithmetization of $\build{x^2 + y}{}{}$
 $$
 \begin{aligned}
-&\text{arithmetize}((x,y) \mapsto (x^2 + y))
+&\text{arithmetize}((x,y): \Fb_q^2 \mapsto (x^2 + y): \Fb_q^1)
 \\
 &= \maybe{\left(\abst{f}'', (\abst{z})\right)}{
   \build{x^2 + y = z^*}
