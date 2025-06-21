@@ -18,7 +18,10 @@ feature-set of [Ultra-\plonk](https://zkjargon.github.io/definitions/plonkish_ar
 is based on a Discrete Log PCS and omits the Mary Maller optimization from
 the original paper.
 
-## Vanishing Argument
+
+## Arguments
+
+### Vanishing Argument
 
 <!-- TODO: Generally fine, but cleanup -->
 
@@ -160,7 +163,7 @@ Finally, the verifier finally checks that $\PCCheck(C_w, d, \xi, v_w, \pi_w) \me
 
 The correctness of the protocol is trivial
 
-## Grand Product argument(s)
+### Grand Product argument(s)
 
 TODO
 
@@ -172,7 +175,9 @@ TODO
 
 TODO
 
-## Full Protocol
+## Outline
+
+We now define the $\Surkal$ protocol using the above arguments.
 
 \begin{algorithm}[H]
 \caption*{
@@ -184,7 +189,8 @@ TODO
 \textbf{Output} \\
   \Desc{$\Result(\top, \bot)$}{Either the verifier accepts with $\top$ or rejects with $\bot$}
 \begin{algorithmic}[1]
-  \State $(R: \Circuit, x: \PublicInputs, w : \Witness) = \mathrm{circuit} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})$ 
-  \State TODO vanishing argument call?
+  \State $(R: \Circuit, x: \PublicInputs, w : \Witness) = \mathrm{relation} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})$ 
+  \State $\pi = \SurkalProver(R,x,w)$
+  \State \textbf{return} $\SurkalVerifier(R,x,\pi)$
   \end{algorithmic}
 \end{algorithm}

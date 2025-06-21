@@ -35,8 +35,11 @@
             ./03-chain-of-signatures/index.md \
             ./04-pcdl/index.md \
             ./05-asdl/index.md \
-            ./06-plonk/index.md \
-            ./07-arithmetization-scheme/index.md \
+            ./06-plonk/01-index.md \
+            ./06-plonk/02-arithmetizer.md \
+            ./06-plonk/03-trace.md \
+            ./06-plonk/04-protocol.md \
+            ./07-appendix/index.md \
             ./thesis.md \
             -H header.tex \
             --citeproc \
