@@ -1,39 +1,21 @@
 # Surkål: The Ultra-\plonk-ish NARK protocol
 
-Our NARK protocol has the following features:
+Our NARK protocol has the following:
 
-1. arithmetization using add and mul gates (\plonk)
+1. add and mul gates, copy constraints, vanishing arguments (\plonk)
 2. arbitrary fan-in and fan-out custom gates (Turbo-\plonk)
 3. arbitrary lookup tables via \plookup (Ultra-\plonk)
 4. pedersen polynomial commitment scheme (Halo2)
 5. ergonomic multi type wire arithmetization (Surkål)
 6. circuits over cycle of curves via pasta curves (Surkål)
 
-The arithmetization scheme is agnostic of gates, lookup tables and trace, thus can potentially be extended for other variants of \plonk-ish protocols.
-
-At a high level, the full NARK protocol used is as follows:
-
-\begin{algorithm}[H]
-\caption*{
-  \textbf{Surkål:} a plonkish NARK protocol.
-}
-\textbf{Inputs} \\
-  \Desc{$f: W@\vec{t_{in}} \to W@\vec{t_{out}}$}{The program.} \\
-  \Desc{$\vec{x} \in W@\vec{t_{in}}$}{The possibly private input to the program $f$} \\
-\textbf{Output} \\
-  \Desc{$\Result(\top, \bot)$}{Either the verifier accepts with $\top$ or rejects with $\bot$}
-\begin{algorithmic}[1]
-  \State \textbf{let} $(x,w) = \mathrm{circuit} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})$ 
-  \State $\pi \gets P(x,w)$
-  \State \textbf{return} $V(x, \pi)$
-  \end{algorithmic}
-\end{algorithm}
+The arithmetization scheme is agnostic of types of values, gates, lookup tables and trace, thus can potentially be extended for other variants of \plonk-ish protocols.
 
 We will present our \plonk-ish protocol[^our-plonk] by constructing and arguing for the
 individual arguments in the next sections.
 
-[^our-plonk]: There are many variations of Plonk, our variant has the
-feature-set of [UltraPlonk](https://zkjargon.github.io/definitions/plonkish_arithmetization.html#plonkish-variants-and-extensions),
+[^our-plonk]: There are many variations of \plonk, our variant has the
+feature-set of [Ultra-\plonk](https://zkjargon.github.io/definitions/plonkish_arithmetization.html#plonkish-variants-and-extensions),
 is based on a Discrete Log PCS and omits the Mary Maller optimization from
 the original paper.
 
@@ -190,3 +172,20 @@ TODO
 ### \plookup
 
 TODO
+
+## Full Protocol
+
+\begin{algorithm}[H]
+\caption*{
+  \textbf{Surkål:} The Ultra-\plonk-ish NARK protocol.
+}
+\textbf{Inputs} \\
+  \Desc{$f: W[\vec{t_{in}}] \to W[\vec{t_{out}}]$}{NP problem / program.} \\
+  \Desc{$\vec{x} \in W[\vec{t_{in}}]$}{The possibly private input to the program $f$} \\
+\textbf{Output} \\
+  \Desc{$\Result(\top, \bot)$}{Either the verifier accepts with $\top$ or rejects with $\bot$}
+\begin{algorithmic}[1]
+  \State $(R: \Circuit, x: \PublicInputs, w : \Witness) = \mathrm{circuit} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})$ 
+  \State TODO vanishing argument call?
+  \end{algorithmic}
+\end{algorithm}

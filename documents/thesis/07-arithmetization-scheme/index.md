@@ -1,6 +1,6 @@
 ## Arithmetize
 
-We now define the functions in the pipeline: $\mathrm{circuit} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})$
+We now define the preprocessing pipeline: $(R,x,w) = \mathrm{circuit} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})$
 
 Wires $\abst{x}$ are abstract representations of values $x$, defined as a triple of unique identifier; uuid, output index of its gate and a wire type tag. $W$ maps the tag to the value's type e.g. $W(p) = \Fb_p, W(q) = \Fb_q$.
 
@@ -161,7 +161,7 @@ $$
   \abst{f} \subset \Gate \times \Option(\Nb) \middle\vert
   \begin{array}{l}
   \forall (g,\abst{y}),(h,\abst{y}) \in \abst{f}. \abst{y} \neq \bot \implies g = h \\
-  \forall (g,\abst{y}) \in \abst{f}. \abst{y} \neq \bot \implies \max(\id@\tin(g)) < \min \left(\set{\id(\abst{y}) \middle\vert (g, \abst{y}) \in \abst{f}} \right)
+  \forall (g,\abst{y}) \in \abst{f}. \abst{y} \neq \bot \implies \max(\id[\tin(g)]) < \min \left(\set{\id(\abst{y}) \middle\vert (g, \abst{y}) \in \abst{f}} \right)
   \end{array}
 } \\
 \Gate^{\abst{f}}_g &= \set{h \in \Gate \middle\vert
@@ -366,7 +366,7 @@ v_{\abst{f}}\left[\abst{y}\right] &= \maybe{
 }{\begin{array}{rl}
   \abst{f} &\ni (g, \abst{y}) \\
   \abst{\vec{y}} &= \out(\abst{f}, g) \\
-  \vec{y} &= \text{eval}(\ty(g), v @ \tin(g)) \\
+  \vec{y} &= \text{eval}(\ty(g), v[\tin(g)]) \\
 \end{array}}
 \end{array}
 &
@@ -438,7 +438,7 @@ A^{\abst{f}} &= \set{g \middle\vert (g, \abst{y}) \in \abst{f} \land (\abst{y} =
 f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \underset{G}{\curvearrowleft} \circ f \circ^\uparrow \lambda (\vec{C}, \vec{g}, b, v). \\
 &\begin{cases}
 & \vec{g} = g \cat \_ \\
-& \vec{v} = v @ (\tin(g) \cat \out(\abst{f},g)) \\
+& \vec{v} = v[\tin(g) \cat \out(\abst{f},g)] \\
 (\vec{C}', \vec{g}, b, v)
 & \vec{C}' = \vec{C} \cat \text{ctrn}(\ty(g), \vec{v}) \\
 (\vec{C}, (), b, v)
@@ -506,7 +506,7 @@ x[i \mapsto \vec{l}] \sqcup y'
 (0, \vec{\sigma}, m) & N = 0 \\
 & f = \lambda s.m(s, N) \\
 (N-1, \sigma \cat \vec{\sigma},m)
-& \sigma = f @ (\text{Slot}..)
+& \sigma = f[(\text{Slot}..)]
 \end{cases} \\
 & \circ^\uparrow \lambda(N, \vec{\sigma}, m, b,c, \vec{C}). \\
 &\begin{cases}
@@ -698,8 +698,8 @@ $$
 notation ideas
 
 - $w[A,i] = \vec{C}[A,i]$ cache
-- $x[Q_l,i] = \vec{C}[Q_l,i]$ cache
-- $x[Q_l] = \text{fft}(\vec{C}[Q_l])$ poly
+- $R[Q_l,i] = \vec{C}[Q_l,i]$ cache
+- $R[Q_l] = \text{fft}(\vec{C}[Q_l])$ poly
 - $x[A] = \bot$ does not exist
 - $w_\zeta[T,i] = ?[T,i]$ thunk cache
 - $w_\zeta[T] = \text{fft}(?[T])$ thunk poly
@@ -710,14 +710,6 @@ notation ideas
 notation for finite type indexing of vectors / matrices / tensors
 
 ### Correctness Example
-
-TODO
-
-## $\SurkalProver$
-
-TODO
-
-## $\SurkalVerifier$
 
 TODO
 
@@ -760,8 +752,7 @@ util functions
 - vector of naturals builder $(s..t) = \begin{cases} () & t \leq s \\ s \cat (s+1 .. t) \end{cases}$
 - vector concat $\vec{x} \cat \vec{y} = \begin{cases} \vec{y} & \vec{x} = () \\ \vec{x}' \cat (x \cat \vec{y}) & \vec{x} = \vec{x'} \cat x \end{cases}$
 - vector concat with set $X \cat \vec{x}$; any random ordering of $X$; recursive application of axiom of choice
-- function application $f @ x = f(x)$
-- vector map $f @ \vec{x} = (f(x_1), f(x_2), \ldots, f(x_n))$
+- vector map $f[\vec{x}] = (f(x_1), f(x_2), \ldots, f(x_n))$
 - vector minus set $\vec{x} \setminus X$ turns $\vec{x}$ to a set and removes all elements in $X$
 - min of a set with total ordering $\min(X)$
 - partial function append vector $f[\vec{x} \mapsto \vec{y}] = \begin{cases} & \vec{x} = x \cat \vec{x}' \\ f[x \mapsto y][\vec{x}' \mapsto \vec{y}'] & \vec{y} = y \cat \vec{y}' \\ f & \otherwise \end{cases}$
