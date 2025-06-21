@@ -463,9 +463,7 @@ TODO update for types; table $\vec{C}$ per type
 
 ### Copy Constraints
 
-$\Downarrow_C$ quotients an ordered set; coordinate loop, of slot positions of $\vec{C}$ by the wire id corresponding to the value there.
-
-This is done by peeking $\vec{g}$ and joining $c$ with the coordinate loop of the gate using $\sqcup$. This corresponds to $\mathtt{ctrn}$.
+$\Downarrow_C$ computes coordinate loops; equivalence class of slot positions of $\vec{C}$ modulo wire, by peeking $\vec{g}$ and joining $c$ with the coordinate loop of the gate using $\sqcup$.
 
 After computing the coordinate loop of the full circuit, we mark a flag $\Bb$ that starts computing the coordinate map $m$ from coordinate to its neighbour in $c$ which then is used to compute the permutation $\vec{\sigma}$ of the slots in $\vec{C}$.
 
