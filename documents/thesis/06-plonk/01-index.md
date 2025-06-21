@@ -1,14 +1,27 @@
-# PLONK
+# Surkål: The Ultra-\plonk-ish NARK protocol
 
-We will present Plonk[^our-plonk] by constructing and arguing for the
-individual arguments in the next sections.
+Our NARK protocol has the following:
 
-[^our-plonk]: There are many variations of Plonk, our variant has the
-feature-set of [UltraPlonk](https://zkjargon.github.io/definitions/plonkish_arithmetization.html#plonkish-variants-and-extensions),
+1. add and mul gates, copy constraints, vanishing arguments (\plonk)
+2. arbitrary fan-in and fan-out custom gates (Turbo-\plonk)
+3. arbitrary lookup tables via \plookup (Ultra-\plonk)
+4. pedersen polynomial commitment scheme (Halo2)
+5. ergonomic multi type wire arithmetization (Surkål)
+6. circuits over cycle of curves via pasta curves (Surkål)
+
+The arithmetization scheme is agnostic of types of values, gates, lookup tables and trace, thus can potentially be extended for other variants of \plonk-ish protocols.
+
+We will present our protocol[^our-plonk] by constructing and arguing for the individual arguments in the next sections.
+
+[^our-plonk]: There are many variations of \plonk, our variant has the
+feature-set of [Ultra-\plonk](https://zkjargon.github.io/definitions/plonkish_arithmetization.html#plonkish-variants-and-extensions),
 is based on a Discrete Log PCS and omits the Mary Maller optimization from
 the original paper.
 
-## Vanishing Argument
+
+## Arguments
+
+### Vanishing Argument
 
 <!-- TODO: Generally fine, but cleanup -->
 
@@ -150,14 +163,34 @@ Finally, the verifier finally checks that $\PCCheck(C_w, d, \xi, v_w, \pi_w) \me
 
 The correctness of the protocol is trivial
 
-## Grand Product argument(s)
+### Grand Product argument(s)
 
-<!-- TODO: Haliq -->
+TODO
 
-## Copy Constraint Rewrite
+### Copy Constraints
 
-<!-- TODO: Haliq -->
+TODO
 
-## Plonkup
+### \plookup
 
-<!-- TODO: Haliq -->
+TODO
+
+## Outline
+
+We now define the $\Surkal$ protocol using the above arguments.
+
+\begin{algorithm}[H]
+\caption*{
+  \textbf{Surkål:} The Ultra-\plonk-ish NARK protocol.
+}
+\textbf{Inputs} \\
+  \Desc{$f: W[\vec{t_{in}}] \to W[\vec{t_{out}}]$}{NP problem / program.} \\
+  \Desc{$\vec{x} \in W[\vec{t_{in}}]$}{The possibly private input to the program $f$} \\
+\textbf{Output} \\
+  \Desc{$\Result(\top, \bot)$}{Either the verifier accepts with $\top$ or rejects with $\bot$}
+\begin{algorithmic}[1]
+  \State $(R: \Circuit, x: \PublicInputs, w : \Witness) = \mathrm{relation} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})$ 
+  \State $\pi = \SurkalProver(R,x,w)$
+  \State \textbf{return} $\SurkalVerifier(R,x,\pi)$
+  \end{algorithmic}
+\end{algorithm}

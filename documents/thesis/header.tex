@@ -32,7 +32,7 @@
 
 \usepackage{subcaption}
 \usepackage{tikz}
-\usetikzlibrary{shapes.geometric, arrows, positioning}
+\usetikzlibrary{shapes.geometric, arrows, positioning, calc}
 
 \tikzstyle{process} = [rectangle, minimum width=2cm, minimum height=1cm, text centered, draw=black]
 \tikzstyle{data} = [trapezium, trapezium left angle=70, trapezium right angle=110, minimum width=1.5cm, minimum height=1cm, text centered, draw=black]
@@ -62,6 +62,9 @@
 \usepackage{multicol}
 \usepackage{multirow}
 \usepackage{MnSymbol}
+\usepackage{yfonts}
+\usepackage{amsmath, amssymb}
+\usepackage{graphicx} % for \reflectbox
 
 \newcommand{\Desc}[2]{\hspace*{\algorithmicindent} \makebox[14.5em][l]{#1}\parbox[t]{32em}{#2}}
 
@@ -308,16 +311,29 @@
 \newcommand*\AccHiding{\mathbf{AccHiding}}
 \newcommand*\EvalProof{\mathbf{EvalProof}}
 
+\newcommand{\plonk}{$\mathcal{P}\textfrak{lon}\mathcal{K}$}
+\newcommand{\plookup}{$\textfrak{plookup}$}
+\newcommand{\Surkal}{\text{Surkål}}
+\newcommand{\SurkalProver}{\Surkal.\mathrm{\text{P\scriptsize ROVER}}}
+\newcommand{\SurkalVerifier}{\Surkal.\mathrm{\text{V\scriptsize ERIFIER}}}
 
 \newcommand{\maybe}[2]{ \left[ #1 \middle\vert #2 \right]}
 \newcommand{\abst}[1]{ \hat{#1} }
 \newcommand{\set}[1]{ \left\{ #1 \right\}}
 \newcommand{\build}[3]{\left\llbracket #1 \right\rrbracket^{#2}_{#3}}
-\newcommand{\AbsCirc}{\text{Circ}}
+\newcommand{\AbsCirc}{\text{ACirc}}
 \newcommand{\Gate}{\text{Gate}}
+\newcommand{\GateType}{\text{GateType}}
 \newcommand{\AState}{\text{AState}}
-\newcommand{\Mono}[1]{\text{Mono}^{#1}}
-\newcommand{\MonoC}[1]{\text{MonoC}^{#1}}
 \newcommand{\RState}{\text{RState}}
 \newcommand{\VMap}{\text{VMap}}
 \newcommand{\pto}{\rightharpoonup}
+\newcommand{\Wire}{\text{Wire}}
+\newcommand{\WireType}{\text{WireType}}
+\newcommand{\ty}{\text{ty}}
+\newcommand{\id}{\text{id}}
+\newcommand{\idx}{\text{idx}}
+\newcommand{\tin}{\text{in}}
+\newcommand{\out}{\text{out}}
+\newcommand{\otherwise}{\text{otherwise}}
+\newcommand{\lift}{\text{lift}}
