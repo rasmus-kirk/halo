@@ -58,9 +58,38 @@
         runtimeInputs = [mk-pandoc pkgs.fswatch];
         text = ''
           set +e
-          mk-pandoc
+          # mk-pandoc
           echo "Listening for file changes"
-          fswatch --event Updated ./*.md | xargs -n 1 sh -c 'date "+%Y-%m-%d - %H:%M:%S %Z"; mk-pandoc'
+
+          last_run=0
+          debounce_seconds=1
+
+          fswatch -r . --event Updated \
+            --exclude='.*\.aux$' \
+            --exclude='.*\.log$' \
+            --exclude='.*\.git/.*' \
+            --exclude='.*result$' \
+            --exclude='.*\.pdf$' \
+            | grep -E --line-buffered '(\.md|\.tex|\.bib)$' \
+            | while read -r file; do
+              echo "test: $file"
+              now=$(date +%s)
+              if (( now - last_run >= debounce_seconds )); then
+                  echo "$(date '+%Y-%m-%d - %H:%M:%S %Z') - Rebuilding due to: $file"
+                  # mk-pandoc
+                  last_run=$now
+              fi
+          done
+
+          # fswatch -i ".*\.md" -i ".*\.tex" -r . --event Updated | while read -r file; do
+          #     now=$(date +%s)
+          #     if (( now - last_run >= debounce_seconds )); then
+          #         echo "$(date '+%Y-%m-%d - %H:%M:%S %Z') - Rebuilding due to: $file"
+          #         mk-pandoc
+          #         last_run=$now
+          #     fi
+          # done
+
         '';
       };
       spellcheck = pkgs.writeShellApplication {

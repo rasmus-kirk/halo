@@ -1,5 +1,6 @@
 # $\PCDL$: The Polynomial Commitment Scheme
 
+
 ## Outline
 
 The Polynomial Commitment Scheme, $\PCDL$, is based on the Discrete Log
