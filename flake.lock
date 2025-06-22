@@ -1,29 +1,12 @@
 {
   "nodes": {
-    "contract": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1,
-        "narHash": "sha256-ZzXYJBn9n15Uz1Ry2dzW1cd7hnP4c2BuVPlu4wy3RGc=",
-        "path": "/nix/store/ibw72rjpg2pyzmslm898s14lpfj7fjfl-source/documents/project-contract",
-        "type": "path"
-      },
-      "original": {
-        "path": "/nix/store/ibw72rjpg2pyzmslm898s14lpfj7fjfl-source/documents/project-contract",
-        "type": "path"
-      }
-    },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1750215678,
-        "narHash": "sha256-Rc/ytpamXRf6z8UA2SGa4aaWxUXRbX2MAWIu2C8M+ok=",
+        "lastModified": 1750386251,
+        "narHash": "sha256-1ovgdmuDYVo5OUC5NzdF+V4zx2uT8RtsgZahxidBTyw=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "5395fb3ab3f97b9b7abca147249fa2e8ed27b192",
+        "rev": "076e8c6678d8c54204abcb4b1b14c366835a58bb",
         "type": "github"
       },
       "original": {
@@ -35,27 +18,29 @@
     },
     "root": {
       "inputs": {
-        "contract": "contract",
         "nixpkgs": "nixpkgs",
-        "thesis": "thesis",
+        "rust-overlay": "rust-overlay",
         "website-builder": "website-builder"
       }
     },
-    "thesis": {
+    "rust-overlay": {
       "inputs": {
         "nixpkgs": [
           "nixpkgs"
         ]
       },
       "locked": {
-        "lastModified": 1,
-        "narHash": "sha256-0Di5n0TdmqPIbpU6y5en9ayI+JZ3t12LTxu2abFSpAY=",
-        "path": "/nix/store/ibw72rjpg2pyzmslm898s14lpfj7fjfl-source/documents/thesis",
-        "type": "path"
+        "lastModified": 1750560265,
+        "narHash": "sha256-jQCojKl1/TzqE6ANOu6rP2qqxOcGK2xs6hpxZ77wrR8=",
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "rev": "076fdb0d45a9de3f379a626f51a62c78afe7efb1",
+        "type": "github"
       },
       "original": {
-        "path": "/nix/store/ibw72rjpg2pyzmslm898s14lpfj7fjfl-source/documents/thesis",
-        "type": "path"
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "type": "github"
       }
     },
     "website-builder": {
