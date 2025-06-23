@@ -73,79 +73,58 @@ $$
 
 Arithmetize turns a program $f$ into an abstract circuit $\abst{f}$, which is a one-to-many-or-none relation between gates $g$ and output wire(s) $\abst{y}$ or $\bot$ for none. e.g. $(\text{Add}(\abst{a},\abst{b}), \abst{c}) \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$. $\abst{f}$ are also acyclic.
 
-TODO maybe make command for tikz gates? then u can output_wires.tikz() to produce tikz code; change to top down direction to align with IVC diagram?
-
 \begin{center}
 \begin{tabular}{ c c c c }
-\begin{tikzpicture}[
-  baseline={(current bounding box.center)},
-  wire/.style={->, thick},
-  label/.style={font=\small},
-  port/.style={draw, minimum width=0.5cm, minimum height=1cm, inner sep=1pt}
-]
-
-% Main Add box
-\node[draw, minimum width=1.5cm, minimum height=2cm] (G) at (0,0) {};
-
-% Add label centered
-\node at ($(G.center)+(0.25,0)$) {Add};
-
-% Embedded input ports (inside left side of Add box)
-\node[port, anchor=west] (a) at ($(G.west)+(0,0.5)$) {$\abst{a}$};
-\node[port, anchor=west] (b) at ($(G.west)+(0,-0.5)$) {$\abst{b}$};
-
-% Input wires into embedded ports
-\draw[wire] ($(a.west)-(0.4,0)$) -- (a.west);
-\draw[wire] ($(b.west)-(0.4,0)$) -- (b.west);
-
-% Output wire and label
-\node[label, anchor=west] (c) at ($(G.east)+(0.5,0)$) {$\abst{c}$};
-\draw[wire] (G.east) -- (c);
-
-\end{tikzpicture}
-&
-\begin{tikzpicture}[
-  baseline={(current bounding box.center)},
-  wire/.style={->, thick},
-  label/.style={font=\small},
-  port/.style={draw, minimum width=0.6cm, minimum height=0.5cm, inner sep=1pt}
-]
-
-% Main gate box
-\node[draw, minimum width=1.8cm, minimum height=2cm] (G) at (0,0) {};
-\node at ($(G.center)+(0.25,0)$) {$\ty(g)$};
-
-% Embedded input ports (left side)
-\node[port, anchor=west] (x1) at ($(G.west)+(0, 0.75)$) {$\abst{x}_1$};
-\node[port, anchor=west] (x2) at ($(G.west)+(0, 0.25)$) {$\abst{x}_2$};
-\node[label, anchor=west] at ($(G.west)+(0, -0.25)$) {$\vdots$};
-\node[port, anchor=west] (xn) at ($(G.west)+(0, -0.75)$) {$\abst{x}_{n_g}$};
-
-% Input wires
-\draw[wire] ($(x1.west)-(.4,0)$) -- (x1.west);
-\draw[wire] ($(x2.west)-(.4,0)$) -- (x2.west);
-\draw[wire] ($(xn.west)-(.4,0)$) -- (xn.west);
-
-% Output wires
-\node[label, anchor=west] (y1) at ($(G.east)+(0.5, 0.75)$) {$\abst{y}_1$};
-\node[label, anchor=west] (y2) at ($(G.east)+(0.5, 0.25)$) {$\abst{y}_2$};
-\node at ($(G.east)+(0.5, -0.25)$) {$\vdots$};
-\node[label, anchor=west] (ym) at ($(G.east)+(0.5, -0.75)$) {$\abst{y}_{m_g}$};
-
-\draw[wire] (G.east |- y1) -- (y1);
-\draw[wire] (G.east |- y2) -- (y2);
-\draw[wire] (G.east |- ym) -- (ym);
-
-\end{tikzpicture}
-&
-$\Longleftrightarrow$
-&
 \begin{math}
 \begin{array}{rl}
 (\abst{x}_1, \abst{x}_2, \ldots, \abst{x}_{n_g}) &= \tin(g) \\
 \set{(g, \abst{y}_1), (g, \abst{y}_2), (g, \abst{y}_{m_g})} &\subseteq \abst{f}
 \end{array}
 \end{math}
+&
+$\Longleftrightarrow$
+&
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\node[draw, minimum width=3.2cm, minimum height=1.35cm] (id-g) at (0,0) {};
+\node at ($(id-g.north)-(0,0.975)$) {$\ty(g)$};
+\node[anchor=center] (id-1) at ($(id-g.north west)+(0.4, -0.3)$) {$\abst{x}_1$};
+\node[anchor=center] (id-2) at ($(id-g.north west)+(1.2, -0.3)$) {$\abst{x}_2$};
+\node[anchor=center] (id-dots) at ($(id-g.north west)+(2.0, -0.3)$) {$\cdots$};
+\node[anchor=center] (id-3) at ($(id-g.north west)+(2.8, -0.3)$) {$\abst{x}_{n_g}$};
+\draw[-] ($(id-g.north west)+(0,-0.6)$) -- ($(id-g.north west)+(1.6,-0.6)$);
+\draw[-] ($(id-g.north west)+(2.4,-0.6)$) -- ($(id-g.north east)+(0,-0.6)$);
+\draw[-] ($(id-g.north west)+(0.8,0)$) -- ($(id-g.north west)+(0.8,-0.6)$);
+\draw[-] ($(id-g.north west)+(1.6,0)$) -- ($(id-g.north west)+(1.6,-0.6)$);
+\draw[-] ($(id-g.north west)+(2.4,0)$) -- ($(id-g.north west)+(2.4,-0.6)$);
+\draw[->,thick] ($(id-g.north west)+(0.4,0.4)$) -- ($(id-g.north west)+(0.4,0)$);
+\draw[->,thick] ($(id-g.north west)+(1.2,0.4)$) -- ($(id-g.north west)+(1.2,0)$);
+\draw[->,thick] ($(id-g.north west)+(2.8,0.4)$) -- ($(id-g.north west)+(2.8,0)$);
+\draw[->,thick] ($(id-g.south west)+(0.4,0)$) -- ($(id-g.south west)+(0.4,-0.4)$);
+\draw[->,thick] ($(id-g.south west)+(1.2,0)$) -- ($(id-g.south west)+(1.2,-0.4)$);
+\draw[->,thick] ($(id-g.south west)+(2.8,0)$) -- ($(id-g.south west)+(2.8,-0.4)$);
+\node[anchor=center] (id-dots) at ($(id-g.south west)+(2.0, -0.3)$) {$\cdots$};
+\node[anchor=center] (idy-1) at ($(id-g.south west)+(0.1, -0.3)$) {$\abst{y}_1$};
+\node[anchor=center] (idy-2) at ($(id-g.south west)+(0.9, -0.3)$) {$\abst{y}_2$};
+\node[anchor=center] (idy-3) at ($(id-g.south west)+(3.3, -0.3)$) {$\abst{y}_{m_g}$};
+\end{tikzpicture}
+&
+e.g.
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\node[draw, minimum width=1.6cm, minimum height=1.35cm] (id-g) at (0,0) {};
+\node at ($(id-g.north)-(0,0.975)$) {$\text{Add}$};
+\node[anchor=center] (id-1) at ($(id-g.north west)+(0.4, -0.3)$) {$\abst{a}$};
+\node[anchor=center] (id-2) at ($(id-g.north west)+(1.2, -0.3)$) {$\abst{b}$};
+\draw[-] ($(id-g.north west)+(0,-0.6)$) -- ($(id-g.north west)+(1.6,-0.6)$);
+\draw[-] ($(id-g.north west)+(0.8,0)$) -- ($(id-g.north west)+(0.8,-0.6)$);
+\draw[->,thick] ($(id-g.north west)+(0.4,0.4)$) -- ($(id-g.north west)+(0.4,0)$);
+\draw[->,thick] ($(id-g.north west)+(1.2,0.4)$) -- ($(id-g.north west)+(1.2,0)$);
+\draw[->,thick] ($(id-g.south)$) -- ($(id-g.south)+(0,-0.4)$);
+\node[anchor=center] (idy-1) at ($(id-g.south)+(0.3, -0.3)$) {$\abst{c}$};
+\end{tikzpicture}
 \end{tabular}
 \end{center}
 
