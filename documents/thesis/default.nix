@@ -65,7 +65,7 @@
         fi
         update_timestamp
         printf "\r\033[K"
-        printf "%s shutting down watcher\n" "$timestamp"
+        printf "%s \033[90m»\033[0m shutting down watcher\n" "$timestamp"
         stty sane
         killed=1
         kill 0
@@ -134,11 +134,11 @@
         --exclude='.*\.pdf$' \
         | grep -E --line-buffered '(\.md|\.tex|\.bib)$' \
         | while read -r file; do
-            num_files=0
+            num_files=1
             # Flush all pending lines to get the latest path
             while read -t 0.1 -r maybe_new; do
               num_files=$((num_files + 1))
-              file="$maybe_new and $num_files other"
+              file="$maybe_new [$num_files changes]"
             done
 
             rel_file="./$(echo "$file" | sed -E 's|.*thesis/||')"
