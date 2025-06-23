@@ -18,16 +18,13 @@
       fi
 
       pandoc \
-        ./01-introduction/index.md \
-        ./02-prerequisites/index.md \
-        ./03-chain-of-signatures/index.md \
-        ./04-pcdl/index.md \
-        ./05-asdl/index.md \
-        ./06-plonk/01-index.md \
-        ./06-plonk/02-arithmetizer.md \
-        ./06-plonk/03-trace.md \
-        ./06-plonk/04-protocol.md \
-        ./07-appendix/index.md \
+        ./01-introduction/*.md \
+        ./02-prerequisites/*.md \
+        ./03-chain-of-signatures/*.md \
+        ./04-pcdl/*.md \
+        ./05-asdl/*.md \
+        ./06-plonk/*.md \
+        ./07-appendix/*.md \
         ./thesis.md \
         -H header.tex \
         --citeproc \
