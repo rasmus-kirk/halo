@@ -46,8 +46,63 @@
     runtimeInputs = [mk-pandoc pkgs.fswatch];
     text = ''
       set +e
-      mk-pandoc
-      echo "Listening for file changes"
+
+      # This function updates the global variable `timestamp` string
+      timestamp=""
+      update_timestamp() {
+        timestamp=$(printf '\033[90m[%s]\033[0m' "$(date '+%Y-%m-%d %H:%M:%S')")
+      }
+
+      # This function runs the spinner and then calls mk-pandoc and prints the result
+      run_build() {
+
+        # Start the spinner in the background
+        start_ns=$(date +%s%N)
+        (
+          sp='⣾⣽⣻⢿⡿⣟⣯⣷'
+          while :; do
+            for c in $(echo "$sp" | fold -w1); do
+              end_ns=$(date +%s%N)
+              elapsed_ns=$((end_ns - start_ns))
+              elapsed_ms=$((elapsed_ns / 1000000))
+              update_timestamp
+              printf "\r%s \033[34m%s\033[0m %s \033[34m%dms\033[0m " "$timestamp" "$c" "$1" "$elapsed_ms"
+              sleep 0.1
+            done
+          done
+        ) &
+        SPINNER_PID=$!
+
+        # Run pandoc and capture its output
+        output=$(mk-pandoc 2>&1)
+        exit_code=$?
+        end_ns=$(date +%s%N)
+
+        # Kill the spinner and wait for it to finish
+        kill "$SPINNER_PID"
+        wait "$SPINNER_PID" 2>/dev/null
+
+        # Calculate elapsed time
+        elapsed_ns=$((end_ns - start_ns))
+        elapsed_ms=$((elapsed_ns / 1000000))
+        update_timestamp
+
+        # Clear the spinner line
+        printf "\r\033[K"
+
+        # Print the result
+        if [ $exit_code -eq 0 ]; then
+          printf "%s \033[32m✓\033[0m %s \033[32m%dms\033[0m\n" "$timestamp" "$2" "$elapsed_ms"
+        else
+          printf "%s \033[31m✕\033[0m %s \033[31m%dms\033[0m\n" "$timestamp" "$3" "$elapsed_ms"
+          [ -n "$output" ] && printf "%s\n" "$output"
+        fi
+
+        # Print the watching message
+        printf "%s \033[90m»\033[0m watching files" "$timestamp"
+      }
+
+      run_build "building" "built" "build failed"
 
       last_run=0
       debounce_seconds=1
@@ -63,40 +118,8 @@
           now=$(date +%s)
           if (( now - last_run >= debounce_seconds )); then
               rel_file="./$(echo "$file" | sed -E 's|.*thesis/||')"
-              printf "\r%50s\r" ""
-              timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-              printf "\033[90m[%s]\033[0m %s\n" "$timestamp" "$rel_file"
-              
-              (
-                sp='⣾⣽⣻⢿⡿⣟⣯⣷'
-                while :; do
-                  for c in $(echo "$sp" | fold -w1); do
-                    printf "\r\033[90m[$(date '+%Y-%m-%d %H:%M:%S')]\033[0m %s " "$c"
-                    sleep 0.05
-                  done
-                done
-              ) &
-              SPINNER_PID=$!
-              
-              start_ns=$(date +%s%N)
-              output=$(mk-pandoc 2>&1)
-              exit_code=$?
-              end_ns=$(date +%s%N)
-
-              kill "$SPINNER_PID"
-              wait "$SPINNER_PID" 2>/dev/null
-
-              elapsed_ns=$((end_ns - start_ns))
-              elapsed_ms=$((elapsed_ns / 1000000))
-              timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-              printf "\r%-50s\r" ""
-              if [ $exit_code -eq 0 ]; then
-                printf "\033[90m[%s]\033[0m rebuilt (%dms)" "$timestamp" "$elapsed_ms"
-              else
-                printf "\033[90m[%s]\033[0m \033[31mfailed\033[0m (%dms)\n" "$timestamp" "$elapsed_ms"
-                [ -n "$output" ] && printf "%s\n" "$output"
-              fi
-
+              printf "\r\033[K"
+              run_build "$rel_file" "$rel_file" "$rel_file"
               last_run=$now
           fi
       done
