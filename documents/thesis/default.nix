@@ -47,36 +47,41 @@
     text = ''
       set +e
 
-      start_ns=$(date +%s%N)
-      (
-        sp='⣾⣽⣻⢿⡿⣟⣯⣷'
-        while :; do
-          for c in $(echo "$sp" | fold -w1); do
-            end_ns=$(date +%s%N)
-            elapsed_ns=$((end_ns - start_ns))
-            elapsed_ms=$((elapsed_ns / 1000000))
-            printf "\r\033[90m[$(date '+%Y-%m-%d %H:%M:%S')]\033[0m \033[34m%s\033[0m building \033[34m%dms\033[0m " "$c" "$elapsed_ms"
-            sleep 0.1
+      spinner_then_pandoc() {
+        start_ns=$(date +%s%N)
+        (
+          sp='⣾⣽⣻⢿⡿⣟⣯⣷'
+          while :; do
+            for c in $(echo "$sp" | fold -w1); do
+              end_ns=$(date +%s%N)
+              elapsed_ns=$((end_ns - start_ns))
+              elapsed_ms=$((elapsed_ns / 1000000))
+              printf "\r\033[90m[$(date '+%Y-%m-%d %H:%M:%S')]\033[0m \033[34m%s\033[0m building \033[34m%dms\033[0m " "$c" "$elapsed_ms"
+              sleep 0.1
+            done
           done
-        done
-      ) &
-      SPINNER_PID=$!
+        ) &
+        SPINNER_PID=$!
 
-      output=$(mk-pandoc 2>&1)
-      exit_code=$?
-      end_ns=$(date +%s%N)
+        output=$(mk-pandoc 2>&1)
+        exit_code=$?
+        end_ns=$(date +%s%N)
 
-      kill "$SPINNER_PID"
-      wait "$SPINNER_PID" 2>/dev/null
+        kill "$SPINNER_PID"
+        wait "$SPINNER_PID" 2>/dev/null
 
-      elapsed_ns=$((end_ns - start_ns))
-      elapsed_ms=$((elapsed_ns / 1000000))
-      timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-      printf "\r%50s\r" ""
+        elapsed_ns=$((end_ns - start_ns))
+        elapsed_ms=$((elapsed_ns / 1000000))
+        timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+        printf "\r%100s\r" ""
+      }
+
+      spinner_then_pandoc
       if [ $exit_code -eq 0 ]; then
-        printf "\033[90m[%s]\033[0m \033[32m⣿\033[0m watching files \033[32m%dms\033[0m\n" "$timestamp" "$elapsed_ms"
+        printf "\033[90m[%s]\033[0m \033[32m✓\033[0m built \033[32m%dms\033[0m\n" "$timestamp" "$elapsed_ms"
+        printf "\033[90m[%s] »\033[0m watching files" "$timestamp"
       else
-        printf "\033[90m[%s]\033[0m \033[31m⣿\033[0m watching files \033[31m%dms\033[0m\n" "$timestamp" "$elapsed_ms"
+        printf "\033[90m[%s]\033[0m \033[31m❌\033[0m watching files \033[31m%dms\033[0m\n" "$timestamp" "$elapsed_ms"
         [ -n "$output" ] && printf "%s\n" "$output"
       fi
 
@@ -94,42 +99,16 @@
           now=$(date +%s)
           if (( now - last_run >= debounce_seconds )); then
               rel_file="./$(echo "$file" | sed -E 's|.*thesis/||')"
-              printf "\r%50s\r" ""
-              timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-              printf "\033[90m[%s] ⣿\033[0m %s\n" "$timestamp" "$rel_file"
+              printf "\r%100s\r" ""
               
-              start_ns=$(date +%s%N)
-              (
-                sp='⣾⣽⣻⢿⡿⣟⣯⣷'
-                while :; do
-                  for c in $(echo "$sp" | fold -w1); do
-                    end_ns=$(date +%s%N)
-                    elapsed_ns=$((end_ns - start_ns))
-                    elapsed_ms=$((elapsed_ns / 1000000))
-                    printf "\r\033[90m[$(date '+%Y-%m-%d %H:%M:%S')]\033[0m \033[34m%s\033[0m building \033[34m%dms\033[0m " "$c" "$elapsed_ms"
-                    sleep 0.1
-                  done
-                done
-              ) &
-              SPINNER_PID=$!
-              
-              output=$(mk-pandoc 2>&1)
-              exit_code=$?
-              end_ns=$(date +%s%N)
-
-              kill "$SPINNER_PID"
-              wait "$SPINNER_PID" 2>/dev/null
-
-              elapsed_ns=$((end_ns - start_ns))
-              elapsed_ms=$((elapsed_ns / 1000000))
-              timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-              printf "\r%50s\r" ""
+              spinner_then_pandoc
               if [ $exit_code -eq 0 ]; then
-                printf "\033[90m[%s]\033[0m \033[32m⣿\033[0m rebuilt \033[32m%dms\033[0m " "$timestamp" "$elapsed_ms"
+                printf "\033[90m[$timestamp]\033[0m \033[32m✓\033[0m %s \033[32m%dms\033[0m\n" "$rel_file" "$elapsed_ms"
               else
-                printf "\033[90m[%s]\033[0m \033[31m⣿\033[0m failed \033[31m%dms\033[0m\n" "$timestamp" "$elapsed_ms"
+                printf "\033[90m[%s]\033[0m \033[31m❌\033[0m failed \033[31m%dms\033[0m\n" "$timestamp" "$elapsed_ms"
                 [ -n "$output" ] && printf "%s\n" "$output"
               fi
+              printf "\033[90m[%s] »\033[0m watching files" "$timestamp"
 
               last_run=$now
           fi
