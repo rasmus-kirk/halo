@@ -44,6 +44,8 @@
     text = ''
       set +e
 
+      SPINNER_PID=""
+
       # This function updates the global variable `timestamp` string
       timestamp=""
       update_timestamp() {
@@ -76,7 +78,6 @@
 
       # This function runs the spinner and then calls mk-pandoc and prints the result
       run_build() {
-
         # Start the spinner in the background
         start_ns=$(date +%s%N)
         (
@@ -125,9 +126,6 @@
 
       run_build "building" "built" "build failed"
 
-      last_run=0
-      debounce_seconds=1
-
       fswatch -r . --event Updated \
         --exclude='.*\.aux$' \
         --exclude='.*\.log$' \
@@ -136,14 +134,17 @@
         --exclude='.*\.pdf$' \
         | grep -E --line-buffered '(\.md|\.tex|\.bib)$' \
         | while read -r file; do
-          now=$(date +%s)
-          if (( now - last_run >= debounce_seconds )); then
-              rel_file="./$(echo "$file" | sed -E 's|.*thesis/||')"
-              printf "\r\033[K"
-              run_build "$rel_file" "$rel_file" "$rel_file"
-              last_run=$now
-          fi
-      done
+            num_files=0
+            # Flush all pending lines to get the latest path
+            while read -t 0.1 -r maybe_new; do
+              num_files=$((num_files + 1))
+              file="$maybe_new and $num_files other"
+            done
+
+            rel_file="./$(echo "$file" | sed -E 's|.*thesis/||')"
+            printf "\r\033[K"
+            run_build "$rel_file" "$rel_file" "$rel_file"
+          done
     '';
   };
   spellcheck = pkgs.writeShellApplication {
