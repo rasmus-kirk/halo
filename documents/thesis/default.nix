@@ -10,6 +10,13 @@
     name = "mk-pandoc-script";
     runtimeInputs = latexPkgs;
     text = ''
+      # Determine the correct date command
+      if command -v gdate > /dev/null; then
+        DATE_CMD="gdate"
+      else
+        DATE_CMD="date"
+      fi
+
       pandoc \
         ./01-introduction/index.md \
         ./02-prerequisites/index.md \
@@ -24,7 +31,7 @@
         ./thesis.md \
         -H header.tex \
         --citeproc \
-        --metadata date="$(date -d "@${toString self.lastModified}" -u "+%Y-%m-%d - %H:%M:%S %Z")" \
+        --metadata date="$($DATE_CMD -d "@${toString self.lastModified}" -u "+%Y-%m-%d - %H:%M:%S %Z")" \
         --highlight-style gruvbox.theme \
         -o "$1/thesis.pdf"
     '';
@@ -39,7 +46,7 @@
     runtimeInputs = [mk-pandoc pkgs.fswatch];
     text = ''
       set +e
-      # mk-pandoc
+      mk-pandoc
       echo "Listening for file changes"
 
       last_run=0
@@ -53,11 +60,43 @@
         --exclude='.*\.pdf$' \
         | grep -E --line-buffered '(\.md|\.tex|\.bib)$' \
         | while read -r file; do
-          echo "test: $file"
           now=$(date +%s)
           if (( now - last_run >= debounce_seconds )); then
-              echo "$(date '+%Y-%m-%d - %H:%M:%S %Z') - Rebuilding due to: $file"
-              # mk-pandoc
+              rel_file="./$(echo "$file" | sed -E 's|.*thesis/||')"
+              printf "\r%50s\r" ""
+              timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+              printf "\033[90m[%s]\033[0m %s\n" "$timestamp" "$rel_file"
+              
+              (
+                sp='⣾⣽⣻⢿⡿⣟⣯⣷'
+                while :; do
+                  for c in $(echo "$sp" | fold -w1); do
+                    printf "\r\033[90m[$(date '+%Y-%m-%d %H:%M:%S')]\033[0m %s " "$c"
+                    sleep 0.05
+                  done
+                done
+              ) &
+              SPINNER_PID=$!
+              
+              start_ns=$(date +%s%N)
+              output=$(mk-pandoc 2>&1)
+              exit_code=$?
+              end_ns=$(date +%s%N)
+
+              kill "$SPINNER_PID"
+              wait "$SPINNER_PID" 2>/dev/null
+
+              elapsed_ns=$((end_ns - start_ns))
+              elapsed_ms=$((elapsed_ns / 1000000))
+              timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+              printf "\r%-50s\r" ""
+              if [ $exit_code -eq 0 ]; then
+                printf "\033[90m[%s]\033[0m rebuilt (%dms)" "$timestamp" "$elapsed_ms"
+              else
+                printf "\033[90m[%s]\033[0m \033[31mfailed\033[0m (%dms)\n" "$timestamp" "$elapsed_ms"
+                [ -n "$output" ] && printf "%s\n" "$output"
+              fi
+
               last_run=$now
           fi
       done
