@@ -53,6 +53,30 @@
         timestamp=$(printf '\033[90m[%s]\033[0m' "$(date '+%Y-%m-%d %H:%M:%S')")
       }
 
+      # Trap cleanup for graceful exit and terminal restore
+      cleanup() {
+        if [ "x$SPINNER_PID" != "x" ] && kill -0 "$SPINNER_PID" 2>/dev/null; then
+          kill "$SPINNER_PID" 2>/dev/null
+          wait "$SPINNER_PID" 2>/dev/null
+        fi
+
+        if [ -n "$WATCH_PID" ] && kill -0 "$WATCH_PID" 2>/dev/null; then
+          kill "$WATCH_PID" 2>/dev/null
+          wait "$WATCH_PID" 2>/dev/null
+        fi
+
+        update_timestamp
+        printf "\r\033[K"
+        printf "%s shutting down watcher\n" "$timestamp"
+        stty sane
+        exit 0
+      }
+      WATCH_PID=""
+      trap cleanup INT TERM
+
+      # Disable input echo and canonical mode (no line buffering)
+      stty -echo -icanon time 0 min 0
+
       # This function runs the spinner and then calls mk-pandoc and prints the result
       run_build() {
 
@@ -107,22 +131,26 @@
       last_run=0
       debounce_seconds=1
 
-      fswatch -r . --event Updated \
-        --exclude='.*\.aux$' \
-        --exclude='.*\.log$' \
-        --exclude='.*\.git/.*' \
-        --exclude='.*result$' \
-        --exclude='.*\.pdf$' \
-        | grep -E --line-buffered '(\.md|\.tex|\.bib)$' \
-        | while read -r file; do
-          now=$(date +%s)
-          if (( now - last_run >= debounce_seconds )); then
-              rel_file="./$(echo "$file" | sed -E 's|.*thesis/||')"
-              printf "\r\033[K"
-              run_build "$rel_file" "$rel_file" "$rel_file"
-              last_run=$now
-          fi
-      done
+      watch_loop() {
+        fswatch -r . --event Updated \
+          --exclude='.*\.aux$' \
+          --exclude='.*\.log$' \
+          --exclude='.*\.git/.*' \
+          --exclude='.*result$' \
+          --exclude='.*\.pdf$' \
+          | grep -E --line-buffered '(\.md|\.tex|\.bib)$' \
+          | while read -r file; do
+            now=$(date +%s)
+            if (( now - last_run >= debounce_seconds )); then
+                rel_file="./$(echo "$file" | sed -E 's|.*thesis/||')"
+                printf "\r\033[K"
+                run_build "$rel_file" "$rel_file" "$rel_file"
+                last_run=$now
+            fi
+        done
+      }
+      watch_loop &
+      WATCH_PID=$!
     '';
   };
   spellcheck = pkgs.writeShellApplication {
