@@ -19,7 +19,9 @@ s & \text{eq}(s, s') \\
 \end{array}
 $$
 
-Note: for each monotonic function below, we notate $\dagger$ as a check if the state has saturated in which the fixpoint compute can terminate. Wheras $s$ is the initial state and $\iota$ a constructor of it.
+The monotonic functions defined below are specific to the $\Surkal$ protocol. Thus if the arithmetizer abover were to be extended for a different \plonk-ish protocol, the functions would be different.
+
+Note: for each monotonic function below, we notate $\dagger$ as a check if the state has saturated in which the fixpoint compute can terminate. Wheras $s$ is the initial state and $\iota$ a constructor of it. 
 
 **Resolve**
 
@@ -166,6 +168,8 @@ f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \underset{G}{\curvearrowleft}
 $$
 
 TODO update for types; table $\vec{C}$ per type
+
+TODO draw tikzpicture of gate correspond to rows in $\vec{C}$
 
 **Copy Constraints**
 

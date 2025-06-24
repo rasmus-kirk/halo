@@ -266,13 +266,87 @@ $= \maybe{\left(\abst{f} \cup \set{\begin{array}{rl}
 \end{array}}\right)}
 $ \\
 $= \left(\set{\begin{array}{rl}
-  \text{Input}_0 & 0 \\
-  \text{Input}_1 & 1 \\
-  \text{Mul}(0,0) & 2 \\
-  \text{Add}(2,1) & 3
-\end{array}}, (3)\right)
+  \text{Input}^q_0 & (0,0,q) \\
+  \text{Input}^q_1 & (1,0,q) \\
+  \text{Mul}((0,0,q),(0,0,q)) & (2,0,q) \\
+  \text{Add}((2,0,q),(1,0,q)) & (3,0,q)
+\end{array}}, ((3,0,q))\right)
 $
 \end{longtable}
 
-TODO use types for wires
+TODO use types for wires in proof
 
+Thus, the wires are $\abst{x} = (0,0,q)$, $\abst{y} = (1,0,q)$, $\abst{t} = (2,0,q)$ and $\abst{z} = (3,0,q)$, visualizing $\build{f}{}{}$ as follows:
+
+\begin{tabularx}{\textwidth}{@{} c Y Y @{}}
+\toprule
+Predicate & Relation & Circuit Diagram
+\\\hline \\
+$\build{x^2+y}{}{}$ & 
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\node[draw, anchor=center] (in1) at (0,0) {$\text{Input}^q_0$};
+\node[draw, anchor=center] (in2) at ($(in1.south)-(0,0.4)$) {$\text{Input}^q_1$};
+\node[draw, anchor=center] (mul) at ($(in2.south)-(0,0.4)$) {$\text{Mul}((0,0,q),(0,0,q))$};
+\node[draw, anchor=center] (add) at ($(mul.south)-(0,0.4)$) {$\text{Add}((2,0,q),(1,0,q))$};
+
+\node[draw, anchor=center] (x) at ($(in1.east)+(3.5,0)$) {$(0,0,q)$};
+\node[draw, anchor=center] (y) at ($(x.south)-(0,0.4)$) {$(1,0,q)$};
+\node[draw, anchor=center] (t) at ($(y.south)-(0,0.4)$) {$(2,0,q)$};
+\node[draw, anchor=center, double] (z) at ($(t.south)-(0,0.4)$) {$(3,0,q)$};
+
+\draw[-, dashed] (in1.east) -- (x.west);
+\draw[-, dashed] (in2.east) -- (y.west);
+\draw[-, dashed] (mul.east) -- (t.west);
+\draw[-, dashed] (add.east) -- (z.west);
+\end{tikzpicture}
+&
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+% input1 gate
+\node[draw, anchor=north] (in1) at (0,0) {$\text{Input}^q_0$};
+
+% input2 gate
+\node[draw, anchor=north] (in2) at ($(in1.north)+(1.8,0)$) {$\text{Input}^q_1$};
+
+% mul(x,x) = t gate
+\node[draw, minimum width=2.4cm, minimum height=1.35cm, anchor=north west] (mul-g) at ($(in1.south)-(1.2,0.4)$) {};
+\node at ($(mul-g.north)-(0,0.975)$) {$\text{Mul}$};
+\node[anchor=center] (mul-1) at ($(mul-g.north west)+(0.6, -0.3)$) {$(0,0,q)$};
+\node[anchor=center] (mul-2) at ($(mul-g.north west)+(1.8, -0.3)$) {$(0,0,q)$};
+\draw[-] ($(mul-g.north west)+(0,-0.6)$) -- ($(mul-g.north west)+(2.4,-0.6)$);
+\draw[-] ($(mul-g.north west)+(1.2,0)$) -- ($(mul-g.north west)+(1.2,-0.6)$);
+
+% add(t,y) = z gate
+\node[draw, minimum width=2.4cm, minimum height=1.35cm, anchor=north west] (add-g) at ($(mul-g.south)+(-0.6,-0.4)$) {};
+\node at ($(add-g.north)-(0,0.975)$) {$\text{Add}$};
+\node[anchor=center] (add-1) at ($(add-g.north west)+(0.6, -0.3)$) {$(2,0,q)$};
+\node[anchor=center] (add-2) at ($(add-g.north west)+(1.8, -0.3)$) {$(1,0,q)$};
+\draw[-] ($(add-g.north west)+(0,-0.6)$) -- ($(add-g.north west)+(2.4,-0.6)$);
+\draw[-] ($(add-g.north west)+(1.2,0)$) -- ($(add-g.north west)+(1.2,-0.6)$);
+
+% z output
+\node[draw, double, anchor=north] (z) at ($(add-g.south) + (0,-0.4)$) {$(3,0,q)$};
+
+% x wiring
+\draw[-,thick] ($(mul-g.north)+(0,0.4)$) -- ($(mul-g.north)+(0,0.2)$);
+\draw[-,thick] ($(mul-g.north west)+(0.6,0.2)$) -- ($(mul-g.north west)+(1.8,0.2)$);
+\draw[->,thick] ($(mul-g.north west)+(0.6,0.2)$) -- ($(mul-g.north west)+(0.6,0)$);
+\draw[->,thick] ($(mul-g.north west)+(1.8,0.2)$) -- ($(mul-g.north west)+(1.8,0)$);
+
+% t wiring
+\draw[->,thick] ($(mul-g.south)$) -- ($(mul-g.south)+(0,-0.4)$);
+
+% y wiring
+\draw[-,thick] ($(mul-g.north west)+(3.0,0.4)$) -- ($(mul-g.south west)+(3.0,-0.2)$);
+\draw[-,thick] ($(mul-g.south west)+(3.0,-0.2)$) -- ($(mul-g.south west)+(2.4,-0.2)$);
+\draw[->,thick] ($(mul-g.south west)+(2.4,-0.2)$) -- ($(add-g.north west)+(1.8,0)$);
+
+% z wiring
+\draw[->,thick] (add-g.south) -- (z.north);
+\end{tikzpicture}
+\\
+\\\toprule
+\end{tabularx}
