@@ -301,13 +301,12 @@ In Plonk, we don't have a single polynomial spanning over each $\vec{a},
 \end{center}
 ### $\SurkalProver$
 
-- destructure vanishing argument?
-- split vanishing into prover and verifier via fiat shamir (poseidon hash for challenge)
-- maybe define fiat shamir transformation of arguments above, so u can just make the calls here
-
+- handwave describe notation in concrete protocol
+- describe use of arguments
 - construct polys for vanishing argument
   - F_GC
   - grand products: F_CC1, F_CC2, F_PL1, F_PL2
+- fiat shamir transformation of vanishing argument
 
 TODO
 

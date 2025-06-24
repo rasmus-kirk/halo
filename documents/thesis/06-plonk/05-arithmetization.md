@@ -1,6 +1,10 @@
 ## Preprocessing
 
-We now define the preprocessing pipeline: $(R,x,w) = \mathrm{relation} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})$
+We now define the preprocessing pipeline
+
+$$
+(R,x,w) = \mathrm{relation} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})
+$$
 
 ### Arithmetizer
 
@@ -205,72 +209,70 @@ TODO update for types; out uses idx, Input has type tag
 
 **Arithmetize Correctness Example**
 
-Example of the arithmetization of $\build{x^2 + y}{}{}$
-$$
-\begin{aligned}
-&\text{arithmetize}((x,y): \Fb_q^2 \mapsto (x^2 + y): \Fb_q^1)
-\\
-&= \maybe{\left(\abst{f}'', (\abst{z})\right)}{
+Example of the arithmetization of $f(x,y) = x^2 + y$
+
+\begin{longtable}{@{}l@{}}
+$\text{arithmetize}(f: \Fb_q^2 \to \Fb_q^1)
+$ \\
+$= \maybe{\left(\abst{f}'', (\abst{z})\right)}{
   \build{x^2 + y = z^*}
     {(u, \abst{f}) = (\text{put}(\text{Input}_0) \circ \text{put}(\text{Input}_1)(0, \emptyset), \emptyset)}
     {(\_, \abst{f}'', (\abst{z}))}
-  }
-\\
-&= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\build{\begin{array}{l}
+}$ \\
+$= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\build{\begin{array}{l}
   x \times x = t \\
   t + y = z^*
 \end{array}}{(u, \abst{f}, \emptyset)}{(\_, \abst{f}'', (\abst{z}))}}
-\\
-&= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\begin{array}{l}
+= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\begin{array}{l}
   \build{x \times x = t}{(u, \abst{f})}{(u', \abst{f}')} \\
   \build{t + y = z^*}{(u', \abst{f}', \emptyset)}{(\_, \abst{f}'', (\abst{z}))}
 \end{array}}
-\\
-&= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\begin{array}{rl}
+$ \\
+$= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\begin{array}{rl}
   \text{get}(u, \abst{f}, \text{Mul}(\abst{x},\abst{x})) &= (u', \abst{f}', (\abst{t})) \\
   \text{get}(u', \abst{f}', \text{Add}(\abst{t},\abst{y})) &= (\_, \abst{f}'', (\abst{z}))
 \end{array}}
-\\ 
-&= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\begin{array}{rl}
+$ \\
+$= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\begin{array}{rl}
   (u+1, \abst{f} \cup \set{(\text{Mul}(\abst{x},\abst{x}), u)}, (u)) &= (u', \abst{f}', (\abst{t})) \\
   \text{get}(u', \abst{f}', \text{Add}(\abst{t},\abst{y})) &= (\_, \abst{f}'', (\abst{z}))
 \end{array}}
-\\
-&= \maybe{\left(\abst{f}'', (\abst{z})\right)}{
+$ \\
+$= \maybe{\left(\abst{f}'', (\abst{z})\right)}{
   \text{get}(u+1, \abst{f} \cup \set{(\text{Mul}(\abst{x},\abst{x}), u)}, \text{Add}(u,\abst{y})) = (\_, \abst{f}'', (\abst{z}))
 }
-\\
-&= \maybe{\left(\abst{f} \cup \set{\begin{array}{rl}
+$ \\
+$= \maybe{\left(\abst{f} \cup \set{\begin{array}{rl}
     \text{Mul}(\abst{x},\abst{x}) & u \\
     \text{Add}(u,\abst{y}) & u+1
   \end{array}}, (u+1)\right)}{
   (u, \abst{f}) = \text{put}(\text{Input}_0) \circ \text{put}(\text{Input}_1)(0, \emptyset)
 }
-\\
-&= \maybe{\left(\abst{f} \cup \set{\begin{array}{rl}
-    \text{Mul}(0,0) & u \\
-    \text{Add}(u,\abst{y}) & u+1
-  \end{array}}, (u+1)\right)}{
-    (u, \abst{f}) = \text{put}(\text{Input}_1, 1, \set{(\text{Input}_0, 0)})
-  }
-\\
-&= \maybe{\left(\abst{f} \cup \set{\begin{array}{rl}
-    \text{Mul}(0,0) & u \\
-    \text{Add}(u,1) & u+1
-  \end{array}}, (u+1) \right)}
-  {(u, \abst{f}) = \left(2, \set{\begin{array}{rl}
-    \text{Input}_0 & 0 \\
-    \text{Input}_1 & 1
-  \end{array}}\right)}
-\\
-&= \left(\set{\begin{array}{rl}
+$ \\
+$= \maybe{\left(\abst{f} \cup \set{\begin{array}{rl}
+  \text{Mul}(0,0) & u \\
+  \text{Add}(u,\abst{y}) & u+1
+\end{array}}, (u+1)\right)}{
+  (u, \abst{f}) = \text{put}(\text{Input}_1, 1, \set{(\text{Input}_0, 0)})
+}
+$\\
+$= \maybe{\left(\abst{f} \cup \set{\begin{array}{rl}
+  \text{Mul}(0,0) & u \\
+  \text{Add}(u,1) & u+1
+\end{array}}, (u+1) \right)}
+{(u, \abst{f}) = \left(2, \set{\begin{array}{rl}
+  \text{Input}_0 & 0 \\
+  \text{Input}_1 & 1
+\end{array}}\right)}
+$ \\
+$= \left(\set{\begin{array}{rl}
   \text{Input}_0 & 0 \\
   \text{Input}_1 & 1 \\
   \text{Mul}(0,0) & 2 \\
   \text{Add}(2,1) & 3
 \end{array}}, (3)\right)
-\end{aligned}
-$$
+$
+\end{longtable}
 
 TODO use types for wires
 
