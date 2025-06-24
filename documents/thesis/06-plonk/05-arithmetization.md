@@ -1,10 +1,12 @@
 ## Preprocessing
 
-We now define the preprocessing pipeline
+We now define the preprocessing pipeline where $f : \text{Program}$ and $\text{Program} = W[\vec{t_{in}}] \to W[\vec{t_{out}}]$
 
 $$
 (R,x,w) = \mathrm{relation} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})
 $$
+
+Note: we use alot of custom notations in this section, which are defined in the appendix.
 
 ### Arithmetizer
 
@@ -13,7 +15,6 @@ Wires $\abst{x}$ are abstract representations of values $x$, defined as a triple
 $$
 \begin{array}{cccc}
 \begin{array}{rl}
-\WireType &= \set{t_1, t_2, \ldots, t_n} \\
 \Wire &= \Nb \times \Nb \times \WireType \\
 W &: \WireType \to \mathcal{U} \\
 \end{array}
@@ -51,12 +52,12 @@ m &: \Gate + \GateType \to \Nb
 &
 \begin{array}{rl}
 \ty &: \Gate \to \GateType \\
-\ty(t, \_) &= t
+\ty &= \lambda(t, \_). t
 \end{array}
 &
 \begin{array}{rl}
 \tin &: (g: \Gate) \to \Wire^{n_g} \\
-\tin(\_, \abst{\vec{x}}) &= \abst{\vec{x}} \\
+\tin &= \lambda (\_, \abst{\vec{x}}). \abst{\vec{x}} \\
 \end{array}
 \end{array}
 $$
@@ -78,6 +79,24 @@ g(\abst{\vec{x}}) &= \maybe{(g,\abst{\vec{x}})}{\forall i \in [n_g]. \text{inty}
 $$
 
 Arithmetize turns a program $f$ into an abstract circuit $\abst{f}$, which is a one-to-many-or-none relation between gates $g$ and output wire(s) $\abst{y}$ or $\bot$ for none. e.g. $(\text{Add}(\abst{a},\abst{b}), \abst{c}) \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$. $\abst{f}$ are also acyclic.
+
+$$
+\AbsCirc = \set{
+  \abst{f} \subset \Gate \times \Option(\Nb) \middle\vert
+  \begin{array}{l}
+  \forall (g,\abst{y}),(h,\abst{y}) \in \abst{f}. \abst{y} \neq \bot \implies g = h \\
+  \forall (g,\abst{y}) \in \abst{f}. \abst{y} \neq \bot \land |\text{in}(g)| > 0 \implies \max(\id[\tin(g)]) < \min \left(\id[\out_{\abst{f}}(g)] \right)
+  \end{array}
+}
+$$
+$$
+\begin{array}{rl}
+\out &: \AbsCirc \to \Gate \to \Wire^{m_g} \\
+\out_{\abst{f}}(g) &= \maybe{\abst{\vec{y}}}{\abst{y}_i \in \set{\abst{y} \middle\vert (g,\abst{y}) \in \abst{f}} \land i = \idx(\abst{y}_i) + 1}
+\end{array}
+$$
+
+We can visualize a gate with an abstract circuit diagram:
 
 \begin{center}
 \begin{tabular}{ c c c c }
@@ -134,26 +153,41 @@ e.g.
 \end{tabular}
 \end{center}
 
-We notate inserting a gate or gadget $f$ to the abstract circuit with predicates $\build{f = \vec{y}}{s}{s'}$, $\build{f = y}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the state; $s=(u, \abst{f})$ where $u$ is the current uuid, from $s$ to $s'$. Composition via $\bigwedge \build{f}{}{}$ denotes gadgets.
+We notate arithmetizing a program $f$ to an abstract circuit $\abst{f}$ with predicates $\build{f = \vec{y}}{s}{s'}$, $\build{f = y}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the state; $s=(u, \abst{f})$ where $u$ is the current uuid, from $s$ to $s'$. Gadgets are compositions of $\bigwedge \build{f}{}{}$. Wires annotated with $*$, i.e. $\build{f = y^*}{}{}$, are the final output and are appended to $\abst{\vec{Y}}$. They, may be omitted notationally.
 
-Wires annotated with $*$, i.e. $\build{f = y^*}{}{}$, are the final output and are appended to $\abst{\vec{Y}}$. They, may be omitted notationally.
+$$
+\begin{array}{cc}
+\AState = \Nb \times \AbsCirc \times \Option(\Wire^k)
+&
+\begin{array}{ll}
+\build{-}{}{} &: \text{Program} \to \AState \to \AState \to \Bb \\
+\build{-}{s}{s'} &: \text{Program} \to \Bb
+\end{array}
+\end{array}
+$$
+$$
+\begin{array}{cccc}
+\build{g = \vec{y}}{s}{s'}
+= \left(\text{get}(s,g) = (s', \abst{\vec{y}})\right)
+&
+\build{f=y^*}{s}{s'} = \build{f=y}{(s,\abst{\vec{Y}})}{(s', \abst{\vec{Y}} \cat \abst{y})}
+&
+\build{f}{s_1}{s_{k+1}}
+= \bigwedge\limits_{i \in [k]} \build{f_i}{s_i}{s_{i+1}}
+\end{array}
+$$
+
+Gates have a canonical program that it corresponds to, e.g $\build{x + y=z}{s}{s'} = \left(\text{get}(s,\text{Add}(\abst{x},\abst{y})) = (s', \abst{z})\right)$, thus a program can be arithmetized iff it can be decomposed into these canonical programs.
 
 These inserts yield new wires. However, wires are reused by an equivalence class on gates. If $g \equiv h$ where $(h,\_) \in \abst{f}$, then $\abst{\vec{y}}$ in $\build{g=\vec{y}}{s}{s}$ corresponds to the output wire(s) of $h$, leaving the state unchanged.
 
+TODO: fix below and ur done for typed arith; remove build notation, remove out, entries construct wires not just naturals vector, arith use proper general type
+
 $$
 \begin{aligned}
-\AbsCirc &= \set{
-  \abst{f} \subset \Gate \times \Option(\Nb) \middle\vert
-  \begin{array}{l}
-  \forall (g,\abst{y}),(h,\abst{y}) \in \abst{f}. \abst{y} \neq \bot \implies g = h \\
-  \forall (g,\abst{y}) \in \abst{f}. \abst{y} \neq \bot \implies \max(\id[\tin(g)]) < \min \left(\set{\id(\abst{y}) \middle\vert (g, \abst{y}) \in \abst{f}} \right)
-  \end{array}
-} \\
 \Gate^{\abst{f}}_g &= \set{h \in \Gate \middle\vert
   (h, \_) \in \abst{f} \land h \equiv g
 }
-\\
-\AState &= \Nb \times \AbsCirc
 \end{aligned}
 $$
 $$
@@ -203,20 +237,18 @@ $$
 \end{array}
 $$
 
-Note: $\text{Input}_i$ is a family of gates with no inputs and one output wire corresponding to an input of the final circuit. The list of gates available are defined at the end of the following subsection.
-
-TODO update for types; out uses idx, Input has type tag
+Note: $\text{Input}^t_i$ is a family of gates with no inputs and one output wire corresponding to an input of the final circuit. The list of gates available are defined at the end of the following subsection.
 
 **Arithmetize Correctness Example**
 
-Example of the arithmetization of $f(x,y) = x^2 + y$
+Let $W(q)=\Fb_q$, in the following example of the arithmetization of $f(x,y) = x^2 + y$:
 
 \begin{longtable}{@{}l@{}}
 $\text{arithmetize}(f: \Fb_q^2 \to \Fb_q^1)
 $ \\
 $= \maybe{\left(\abst{f}'', (\abst{z})\right)}{
   \build{x^2 + y = z^*}
-    {(u, \abst{f}) = (\text{put}(\text{Input}_0) \circ \text{put}(\text{Input}_1)(0, \emptyset), \emptyset)}
+    {(u, \abst{f}) = (\text{put}(\text{Input}^q_0) \circ \text{put}(\text{Input}^q_1)(0, \emptyset), \emptyset)}
     {(\_, \abst{f}'', (\abst{z}))}
 }$ \\
 $= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\build{\begin{array}{l}
@@ -234,35 +266,35 @@ $= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\begin{array}{rl}
 \end{array}}
 $ \\
 $= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\begin{array}{rl}
-  (u+1, \abst{f} \cup \set{(\text{Mul}(\abst{x},\abst{x}), u)}, (u)) &= (u', \abst{f}', (\abst{t})) \\
-  \text{get}(u', \abst{f}', \text{Add}(\abst{t},\abst{y})) &= (\_, \abst{f}'', (\abst{z}))
+  (u+1, \abst{f} \cup \set{(\text{Mul}(\abst{x},\abst{x}), ((u,0,q)))}, (u)) &= (u', \abst{f}', (\abst{t})) \\
+  \text{get}((u',0,q), \abst{f}', \text{Add}(\abst{t},\abst{y})) &= (\_, \abst{f}'', (\abst{z}))
 \end{array}}
 $ \\
 $= \maybe{\left(\abst{f}'', (\abst{z})\right)}{
-  \text{get}(u+1, \abst{f} \cup \set{(\text{Mul}(\abst{x},\abst{x}), u)}, \text{Add}(u,\abst{y})) = (\_, \abst{f}'', (\abst{z}))
+  \text{get}(u+1, \abst{f} \cup \set{(\text{Mul}(\abst{x},\abst{x}), (u,0,q))}, \text{Add}((u,0,q),\abst{y})) = (\_, \abst{f}'', (\abst{z}))
 }
 $ \\
 $= \maybe{\left(\abst{f} \cup \set{\begin{array}{rl}
-    \text{Mul}(\abst{x},\abst{x}) & u \\
-    \text{Add}(u,\abst{y}) & u+1
-  \end{array}}, (u+1)\right)}{
-  (u, \abst{f}) = \text{put}(\text{Input}_0) \circ \text{put}(\text{Input}_1)(0, \emptyset)
+    \text{Mul}(\abst{x},\abst{x}) & (u,0,q) \\
+    \text{Add}((u,0,q),\abst{y}) & (u+1,0,q)
+  \end{array}}, ((u+1,0,q))\right)}{
+  (u, \abst{f}) = \text{put}(\text{Input}^q_0) \circ \text{put}(\text{Input}^q_1)(0, \emptyset)
 }
 $ \\
 $= \maybe{\left(\abst{f} \cup \set{\begin{array}{rl}
-  \text{Mul}(0,0) & u \\
-  \text{Add}(u,\abst{y}) & u+1
-\end{array}}, (u+1)\right)}{
-  (u, \abst{f}) = \text{put}(\text{Input}_1, 1, \set{(\text{Input}_0, 0)})
+  \text{Mul}((0,0,q),(0,0,q)) & (u,0,q) \\
+  \text{Add}((u,0,q),\abst{y}) & (u+1,0,q)
+\end{array}}, ((u+1),0,q)\right)}{
+  (u, \abst{f}) = \text{put}(\text{Input}^q_1, 1, \set{(\text{Input}^q_0, (0,0,q))})
 }
 $\\
 $= \maybe{\left(\abst{f} \cup \set{\begin{array}{rl}
-  \text{Mul}(0,0) & u \\
-  \text{Add}(u,1) & u+1
-\end{array}}, (u+1) \right)}
+  \text{Mul}((0,0,q),(0,0,q)) & (u,0,q) \\
+  \text{Add}((u,0,q),(1,0,q)) & (u+1,0,q)
+\end{array}}, ((u+1,0,q)) \right)}
 {(u, \abst{f}) = \left(2, \set{\begin{array}{rl}
-  \text{Input}_0 & 0 \\
-  \text{Input}_1 & 1
+  \text{Input}_0 & (0,0,q) \\
+  \text{Input}_1 & (1,0,q)
 \end{array}}\right)}
 $ \\
 $= \left(\set{\begin{array}{rl}
@@ -274,15 +306,13 @@ $= \left(\set{\begin{array}{rl}
 $
 \end{longtable}
 
-TODO use types for wires in proof
-
-Thus, the wires are $\abst{x} = (0,0,q)$, $\abst{y} = (1,0,q)$, $\abst{t} = (2,0,q)$ and $\abst{z} = (3,0,q)$, visualizing $\build{f}{}{}$ as follows:
+This concludes with wires $\abst{x} = (0,0,q)$, $\abst{y} = (1,0,q)$, $\abst{t} = (2,0,q)$ and $\abst{z} = (3,0,q)$. $\abst{f}$ can be notated as:
 
 \begin{tabularx}{\textwidth}{@{} c Y Y @{}}
 \toprule
-Predicate & Relation & Circuit Diagram
+Predicate & Abstract Circuit Relation & Abstract Circuit Diagram
 \\\hline \\
-$\build{x^2+y}{}{}$ & 
+$\build{x^2+y=z^*}{}{}$ & 
 \begin{tikzpicture}[
   baseline={(current bounding box.center)}
 ]
@@ -291,10 +321,14 @@ $\build{x^2+y}{}{}$ &
 \node[draw, anchor=center] (mul) at ($(in2.south)-(0,0.4)$) {$\text{Mul}((0,0,q),(0,0,q))$};
 \node[draw, anchor=center] (add) at ($(mul.south)-(0,0.4)$) {$\text{Add}((2,0,q),(1,0,q))$};
 
-\node[draw, anchor=center] (x) at ($(in1.east)+(3.5,0)$) {$(0,0,q)$};
-\node[draw, anchor=center] (y) at ($(x.south)-(0,0.4)$) {$(1,0,q)$};
-\node[draw, anchor=center] (t) at ($(y.south)-(0,0.4)$) {$(2,0,q)$};
-\node[draw, anchor=center, double] (z) at ($(t.south)-(0,0.4)$) {$(3,0,q)$};
+\node[anchor=center] (x) at ($(in1.east)+(3.5,0)$) {$(0,0,q)$};
+\node[anchor=center] (y) at ($(x.south)-(0,0.4)$) {$(1,0,q)$};
+\node[anchor=center] (t) at ($(y.south)-(0,0.4)$) {$(2,0,q)$};
+\node[anchor=center] (z) at ($(t.south)-(0,0.4)$) {$(3,0,q)$};
+\node[anchor=west] (outs) at ($(z.east)+(-0.125,0.075)$) {$\in \abst{\vec{Y}}$};
+
+\node[] (g) at ($(in1.north)+(0,0.4)$) {$g$};
+\node[] (w) at ($(x.north)+(0,0.4)$) {$\abst{y}$};
 
 \draw[-, dashed] (in1.east) -- (x.west);
 \draw[-, dashed] (in2.east) -- (y.west);
@@ -328,7 +362,8 @@ $\build{x^2+y}{}{}$ &
 \draw[-] ($(add-g.north west)+(1.2,0)$) -- ($(add-g.north west)+(1.2,-0.6)$);
 
 % z output
-\node[draw, double, anchor=north] (z) at ($(add-g.south) + (0,-0.4)$) {$(3,0,q)$};
+\node[anchor=north] (z) at ($(add-g.south) + (0,-0.4)$) {$(3,0,q)$};
+\node[anchor=west] (outs) at ($(z.east)+(-0.125,0.075)$) {$\in \abst{\vec{Y}}$};
 
 % x wiring
 \draw[-,thick] ($(mul-g.north)+(0,0.4)$) -- ($(mul-g.north)+(0,0.2)$);
