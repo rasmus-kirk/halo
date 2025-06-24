@@ -151,42 +151,50 @@
       }
 
       # Run the initial build as a background process
-      run_build "building" "built" "build failed" &
+      run_build "first build" "first build success" "first build failed" &
       FIRST_BUILD_PID=$!
 
       # Now watch files in the same shell
+      dbsp=' ▁▂▃▄▅▆▇█'
+      N=10
       debounce_ns=2500000000
       while read -r file; do
         # Guard initial build to finish first
         wait "$FIRST_BUILD_PID" 2>/dev/null || true
         
         # Debounce flush other changes
-        num_files=1
+        num_changes=1
         lastread_ns=$(date +%s%N)
         now_ns=$(date +%s%N)
-        while :; do
-          for c in $(echo "$sp" | fold -w1); do
-            # Spinner code
-            now_ns=$(date +%s%N)
-            elapsed_ns=$((debounce_ns - now_ns + lastread_ns))
-            if (( elapsed_ns <= 0 )); then
-              elapsed_ns=0
-            fi
-            elapsed_ms=$((elapsed_ns / 1000000))
-            update_timestamp
-            printf "\r%s \033[90m%s\033[0m watching files \033[90m%dms\033[0m " "$timestamp" "$c" "$elapsed_ms"
-            
-            # Instead of sleep 0.1, we read until timeout 0.1
-            while read -t 0.1 -r maybe_new; do
-              num_files=$((num_files + 1))
-              file="$maybe_new [$num_files changes]"
-              lastread_ns=$(date +%s%N)
-            done
+        while (( now_ns - lastread_ns < debounce_ns )) do
+          # Calculate debounce progress
+          now_ns=$(date +%s%N)
+          elapsed_ns=$((debounce_ns - now_ns + lastread_ns))
+          if (( elapsed_ns <= 0 )); then
+            elapsed_ns=0
+          fi
 
-            # If last read exceeds debounce time, break the loop
-            if (( now_ns - lastread_ns > debounce_ns )); then
-              break 2
+          # Get debounce progress character
+          j=$((elapsed_ns * N / debounce_ns))
+          i=0
+          sc=' '
+          for c in $(echo "$dbsp" | fold -w1); do
+            i=$((i+1))
+            if [ "$i" -eq "$j" ]; then
+              sc=$c
+              break
             fi
+          done
+
+          # Print spinner
+          update_timestamp
+          printf "\r%s \033[90m%s\033[0m watching files " "$timestamp" "$sc"
+          
+          # Instead of sleep 0.1, we read until timeout 0.1
+          while read -t 0.1 -r maybe_new; do
+            num_changes=$((num_changes + 1))
+            file="$maybe_new [$num_changes changes]"
+            lastread_ns=$(date +%s%N)
           done
         done
 
