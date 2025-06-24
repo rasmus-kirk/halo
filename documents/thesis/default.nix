@@ -44,6 +44,7 @@
     text = ''
       set +e
 
+      sp='⣾⣽⣻⢿⡿⣟⣯⣷'
       FIRST_BUILD_PID=""
 
       # This function updates the global variable `timestamp` string
@@ -81,7 +82,7 @@
       cleanup() {
         kill_if_exist "$FIRST_BUILD_PID"
 
-        # hack for out of order console output
+        # hack wait for spinner to die
         sleep 0.5
 
         if [ $killed -eq 1 ]; then
@@ -105,7 +106,6 @@
         # Start the spinner in the background
         start_ns=$(date +%s%N)
         (
-          sp='⣾⣽⣻⢿⡿⣟⣯⣷'
           while :; do
             for c in $(echo "$sp" | fold -w1); do
               end_ns=$(date +%s%N)
@@ -150,21 +150,47 @@
         printf "%s \033[90m»\033[0m watching files" "$timestamp"
       }
 
+      # Run the initial build as a background process
       run_build "building" "built" "build failed" &
       FIRST_BUILD_PID=$!
 
       # Now watch files in the same shell
+      debounce_ns=2500000000
       while read -r file; do
-        # Ensure first build has finished before triggering rebuilds
+        # Guard initial build to finish first
         wait "$FIRST_BUILD_PID" 2>/dev/null || true
-
+        
+        # Debounce flush other changes
         num_files=1
-        # Flush other changes
-        while read -t 0.1 -r maybe_new; do
-          num_files=$((num_files + 1))
-          file="$maybe_new [$num_files changes]"
+        lastread_ns=$(date +%s%N)
+        now_ns=$(date +%s%N)
+        while :; do
+          for c in $(echo "$sp" | fold -w1); do
+            # Spinner code
+            now_ns=$(date +%s%N)
+            elapsed_ns=$((debounce_ns - now_ns + lastread_ns))
+            if (( elapsed_ns <= 0 )); then
+              elapsed_ns=0
+            fi
+            elapsed_ms=$((elapsed_ns / 1000000))
+            update_timestamp
+            printf "\r%s \033[90m%s\033[0m watching files \033[90m%dms\033[0m " "$timestamp" "$c" "$elapsed_ms"
+            
+            # Instead of sleep 0.1, we read until timeout 0.1
+            while read -t 0.1 -r maybe_new; do
+              num_files=$((num_files + 1))
+              file="$maybe_new [$num_files changes]"
+              lastread_ns=$(date +%s%N)
+            done
+
+            # If last read exceeds debounce time, break the loop
+            if (( now_ns - lastread_ns > debounce_ns )); then
+              break 2
+            fi
+          done
         done
 
+        # Run build
         rel_file="./$(echo "$file" | sed -E 's|.*thesis/||')"
         printf "\r\033[K"
         run_build "$rel_file" "$rel_file" "$rel_file"
