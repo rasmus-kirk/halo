@@ -157,7 +157,7 @@ We notate arithmetizing a program $f$ to an abstract circuit $\abst{f}$ with pre
 
 $$
 \begin{array}{cc}
-\AState = \Nb \times \AbsCirc \times \Option(\Wire^k)
+\AState = \Nb \times \AbsCirc \times \Wire^k
 &
 \begin{array}{ll}
 \build{-}{}{} &: \text{Program} \to \AState \to \AState \to \Bb \\
@@ -238,26 +238,28 @@ $$
 $$
 
 Note: $\text{Input}^t_i$ is a family of gates with no inputs and one output wire corresponding to an input of the final circuit. The list of gates available are defined at the end of the following subsection.
-
 **Arithmetize Correctness Example**
 
 Let $W(q)=\Fb_q$, in the following example of the arithmetization of $f(x,y) = x^2 + y$:
 
 \begin{longtable}{@{}l@{}}
-$\text{arithmetize}(f: \Fb_q^2 \to \Fb_q^1)
-$ \\
+Let $(\abst{f}, \abst{\vec{Y}})$
+\\
+$= \text{arithmetize}(f: \Fb_q^2 \to \Fb_q^1)$
+\\
 $= \maybe{\left(\abst{f}'', (\abst{z})\right)}{
   \build{x^2 + y = z^*}
-    {(u, \abst{f}) = (\text{put}(\text{Input}^q_0) \circ \text{put}(\text{Input}^q_1)(0, \emptyset), \emptyset)}
+    {(u, \abst{f},())}
     {(\_, \abst{f}'', (\abst{z}))}
 }$ \\
 $= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\build{\begin{array}{l}
   x \times x = t \\
   t + y = z^*
-\end{array}}{(u, \abst{f}, \emptyset)}{(\_, \abst{f}'', (\abst{z}))}}
-= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\begin{array}{l}
-  \build{x \times x = t}{(u, \abst{f})}{(u', \abst{f}')} \\
-  \build{t + y = z^*}{(u', \abst{f}', \emptyset)}{(\_, \abst{f}'', (\abst{z}))}
+\end{array}}{(u, \abst{f}, ())}{(\_, \abst{f}'', (\abst{z}))}}$
+\\
+$= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\begin{array}{l}
+  \build{x \times x = t}{(u, \abst{f},())}{(u', \abst{f}',())} \\
+  \build{t + y = z^*}{(u', \abst{f}', ())}{(\_, \abst{f}'', (\abst{z}))}
 \end{array}}
 $ \\
 $= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\begin{array}{rl}
@@ -274,30 +276,23 @@ $= \maybe{\left(\abst{f}'', (\abst{z})\right)}{
   \text{get}(u+1, \abst{f} \cup \set{(\text{Mul}(\abst{x},\abst{x}), (u,0,q))}, \text{Add}((u,0,q),\abst{y})) = (\_, \abst{f}'', (\abst{z}))
 }
 $ \\
-$= \maybe{\left(\abst{f} \cup \set{\begin{array}{rl}
+$= \left(\abst{f} \cup \set{\begin{array}{rl}
     \text{Mul}(\abst{x},\abst{x}) & (u,0,q) \\
     \text{Add}((u,0,q),\abst{y}) & (u+1,0,q)
-  \end{array}}, ((u+1,0,q))\right)}{
-  (u, \abst{f}) = \text{put}(\text{Input}^q_0) \circ \text{put}(\text{Input}^q_1)(0, \emptyset)
-}
+  \end{array}}, ((u+1,0,q))\right)
 $ \\
-$= \maybe{\left(\abst{f} \cup \set{\begin{array}{rl}
-  \text{Mul}((0,0,q),(0,0,q)) & (u,0,q) \\
-  \text{Add}((u,0,q),\abst{y}) & (u+1,0,q)
-\end{array}}, ((u+1),0,q)\right)}{
-  (u, \abst{f}) = \text{put}(\text{Input}^q_1, 1, \set{(\text{Input}^q_0, (0,0,q))})
-}
-$\\
-$= \maybe{\left(\abst{f} \cup \set{\begin{array}{rl}
-  \text{Mul}((0,0,q),(0,0,q)) & (u,0,q) \\
-  \text{Add}((u,0,q),(1,0,q)) & (u+1,0,q)
-\end{array}}, ((u+1,0,q)) \right)}
-{(u, \abst{f}) = \left(2, \set{\begin{array}{rl}
-  \text{Input}_0 & (0,0,q) \\
-  \text{Input}_1 & (1,0,q)
-\end{array}}\right)}
-$ \\
-$= \left(\set{\begin{array}{rl}
+where $(u,\abst{f})$
+\\ 
+$= (\text{put}(\text{Input}^q_0) \circ \text{put}(\text{Input}^q_1)(0, \emptyset), \emptyset)$
+\\
+$= \text{put}(\text{Input}^q_1, 1, \set{(\text{Input}^q_0, (0,0,q))})$
+\\
+$= \left(2, \set{\begin{array}{rl}
+  \text{Input}^q_0 & (0,0,q) \\
+  \text{Input}^q_1 & (1,0,q)
+\end{array}}\right)$
+\\
+$\therefore \ (\abst{f}, \abst{\vec{Y}}) = \left(\set{\begin{array}{rl}
   \text{Input}^q_0 & (0,0,q) \\
   \text{Input}^q_1 & (1,0,q) \\
   \text{Mul}((0,0,q),(0,0,q)) & (2,0,q) \\
