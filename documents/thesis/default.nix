@@ -44,7 +44,7 @@
     text = ''
       set +e
 
-      SPINNER_PID=""
+      FIRST_BUILD_PID=""
 
       # This function updates the global variable `timestamp` string
       timestamp=""
@@ -52,21 +52,45 @@
         timestamp=$(printf '\033[90m[%s]\033[0m' "$(date '+%Y-%m-%d %H:%M:%S')")
       }
 
+      # This function restores terminal settings to sane defaults
+      restore_stty() {
+        # Try Linux-style first
+        if stty -F /dev/tty sane 2>/dev/null; then
+          return
+        fi
+
+        # Fallback to macOS-style
+        if stty sane < /dev/tty 2>/dev/null; then
+          return
+        fi
+
+        # Final fallback (TTY not available?)
+        echo "Warning: could not restore terminal settings" >&2
+      }
+
+      # This function kills a process if it exists
+      kill_if_exist() {
+        if [ -n "$1" ] && kill -0 "$1" 2>/dev/null; then
+          kill "$1" 2>/dev/null
+          wait "$1" 2>/dev/null
+        fi
+      }
+
       # Trap cleanup for graceful exit and terminal restore
       killed=0
       cleanup() {
-        if [ "x$SPINNER_PID" != "x" ] && kill -0 "$SPINNER_PID" 2>/dev/null; then
-          kill "$SPINNER_PID" 2>/dev/null
-          wait "$SPINNER_PID" 2>/dev/null
-        fi
+        kill_if_exist "$FIRST_BUILD_PID"
+
+        # hack for out of order console output
+        sleep 0.5
 
         if [ $killed -eq 1 ]; then
           return
         fi
         update_timestamp
         printf "\r\033[K"
-        printf "%s \033[90m»\033[0m shutting down watcher\n" "$timestamp"
-        stty sane
+        printf "%s \033[90m»\033[0m watcher has shut down\n" "$timestamp"
+        restore_stty
         killed=1
         kill 0
         exit 0
@@ -113,38 +137,48 @@
         printf "\r\033[K"
 
         # Print the result
-        if [ $exit_code -eq 0 ]; then
-          printf "%s \033[32m✓\033[0m %s \033[32m%dms\033[0m\n" "$timestamp" "$2" "$elapsed_ms"
-        else
-          printf "%s \033[31m✕\033[0m %s \033[31m%dms\033[0m\n" "$timestamp" "$3" "$elapsed_ms"
-          [ -n "$output" ] && printf "%s\n" "$output"
+        if [ $exit_code -ne 130 ]; then
+          if [ $exit_code -eq 0 ]; then
+            printf "%s \033[32m✓\033[0m %s \033[32m%dms\033[0m\n" "$timestamp" "$2" "$elapsed_ms"
+          else
+            printf "%s \033[31m✕\033[0m %s \033[31m%dms\033[0m\n" "$timestamp" "$3" "$elapsed_ms"
+            [ -n "$output" ] && printf "%s\n" "$output"
+          fi
         fi
 
         # Print the watching message
         printf "%s \033[90m»\033[0m watching files" "$timestamp"
       }
 
-      run_build "building" "built" "build failed"
+      run_build "building" "built" "build failed" &
+      FIRST_BUILD_PID=$!
 
-      fswatch -r . --event Updated \
-        --exclude='.*\.aux$' \
-        --exclude='.*\.log$' \
-        --exclude='.*\.git/.*' \
-        --exclude='.*result$' \
-        --exclude='.*\.pdf$' \
-        | grep -E --line-buffered '(\.md|\.tex|\.bib)$' \
-        | while read -r file; do
-            num_files=1
-            # Flush all pending lines to get the latest path
-            while read -t 0.1 -r maybe_new; do
-              num_files=$((num_files + 1))
-              file="$maybe_new [$num_files changes]"
-            done
+      # Now watch files in the same shell
+      while read -r file; do
+        # Ensure first build has finished before triggering rebuilds
+        wait "$FIRST_BUILD_PID" 2>/dev/null || true
 
-            rel_file="./$(echo "$file" | sed -E 's|.*thesis/||')"
-            printf "\r\033[K"
-            run_build "$rel_file" "$rel_file" "$rel_file"
-          done
+        num_files=1
+        # Flush other changes
+        while read -t 0.1 -r maybe_new; do
+          num_files=$((num_files + 1))
+          file="$maybe_new [$num_files changes]"
+        done
+
+        rel_file="./$(echo "$file" | sed -E 's|.*thesis/||')"
+        printf "\r\033[K"
+        run_build "$rel_file" "$rel_file" "$rel_file"
+        echo "after"
+        echo "after2"
+      done < <(
+        fswatch -r . --event Updated \
+          --exclude='.*\.aux$' \
+          --exclude='.*\.log$' \
+          --exclude='.*\.git/.*' \
+          --exclude='.*result$' \
+          --exclude='.*\.pdf$' \
+          | grep -E --line-buffered '(\.md|\.tex|\.bib)$'
+      )
     '';
   };
   spellcheck = pkgs.writeShellApplication {
