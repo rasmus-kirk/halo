@@ -168,8 +168,6 @@
         rel_file="./$(echo "$file" | sed -E 's|.*thesis/||')"
         printf "\r\033[K"
         run_build "$rel_file" "$rel_file" "$rel_file"
-        echo "after"
-        echo "after2"
       done < <(
         fswatch -r . --event Updated \
           --exclude='.*\.aux$' \
