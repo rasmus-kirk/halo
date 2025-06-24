@@ -85,14 +85,14 @@ $$
   \abst{f} \subset \Gate \times \Option(\Nb) \middle\vert
   \begin{array}{l}
   \forall (g,\abst{y}),(h,\abst{y}) \in \abst{f}. \abst{y} \neq \bot \implies g = h \\
-  \forall (g,\abst{y}) \in \abst{f}. \abst{y} \neq \bot \land |\text{in}(g)| > 0 \implies \max(\id[\tin(g)]) < \min \left(\id[\out_{\abst{f}}(g)] \right)
+  \forall (g,\abst{y}) \in \abst{f}. \abst{y} \neq \bot \land |\text{in}(g)| > 0 \implies \max(\id[\tin(g)]) < \min \left(\id[\out^{\abst{f}}(g)] \right)
   \end{array}
 }
 $$
 $$
 \begin{array}{rl}
 \out &: \AbsCirc \to \Gate \to \Wire^{m_g} \\
-\out_{\abst{f}}(g) &= \maybe{\abst{\vec{y}}}{\abst{y}_i \in \set{\abst{y} \middle\vert (g,\abst{y}) \in \abst{f}} \land i = \idx(\abst{y}_i) + 1}
+\out^{\abst{f}}(g) &= \maybe{\abst{\vec{y}}}{\abst{y}_i \in \set{\abst{y} \middle\vert (g,\abst{y}) \in \abst{f}} \land i = \idx(\abst{y}_i) + 1}
 \end{array}
 $$
 
@@ -237,7 +237,6 @@ $$
 \end{array}
 $$
 
-Note: $\text{Input}^t_i$ is a family of gates with no inputs and one output wire corresponding to an input of the final circuit. The list of gates available are defined at the end of the following subsection.
 **Arithmetize Correctness Example**
 
 Let $W(q)=\Fb_q$, in the following example of the arithmetization of $f(x,y) = x^2 + y$:
@@ -283,7 +282,9 @@ $= \left(\abst{f} \cup \set{\begin{array}{rl}
 $ \\
 where $(u,\abst{f})$
 \\ 
-$= (\text{put}(\text{Input}^q_0) \circ \text{put}(\text{Input}^q_1)(0, \emptyset), \emptyset)$
+$=?$ TODO typed defn
+\\
+$= \text{put}(\text{Input}^q_1) \circ \text{put}(\text{Input}^q_0)(0, \emptyset)$
 \\
 $= \text{put}(\text{Input}^q_1, 1, \set{(\text{Input}^q_0, (0,0,q))})$
 \\
@@ -297,7 +298,7 @@ $\therefore \ (\abst{f}, \abst{\vec{Y}}) = \left(\set{\begin{array}{rl}
   \text{Input}^q_1 & (1,0,q) \\
   \text{Mul}((0,0,q),(0,0,q)) & (2,0,q) \\
   \text{Add}((2,0,q),(1,0,q)) & (3,0,q)
-\end{array}}, ((3,0,q))\right)
+\end{array}}, ((3,0,q))\right) \blacksquare
 $
 \end{longtable}
 
