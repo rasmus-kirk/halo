@@ -44,16 +44,37 @@
     text = ''
       set +e
 
-      sp='⣾⣽⣻⢿⡿⣟⣯⣷'
+      # Definitions ---------------------------------------
+
       FIRST_BUILD_PID=""
 
-      # This function updates the global variable `timestamp` string
+      # Debounce settings and progress characters
+      debounce_ms=2500
+      dbsp='▁▂▃▄▅▆▇█'
+      N=8
+      get_debounce_char() {
+        i=0
+        for c in $(echo "$dbsp" | fold -w1); do
+          if (( i == $1 )) then
+            sc=$c
+            break
+          fi
+          i=$((i+1))
+        done
+      }
+
+      # Get the current timestamp in milliseconds
+      now_ms() {
+        echo $(( $(date +%s%N) / 1000000 ))
+      }
+
+      # Get the current timestamp in a formatted string
       timestamp=""
       update_timestamp() {
         timestamp=$(printf '\033[90m[%s]\033[0m' "$(date '+%Y-%m-%d %H:%M:%S')")
       }
 
-      # This function restores terminal settings to sane defaults
+      # Restory tty settings
       restore_stty() {
         # Try Linux-style first
         if stty -F /dev/tty sane 2>/dev/null; then
@@ -69,7 +90,7 @@
         echo "Warning: could not restore terminal settings" >&2
       }
 
-      # This function kills a process if it exists
+      # Kill process if it exists
       kill_if_exist() {
         if [ -n "$1" ] && kill -0 "$1" 2>/dev/null; then
           kill "$1" 2>/dev/null
@@ -77,31 +98,34 @@
         fi
       }
 
-      # Trap cleanup for graceful exit and terminal restore
+      # Cleanup function
       killed=0
       cleanup() {
-        kill_if_exist "$FIRST_BUILD_PID"
-
-        # hack wait for spinner to die
-        sleep 0.5
-
+        # Guard against recursion
         if [ $killed -eq 1 ]; then
           return
         fi
+
+        # Kill the first build process if it exists
+        kill_if_exist "$FIRST_BUILD_PID"
+        sleep 0.5
+
+        # Print shutdown message
         update_timestamp
         printf "\r\033[K"
         printf "%s \033[90m»\033[0m watcher has shut down\n" "$timestamp"
+
+        # Restore terminal settings
         restore_stty
+
+        # Set flag and exit
         killed=1
         kill 0
         exit 0
       }
-      trap cleanup INT TERM
 
-      # Disable input echo and canonical mode (no line buffering)
-      stty -echo -icanon time 0 min 0
-
-      # This function runs the spinner and then calls mk-pandoc and prints the result
+      # Run the spinner then mk-pandoc and print the result
+      sp='⣾⣽⣻⢿⡿⣟⣯⣷'
       run_build() {
         # Start the spinner in the background
         start_ns=$(date +%s%N)
@@ -128,15 +152,11 @@
         kill "$SPINNER_PID"
         wait "$SPINNER_PID" 2>/dev/null
 
-        # Calculate elapsed time
+        # Print the result
         elapsed_ns=$((end_ns - start_ns))
         elapsed_ms=$((elapsed_ns / 1000000))
         update_timestamp
-
-        # Clear the spinner line
         printf "\r\033[K"
-
-        # Print the result
         if [ $exit_code -ne 130 ]; then
           if [ $exit_code -eq 0 ]; then
             printf "%s \033[32m✓\033[0m %s \033[32m%dms\033[0m\n" "$timestamp" "$2" "$elapsed_ms"
@@ -145,46 +165,39 @@
             [ -n "$output" ] && printf "%s\n" "$output"
           fi
         fi
-
-        # Print the watching message
         printf "%s \033[90m»\033[0m watching files" "$timestamp"
       }
+
+      # Process -------------------------------------------
+
+      # Set up trap
+      trap cleanup INT TERM
+
+      # Disable input echo and canonical mode (no line buffering)
+      stty -echo -icanon time 0 min 0
 
       # Run the initial build as a background process
       run_build "first build" "first build success" "first build failed" &
       FIRST_BUILD_PID=$!
 
-      # Now watch files in the same shell
-      dbsp='▁▂▃▄▅▆▇█'
-      N=8
-      debounce_ms=2500
+      # Start watcher
       while read -r file; do
         # Guard initial build to finish first
         wait "$FIRST_BUILD_PID" 2>/dev/null || true
         
         # Debounce flush other changes
         num_changes=1
-        lastread_ms=$(($(date +%s%N) / 1000000))
-        while (( $(($(date +%s%N) / 1000000)) - lastread_ms < debounce_ms )) do
+        lastread_ms=$(now_ms)
+        while (( $(now_ms) - lastread_ms < debounce_ms )) do
           # Calculate debounce progress
-          wait_ms=$((debounce_ms - $(($(date +%s%N) / 1000000)) + lastread_ms))
+          wait_ms=$((debounce_ms - $(now_ms) + lastread_ms))
           if (( wait_ms <= 0 )); then
             wait_ms=0
           fi
 
-          # Get debounce progress character
-          j=$(((wait_ms * N) / debounce_ms))
-          i=0
+          # Print debounce spinner
           sc='?'
-          for c in $(echo "$dbsp" | fold -w1); do
-            if (( i == j )) then
-              sc=$c
-              break
-            fi
-            i=$((i+1))
-          done
-
-          # Print spinner
+          get_debounce_char $(((wait_ms * N) / debounce_ms))
           update_timestamp
           printf "\r%s \033[90m%s\033[0m watching files " "$timestamp" "$sc"
           
@@ -192,11 +205,11 @@
           while read -t 0.1 -r maybe_new; do
             num_changes=$((num_changes + 1))
             file="$maybe_new [$num_changes changes]"
-            lastread_ms=$(($(date +%s%N) / 1000000))
+            lastread_ms=$(now_ms)
           done
         done
 
-        # Run build
+        # Rebuild
         rel_file="./$(echo "$file" | sed -E 's|.*thesis/||')"
         printf "\r\033[K"
         run_build "$rel_file" "$rel_file" "$rel_file"
