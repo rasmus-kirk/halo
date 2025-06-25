@@ -62,7 +62,7 @@ m &: \Gate + \GateType \to \Nb
 \end{array}
 $$
 
-Gate constructors type check $\abst{\vec{x}}$. e.g. $\text{Add}(\abst{a},\abst{b}) = (\text{Add}, (\abst{a},\abst{b}))$ type checks $\abst{a}, \abst{b}$ for the $\text{Add}$ gate type.
+Gate constructors type checks its inputs $\abst{\vec{x}}$. e.g. $\text{Add}(\abst{a},\abst{b}) = (\text{Add}, (\abst{a},\abst{b}))$ type checks $\abst{a}, \abst{b}$ for the $\text{Add}$ gate type.
 
 $$
 \begin{array}{cc}
@@ -284,7 +284,7 @@ where $(u,\abst{f})$
 \\ 
 $=?$ TODO typed defn
 \\
-$= \text{put}(\text{Input}^q_1) \circ \text{put}(\text{Input}^q_0)(0, \emptyset)$
+$= \text{put}(\text{Input}^q_1) \circ \text{put}(\text{Input}^q_0, 0, \emptyset)$
 \\
 $= \text{put}(\text{Input}^q_1, 1, \set{(\text{Input}^q_0, (0,0,q))})$
 \\
@@ -298,7 +298,7 @@ $\therefore \ (\abst{f}, \abst{\vec{Y}}) = \left(\set{\begin{array}{rl}
   \text{Input}^q_1 & (1,0,q) \\
   \text{Mul}((0,0,q),(0,0,q)) & (2,0,q) \\
   \text{Add}((2,0,q),(1,0,q)) & (3,0,q)
-\end{array}}, ((3,0,q))\right) \blacksquare
+\end{array}}, ((3,0,q))\right)
 $
 \end{longtable}
 

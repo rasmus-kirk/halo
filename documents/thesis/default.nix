@@ -155,35 +155,33 @@
       FIRST_BUILD_PID=$!
 
       # Now watch files in the same shell
-      dbsp=' ▁▂▃▄▅▆▇█'
-      N=10
-      debounce_ns=2500000000
+      dbsp='▁▂▃▄▅▆▇█'
+      N=8
+      debounce_ms=2500
       while read -r file; do
         # Guard initial build to finish first
         wait "$FIRST_BUILD_PID" 2>/dev/null || true
         
         # Debounce flush other changes
         num_changes=1
-        lastread_ns=$(date +%s%N)
-        now_ns=$(date +%s%N)
-        while (( now_ns - lastread_ns < debounce_ns )) do
+        lastread_ms=$(($(date +%s%N) / 1000000))
+        while (( $(($(date +%s%N) / 1000000)) - lastread_ms < debounce_ms )) do
           # Calculate debounce progress
-          now_ns=$(date +%s%N)
-          elapsed_ns=$((debounce_ns - now_ns + lastread_ns))
-          if (( elapsed_ns <= 0 )); then
-            elapsed_ns=0
+          wait_ms=$((debounce_ms - $(($(date +%s%N) / 1000000)) + lastread_ms))
+          if (( wait_ms <= 0 )); then
+            wait_ms=0
           fi
 
           # Get debounce progress character
-          j=$((elapsed_ns * N / debounce_ns))
+          j=$(((wait_ms * N) / debounce_ms))
           i=0
-          sc=' '
+          sc='?'
           for c in $(echo "$dbsp" | fold -w1); do
-            i=$((i+1))
-            if [ "$i" -eq "$j" ]; then
+            if (( i == j )) then
               sc=$c
               break
             fi
+            i=$((i+1))
           done
 
           # Print spinner
@@ -194,7 +192,7 @@
           while read -t 0.1 -r maybe_new; do
             num_changes=$((num_changes + 1))
             file="$maybe_new [$num_changes changes]"
-            lastread_ns=$(date +%s%N)
+            lastread_ms=$(($(date +%s%N) / 1000000))
           done
         done
 
