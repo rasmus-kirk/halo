@@ -799,7 +799,6 @@ dependencies = [
  "ark-vesta",
  "halo-group",
  "hex",
- "num-bigint",
  "rand",
  "serde",
  "serde_json",

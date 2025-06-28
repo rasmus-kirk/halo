@@ -22,7 +22,7 @@ jobs:
 
       - name: Run format
         run: nix develop -c check-fmt
-        working-directory: ./crates/${{ inputs.crate }}
+        working-directory: ./crates
 
   lint:
     runs-on: ubuntu-24.04
@@ -38,7 +38,7 @@ jobs:
 
       - name: Run lint check
         run: nix develop -c check-lint
-        working-directory: ./crates/${{ inputs.crate }}
+        working-directory: ./crates
 
   test:
     runs-on: ubuntu-24.04
@@ -54,7 +54,7 @@ jobs:
 
       - name: Run tests
         run: nix develop -c check-test
-        working-directory: ./crates/${{ inputs.crate }}
+        working-directory: ./crates
 
   build:
     runs-on: ubuntu-24.04
@@ -69,5 +69,5 @@ jobs:
         uses: DeterminateSystems/nix-installer-action@main
 
       - name: Build
-        run: nix build .#${{ inputs.crate }}
+        run: nix build .#crates.${{ inputs.crate }}
         working-directory: ./crates

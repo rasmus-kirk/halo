@@ -120,9 +120,27 @@ impl<P: PastaConfig> PoseidonSponge<P> {
 #[cfg(test)]
 mod self_tests {
     use super::*;
-    use ark_ff::{AdditiveGroup, Field};
+    use ark_ff::{AdditiveGroup, BigInt, BigInteger, Field, UniformRand};
     use ark_pallas::PallasConfig;
-    use ark_vesta::Fr as Fp;
+    use ark_vesta::{Fr as Fp, VestaConfig};
+
+    fn gen_bigint_range<const N: usize>(
+        min: &BigInt<N>,
+        max: &BigInt<N>,
+        rng: &mut impl rand::Rng,
+    ) -> BigInt<N> {
+        let mut max = *max;
+        let _ = max.sub_with_borrow(min);
+        loop {
+            // Generate a random BigInt with the same number of limbs
+            let mut random = BigInt::<N>::rand(rng);
+            // Ensure it's within [0, range)
+            if random < max {
+                random.add_with_carry(min);
+                return random;
+            }
+        }
+    }
 
     fn minas_apply_mds_matrix(state: &[Fp]) -> Vec<Fp> {
         PallasConfig::POSEIDON_MDS
@@ -217,23 +235,32 @@ mod self_tests {
             "Reset should set state to Absorbed(0)"
         );
     }
+
+    // I wanted to see if poseidon gives the same output over two different fields.
+    // Unsurprisingly, it does not :(
+    #[test]
+    fn hamid_discussion() {
+        let rng = &mut rand::thread_rng();
+        let bigint = gen_bigint_range(&BigInt::zero(), &PallasConfig::FQ_MODULUS, rng);
+
+        let mut sponge = PoseidonSponge::<PallasConfig>::new();
+        sponge.absorb(&[PallasConfig::basefield_from_bigint(bigint).unwrap()]);
+        let fq = sponge.squeeze();
+
+        let mut sponge = PoseidonSponge::<VestaConfig>::new();
+        sponge.absorb(&[PallasConfig::scalar_from_bigint(bigint).unwrap()]);
+        let fp = sponge.squeeze();
+
+        assert!(fp.0 != fq.0)
+    }
 }
 
 #[cfg(test)]
 mod mina_tests {
     use super::*;
-    use ark_ec::short_weierstrass::SWCurveConfig;
-    use ark_ff::BigInt;
-    use ark_ff::BigInteger;
     use ark_ff::Field;
-    use ark_ff::UniformRand;
     use ark_pallas::PallasConfig;
-    use ark_vesta::Fq;
-    use ark_vesta::Fr as Fp;
-    use ark_vesta::VestaConfig;
-    use num_bigint::RandBigInt;
-    use rand::rngs::ThreadRng;
-    use rand::Rng;
+    use ark_vesta::{Fq, Fr as Fp, VestaConfig};
     use serde::Deserialize;
     use std::{fs::File, path::PathBuf}; // needed for ::new() sponge
 
@@ -281,20 +308,6 @@ mod mina_tests {
 
             // hash & check against expect output
             assert_eq!(hash(&input), expected_output);
-        }
-    }
-
-    fn gen_bigint_range(min: &BigInt<4>, max: &BigInt<4>, rng: &mut impl rand::Rng) -> BigInt<4> {
-        let mut max = max.clone();
-        let _ = max.sub_with_borrow(min);
-        loop {
-            // Generate a random BigInt with the same number of limbs
-            let mut random = BigInt::<4>::rand(rng);
-            // Ensure it's within [0, range)
-            if random < max {
-                random.add_with_carry(min);
-                return random;
-            }
         }
     }
 
@@ -357,22 +370,4 @@ mod mina_tests {
 
         assert_eq!(sponge.squeeze(), from_hex(expected_out_hex))
     }
-
-    // I wanted to see if poseidon gives the same output over two different fields.
-    // Unsurprisingly, it does not :(
-    // #[test]
-    // fn fun_test() {
-    //     let rng = &mut rand::thread_rng();
-    //     let bigint = gen_bigint_range(&BigInt::zero(), &PallasConfig::FQ_MODULUS, rng);
-
-    //     let mut sponge = PoseidonSponge::<PallasConfig>::new();
-    //     sponge.absorb(&[PallasConfig::basefield_from_bigint(bigint).unwrap()]);
-    //     let fq = sponge.squeeze();
-
-    //     let mut sponge = PoseidonSponge::<VestaConfig>::new();
-    //     sponge.absorb(&[PallasConfig::scalar_from_bigint(bigint).unwrap()]);
-    //     let fp = sponge.squeeze();
-
-    //     assert_eq!(fp.0, fq.0)
-    // }
 }
