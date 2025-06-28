@@ -6,3 +6,4 @@
 **/result
 # Zip archives
 **/*.zip
+.direnv

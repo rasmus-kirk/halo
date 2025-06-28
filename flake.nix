@@ -69,6 +69,10 @@
       default = website.package;
     });
 
+    devShells = forAllSystems ({pkgs}: {
+      default = (cratesF pkgs).devShells.default;
+    });
+
     formatter = forAllSystems ({pkgs}: pkgs.alejandra);
   };
 }

@@ -222,11 +222,18 @@ mod self_tests {
 #[cfg(test)]
 mod mina_tests {
     use super::*;
+    use ark_ec::short_weierstrass::SWCurveConfig;
+    use ark_ff::BigInt;
+    use ark_ff::BigInteger;
     use ark_ff::Field;
+    use ark_ff::UniformRand;
     use ark_pallas::PallasConfig;
     use ark_vesta::Fq;
     use ark_vesta::Fr as Fp;
     use ark_vesta::VestaConfig;
+    use num_bigint::RandBigInt;
+    use rand::rngs::ThreadRng;
+    use rand::Rng;
     use serde::Deserialize;
     use std::{fs::File, path::PathBuf}; // needed for ::new() sponge
 
@@ -274,6 +281,20 @@ mod mina_tests {
 
             // hash & check against expect output
             assert_eq!(hash(&input), expected_output);
+        }
+    }
+
+    fn gen_bigint_range(min: &BigInt<4>, max: &BigInt<4>, rng: &mut impl rand::Rng) -> BigInt<4> {
+        let mut max = max.clone();
+        let _ = max.sub_with_borrow(min);
+        loop {
+            // Generate a random BigInt with the same number of limbs
+            let mut random = BigInt::<4>::rand(rng);
+            // Ensure it's within [0, range)
+            if random < max {
+                random.add_with_carry(min);
+                return random;
+            }
         }
     }
 
@@ -337,119 +358,21 @@ mod mina_tests {
         assert_eq!(sponge.squeeze(), from_hex(expected_out_hex))
     }
 
+    // I wanted to see if poseidon gives the same output over two different fields.
+    // Unsurprisingly, it does not :(
     // #[test]
-    // fn test_regression_challenge_empty_vesta_kimchi() {
-    //     let mut sponge = PoseidonSponge::<Fq>::new();
-    //     let output = sponge.squeeze();
-    //     let exp_output =
-    //         from_hex("c1e504c0184cce70a605d2f942d579c500000000000000000000000000000000").unwrap();
-    //     assert_eq!(output, exp_output);
-    // }
+    // fn fun_test() {
+    //     let rng = &mut rand::thread_rng();
+    //     let bigint = gen_bigint_range(&BigInt::zero(), &PallasConfig::FQ_MODULUS, rng);
 
-    // #[test]
-    // fn test_regression_challenge_empty_pallas_kimchi() {
-    //     let mut sponge = PoseidonSponge::<Fp>::new();
-    //     let output = sponge.squeeze();
-    //     let exp_output =
-    //         from_hex("a8eb9ee0f30046308abbfa5d20af73c800000000000000000000000000000000").unwrap();
-    //     assert_eq!(output, exp_output);
-    // }
+    //     let mut sponge = PoseidonSponge::<PallasConfig>::new();
+    //     sponge.absorb(&[PallasConfig::basefield_from_bigint(bigint).unwrap()]);
+    //     let fq = sponge.squeeze();
 
-    // #[test]
-    // fn test_poseidon_vesta_kimchi_challenge_is_squeezed_to_128_bits() {
-    //     // Test that the challenge is less than 2^128, i.e. the sponge state is
-    //     // squeezed to 128 bits
-    //     let mut sponge = DefaultFqSponge::<VestaParameters, PlonkSpongeConstantsKimchi>::new(
-    //         fq_kimchi::static_params(),
-    //     );
-    //     let mut rng = o1_utils::tests::make_test_rng(None);
-    //     let random_n = rng.gen_range(1..50);
-    //     let random_fq_vec = (0..random_n)
-    //         .map(|_| Fq::rand(&mut rng))
-    //         .collect::<Vec<Fq>>();
-    //     sponge.absorb_fq(&random_fq_vec);
-    //     let challenge = sponge.challenge();
-    //     let two_128 = Fp::from(2).pow([128]);
-    //     assert!(challenge < two_128);
-    // }
+    //     let mut sponge = PoseidonSponge::<VestaConfig>::new();
+    //     sponge.absorb(&[PallasConfig::scalar_from_bigint(bigint).unwrap()]);
+    //     let fp = sponge.squeeze();
 
-    // #[test]
-    // fn test_poseidon_pallas_kimchi_challenge_is_squeezed_to_128_bits() {
-    //     // Test that the challenge is less than 2^128, i.e. the sponge state is
-    //     // squeezed to 128 bits
-    //     let mut sponge = DefaultFqSponge::<PallasParameters, PlonkSpongeConstantsKimchi>::new(
-    //         fp_kimchi::static_params(),
-    //     );
-    //     let mut rng = o1_utils::tests::make_test_rng(None);
-    //     let random_n = rng.gen_range(1..50);
-    //     let random_fp_vec = (0..random_n)
-    //         .map(|_| Fp::rand(&mut rng))
-    //         .collect::<Vec<Fp>>();
-    //     sponge.absorb_fq(&random_fp_vec);
-    //     let challenge = sponge.challenge();
-    //     let two_128 = Fq::from(2).pow([128]);
-    //     assert!(challenge < two_128);
-    // }
-
-    // #[test]
-    // fn test_poseidon_pallas_absorb_point_to_infinity() {
-    //     let mut sponge = DefaultFqSponge::<PallasParameters, PlonkSpongeConstantsKimchi>::new(
-    //         fp_kimchi::static_params(),
-    //     );
-    //     let point = Pallas::zero();
-    //     sponge.absorb_g(&[point]);
-    //     let exp_output = [Fp::from(0); 3];
-    //     assert_eq!(sponge.sponge.state, exp_output);
-    // }
-
-    // #[test]
-    // fn test_poseidon_vesta_absorb_point_to_infinity() {
-    //     let mut sponge = DefaultFqSponge::<VestaParameters, PlonkSpongeConstantsKimchi>::new(
-    //         fq_kimchi::static_params(),
-    //     );
-    //     let point = Vesta::zero();
-    //     sponge.absorb_g(&[point]);
-    //     let exp_output = [Fq::from(0); 3];
-    //     assert_eq!(sponge.sponge.state, exp_output);
-    // }
-
-    // #[test]
-    // fn test_poseidon_challenge_multiple_times_without_absorbtion() {
-    //     let mut sponge = DefaultFqSponge::<VestaParameters, PlonkSpongeConstantsKimchi>::new(
-    //         fq_kimchi::static_params(),
-    //     );
-    //     let mut rng = o1_utils::tests::make_test_rng(None);
-    //     let random_n = rng.gen_range(10..50);
-
-    //     let mut old_state = sponge.sponge.state.clone();
-    //     let mut new_state = sponge.sponge.state.clone();
-    //     // Only to avoid a warning. old_state must be used.
-    //     assert_eq!(
-    //         old_state, new_state,
-    //         "States must be the same after initialization"
-    //     );
-    //     let mut challenges: Vec<_> = vec![];
-
-    //     for i in 0..random_n {
-    //         old_state.clone_from(&new_state);
-    //         new_state.clone_from(&sponge.sponge.state);
-    //         let chal = sponge.challenge();
-    //         if i % 2 == 0 {
-    //             assert_eq!(
-    //                 old_state, new_state,
-    //                 "States must be the same after squeezing an even number of times"
-    //             );
-    //         } else {
-    //             assert_ne!(
-    //                 old_state, new_state,
-    //                 "States must not be the same after squeezing an odd number of times"
-    //             );
-    //         }
-    //         assert!(
-    //             !challenges.contains(&chal),
-    //             "Challenges must always be different, even without any absorbtion"
-    //         );
-    //         challenges.push(chal);
-    //     }
+    //     assert_eq!(fp.0, fq.0)
     // }
 }
