@@ -6,7 +6,7 @@ $$
 (R,x,w) = \mathrm{relation} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})
 $$
 
-Note: we use alot of custom notations in this section, which are defined in the appendix.
+Note: refer to the appendix for the definition of notations used in this section.
 
 ### Arithmetizer
 
@@ -141,24 +141,32 @@ e.g.
 We notate arithmetizing a program $f$ with predicates $\build{f = \vec{y}}{s}{s'}$, $\build{f = y}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the state; $s=(u, \abst{f})$ where $u$ is the current uuid, from $s$ to $s'$. Gadgets are compositions of $\bigwedge \build{f}{}{}$. Wires annotated with $*$, i.e. $\build{f = y^*}{}{}$, are the final output and are appended to $\abst{\vec{Y}}$. They, may be omitted notationally.
 
 $$
-\begin{array}{cc}
-\AState = \Nb \times \AbsCirc \times \Wire^k
-&
+\begin{array}{c}
+\begin{array}{rl}
+\AState = \Nb \times \AbsCirc \times \Wire^k &
 \begin{array}{ll}
 \build{-}{}{} &: \text{Program} \to \AState \to \AState \to \Bb \\
 \build{-}{s}{s'} &: \text{Program} \to \Bb
 \end{array}
-\end{array}
-$$
-$$
-\begin{array}{cccc}
+\end{array} \\
+\\
+\begin{array}{rlrlrl}
+u &: \AState \to \Nb &
+\abst{f} &: \AState \to \AbsCirc &
+\abst{\vec{Y}} &: \AState \to \Wire^k \\
+u_{(r,\_)} &= r &
+\abst{f}_{(\_,r,\_)} &= r &
+\abst{\vec{Y}}_{(\_,r)} &= r
+\end{array} \\
+\\
+\begin{array}{rlrlrl}
 \build{g = \vec{y}}{s}{s'}
-= \left(\text{get}(s,g) = (s', \abst{\vec{y}})\right)
-&
-\build{f=y^*}{s}{s'} = \build{f=y}{(s,\abst{\vec{Y}})}{(s', \abst{\vec{Y}} \cat \abst{y})}
-&
+&= \left(\text{get}(s,g) = (s', \abst{\vec{y}})\right) &
+\build{f=y^*}{s}{s'}
+&= \build{f=y}{(s,\abst{\vec{Y}})}{(s', \abst{\vec{Y}} \cat \abst{y})} &
 \build{f}{s_1}{s_{k+1}}
-= \bigwedge\limits_{i \in [k]} \build{f_i}{s_i}{s_{i+1}}
+&= \bigwedge\limits_{i \in [k]} \build{f_i}{s_i}{s_{i+1}}
+\end{array}
 \end{array}
 $$
 
@@ -181,8 +189,8 @@ $$
 \end{cases} \\
 \\
 \aput &: \Gate \to \AState \to \AState \\
-\aput(g, u, \abst{f}, \abst{\vec{Y}}) &= (
-  u + m_g, \abst{f} \cup \entries(u, g), \abst{\vec{Y}}
+\aput(g, s) &= (
+  u_s + m_g, \abst{f}_s \cup \entries(u_s, g), \abst{\vec{Y}}_s
 )
 \end{array}
 &
@@ -190,17 +198,16 @@ $$
 \Gate^{\abst{f}}_g &= \set{h \in \Gate \middle\vert
   (h, \_) \in \abst{f} \land h \equiv g
 } \\
-\\
 \aget &: \AState \to (g: \Gate) \to \AState \times \Wire^{m_g} \\
-\aget(u, \abst{f}, \abst{\vec{Y}}, g)
+\aget(s, g)
 &= \begin{cases}
-  (u, \abst{f}, \abst{\vec{Y}}, \out(\abst{f}, h)) & h \in \Gate^{\abst{f}}_g \\
-  (\aput(g, u, \abst{f}, \abst{\vec{Y}}), \text{new}(u,g)) & \otherwise
+  (s, \out(\abst{f}_s, h)) & h \in \Gate^{\abst{f}_s}_g \\
+  (\aput(g, s), \text{new}(u_s,g)) & \otherwise
 \end{cases} \\
 \\
 \text{arithmetize} &: (W[\vec{t^{in}}] \to W[\vec{t^{out}}]) \to \AbsCirc \times \Wire^{m'} \\
 \text{arithmetize}(f) &= \maybe{(\abst{f}, \abst{\vec{Y}})}{
-  \build{f}{\opcirc\limits_{i \in [0..n]}\aput(\text{Input}^{t^{in}_{i+1}}_i)(0,\emptyset, ())}{(\_, \abst{f}, \abst{\vec{Y}})}
+  \build{f}{\left(\opcirc\limits_{i \in \left[0..\left|\vec{t^{in}}\right|\right]}\aput(\text{Input}^{t^{in}_{i+1}}_i)\right)(0,\emptyset, ())}{(\_, \abst{f}, \abst{\vec{Y}})}
 }
 \end{array}
 \end{array}
@@ -208,12 +215,12 @@ $$
 
 **Arithmetize Correctness Example**
 
-Let $W(q)=\Fb_q$, in the following example of the arithmetization of $f(x,y) = x^2 + y$:
+Let $W(q)=\Fb_q$ and $f: \Fb_q^2 \to \Fb_q^1$ where $f(x,y) = x^2 + y$, then:
 
 \begin{longtable}{@{}l@{}}
 Let $(\abst{f}, \abst{\vec{Y}})$
 \\
-$= \text{arithmetize}(f: \Fb_q^2 \to \Fb_q^1)$
+$= \text{arithmetize}(f)$
 \\
 $= \maybe{\left(\abst{f}'', (\abst{z})\right)}{
   \build{x^2 + y = z^*}
@@ -231,17 +238,17 @@ $= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\begin{array}{l}
 \end{array}}
 $ \\
 $= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\begin{array}{rl}
-  \text{get}(u, \abst{f}, \text{Mul}(\abst{x},\abst{x})) &= (u', \abst{f}', (\abst{t})) \\
-  \text{get}(u', \abst{f}', \text{Add}(\abst{t},\abst{y})) &= (\_, \abst{f}'', (\abst{z}))
+  \text{get}(u, \abst{f}, (), \text{Mul}(\abst{x},\abst{x})) &= (u', \abst{f}', (), (\abst{t})) \\
+  \text{get}(u', \abst{f}', (), \text{Add}(\abst{t},\abst{y})) &= (\_, \abst{f}'', (\abst{z}), (\abst{z}))
 \end{array}}
 $ \\
 $= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\begin{array}{rl}
-  (u+1, \abst{f} \cup \set{(\text{Mul}(\abst{x},\abst{x}), ((u,q)))}, (u)) &= (u', \abst{f}', (\abst{t})) \\
-  \text{get}((u',q), \abst{f}', \text{Add}(\abst{t},\abst{y})) &= (\_, \abst{f}'', (\abst{z}))
+  (u+1, \abst{f} \cup \set{(\text{Mul}(\abst{x},\abst{x}), (u,q))}, (), ((u,q))) &= (u', \abst{f}', (), (\abst{t})) \\
+  \text{get}(u', \abst{f}', (), \text{Add}(\abst{t},\abst{y})) &= (\_, \abst{f}'', (\abst{z}), (\abst{z}))
 \end{array}}
 $ \\
 $= \maybe{\left(\abst{f}'', (\abst{z})\right)}{
-  \text{get}(u+1, \abst{f} \cup \set{(\text{Mul}(\abst{x},\abst{x}), (u,q))}, \text{Add}((u,q),\abst{y})) = (\_, \abst{f}'', (\abst{z}))
+  \text{get}(u+1, \abst{f} \cup \set{(\text{Mul}(\abst{x},\abst{x}), (u,q))}, (), \text{Add}((u,q),\abst{y})) = (\_, \abst{f}'', (\abst{z}), (\abst{z}))
 }
 $ \\
 $= \left(\abst{f} \cup \set{\begin{array}{rl}
@@ -249,18 +256,18 @@ $= \left(\abst{f} \cup \set{\begin{array}{rl}
     \text{Add}((u,q),\abst{y}) & (u+1,q)
   \end{array}}, ((u+1,q))\right)
 $ \\
-where $(u,\abst{f})$
+where $(u,\abst{f},())$
 \\ 
-$= \opcirc\limits_{i \in [0..n]}\aput(\text{Input}^{t^{in}_{i+1}}_i)(0,\emptyset)$
+$= \opcirc\limits_{i \in [0..2]}\aput(\text{Input}^{t^{in}_{i+1}}_i)(0,\emptyset,())$
 \\
-$= \text{put}(\text{Input}^q_1) \circ \text{put}(\text{Input}^q_0, 0, \emptyset)$
+$= \text{put}(\text{Input}^q_1) \circ \text{put}(\text{Input}^q_0, 0, \emptyset,())$
 \\
-$= \text{put}(\text{Input}^q_1, 1, \set{(\text{Input}^q_0, (0,q))})$
+$= \text{put}(\text{Input}^q_1, 1, \set{(\text{Input}^q_0, (0,q))}, ())$
 \\
 $= \left(2, \set{\begin{array}{rl}
   \text{Input}^q_0 & (0,q) \\
   \text{Input}^q_1 & (1,q)
-\end{array}}\right)$
+\end{array}}, ()\right)$
 \\
 $\therefore \ (\abst{f}, \abst{\vec{Y}}) = \left(\set{\begin{array}{rl}
   \text{Input}^q_0 & (0,q) \\
@@ -275,7 +282,7 @@ Thus $\abst{x} = (0,q)$, $\abst{y} = (1,q)$, $\abst{t} = (2,q)$ and $\abst{z} = 
 
 \begin{tabularx}{\textwidth}{@{} c Y Y @{}}
 \toprule
-Predicate & Abstract Circuit Relation & Abstract Circuit Diagram
+Predicate & One to Many or None Relation & Abstract Circuit Diagram
 \\\hline \\
 $\build{x^2+y=z^*}{}{}$ & 
 \begin{tikzpicture}[
@@ -283,8 +290,8 @@ $\build{x^2+y=z^*}{}{}$ &
 ]
 \node[draw, anchor=center] (in1) at (0,0) {$\text{Input}^q_0$};
 \node[draw, anchor=center] (in2) at ($(in1.south)-(0,0.4)$) {$\text{Input}^q_1$};
-\node[draw, anchor=center] (mul) at ($(in2.south)-(0,0.4)$) {$\text{Mul}((0,q),(0,q))$};
-\node[draw, anchor=center] (add) at ($(mul.south)-(0,0.4)$) {$\text{Add}((2,q),(1,q))$};
+\node[draw, anchor=center] (mul) at ($(in2.south)-(0,0.4)$) {$\text{Mul}(\abst{x},\abst{x})$};
+\node[draw, anchor=center] (add) at ($(mul.south)-(0,0.4)$) {$\text{Add}(\abst{t},\abst{y})$};
 
 \node[anchor=center] (x) at ($(in1.east)+(3.5,0)$) {$\abst{x}$};
 \node[anchor=center] (y) at ($(x.south)-(0,0.4)$) {$\abst{y}$};
@@ -317,8 +324,8 @@ $\build{x^2+y=z^*}{}{}$ &
 \draw[-,thick] ($(mul.north east)+(0.25,0.25)$) -- ($(add-in-1)+(0,0.25)$);
 \draw[-,thick] ($(add-in-1)+(0,0.25)$) -- (add-in-1);
 \draw[-,thick] (in1-out-1) -- (add-in-2);
-\draw[->,thick] (add-out-1) -- ($(add-out-1)+(0,-0.4)$);
-\node[anchor=north west] at (add-out-1) {$\abst{z}$};
+\draw[-,thick] (add-out-1) -- ($(add-out-1)+(0,-0.4)$);
+\node[draw, thick, circle, double, double distance=1pt, anchor=north] at ($(add-out-1)+(0,-0.4)$) {$\abst{z}$};
 \end{tikzpicture}
 \\
 \\\toprule

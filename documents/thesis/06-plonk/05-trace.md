@@ -1,6 +1,8 @@
 
 ### Trace
 
+TODO: GateType is a tuple of canonical program, function from type tag to matrix of rows k and column slot and selectors, with values of index of vector of input and output values. we can construct computed functions that type checks the assignment of values to trace table and cloop construction. Slots are reusable, selectors are not. Thus GateType can be grouped if they share the same selectors. Combining GateType from different groups is by offsetting the selector index. Thus if GateType is a tuple rather than a finite type, we can have anonymous GateTypes. And thus groups composed on runtime. Thus u can also think of n, m, inty and outy as elements of GateType. i.e. GateType is not an enum but a struct. And a group is an array of them. Anonymous gates are its own group. do u want to make a feature where it can insert itself into an existing group?
+
 $\text{trace}$ computes the least fixed point of a composition of monotonic functions using $\text{sup}$. We also call a monotonic function a continuation if it is called by another. We call lift, to extend the argument of a monotonic function.
 
 $$
