@@ -52,6 +52,7 @@ identities
 
 set theoretic notations
 
+- quantifiers $\forall x. P(x)$ instead of $\forall x: P(x)$ to disambiguate a typing judgement from the quantifier separator i.e. $\forall a:A$
 - set of naturals from one $[n] = \set{1,2,\ldots,n-1}$
 - set of naturals with lower bound $[n..m] = \set{n,n+1,\ldots,m-1}$
 - flattened case notation, conditions are propagated to conditions below if they don't contradict.
