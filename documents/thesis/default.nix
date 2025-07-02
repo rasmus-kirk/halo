@@ -16,13 +16,12 @@
       else
         DATE_CMD="date"
       fi
-
+        # ./01-introduction/*.md \
+        # ./02-prerequisites/*.md \
+        # ./03-chain-of-signatures/*.md \
+        # ./04-pcdl/*.md \
+        # ./05-asdl/*.md \
       pandoc \
-        ./01-introduction/*.md \
-        ./02-prerequisites/*.md \
-        ./03-chain-of-signatures/*.md \
-        ./04-pcdl/*.md \
-        ./05-asdl/*.md \
         ./06-plonk/*.md \
         ./07-appendix/*.md \
         ./thesis.md \
@@ -108,7 +107,9 @@
 
         # Kill the first build process if it exists
         kill_if_exist "$FIRST_BUILD_PID"
-        sleep 0.5
+
+        # Hack, wait for builder spinner to die
+        sleep 0.4
 
         # Print shutdown message
         update_timestamp
