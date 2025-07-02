@@ -10,23 +10,18 @@ Note: we use alot of custom notations in this section, which are defined in the 
 
 ### Arithmetizer
 
-Wires $\abst{x}$ are abstract representations of values $x$, defined as a triple of unique identifier; uuid, output index of its gate and a wire type tag. $W$ maps the tag to the value's type e.g. $W(p) = \Fb_p, W(q) = \Fb_q$.
+Wires $\abst{x}$ are abstract representations of values $x$, defined as a pair of unique identifier; uuid, and a wire type tag. $W$ maps the tag to the value's type e.g. $W(p) = \Fb_p, W(q) = \Fb_q$.
 
 $$
 \begin{array}{cccc}
 \begin{array}{rl}
-\Wire &= \Nb \times \Nb \times \WireType \\
+\Wire &= \Nb \times \WireType \\
 W &: \WireType \to \mathcal{U} \\
 \end{array}
 &
 \begin{array}{rl}
 \id &: \Wire \to \Nb \\
 \id &= \lambda(i, \_). i \\
-\end{array}
-&
-\begin{array}{rl}
-\idx &: \Wire \to \Nb \\
-\idx &= \lambda(\_, i, \_). i \\
 \end{array}
 &
 \begin{array}{rl}
@@ -73,7 +68,7 @@ $$
 &
 \begin{array}{rl}
 - ( - ) &: (g: \GateType) \to \Wire^{n_g} \to \Gate \\
-g(\abst{\vec{x}}) &= \maybe{(g,\abst{\vec{x}})}{\forall i \in [n_g]. \text{inty}(g)_{i} = \ty(\abst{x}_i)}
+g(\abst{\vec{x}}) &= \maybe{(g,\abst{\vec{x}})}{\forall i. \text{inty}(g)_{i} = \ty(\abst{x}_i)}
 \end{array}
 \end{array}
 $$
@@ -91,8 +86,15 @@ $$
 $$
 $$
 \begin{array}{rl}
+\begin{array}{rl}
+\idx &: \AbsCirc \to \Wire \to \Nb \\
+\idx^{\abst{f}}(\abst{y}) &= \maybe{\id(\abst{y}) - \min\limits_{(g,\abst{w}) \in \abst{f}} \id(\abst{w})}{(g,\abst{y}) \in \abst{f}}
+\end{array}
+&
+\begin{array}{rl}
 \out &: \AbsCirc \to \Gate \to \Wire^{m_g} \\
-\out^{\abst{f}}(g) &= \maybe{\abst{\vec{y}}}{\abst{y}_i \in \set{\abst{y} \middle\vert (g,\abst{y}) \in \abst{f}} \land i = \idx(\abst{y}_i) + 1}
+\out^{\abst{f}}(g) &= \maybe{\abst{\vec{y}}}{\abst{y}_i \in \set{\abst{y} \middle\vert (g,\abst{y}) \in \abst{f}} \land \id(\abst{y}_{i>1}) = \id(\abst{y}_{i-1}) + 1}
+\end{array}
 \end{array}
 $$
 
@@ -102,8 +104,8 @@ We can visualize a gate with an abstract circuit diagram:
 \begin{tabular}{ c c c c }
 \begin{math}
 \begin{array}{rl}
-(\abst{x}_1, \abst{x}_2, \ldots, \abst{x}_{n_g}) &= \tin(g) \\
-\set{(g, \abst{y}_1), (g, \abst{y}_2), (g, \abst{y}_{m_g})} &\subseteq \abst{f}
+(\abst{x}_1, \ldots, \abst{x}_{n_g}) &= \tin(g) \\
+\set{(g, \abst{y}_1), (g, \abst{y}_{m_g})} &\subseteq \abst{f}
 \end{array}
 \end{math}
 &
@@ -112,43 +114,25 @@ $\Longleftrightarrow$
 \begin{tikzpicture}[
   baseline={(current bounding box.center)}
 ]
-\node[draw, minimum width=3.2cm, minimum height=1.35cm] (id-g) at (0,0) {};
-\node at ($(id-g.north)-(0,0.975)$) {$\ty(g)$};
-\node[anchor=center] (id-1) at ($(id-g.north west)+(0.4, -0.3)$) {$\abst{x}_1$};
-\node[anchor=center] (id-2) at ($(id-g.north west)+(1.2, -0.3)$) {$\abst{x}_2$};
-\node[anchor=center] (id-dots) at ($(id-g.north west)+(2.0, -0.3)$) {$\cdots$};
-\node[anchor=center] (id-3) at ($(id-g.north west)+(2.8, -0.3)$) {$\abst{x}_{n_g}$};
-\draw[-] ($(id-g.north west)+(0,-0.6)$) -- ($(id-g.north west)+(1.6,-0.6)$);
-\draw[-] ($(id-g.north west)+(2.4,-0.6)$) -- ($(id-g.north east)+(0,-0.6)$);
-\draw[-] ($(id-g.north west)+(0.8,0)$) -- ($(id-g.north west)+(0.8,-0.6)$);
-\draw[-] ($(id-g.north west)+(1.6,0)$) -- ($(id-g.north west)+(1.6,-0.6)$);
-\draw[-] ($(id-g.north west)+(2.4,0)$) -- ($(id-g.north west)+(2.4,-0.6)$);
-\draw[->,thick] ($(id-g.north west)+(0.4,0.4)$) -- ($(id-g.north west)+(0.4,0)$);
-\draw[->,thick] ($(id-g.north west)+(1.2,0.4)$) -- ($(id-g.north west)+(1.2,0)$);
-\draw[->,thick] ($(id-g.north west)+(2.8,0.4)$) -- ($(id-g.north west)+(2.8,0)$);
-\draw[->,thick] ($(id-g.south west)+(0.4,0)$) -- ($(id-g.south west)+(0.4,-0.4)$);
-\draw[->,thick] ($(id-g.south west)+(1.2,0)$) -- ($(id-g.south west)+(1.2,-0.4)$);
-\draw[->,thick] ($(id-g.south west)+(2.8,0)$) -- ($(id-g.south west)+(2.8,-0.4)$);
-\node[anchor=center] (id-dots) at ($(id-g.south west)+(2.0, -0.3)$) {$\cdots$};
-\node[anchor=center] (idy-1) at ($(id-g.south west)+(0.1, -0.3)$) {$\abst{y}_1$};
-\node[anchor=center] (idy-2) at ($(id-g.south west)+(0.9, -0.3)$) {$\abst{y}_2$};
-\node[anchor=center] (idy-3) at ($(id-g.south west)+(3.3, -0.3)$) {$\abst{y}_{m_g}$};
+\gate{id}{(0,0)}{$\abst{x}_1$,$\cdots$,$\abst{x}_{n_g}$}{$\ty(g)$}{3}
+\draw[-,thick] ($(id-in-1)+(0,0.25)$) -- (id-in-1);
+\draw[-,thick] ($(id-in-3)+(0,0.25)$) -- (id-in-3);
+\draw[->,thick] (id-out-1) -- ($(id-out-1)+(0,-0.4)$);
+\node[anchor=north east] at (id-out-1) {$\abst{y}_1$};
+\node[anchor=north] at ($(id-out-2)+(0,-0.1)$) {$\cdots$};
+\draw[->,thick] (id-out-3) -- ($(id-out-3)+(0,-0.4)$);
+\node[anchor=north west] at (id-out-3) {$\abst{y}_{m_g}$};
 \end{tikzpicture}
 &
 e.g.
 \begin{tikzpicture}[
   baseline={(current bounding box.center)}
 ]
-\node[draw, minimum width=1.6cm, minimum height=1.35cm] (id-g) at (0,0) {};
-\node at ($(id-g.north)-(0,0.975)$) {$\text{Add}$};
-\node[anchor=center] (id-1) at ($(id-g.north west)+(0.4, -0.3)$) {$\abst{a}$};
-\node[anchor=center] (id-2) at ($(id-g.north west)+(1.2, -0.3)$) {$\abst{b}$};
-\draw[-] ($(id-g.north west)+(0,-0.6)$) -- ($(id-g.north west)+(1.6,-0.6)$);
-\draw[-] ($(id-g.north west)+(0.8,0)$) -- ($(id-g.north west)+(0.8,-0.6)$);
-\draw[->,thick] ($(id-g.north west)+(0.4,0.4)$) -- ($(id-g.north west)+(0.4,0)$);
-\draw[->,thick] ($(id-g.north west)+(1.2,0.4)$) -- ($(id-g.north west)+(1.2,0)$);
-\draw[->,thick] ($(id-g.south)$) -- ($(id-g.south)+(0,-0.4)$);
-\node[anchor=center] (idy-1) at ($(id-g.south)+(0.3, -0.3)$) {$\abst{c}$};
+\gate{add}{(0,0)}{$\abst{a}$,$\abst{b}$}{$\text{Add}$}{1}
+\draw[-,thick] ($(add-in-1)+(0,0.25)$) -- (add-in-1);
+\draw[-,thick] ($(add-in-2)+(0,0.25)$) -- (add-in-2);
+\draw[->,thick] (add-out-1) -- ($(add-out-1)+(0,-0.4)$);
+\node[anchor=north east] at (add-out-1) {$\abst{c}$};
 \end{tikzpicture}
 \end{tabular}
 \end{center}
@@ -267,18 +251,18 @@ $= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\begin{array}{rl}
 \end{array}}
 $ \\
 $= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\begin{array}{rl}
-  (u+1, \abst{f} \cup \set{(\text{Mul}(\abst{x},\abst{x}), ((u,0,q)))}, (u)) &= (u', \abst{f}', (\abst{t})) \\
-  \text{get}((u',0,q), \abst{f}', \text{Add}(\abst{t},\abst{y})) &= (\_, \abst{f}'', (\abst{z}))
+  (u+1, \abst{f} \cup \set{(\text{Mul}(\abst{x},\abst{x}), ((u,q)))}, (u)) &= (u', \abst{f}', (\abst{t})) \\
+  \text{get}((u',q), \abst{f}', \text{Add}(\abst{t},\abst{y})) &= (\_, \abst{f}'', (\abst{z}))
 \end{array}}
 $ \\
 $= \maybe{\left(\abst{f}'', (\abst{z})\right)}{
-  \text{get}(u+1, \abst{f} \cup \set{(\text{Mul}(\abst{x},\abst{x}), (u,0,q))}, \text{Add}((u,0,q),\abst{y})) = (\_, \abst{f}'', (\abst{z}))
+  \text{get}(u+1, \abst{f} \cup \set{(\text{Mul}(\abst{x},\abst{x}), (u,q))}, \text{Add}((u,q),\abst{y})) = (\_, \abst{f}'', (\abst{z}))
 }
 $ \\
 $= \left(\abst{f} \cup \set{\begin{array}{rl}
-    \text{Mul}(\abst{x},\abst{x}) & (u,0,q) \\
-    \text{Add}((u,0,q),\abst{y}) & (u+1,0,q)
-  \end{array}}, ((u+1,0,q))\right)
+    \text{Mul}(\abst{x},\abst{x}) & (u,q) \\
+    \text{Add}((u,q),\abst{y}) & (u+1,q)
+  \end{array}}, ((u+1,q))\right)
 $ \\
 where $(u,\abst{f})$
 \\ 
@@ -286,23 +270,23 @@ $=?$ TODO typed defn
 \\
 $= \text{put}(\text{Input}^q_1) \circ \text{put}(\text{Input}^q_0, 0, \emptyset)$
 \\
-$= \text{put}(\text{Input}^q_1, 1, \set{(\text{Input}^q_0, (0,0,q))})$
+$= \text{put}(\text{Input}^q_1, 1, \set{(\text{Input}^q_0, (0,q))})$
 \\
 $= \left(2, \set{\begin{array}{rl}
-  \text{Input}^q_0 & (0,0,q) \\
-  \text{Input}^q_1 & (1,0,q)
+  \text{Input}^q_0 & (0,q) \\
+  \text{Input}^q_1 & (1,q)
 \end{array}}\right)$
 \\
 $\therefore \ (\abst{f}, \abst{\vec{Y}}) = \left(\set{\begin{array}{rl}
-  \text{Input}^q_0 & (0,0,q) \\
-  \text{Input}^q_1 & (1,0,q) \\
-  \text{Mul}((0,0,q),(0,0,q)) & (2,0,q) \\
-  \text{Add}((2,0,q),(1,0,q)) & (3,0,q)
-\end{array}}, ((3,0,q))\right)
+  \text{Input}^q_0 & (0,q) \\
+  \text{Input}^q_1 & (1,q) \\
+  \text{Mul}((0,q),(0,q)) & (2,q) \\
+  \text{Add}((2,q),(1,q)) & (3,q)
+\end{array}}, ((3,q))\right)
 $
 \end{longtable}
 
-This concludes with wires $\abst{x} = (0,0,q)$, $\abst{y} = (1,0,q)$, $\abst{t} = (2,0,q)$ and $\abst{z} = (3,0,q)$. $\abst{f}$ can be notated as:
+This concludes with wires $\abst{x} = (0,q)$, $\abst{y} = (1,q)$, $\abst{t} = (2,q)$ and $\abst{z} = (3,q)$. Thus, $\abst{f}$ can be notated as:
 
 \begin{tabularx}{\textwidth}{@{} c Y Y @{}}
 \toprule
@@ -314,17 +298,18 @@ $\build{x^2+y=z^*}{}{}$ &
 ]
 \node[draw, anchor=center] (in1) at (0,0) {$\text{Input}^q_0$};
 \node[draw, anchor=center] (in2) at ($(in1.south)-(0,0.4)$) {$\text{Input}^q_1$};
-\node[draw, anchor=center] (mul) at ($(in2.south)-(0,0.4)$) {$\text{Mul}((0,0,q),(0,0,q))$};
-\node[draw, anchor=center] (add) at ($(mul.south)-(0,0.4)$) {$\text{Add}((2,0,q),(1,0,q))$};
+\node[draw, anchor=center] (mul) at ($(in2.south)-(0,0.4)$) {$\text{Mul}((0,q),(0,q))$};
+\node[draw, anchor=center] (add) at ($(mul.south)-(0,0.4)$) {$\text{Add}((2,q),(1,q))$};
 
-\node[anchor=center] (x) at ($(in1.east)+(3.5,0)$) {$(0,0,q)$};
-\node[anchor=center] (y) at ($(x.south)-(0,0.4)$) {$(1,0,q)$};
-\node[anchor=center] (t) at ($(y.south)-(0,0.4)$) {$(2,0,q)$};
-\node[anchor=center] (z) at ($(t.south)-(0,0.4)$) {$(3,0,q)$};
+\node[anchor=center] (x) at ($(in1.east)+(3.5,0)$) {$\abst{x}$};
+\node[anchor=center] (y) at ($(x.south)-(0,0.4)$) {$\abst{y}$};
+\node[anchor=center] (t) at ($(y.south)-(0,0.4)$) {$\abst{t}$};
+\node[anchor=center] (z) at ($(t.south)-(0,0.4)$) {$\abst{z}$};
 \node[anchor=west] (outs) at ($(z.east)+(-0.125,0.075)$) {$\in \abst{\vec{Y}}$};
 
 \node[] (g) at ($(in1.north)+(0,0.4)$) {$g$};
-\node[] (w) at ($(x.north)+(0,0.4)$) {$\abst{y}$};
+\node[] (w) at ($(x.north)+(0,0.4)$) {$\abst{w}$};
+\node[] (f) at ($($(g)!.5!(w)$)$) {$\abst{f}$};
 
 \draw[-, dashed] (in1.east) -- (x.west);
 \draw[-, dashed] (in2.east) -- (y.west);
@@ -335,48 +320,20 @@ $\build{x^2+y=z^*}{}{}$ &
 \begin{tikzpicture}[
   baseline={(current bounding box.center)}
 ]
-% input1 gate
-\node[draw, anchor=north] (in1) at (0,0) {$\text{Input}^q_0$};
-
-% input2 gate
-\node[draw, anchor=north] (in2) at ($(in1.north)+(1.8,0)$) {$\text{Input}^q_1$};
-
-% mul(x,x) = t gate
-\node[draw, minimum width=2.4cm, minimum height=1.35cm, anchor=north west] (mul-g) at ($(in1.south)-(1.2,0.4)$) {};
-\node at ($(mul-g.north)-(0,0.975)$) {$\text{Mul}$};
-\node[anchor=center] (mul-1) at ($(mul-g.north west)+(0.6, -0.3)$) {$(0,0,q)$};
-\node[anchor=center] (mul-2) at ($(mul-g.north west)+(1.8, -0.3)$) {$(0,0,q)$};
-\draw[-] ($(mul-g.north west)+(0,-0.6)$) -- ($(mul-g.north west)+(2.4,-0.6)$);
-\draw[-] ($(mul-g.north west)+(1.2,0)$) -- ($(mul-g.north west)+(1.2,-0.6)$);
-
-% add(t,y) = z gate
-\node[draw, minimum width=2.4cm, minimum height=1.35cm, anchor=north west] (add-g) at ($(mul-g.south)+(-0.6,-0.4)$) {};
-\node at ($(add-g.north)-(0,0.975)$) {$\text{Add}$};
-\node[anchor=center] (add-1) at ($(add-g.north west)+(0.6, -0.3)$) {$(2,0,q)$};
-\node[anchor=center] (add-2) at ($(add-g.north west)+(1.8, -0.3)$) {$(1,0,q)$};
-\draw[-] ($(add-g.north west)+(0,-0.6)$) -- ($(add-g.north west)+(2.4,-0.6)$);
-\draw[-] ($(add-g.north west)+(1.2,0)$) -- ($(add-g.north west)+(1.2,-0.6)$);
-
-% z output
-\node[anchor=north] (z) at ($(add-g.south) + (0,-0.4)$) {$(3,0,q)$};
-\node[anchor=west] (outs) at ($(z.east)+(-0.125,0.075)$) {$\in \abst{\vec{Y}}$};
-
-% x wiring
-\draw[-,thick] ($(mul-g.north)+(0,0.4)$) -- ($(mul-g.north)+(0,0.2)$);
-\draw[-,thick] ($(mul-g.north west)+(0.6,0.2)$) -- ($(mul-g.north west)+(1.8,0.2)$);
-\draw[->,thick] ($(mul-g.north west)+(0.6,0.2)$) -- ($(mul-g.north west)+(0.6,0)$);
-\draw[->,thick] ($(mul-g.north west)+(1.8,0.2)$) -- ($(mul-g.north west)+(1.8,0)$);
-
-% t wiring
-\draw[->,thick] ($(mul-g.south)$) -- ($(mul-g.south)+(0,-0.4)$);
-
-% y wiring
-\draw[-,thick] ($(mul-g.north west)+(3.0,0.4)$) -- ($(mul-g.south west)+(3.0,-0.2)$);
-\draw[-,thick] ($(mul-g.south west)+(3.0,-0.2)$) -- ($(mul-g.south west)+(2.4,-0.2)$);
-\draw[->,thick] ($(mul-g.south west)+(2.4,-0.2)$) -- ($(add-g.north west)+(1.8,0)$);
-
-% z wiring
-\draw[->,thick] (add-g.south) -- (z.north);
+\gate{in0}{(0,0)}{}{$\text{Input}^q_0$}{1}
+\gate{in1}{($(in0.north east)+(0.1,0)$)}{}{$\text{Input}^q_1$}{1}
+\gate{mul}{($(in0.south west)+(0,-0.5)$)}{$\abst{x}$,$\abst{x}$}{$\text{Mul}$}{1}
+\draw[-,thick] (in0-out-1) -- (mul-in-1);
+\draw[-,thick] (in0-out-1) -- (mul-in-2);
+\gate{add}{($(mul.north east)+(0.5,0)$)}{$\abst{t}$,$\abst{y}$}{$\text{Add}$}{1}
+\draw[-,thick] (mul-out-1) -- ($(mul-out-1)+(0,-0.25)$);
+\draw[-,thick] ($(mul-out-1)+(0,-0.25)$) -- ($(mul.south east)+(0.25,-0.25)$);
+\draw[-,thick] ($(mul.south east)+(0.25,-0.25)$) -- ($(mul.north east)+(0.25,0.25)$);
+\draw[-,thick] ($(mul.north east)+(0.25,0.25)$) -- ($(add-in-1)+(0,0.25)$);
+\draw[-,thick] ($(add-in-1)+(0,0.25)$) -- (add-in-1);
+\draw[-,thick] (in1-out-1) -- (add-in-2);
+\draw[->,thick] (add-out-1) -- ($(add-out-1)+(0,-0.4)$);
+\node[anchor=north west] at (add-out-1) {$\abst{z} \in \abst{\vec{Y}}$};
 \end{tikzpicture}
 \\
 \\\toprule
