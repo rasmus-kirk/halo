@@ -190,12 +190,14 @@
 
 % Draw output ports
 \newcommand{\gate@draw@outputs}[2]{%
-  \foreach \i in {1,...,#2} {
-    \pgfmathsetmacro{\gate@output@pos}{(\i-0.5)/#2}
-    % Coordinate at the base of the output port (tip - port height since yscale=-1)
-    \coordinate (#1-out-\i) at ($(#1-top.south west)!\gate@output@pos!(#1-top.south east)+(0,-0.125)$);
-    \pic[yscale=-1, anchor=north] at ($(#1-top.south west)!\gate@output@pos!(#1-top.south east)$) {port};
-  }
+  \ifnum#2>0
+    \foreach \i in {1,...,#2} {
+      \pgfmathsetmacro{\gate@output@pos}{(\i-0.5)/#2}
+      % Coordinate at the base of the output port (tip - port height since yscale=-1)
+      \coordinate (#1-out-\i) at ($(#1-top.south west)!\gate@output@pos!(#1-top.south east)+(0,-0.125)$);
+      \pic[yscale=-1, anchor=north] at ($(#1-top.south west)!\gate@output@pos!(#1-top.south east)$) {port};
+    }
+  \fi
 }
 
 \makeatother
@@ -460,5 +462,9 @@
 \newcommand{\idx}{\text{idx}}
 \newcommand{\tin}{\text{in}}
 \newcommand{\out}{\text{out}}
+\newcommand{\entries}{\text{entries}}
+\newcommand{\aput}{\text{put}}
+\newcommand{\aget}{\text{get}}
 \newcommand{\otherwise}{\text{otherwise}}
 \newcommand{\lift}{\text{lift}}
+\DeclareMathOperator*{\opcirc}{\circ}

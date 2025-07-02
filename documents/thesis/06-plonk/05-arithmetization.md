@@ -1,6 +1,6 @@
 ## Preprocessing
 
-We now define the preprocessing pipeline where $f : \text{Program}$ and $\text{Program} = W[\vec{t_{in}}] \to W[\vec{t_{out}}]$
+We now define the preprocessing pipeline where $f : \text{Program}$ and $\text{Program} = W[\vec{t^{in}}] \to W[\vec{t^{out}}]$
 
 $$
 (R,x,w) = \mathrm{relation} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})
@@ -10,7 +10,7 @@ Note: we use alot of custom notations in this section, which are defined in the 
 
 ### Arithmetizer
 
-Wires $\abst{x}$ are abstract representations of values $x$, defined as a pair of unique identifier; uuid, and a wire type tag. $W$ maps the tag to the value's type e.g. $W(p) = \Fb_p, W(q) = \Fb_q$.
+*Wires* $\abst{x}$ are abstract representations of values $x$, defined as a pair of unique identifier; uuid, and a *wire type tag*. $W$ maps the tag to the value's type e.g. $W(p) = \Fb_p, W(q) = \Fb_q$.
 
 $$
 \begin{array}{cccc}
@@ -31,7 +31,7 @@ W &: \WireType \to \mathcal{U} \\
 \end{array}
 $$
 
-Gates $g$ are primitive operations with $n_g \geq 0$ fan-in inputs and $m_g \geq 0$ fan-out outputs defined with its input wire(s).
+*Gates* $g$ are primitive operations with $n_g \geq 0$ fan-in inputs and $m_g \geq 0$ fan-out outputs defined with its input wire(s).
 
 $$
 \begin{array}{rl}
@@ -73,7 +73,7 @@ g(\abst{\vec{x}}) &= \maybe{(g,\abst{\vec{x}})}{\forall i. \text{inty}(g)_{i} = 
 \end{array}
 $$
 
-Arithmetize turns a program $f$ into an abstract circuit $\abst{f}$, which is a one-to-many-or-none relation between gates $g$ and output wire(s) $\abst{y}$ or $\bot$ for none. e.g. $(\text{Add}(\abst{a},\abst{b}), \abst{c}) \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$. $\abst{f}$ are also acyclic.
+Arithmetize turns a program $f$ into an *Abstract Circuit* $\abst{f}$, which is a one-to-many-or-none relation between gates $g$ and output wire(s) $\abst{y}$ or $\bot$ for none. e.g. $(\text{Add}(\abst{a},\abst{b}), \abst{c}) \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$. $\abst{f}$ are also acyclic.
 
 $$
 \AbsCirc = \set{
@@ -84,6 +84,7 @@ $$
   \end{array}
 }
 $$
+A wire's output order relative to a gate and the output wires of a gate can be computed as follows:
 $$
 \begin{array}{rl}
 \begin{array}{rl}
@@ -137,7 +138,7 @@ e.g.
 \end{tabular}
 \end{center}
 
-We notate arithmetizing a program $f$ to an abstract circuit $\abst{f}$ with predicates $\build{f = \vec{y}}{s}{s'}$, $\build{f = y}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the state; $s=(u, \abst{f})$ where $u$ is the current uuid, from $s$ to $s'$. Gadgets are compositions of $\bigwedge \build{f}{}{}$. Wires annotated with $*$, i.e. $\build{f = y^*}{}{}$, are the final output and are appended to $\abst{\vec{Y}}$. They, may be omitted notationally.
+We notate arithmetizing a program $f$ with predicates $\build{f = \vec{y}}{s}{s'}$, $\build{f = y}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the state; $s=(u, \abst{f})$ where $u$ is the current uuid, from $s$ to $s'$. Gadgets are compositions of $\bigwedge \build{f}{}{}$. Wires annotated with $*$, i.e. $\build{f = y^*}{}{}$, are the final output and are appended to $\abst{\vec{Y}}$. They, may be omitted notationally.
 
 $$
 \begin{array}{cc}
@@ -165,57 +166,41 @@ Gates have a canonical program that it corresponds to, e.g $\build{x + y=z}{s}{s
 
 These inserts yield new wires. However, wires are reused by an equivalence class on gates. If $g \equiv h$ where $(h,\_) \in \abst{f}$, then $\abst{\vec{y}}$ in $\build{g=\vec{y}}{s}{s}$ corresponds to the output wire(s) of $h$, leaving the state unchanged.
 
-TODO: fix below and ur done for typed arith; remove build notation, remove out, entries construct wires not just naturals vector, arith use proper general type
-
-$$
-\begin{aligned}
-\Gate^{\abst{f}}_g &= \set{h \in \Gate \middle\vert
-  (h, \_) \in \abst{f} \land h \equiv g
-}
-\end{aligned}
-$$
 $$
 \begin{array}{rl}
 \begin{array}{rl}
-\out &: (\Option(\Nb) + \AbsCirc) \to (g: \Gate) \to \Nb^{m_g} \\
-\out(\bot, \_) &= () \\
-\out(u,g) &= (u..u+m_g) \\
-\out(\abst{f}, g)
-&= \out(\min\left(
-  \set{\abst{y} \middle\vert (g,\abst{y}) \in \abst{f}}
-\right), g) \\
+\text{new} &: \Nb \to \Gate \to \Wire^{m_g} \\
+\text{new}(u,g) &= (u..u+m_g) \odot \text{outty}(g) \\
 \\
-\text{entries}  &: \Nb \to \Gate \to \AbsCirc \\
-\text{entries}(u,g) &= \begin{cases}
-  \set{(g,\abst{y}) \middle\vert \abst{y} \in \out(u,g)}
+\entries  &: \Nb \to \Gate \to \AbsCirc \\
+\entries(u,g) &= \begin{cases}
+  \set{(g,\abst{y}) \middle\vert \abst{y} \in \text{new}(u,g)}
   & m_g > 0 \\
   \set{(g,\bot)}
   & m_g = 0
 \end{cases} \\
 \\
-\text{put} &: \Gate \to \AState \to \AState \\
-\text{put}(g, u, \abst{f}) &= (
-  u + m_g, \abst{f} \cup \text{entries}(u, g)
+\aput &: \Gate \to \AState \to \AState \\
+\aput(g, u, \abst{f}, \abst{\vec{Y}}) &= (
+  u + m_g, \abst{f} \cup \entries(u, g), \abst{\vec{Y}}
 )
 \end{array}
 &
 \begin{array}{rl}
-\text{get} &: \AState \to (g: \Gate) \to \AState \times \Nb^{m_g} \\
-\text{get}(u, \abst{f}, g)
+\Gate^{\abst{f}}_g &= \set{h \in \Gate \middle\vert
+  (h, \_) \in \abst{f} \land h \equiv g
+} \\
+\\
+\aget &: \AState \to (g: \Gate) \to \AState \times \Wire^{m_g} \\
+\aget(u, \abst{f}, \abst{\vec{Y}}, g)
 &= \begin{cases}
-  (u, \abst{f}, \out(\abst{f}, h)) & h \in \Gate^{\abst{f}}_g \\
-  (\text{put}(g, u, \abst{f}), \out(u,g)) & \otherwise
+  (u, \abst{f}, \abst{\vec{Y}}, \out(\abst{f}, h)) & h \in \Gate^{\abst{f}}_g \\
+  (\aput(g, u, \abst{f}, \abst{\vec{Y}}), \text{new}(u,g)) & \otherwise
 \end{cases} \\
 \\
-\build{g = \vec{y}}{s}{s'}
-&= \left(\text{get}(s,g) \overset{?}{=} (s', \abst{\vec{y}})\right)  \\
-\build{f=y^*}{s}{s'} &= \build{f=y}{(s,\abst{\vec{Y}})}{(s', \abst{\vec{Y}} \cat \abst{y})} \\
-\build{f}{s_1}{s_{k+1}}
-&= \bigwedge\limits_{i \in [k]} \build{f_i}{s_i}{s_{i+1}} \\
-\\
-\text{arithmetize} &: (\Fb^n_q \to \Fb^m_q) \to \AbsCirc \times \Nb^{m'} \\
+\text{arithmetize} &: (W[\vec{t^{in}}] \to W[\vec{t^{out}}]) \to \AbsCirc \times \Wire^{m'} \\
 \text{arithmetize}(f) &= \maybe{(\abst{f}, \abst{\vec{Y}})}{
-  \build{f}{\left(\circ_{i \in [0..n]}\text{put}(\text{Input}_i)(0,\emptyset), () \right)}{(\_, \abst{f}, \abst{\vec{Y}})}
+  \build{f}{\opcirc\limits_{i \in [0..n]}\aput(\text{Input}^{t^{in}_{i+1}}_i)(0,\emptyset, ())}{(\_, \abst{f}, \abst{\vec{Y}})}
 }
 \end{array}
 \end{array}
@@ -266,7 +251,7 @@ $= \left(\abst{f} \cup \set{\begin{array}{rl}
 $ \\
 where $(u,\abst{f})$
 \\ 
-$=?$ TODO typed defn
+$= \opcirc\limits_{i \in [0..n]}\aput(\text{Input}^{t^{in}_{i+1}}_i)(0,\emptyset)$
 \\
 $= \text{put}(\text{Input}^q_1) \circ \text{put}(\text{Input}^q_0, 0, \emptyset)$
 \\
@@ -286,7 +271,7 @@ $\therefore \ (\abst{f}, \abst{\vec{Y}}) = \left(\set{\begin{array}{rl}
 $
 \end{longtable}
 
-This concludes with wires $\abst{x} = (0,q)$, $\abst{y} = (1,q)$, $\abst{t} = (2,q)$ and $\abst{z} = (3,q)$. Thus, $\abst{f}$ can be notated as:
+Thus $\abst{x} = (0,q)$, $\abst{y} = (1,q)$, $\abst{t} = (2,q)$ and $\abst{z} = (3,q)$. The resulting abstract circuit can be notated as follows:
 
 \begin{tabularx}{\textwidth}{@{} c Y Y @{}}
 \toprule
@@ -333,7 +318,7 @@ $\build{x^2+y=z^*}{}{}$ &
 \draw[-,thick] ($(add-in-1)+(0,0.25)$) -- (add-in-1);
 \draw[-,thick] (in1-out-1) -- (add-in-2);
 \draw[->,thick] (add-out-1) -- ($(add-out-1)+(0,-0.4)$);
-\node[anchor=north west] at (add-out-1) {$\abst{z} \in \abst{\vec{Y}}$};
+\node[anchor=north west] at (add-out-1) {$\abst{z}$};
 \end{tikzpicture}
 \\
 \\\toprule
