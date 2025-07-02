@@ -40,6 +40,7 @@ util functions
 - vector concat with set $X \cat \vec{x}$; any random ordering of $X$; recursive application of axiom of choice
 - vector map $f[\vec{x}] = (f(x_1), f(x_2), \ldots, f(x_n))$
 - vector minus set $\vec{x} \setminus X$ turns $\vec{x}$ to a set and removes all elements in $X$
+- vector zip / typal hadamard product $\vec{x} \odot \vec{y} = ((x_1,y_1),\cdots,(x_n,y_n))$
 - min of a set with total ordering $\min(X)$
 - partial function append vector $f[\vec{x} \mapsto \vec{y}] = \begin{cases} & \vec{x} = x \cat \vec{x}' \\ f[x \mapsto y][\vec{x}' \mapsto \vec{y}'] & \vec{y} = y \cat \vec{y}' \\ f & \otherwise \end{cases}$
 
