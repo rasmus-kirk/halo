@@ -1,7 +1,53 @@
 
 ### Trace
 
-TODO: GateType is a tuple of canonical program, function from type tag to matrix of rows k and column slot and selectors, with values of index of vector of input and output values. we can construct computed functions that type checks the assignment of values to trace table and cloop construction. Slots are reusable, selectors are not. Thus GateType can be grouped if they share the same selectors. Combining GateType from different groups is by offsetting the selector index. Thus if GateType is a tuple rather than a finite type, we can have anonymous GateTypes. And thus groups composed on runtime. Thus u can also think of n, m, inty and outy as elements of GateType. i.e. GateType is not an enum but a struct. And a group is an array of them. Anonymous gates are its own group. do u want to make a feature where it can insert itself into an existing group?
+We define the trace computation as follows:
+$$
+(TODO) = \mathrm{trace}(\abst{f},\abst{\vec{Y}},\vec{x})
+$$
+
+**Gate Type**
+
+First, we define $\text{GateType}$ as the operational structure i.e. $n,m,\vec{t^{in}},\vec{t^{out}}$. We now introduce:
+
+- $\text{eval}$; computes the output values via the gate's canonical program
+- $\text{ctrn}$; constructs the mapping of values to the gate constraints; $gc$.
+
+$$
+\begin{array}{rl}
+\text{GateType}
+&= (n: \Nb) \times (m: \Nb) \times (\vec{t^{in}}: \WireType^n) \times (\vec{t^{out}}: \WireType^m) \\
+&\times (\text{eval}: W[\vec{t_{in}}] \to W[\vec{t_{out}}]) 
+\times (\text{ctrn}: (t: \WireType) \to C_{row}(\vec{t^{in}} \cat \vec{t^{out}}, t)^k)
+\end{array}
+$$
+$$
+\begin{array}{rl}
+C_{idx} &= (\vec{t}: \WireType^k) \to (t': \WireType) \to \set{i | i \in \Nb \land t_i = t'}\\
+C_{val} &= (\vec{t}: \WireType^k) \to (t': \WireType) \to (C_{idx}(\vec{t}, t') + W(t)) \\
+C_{row} &= (\vec{t}: \WireType^k) \to (t': \WireType) \to (C_{val}(\vec{t}, t')^{|\Slot| + |\Selector|})
+\end{array}
+$$
+
+Recall $\Surkal$ performs vanishing argument on $F_{GC}$. The primtive terms in $F_{GC}$ are called slots and selectors. Slots; $A,B,C,\cdots$, hold values of a run of the circuit privately, wheras selectors; $Q_l, Q_r, Q_o, Q_c, \cdots$, are public values reflecting the structure of the circuit. The trace table has slots and selectors for columns and $\text{ctrn}$ constructs the rows. Thus $\forall t. W(t)$ is a valid field to construct a polynomial for the vanishing argument.
+
+The construction of subterms of $F_{GC}$ is done by $\GateGroup$ via $gc$:
+
+$$
+\begin{array}{rl}
+\GateGroup &= \GateType^k \times (gc: X^l \to X^{|\Slot| + |\Selector|} \to X)
+\end{array}
+$$
+
+TODO
+
+- extend group function?; takes a group and vector of gates returns new group.
+- gate group construction needs to be done in reln.. not necessary in arith and trace
+
+- join cloops (in copy constraint section)
+- cloop; from ctrn
+
+**Monotonic Functions**
 
 $\text{trace}$ computes the least fixed point of a composition of monotonic functions using $\text{sup}$. We also call a monotonic function a continuation if it is called by another. We call lift, to extend the argument of a monotonic function.
 

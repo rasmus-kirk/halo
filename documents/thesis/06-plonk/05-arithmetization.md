@@ -1,9 +1,14 @@
 ## Preprocessing
 
-We now define the preprocessing pipeline where $f : \text{Program}$ and $\text{Program} = W[\vec{t^{in}}] \to W[\vec{t^{out}}]$
+We now define the preprocessing pipeline where $f : \text{Program}$ and $\text{Program} = W[\vec{t}^{\vec{in}}] \to W[\vec{t}^{\vec{out}}]$
 
 $$
 (R,x,w) = \mathrm{relation} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})
+$$
+
+We define the arithmetize computation as follows:
+$$
+(\abst{f}, \abst{\vec{Y}}) = \mathrm{arithmetize}(f)
 $$
 
 Note: refer to the appendix for the definition of notations used in this section.
@@ -62,13 +67,13 @@ Gate constructors type checks its inputs $\abst{\vec{x}}$. e.g. $\text{Add}(\abs
 $$
 \begin{array}{cc}
 \begin{array}{rl}
-\text{inty} &: \GateType \to \WireType^{n_g} \\
-\text{outty} &: \GateType \to \WireType^{m_g}
+\vec{t}^{\vec{in}} &: \GateType \to \WireType^{n_g} \\
+\vec{t}^{\vec{out}} &: \GateType \to \WireType^{m_g}
 \end{array}
 &
 \begin{array}{rl}
 - ( - ) &: (g: \GateType) \to \Wire^{n_g} \to \Gate \\
-g(\abst{\vec{x}}) &= \maybe{(g,\abst{\vec{x}})}{\forall i. \text{inty}(g)_{i} = \ty(\abst{x}_i)}
+g(\abst{\vec{x}}) &= \maybe{(g,\abst{\vec{x}})}{\forall i. \vec{t}^{\vec{in},g}_{i} = \ty(\abst{x}_i)}
 \end{array}
 \end{array}
 $$
@@ -159,13 +164,13 @@ u_{(r,\_)} &= r &
 \abst{\vec{Y}}_{(\_,r)} &= r
 \end{array} \\
 \\
-\begin{array}{rlrlrl}
+\begin{array}{ccc}
 \build{g = \vec{y}}{s}{s'}
-&= \left(\text{get}(s,g) = (s', \abst{\vec{y}})\right) &
+= \left(\text{get}(s,g) = (s', \abst{\vec{y}})\right) &
 \build{f=y^*}{s}{s'}
-&= \build{f=y}{(s,\abst{\vec{Y}})}{(s', \abst{\vec{Y}} \cat \abst{y})} &
+= \build{f=y}{(s,\abst{\vec{Y}})}{(s', \abst{\vec{Y}} \cat \abst{y})} &
 \build{f}{s_1}{s_{k+1}}
-&= \bigwedge\limits_{i \in [k]} \build{f_i}{s_i}{s_{i+1}}
+= \bigwedge\limits_{i \in [k]} \build{f_i}{s_i}{s_{i+1}}
 \end{array}
 \end{array}
 $$
@@ -178,7 +183,7 @@ $$
 \begin{array}{rl}
 \begin{array}{rl}
 \text{new} &: \Nb \to \Gate \to \Wire^{m_g} \\
-\text{new}(u,g) &= (u..u+m_g) \odot \text{outty}(g) \\
+\text{new}(u,g) &= (u..u+m_g) \odot \vec{t}^{\vec{out},g} \\
 \\
 \entries  &: \Nb \to \Gate \to \AbsCirc \\
 \entries(u,g) &= \begin{cases}
@@ -205,9 +210,9 @@ $$
   (\aput(g, s), \text{new}(u_s,g)) & \otherwise
 \end{cases} \\
 \\
-\text{arithmetize} &: (W[\vec{t^{in}}] \to W[\vec{t^{out}}]) \to \AbsCirc \times \Wire^{m'} \\
+\text{arithmetize} &: (W[\vec{t}^{\vec{in}}] \to W[\vec{t}^{\vec{out}}]) \to \AbsCirc \times \Wire^{m'} \\
 \text{arithmetize}(f) &= \maybe{(\abst{f}, \abst{\vec{Y}})}{
-  \build{f}{\left(\opcirc\limits_{i \in \left[0..\left|\vec{t^{in}}\right|\right]}\aput(\text{Input}^{t^{in}_{i+1}}_i)\right)(0,\emptyset, ())}{(\_, \abst{f}, \abst{\vec{Y}})}
+  \build{f}{\left(\opcirc\limits_{i \in \left[0..\left|\vec{t}^{\vec{in}}\right|\right]}\aput(\text{Input}^{t^{in}_{i+1}}_i)\right)(0,\emptyset, ())}{(\_, \abst{f}, \abst{\vec{Y}})}
 }
 \end{array}
 \end{array}
@@ -218,9 +223,7 @@ $$
 Let $W(q)=\Fb_q$ and $f: \Fb_q^2 \to \Fb_q^1$ where $f(x,y) = x^2 + y$, then:
 
 \begin{longtable}{@{}l@{}}
-Let $(\abst{f}, \abst{\vec{Y}})$
-\\
-$= \text{arithmetize}(f)$
+Let $(\abst{f}, \abst{\vec{Y}}) = \text{arithmetize}(f)$
 \\
 $= \maybe{\left(\abst{f}'', (\abst{z})\right)}{
   \build{x^2 + y = z^*}
@@ -251,6 +254,11 @@ $= \maybe{\left(\abst{f}'', (\abst{z})\right)}{
   \text{get}(u+1, \abst{f} \cup \set{(\text{Mul}(\abst{x},\abst{x}), (u,q))}, (), \text{Add}((u,q),\abst{y})) = (\_, \abst{f}'', (\abst{z}), (\abst{z}))
 }
 $ \\
+$= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\left(u+2, \abst{f} \cup \set{\begin{array}{rl}
+    \text{Mul}(\abst{x},\abst{x}) & (u,q) \\
+    \text{Add}((u,q),\abst{y}) & (u+1,q)
+  \end{array}}, ((u+1,q)), ((u+1,q))\right) = (\_, \abst{f}'', (\abst{z}), (\abst{z}))}
+$ \\
 $= \left(\abst{f} \cup \set{\begin{array}{rl}
     \text{Mul}(\abst{x},\abst{x}) & (u,q) \\
     \text{Add}((u,q),\abst{y}) & (u+1,q)
@@ -280,10 +288,11 @@ $
 
 Thus $\abst{x} = (0,q)$, $\abst{y} = (1,q)$, $\abst{t} = (2,q)$ and $\abst{z} = (3,q)$. The resulting abstract circuit can be notated as follows:
 
-\begin{tabularx}{\textwidth}{@{} c Y Y @{}}
+\begin{tabularx}{\textwidth}{@{} c c Y Y @{}}
 \toprule
-Predicate & One to Many or None Relation & Abstract Circuit Diagram
+Variables & Predicate & One to Many or None Relation & Abstract Circuit Diagram
 \\\hline \\
+$(\abst{f}, \abst{\vec{Y}})$ &
 $\build{x^2+y=z^*}{}{}$ & 
 \begin{tikzpicture}[
   baseline={(current bounding box.center)}
@@ -314,16 +323,20 @@ $\build{x^2+y=z^*}{}{}$ &
 ]
 \gate{in0}{(0,0)}{}{$\text{Input}^q_0$}{1}
 \gate{in1}{($(in0.north east)+(0.1,0)$)}{}{$\text{Input}^q_1$}{1}
-\gate{mul}{($(in0.south west)+(0,-0.5)$)}{$\abst{x}$,$\abst{x}$}{$\text{Mul}$}{1}
-\draw[-,thick] (in0-out-1) -- (mul-in-1);
-\draw[-,thick] (in0-out-1) -- (mul-in-2);
+\gate{mul}{($(in0.south west)+(0.1875,-0.5)$)}{$\abst{x}$,$\abst{x}$}{$\text{Mul}$}{1}
+\draw[-,thick] (in0-out-1) -- ($(in0-out-1)+(0,-0.25)$);
+\draw[-,thick] ($(mul-in-1)+(0,0.25)$) -- ($(mul-in-2)+(0,0.25)$);
+\draw[-,thick] ($(mul-in-1)+(0,0.25)$) -- (mul-in-1);
+\draw[-,thick] ($(mul-in-2)+(0,0.25)$) -- (mul-in-2);
 \gate{add}{($(mul.north east)+(0.5,0)$)}{$\abst{t}$,$\abst{y}$}{$\text{Add}$}{1}
 \draw[-,thick] (mul-out-1) -- ($(mul-out-1)+(0,-0.25)$);
 \draw[-,thick] ($(mul-out-1)+(0,-0.25)$) -- ($(mul.south east)+(0.25,-0.25)$);
 \draw[-,thick] ($(mul.south east)+(0.25,-0.25)$) -- ($(mul.north east)+(0.25,0.25)$);
 \draw[-,thick] ($(mul.north east)+(0.25,0.25)$) -- ($(add-in-1)+(0,0.25)$);
 \draw[-,thick] ($(add-in-1)+(0,0.25)$) -- (add-in-1);
-\draw[-,thick] (in1-out-1) -- (add-in-2);
+\draw[-,thick] (in1-out-1) -- ($(in1-out-1)+(0,-0.25)$);
+\draw[-,thick] ($(in1-out-1)+(0,-0.25)$) -- ($(add-in-2)+(0,0.25)$);
+\draw[-,thick] ($(add-in-2)+(0,0.25)$) -- (add-in-2);
 \draw[-,thick] (add-out-1) -- ($(add-out-1)+(0,-0.4)$);
 \node[draw, thick, circle, double, double distance=1pt, anchor=north] at ($(add-out-1)+(0,-0.4)$) {$\abst{z}$};
 \end{tikzpicture}
