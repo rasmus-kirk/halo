@@ -3,7 +3,7 @@
 
 We define the trace computation as follows:
 $$
-(TODO) = \mathrm{trace}(\abst{f},\abst{\vec{Y}},\vec{x})
+(\vec{C}, \vec{\sigma}, L) = \mathrm{trace}(\abst{f},\abst{\vec{Y}},\vec{x})
 $$
 
 **Gate Type**
@@ -29,23 +29,46 @@ C_{row} &= (\vec{t}: \WireType^k) \to (t': \WireType) \to (C_{val}(\vec{t}, t')^
 \end{array}
 $$
 
-Recall $\Surkal$ performs vanishing argument on $F_{GC}$. The primtive terms in $F_{GC}$ are called slots and selectors. Slots; $A,B,C,\cdots$, hold values of a run of the circuit privately, wheras selectors; $Q_l, Q_r, Q_o, Q_c, \cdots$, are public values reflecting the structure of the circuit. The trace table has slots and selectors for columns and $\text{ctrn}$ constructs the rows. Thus $\forall t. W(t)$ is a valid field to construct a polynomial for the vanishing argument.
+Recall $\Surkal$ performs vanishing argument on $F_{GC}$. The primtive terms in $F_{GC}$ are called slots and selectors. Slots; $A,B,C,\cdots$, hold values of a run of the circuit privately, wheras selectors; $Q_l, Q_r, Q_o, Q_c, \cdots$, are public values reflecting the structure of the circuit. The trace table $\vec{C}$ has slots and selectors for columns and $\text{ctrn}$ constructs the rows. Thus, $\forall t. \exists p. W(t) = \Fb_p$ is a valid field to construct an $F_{GC}$. In other words, each gate corresponds to some rows in trace table for all wire types visualized as shaded cells as follows:
 
-The construction of subterms of $F_{GC}$ is done by $\GateGroup$ via $gc$:
-
-$$
-\begin{array}{rl}
-\GateGroup &= \GateType^k \times (gc: X^l \to X^{|\Slot| + |\Selector|} \to X)
-\end{array}
-$$
-
-TODO
-
-- extend group function?; takes a group and vector of gates returns new group.
-- gate group construction needs to be done in reln.. not necessary in arith and trace
-
-- join cloops (in copy constraint section)
-- cloop; from ctrn
+\begin{center}
+\begin{tabular}{ c c c c }
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\gate{id}{(0,0)}{$\abst{x}_1$,$\cdots$,$\abst{x}_{n_g}$}{$\ty(g)$}{3}
+\draw[-,thick] ($(id-in-1)+(0,0.25)$) -- (id-in-1);
+\draw[-,thick] ($(id-in-3)+(0,0.25)$) -- (id-in-3);
+\draw[->,thick] (id-out-1) -- ($(id-out-1)+(0,-0.4)$);
+\node[anchor=north east] at (id-out-1) {$\abst{y}_1$};
+\node[anchor=north] at ($(id-out-2)+(0,-0.1)$) {$\cdots$};
+\draw[->,thick] (id-out-3) -- ($(id-out-3)+(0,-0.4)$);
+\node[anchor=north west] at (id-out-3) {$\abst{y}_{m_g}$};
+\end{tikzpicture}
+&
+$\mapsto$
+&
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|}
+\hline
+\multicolumn{9}{|c|}{$\vec{C}$} \\
+\hline
+\multicolumn{4}{|c|}{$\Fb_p$} & \multicolumn{4}{|c|}{$\Fb_q$} & $\cdots$ \\
+\hline
+$A$ & $\cdots$ & $Q_l$ & $\cdots$ & $A$ & $\cdots$ & $Q_l$ & $\cdots$ & $\cdots$ \\
+\hline
+\multicolumn{9}{|c|}{$\vdots$} \\
+\hline
+\multicolumn{4}{|c|}{\cellcolor{gray!30}$\Downarrow \text{ctrn}(p)$} & \multicolumn{5}{|c|}{$\vdots$} \\
+\hline
+\multicolumn{9}{|c|}{$\vdots$} \\
+\hline
+\multicolumn{4}{|c|}{$\vdots$} & \multicolumn{4}{|c|}{\cellcolor{gray!30}$\Downarrow \text{ctrn}(q)$} & $\ddots$ \\
+\hline
+\multicolumn{9}{|c|}{$\vdots$} \\
+\hline
+\end{tabular}
+\end{tabular}
+\end{center}
 
 **Monotonic Functions**
 
@@ -165,8 +188,6 @@ TODO update for types; use idx for vmap defn
 
 **Gate Constraints**
 
-TODO diagram for ctrn mapping of gate to rows in $\vec{C}$.. vector parallel to Term, values are index of input and output value vector.. this can be used for loop too?!?!?!
-
 $\Downarrow_G$ computes the gate constraints by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation on resolved wires in $\Downarrow_R$.
 
 When the wire id stack $\abst{\vec{y}}$ is empty, $\underset{G}{\curvearrowright}$ will push assert gates and input gates $A^{\abst{f}}$ to the stack.
@@ -215,9 +236,7 @@ f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \underset{G}{\curvearrowleft}
 \end{array}
 $$
 
-TODO update for types; table $\vec{C}$ per type
-
-TODO draw tikzpicture of gate correspond to rows in $\vec{C}$
+TODO update for types; table $\vec{C}$ per type, rename ctrn to row, compute from ctrn
 
 **Copy Constraints**
 
@@ -293,7 +312,7 @@ x[i \mapsto \vec{l}] \sqcup y'
 \end{array}
 $$
 
-TODO update for types; permutation $\vec{\sigma}$ per type
+TODO update for types; permutation $\vec{\sigma}$ per type, compute loop from ctrn
 
 **Full $\Surkal$ Trace**
 

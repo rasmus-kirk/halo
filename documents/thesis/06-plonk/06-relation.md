@@ -1,5 +1,17 @@
-
 ### Relation
+
+The construction of subterms of $F_{GC}$ is done by $\GateGroup$ via $gc$:
+
+$$
+\begin{array}{rl}
+\GateGroup &= \GateType^k \times (gc: X^l \to X^{|\Slot| + |\Selector|} \to X)
+\end{array}
+$$
+
+TODO
+
+- extend group function?; takes a group and vector of gates returns new group.
+- gate group construction needs to be done in reln.. not necessary in arith and trace
 
 $$
 \begin{array}{rl}
