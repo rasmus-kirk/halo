@@ -72,6 +72,8 @@
 \usepackage{graphicx}
 \usepackage{xparse}
 \usepackage{pgffor}
+\usepackage{booktabs}
+\usepackage{etoolbox}
 
 \usepackage{tabularx}
 \newcolumntype{Y}{>{\centering\arraybackslash}X}
@@ -184,9 +186,11 @@
 % Draw vertical borders between inputs
 \newcommand{\gate@draw@borders}[2]{%
   \gate@count@inputs{#2}%
-  \foreach \i in {2,...,\gate@input@count} {
-    \draw (#1-in\i l.north west |- #1-in.north west) -- (#1-in\i l.south west |- #1-in.south west);
-  }
+  \ifnum\gate@input@count>1
+    \foreach \i in {2,...,\gate@input@count} {
+      \draw (#1-in\i l.north west |- #1-in.north west) -- (#1-in\i l.south west |- #1-in.south west);
+    }
+  \fi
 }
 
 % Draw output ports
@@ -462,7 +466,9 @@
 \newcommand{\ty}{\text{ty}}
 \newcommand{\id}{\text{id}}
 \newcommand{\idx}{\text{idx}}
-\newcommand{\tin}{\text{in}}
+\newcommand{\gin}{\text{in}}
+\newcommand{\tin}[1]{\vec{t}^{\vec{in}\ifstrempty{#1}{}{,#1}}}
+\newcommand{\tout}[1]{\vec{t}^{\vec{out}\ifstrempty{#1}{}{,#1}}}
 \newcommand{\out}{\text{out}}
 \newcommand{\entries}{\text{pairs}}
 \newcommand{\aput}{\text{put}}
@@ -472,3 +478,5 @@
 \DeclareMathOperator*{\opcirc}{\circ}
 \newcommand{\Slot}{\text{Slot}}
 \newcommand{\Selector}{\text{Selector}}
+\newcommand{\eval}{\text{eval}}
+\newcommand{\ctrn}{\text{ctrn}}

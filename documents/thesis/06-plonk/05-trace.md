@@ -6,73 +6,9 @@ $$
 (\vec{C}, \vec{\sigma}, L) = \mathrm{trace}(\abst{f},\abst{\vec{Y}},\vec{x})
 $$
 
-**Gate Type**
-
-First, we define $\text{GateType}$ as the operational structure i.e. $n,m,\vec{t^{in}},\vec{t^{out}}$. We now introduce:
-
-- $\text{eval}$; computes the output values via the gate's canonical program
-- $\text{ctrn}$; constructs the mapping of values to the gate constraints; $gc$.
-
-$$
-\begin{array}{rl}
-\text{GateType}
-&= (n: \Nb) \times (m: \Nb) \times (\vec{t^{in}}: \WireType^n) \times (\vec{t^{out}}: \WireType^m) \\
-&\times (\text{eval}: W[\vec{t_{in}}] \to W[\vec{t_{out}}]) 
-\times (\text{ctrn}: (t: \WireType) \to C_{row}(\vec{t^{in}} \cat \vec{t^{out}}, t)^k)
-\end{array}
-$$
-$$
-\begin{array}{rl}
-C_{idx} &= (\vec{t}: \WireType^k) \to (t': \WireType) \to \set{i | i \in \Nb \land t_i = t'}\\
-C_{val} &= (\vec{t}: \WireType^k) \to (t': \WireType) \to (C_{idx}(\vec{t}, t') + W(t)) \\
-C_{row} &= (\vec{t}: \WireType^k) \to (t': \WireType) \to (C_{val}(\vec{t}, t')^{|\Slot| + |\Selector|})
-\end{array}
-$$
-
-Recall $\Surkal$ performs vanishing argument on $F_{GC}$. The primtive terms in $F_{GC}$ are called slots and selectors. Slots; $A,B,C,\cdots$, hold values of a run of the circuit privately, wheras selectors; $Q_l, Q_r, Q_o, Q_c, \cdots$, are public values reflecting the structure of the circuit. The trace table $\vec{C}$ has slots and selectors for columns and $\text{ctrn}$ constructs the rows. Thus, $\forall t. \exists p. W(t) = \Fb_p$ is a valid field to construct an $F_{GC}$. In other words, each gate corresponds to some rows in trace table for all wire types visualized as shaded cells as follows:
-
-\begin{center}
-\begin{tabular}{ c c c c }
-\begin{tikzpicture}[
-  baseline={(current bounding box.center)}
-]
-\gate{id}{(0,0)}{$\abst{x}_1$,$\cdots$,$\abst{x}_{n_g}$}{$\ty(g)$}{3}
-\draw[-,thick] ($(id-in-1)+(0,0.25)$) -- (id-in-1);
-\draw[-,thick] ($(id-in-3)+(0,0.25)$) -- (id-in-3);
-\draw[->,thick] (id-out-1) -- ($(id-out-1)+(0,-0.4)$);
-\node[anchor=north east] at (id-out-1) {$\abst{y}_1$};
-\node[anchor=north] at ($(id-out-2)+(0,-0.1)$) {$\cdots$};
-\draw[->,thick] (id-out-3) -- ($(id-out-3)+(0,-0.4)$);
-\node[anchor=north west] at (id-out-3) {$\abst{y}_{m_g}$};
-\end{tikzpicture}
-&
-$\mapsto$
-&
-\begin{tabular}{|c|c|c|c|c|c|c|c|c|}
-\hline
-\multicolumn{9}{|c|}{$\vec{C}$} \\
-\hline
-\multicolumn{4}{|c|}{$\Fb_p$} & \multicolumn{4}{|c|}{$\Fb_q$} & $\cdots$ \\
-\hline
-$A$ & $\cdots$ & $Q_l$ & $\cdots$ & $A$ & $\cdots$ & $Q_l$ & $\cdots$ & $\cdots$ \\
-\hline
-\multicolumn{9}{|c|}{$\vdots$} \\
-\hline
-\multicolumn{4}{|c|}{\cellcolor{gray!30}$\Downarrow \text{ctrn}(p)$} & \multicolumn{5}{|c|}{$\vdots$} \\
-\hline
-\multicolumn{9}{|c|}{$\vdots$} \\
-\hline
-\multicolumn{4}{|c|}{$\vdots$} & \multicolumn{4}{|c|}{\cellcolor{gray!30}$\Downarrow \text{ctrn}(q)$} & $\ddots$ \\
-\hline
-\multicolumn{9}{|c|}{$\vdots$} \\
-\hline
-\end{tabular}
-\end{tabular}
-\end{center}
-
 **Monotonic Functions**
 
-$\text{trace}$ computes the least fixed point of a composition of monotonic functions using $\text{sup}$. We also call a monotonic function a continuation if it is called by another. We call lift, to extend the argument of a monotonic function.
+$\text{trace}$ computes the least fixed point of a composition of monotonic functions; $\Downarrow_R, \Downarrow_G, \Downarrow_C$, using $\text{sup}$. We also call a monotonic function a continuation if it is called by another. We call lift, to extend the argument of a monotonic function.
 
 $$
 \begin{array}{rl}
@@ -90,9 +26,30 @@ s & \text{eq}(s, s') \\
 \end{array}
 $$
 
-The monotonic functions defined below are specific to the $\Surkal$ protocol. Thus if the arithmetizer abover were to be extended for a different \plonk-ish protocol, the functions would be different.
+The monotonic functions[^dagger] defined below are specific to the $\Surkal$ protocol. Thus if the arithmetizer abover were to be extended for a different \plonk-ish protocol, the functions would be different.
 
-Note: for each monotonic function below, we notate $\dagger$ as a check if the state has saturated in which the fixpoint compute can terminate. Wheras $s$ is the initial state and $\iota$ a constructor of it. 
+[^dagger]: for each monotonic function, we notate $\dagger$ as a check if the state has saturated in which the fixpoint compute can terminate. Wheras $s$ are the initial states and $\iota$ a constructor of it. 
+
+**Gate Type**
+
+We now define formally $\GateType$[^gate-short] where $\text{eval}_g$ is used in $\Downarrow_R$ and $\text{ctrn}_g$ is used in $\Downarrow_G, \Downarrow_C$.
+
+[^gate-short]: The definition of $n,m,\tin{},\tout{}$ from when $\Gate$ was introduced was sugar on top of the definitions here for $\GateType$.
+
+
+$$
+\begin{array}{rl}
+\text{GateType}
+&= (n: \Nb) \times (m: \Nb) \times (\tin{}: \WireType^n) \times (\tout{}: \WireType^m) \\ 
+&\times (W[\vec{t_{in}}] \to W[\vec{t_{out}}]) \times \text{Mapping}(\tin{} \cat \tout{}) \\ \\
+n_g : \Nb &= (\lambda(n,\_).n)(g) \\ 
+m_g : \Nb &= (\lambda(\_,m,\_).m)(g) \\
+\tin{g}: \WireType^{n_g} &= (\lambda(\_,\tin{},\_).\tin{})(g) \\
+\tout{g}: \WireType^{m_g} &= (\lambda(\_,\tout{},\_).\tout{})(g) \\
+\eval_g: W[\vec{t_{in}}] \to W[\vec{t_{out}}] &= (\lambda(\_,\mathtt{canonical\_program},\_).\mathtt{canonical\_program})(g) \\
+\ctrn_g: \text{Mapping}(\tin{g} \cat \tout{g}) &= (\lambda(\_,\mathtt{mapping\_to\_rows}).\mathtt{mapping\_to\_rows})(g) \\
+\end{array}
+$$
 
 **Resolve**
 
@@ -100,18 +57,11 @@ $\Downarrow_R$ computes the values of wires $\abst{\vec{Y}}$ and inputs to asser
  
 It does this by peeking from the stack $\abst{\vec{y}}$, querying $\text{?}$ for unresolved input wires, otherwise it will evaluate the output wire values and cache it in the value map $v$ with $[\cdot]$. The continuation $f$ and stack pop $\curvearrowleft$ are called after.
 
-Every gate type has an program for its output value(s). e.g. $\text{eval}(\text{Add}, (1,2)) = (3)$.
-
-$$
-\begin{array}{rl}
-\text{eval} &: (g: \GateType) \to \Fb^{n_g}_q \to \Fb^{m_g}_q 
-\end{array}
-$$
 $$
 \begin{array}{ccc}
 \begin{array}{rl}
-\VMap &= \Nb \pto \Fb_q \\
-\RState^k &= \VMap \times \Nb^k \\
+\VMap &= (w: \Wire) \pto W(\ty(w)) \\
+\RState^k &= \VMap \times \Wire^k \\
 \end{array}
 &
 \begin{array}{rl}
@@ -123,7 +73,7 @@ $$
 \end{array}
 &
 \begin{array}{rl}
-\underset{R}{\curvearrowleft} &: T \times \Nb^k \to T \times \Nb^{k'} \\
+\underset{R}{\curvearrowleft} &: T \times \Wire^k \to T \times \Wire^{k'} \\
 \underset{R}{\curvearrowleft} &= \lift(\curvearrowleft)
 \end{array}
 \end{array}
@@ -131,7 +81,7 @@ $$
 $$
 \begin{array}{rl}
 \begin{array}{rl}
-\text{?} &: \VMap \to \Nb^k \to \Nb^{k'} \\
+\text{?} &: \VMap \to \Wire^k \to \Wire^{k'} \\
 v \text{?} \abst{\vec{y}} &= \begin{cases}
 () & \abst{\vec{y}} = () \\
 & \abst{\vec{y}} = \abst{y} \cat \abst{\vec{y}}' \\
@@ -139,25 +89,25 @@ v \text{?} \abst{\vec{y}} &= \begin{cases}
 v \text{?} \abst{\vec{y}}' & \otherwise
 \end{cases} \\
 \\
-\left[ \cdot \right] &: \VMap \to \AbsCirc \to \Nb \to \VMap \\
+\left[ \cdot \right] &: \VMap \to \AbsCirc \to \Wire \to \VMap \\
 v_{\abst{f}}\left[\abst{y}\right] &= \maybe{
   v[\abst{\vec{y}} \mapsto \vec{y}]
 }{\begin{array}{rl}
   \abst{f} &\ni (g, \abst{y}) \\
   \abst{\vec{y}} &= \out(\abst{f}, g) \\
-  \vec{y} &= \text{eval}(\ty(g), v[\tin(g)]) \\
+  \vec{y} &= \text{eval}_{\ty(g)}(v[\gin(g)]) \\
 \end{array}}
 \end{array}
 &
 \begin{array}{rl}
-\stackrel{\to}{\circ} \Downarrow_R &: (T \times \RState \to T \times \RState) \to \AbsCirc \\
+- \stackrel{\to}{\circ} \Downarrow^{-}_R &: (T \times \RState \to T \times \RState) \to \AbsCirc \\
 &\to T \times \RState \to T \times \RState \\
 f \stackrel{\to}{\circ} \Downarrow^{\abst{f}}_R(t,v, \abst{\vec{y}}) &= \begin{cases}
 f(t,v,()) & \abst{\vec{y}} = () \\
  & \abst{\vec{y}} = \abst{y} \cat \_ \\
 \underset{R}{\curvearrowleft} (t, v, \abst{\vec{y}}) & v(\abst{y}) \neq \bot \\
  & (g, \abst{y}) \in \abst{f} \\
- & \abst{\vec{x}} = v \text{?} \tin(g) \\
+ & \abst{\vec{x}} = v \text{?} \gin(g) \\
 \underset{R}{\curvearrowleft} \circ f(t, v_{\abst{f}}[\abst{y}], \abst{\vec{y}}) 
  & \abst{\vec{x}} = () \\
 (t, v, \abst{\vec{x}} \cat \abst{\vec{y}}) & \otherwise
@@ -173,8 +123,8 @@ $$
 \end{array}
 &
 \begin{array}{rl}
-s &: \Nb^m \to \Fb_q^n \to \RState \\
-s^{\abst{\vec{Y}}}_{\vec{x}} &= (\bot[(0..|\vec{x}|) \mapsto \vec{x}], \abst{\vec{Y}} \cat \set{\abst{x} \middle\vert (g, \bot) \in \abst{f} \land \abst{x} \in \tin(g) \setminus \abst{\vec{Y}}})
+s &: \Wire^m \to W[\tin{}] \to \RState \\
+s^{\abst{\vec{Y}}}_{\vec{x}} &= (\bot[(0..|\vec{x}|) \mapsto \vec{x}], \abst{\vec{Y}} \cat \set{\abst{x} \middle\vert (g, \bot) \in \abst{f} \land \abst{x} \in \gin(g) \setminus \abst{\vec{Y}}})
 \end{array}
 &
 \begin{array}{rl}
@@ -184,38 +134,86 @@ s_0 &= (\bot, ())
 \end{array}
 $$
 
-TODO update for types; use idx for vmap defn
-
 **Gate Constraints**
 
-$\Downarrow_G$ computes the gate constraints by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation on resolved wires in $\Downarrow_R$.
+Recall $\Surkal$ performs vanishing argument on $F_{GC}$. The primtive terms in $F_{GC}$ are called slots and selectors. Slots; $A,B,C,\cdots$, hold values of a (concrete) circuit's wires privately, wheras selectors; $Q_l, Q_r, Q_o, \cdots$, are public values modelling the structure of the circuit. The trace table $\vec{C}$ has slots and selectors for columns and $\text{ctrn}$ informs the construction of rows. Thus, it must be that $\forall t. \exists p. W(t) = \Fb_p$ is a valid field to construct an $F_{GC}$. In short, each gate corresponds to some rows in trace table for all wire types
 
-When the wire id stack $\abst{\vec{y}}$ is empty, $\underset{G}{\curvearrowright}$ will push assert gates and input gates $A^{\abst{f}}$ to the stack.
+\begin{center}
+\begin{tabular}{ c c c c }
+\begin{math}
+\begin{array}{rl}
+C_{idx}(\vec{t},t') &= \set{i | i \in \Nb \land t_i = t'}\\
+C_{val}(\vec{t},t') &= C_{idx}(\vec{t}, t') + W(t') \\
+C_{row}(\vec{t},t') &= C_{val}(\vec{t}, t')^{|\Slot| + |\Selector|} \\
+\text{Mapping}(t) &= (t': \WireType) \to C_{row}(\vec{t}, t')^{k_t}\\
+-[-]^{-}_{-} &: \VMap \to \text{Mapping}(t) \to \AbsCirc \to \Gate \\
+&\to W(t)^k \\
+v[\vec{m}]^{\abst{f}}_g &= \left(\lambda m. \begin{cases}
+m & m: W(t) \\
+v(\gin(g)_m) & m < n_g \\
+v(\out(\abst{f},g)_{m-n_g}) & \text{otherwise}
+\end{cases} \right) [\vec{m}]
+\end{array}
+\end{math}
+&
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\gate{id}{(0,0)}{$\ $}{$g$}{1}
+\draw[->,thick] (id-out-1) -- ($(id-out-1)+(0,-0.5)$);
+\draw[-,thick] ($(id.north)+(0,0.5)$) -- (id.north);
+\end{tikzpicture}
+&
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|}
+\hline
+\multicolumn{9}{|c|}{$\vec{C}$} \\
+\hline
+\multicolumn{4}{|c|}{$W(p)=\Fb_p$} & \multicolumn{4}{|c|}{$W(q)=\Fb_q$} & $\cdots$ \\
+\hline
+$A$ & $\cdots$ & $Q_l$ & $\cdots$ & $A$ & $\cdots$ & $Q_l$ & $\cdots$ & $\cdots$ \\
+\hline\hline
+\multicolumn{9}{|c|}{$\vdots$} \\
+\hline
+\multicolumn{4}{|c|}{$v [\text{ctrn}_g(p)]^{\abst{f}}_g$} & \multicolumn{5}{|c|}{$\vdots$} \\
+\hline
+\multicolumn{9}{|c|}{$\vdots$} \\
+\hline
+\multicolumn{4}{|c|}{$\vdots$} & \multicolumn{4}{|c|}{$v [\text{ctrn}_g(q)]^{\abst{f}}_g$} & $\ddots$ \\
+\hline
+\multicolumn{9}{|c|}{$\vdots$} \\
+\hline
+\end{tabular}
+\end{tabular}
+\end{center}
+
+TODO: proper construct of trace table with $v[\ctrn...]$ call
+
+$\Downarrow_G$ computes the trace table $\vec{C}$ by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation on resolved wires in $\Downarrow_R$.
+
+When the wire id stack $\abst{\vec{y}}$ is empty, $\underset{G}{\curvearrowright}$ will push assert gates and input gates $X^{\abst{f}}$ to the stack.
 $$
 \begin{array}{rl}
 \begin{array}{rl}
-\text{ctrn} &: (g : \GateType) \to \Fb_q^{n_g + m_g} \to \Fb_q^{|\text{Term}| \times k} \\
+\text{TraceTable} &= (t: \WireType) \pto W(t)^{(|\Slot| + |\Selector|) \times k_t} \\
+\text{GState}^{k,k'} &= \text{TraceTable} \times \Gate^{k'} \times \Bb \times \RState^k \\
+\abst{X}^{\abst{f}} &= \set{g \middle\vert (g, \abst{y}) \in \abst{f} \land (\abst{y} = \bot \lor \exists i,t. \abst{y} = \text{Input}^t_i) } \\
 \\
-\text{GState}^{k,k',k''} &= \Fb_q^{|\text{Term}| \times k''} \times \Gate^{k'} \times \Bb \times \RState^k \\
-A^{\abst{f}} &= \set{g \middle\vert (g, \abst{y}) \in \abst{f} \land (\abst{y} = \bot \lor \exists i. \abst{y} = \text{Input}_i) } \\
-\\
-\underset{G}{\curvearrowleft} &: T \times \text{GState}^{k''',k,k''} \to T \times \text{GState}^{k''',k',k''} \\
+\underset{G}{\curvearrowleft} &: T \times \text{GState}^{k,k''} \to T \times \text{GState}^{k',k''} \\
 \underset{G}{\curvearrowleft} &= \lift(\curvearrowleft : \Gate^k \to \Gate^{k'}) \\
 \\
 \dagger_G &: \text{GState} \to \Bb \\
-\dagger_G(\_, \vec{g}, b, \_) &= |\vec{g}| = 0 \land b = \top \\
+\dagger_G &= \lambda(\_, \vec{g}, b, \_). |\vec{g}| = 0 \land b = \top \\
 \\
 \iota_G &: \text{RState} \to \text{GState} \\
-\iota_G(s) &= ((), (), \bot, s)
-\end{array}
-&
+\iota_G(s) &= (\bot, (), \bot, s)
+\end{array} &
 \begin{array}{rl}
-\stackrel{\to}{\circ} \Downarrow_G &: (T \times \text{GState} \to T \times \text{GState}) \to \AbsCirc \\
+- \stackrel{\to}{\circ} \Downarrow^{-}_G &: (T \times \text{GState} \to T \times \text{GState}) \to \AbsCirc \\
 &\to T \times \text{GState} \to T \times \text{GState} \\
 f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \underset{G}{\curvearrowleft} \circ f \circ^\uparrow \lambda (\vec{C}, \vec{g}, b, v). \\
 &\begin{cases}
 & \vec{g} = g \cat \_ \\
-& \vec{v} = v[\tin(g) \cat \out(\abst{f},g)] \\
+& \vec{v} = v[\gin(g) \cat \out(\abst{f},g)] \\
 (\vec{C}', \vec{g}, b, v)
 & \vec{C}' = \vec{C} \cat \text{ctrn}(\ty(g), \vec{v}) \\
 (\vec{C}, (), b, v)
@@ -235,8 +233,6 @@ f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \underset{G}{\curvearrowleft}
 \end{array}
 \end{array}
 $$
-
-TODO update for types; table $\vec{C}$ per type, rename ctrn to row, compute from ctrn
 
 **Copy Constraints**
 
