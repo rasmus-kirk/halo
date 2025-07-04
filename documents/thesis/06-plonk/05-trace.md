@@ -32,9 +32,9 @@ The monotonic functions[^dagger] defined below are specific to the $\Surkal$ pro
 
 **Gate Type**
 
-We now define formally $\GateType$[^gate-short] where $\text{eval}_g$ is used in $\Downarrow_R$ and $\text{ctrn}_g$ is used in $\Downarrow_G, \Downarrow_C$.
+We now define formally $\GateType$[^gate-short] where $\text{eval}_g$ is used in $\Downarrow_R$ and $\ctrn_g$ is used in $\Downarrow_G, \Downarrow_C$.
 
-[^gate-short]: The definition of $n,m,\tin{},\tout{}$ from when $\Gate$ was introduced was sugar on top of the definitions here for $\GateType$.
+[^gate-short]: The definition of $n,m,\tin{},\tout{}$ from when $\Gate$ was introduced was sugar on top of the definitions here for $\GateType$. Likewise we can assume $\eval_g = \eval_{\ty(g)}$, and similarly for $\ctrn_g = \ctrn_{\ty(g)}$.
 
 
 $$
@@ -95,7 +95,7 @@ v_{\abst{f}}\left[\abst{y}\right] &= \maybe{
 }{\begin{array}{rl}
   \abst{f} &\ni (g, \abst{y}) \\
   \abst{\vec{y}} &= \out(\abst{f}, g) \\
-  \vec{y} &= \text{eval}_{\ty(g)}(v[\gin(g)]) \\
+  \vec{y} &= \eval_g(v[\gin(g)]) \\
 \end{array}}
 \end{array}
 &
@@ -136,7 +136,7 @@ $$
 
 **Gate Constraints**
 
-Recall $\Surkal$ performs vanishing argument on $F_{GC}$. The primtive terms in $F_{GC}$ are called slots and selectors. Slots; $A,B,C,\cdots$, hold values of a (concrete) circuit's wires privately, wheras selectors; $Q_l, Q_r, Q_o, \cdots$, are public values modelling the structure of the circuit. The trace table $\vec{C}$ has slots and selectors for columns and $\text{ctrn}$ informs the construction of rows. Thus, it must be that $\forall t. \exists p. W(t) = \Fb_p$ is a valid field to construct an $F_{GC}$. In short, each gate corresponds to some rows in trace table for all wire types
+Recall $\Surkal$ performs vanishing argument on $F_{GC}$. The primtive terms in $F_{GC}$ are called slots and selectors. Slots; $A,B,C,\cdots$, hold values of a (concrete) circuit's wires privately, wheras selectors; $Q_l, Q_r, Q_o, \cdots$, are public values modelling the structure of the circuit. The trace table $\vec{C}$ has slots and selectors for columns and $\ctrn$ informs the construction of rows. Thus, it must be that $\forall t. \exists p. W(t) = \Fb_p$ is a valid field to construct an $F_{GC}$. In short, each gate corresponds to some rows in $\vec{C}$.
 
 \begin{center}
 \begin{tabular}{ c c c c }
@@ -174,11 +174,11 @@ $A$ & $\cdots$ & $Q_l$ & $\cdots$ & $A$ & $\cdots$ & $Q_l$ & $\cdots$ & $\cdots$
 \hline\hline
 \multicolumn{9}{|c|}{$\vdots$} \\
 \hline
-\multicolumn{4}{|c|}{$v [\text{ctrn}_g(p)]^{\abst{f}}_g$} & \multicolumn{5}{|c|}{$\vdots$} \\
+\multicolumn{4}{|c|}{$v [\ctrn_g(p)]^{\abst{f}}_g$} & \multicolumn{5}{|c|}{$\vdots$} \\
 \hline
 \multicolumn{9}{|c|}{$\vdots$} \\
 \hline
-\multicolumn{4}{|c|}{$\vdots$} & \multicolumn{4}{|c|}{$v [\text{ctrn}_g(q)]^{\abst{f}}_g$} & $\ddots$ \\
+\multicolumn{4}{|c|}{$\vdots$} & \multicolumn{4}{|c|}{$v [\ctrn_g(q)]^{\abst{f}}_g$} & $\ddots$ \\
 \hline
 \multicolumn{9}{|c|}{$\vdots$} \\
 \hline
@@ -186,9 +186,7 @@ $A$ & $\cdots$ & $Q_l$ & $\cdots$ & $A$ & $\cdots$ & $Q_l$ & $\cdots$ & $\cdots$
 \end{tabular}
 \end{center}
 
-TODO: proper construct of trace table with $v[\ctrn...]$ call
-
-$\Downarrow_G$ computes the trace table $\vec{C}$ by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation on resolved wires in $\Downarrow_R$.
+$\Downarrow_G$ computes the trace table $\vec{C}$ by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation (including $\Downarrow_G$), on resolved wires in $\Downarrow_R$.
 
 When the wire id stack $\abst{\vec{y}}$ is empty, $\underset{G}{\curvearrowright}$ will push assert gates and input gates $X^{\abst{f}}$ to the stack.
 $$
@@ -213,16 +211,15 @@ $$
 f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \underset{G}{\curvearrowleft} \circ f \circ^\uparrow \lambda (\vec{C}, \vec{g}, b, v). \\
 &\begin{cases}
 & \vec{g} = g \cat \_ \\
-& \vec{v} = v[\gin(g) \cat \out(\abst{f},g)] \\
-(\vec{C}', \vec{g}, b, v)
-& \vec{C}' = \vec{C} \cat \text{ctrn}(\ty(g), \vec{v}) \\
+(\vec{C}',\vec{g},b,v)
+& \vec{C}'[t \mapsto \vec{C}(t) \cat v[\ctrn_g(t)]^{\abst{f}}_g] \\
 (\vec{C}, (), b, v)
 & \otherwise
 \end{cases} \\
 &\circ^\uparrow \lambda(\vec{g}, b, v, \abst{\vec{y}}). \\
 &\begin{cases}
 & b = \bot \\
-(A^{\abst{f}} \cat (), \top, v, ())
+(X^{\abst{f}} \cat (), \top, v, ())
 & |\abst{\vec{y}}| = |\vec{g}| = 0 \\
 & \abst{\vec{y}} = \abst{y} \cat \_ \\
 (g \cat \vec{g}, b, v, \abst{\vec{y}})
