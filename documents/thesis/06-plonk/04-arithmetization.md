@@ -1,63 +1,35 @@
 ## Preprocessing
 
-We now define the preprocessing pipeline where $f : \text{Program}$ and $\text{Program} = W[\vec{t}^{\vec{in}}] \to W[\vec{t}^{\vec{out}}]$
+We now define the preprocessing pipeline where $f : \text{Program}$ and $\text{Program} = W[\tin{}] \to W[\tout{}]$
 
 $$
 (R,x,w) = \mathrm{relation} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})
-$$
-
-We define the arithmetize computation as follows:
-$$
-(\abst{f}, \abst{\vec{Y}}) = \mathrm{arithmetize}(f)
 $$
 
 Note: refer to the appendix for the definition of notations used in this section.
 
 ### Arithmetizer
 
-*Wires* $\abst{x}$ are abstract representations of values $x$, defined as a pair of unique identifier; uuid, and a *wire type tag*. $W$ maps the tag to the value's type e.g. $W(p) = \Fb_p, W(q) = \Fb_q$.
+We define the arithmetize computation as follows:
+$$
+(\abst{f}, \abst{\vec{Y}}) = \mathrm{arithmetize}(f)
+$$
+
+*Wires* $\abst{x}$ are abstract representations of values $x$, defined as a pair of unique identifier; uuid, and a *wire type tag*. $W$ maps the tag to the value's type e.g. $W(p) = \Fb_p, W(q) = \Fb_q$. *Gates* $g$ are primitive operations with $n_g \geq 0$ fan-in inputs and $m_g \geq 0$ fan-out outputs defined with its input wire(s).
 
 $$
 \begin{array}{cccc}
 \begin{array}{rl}
-\Wire &= \Nb \times \WireType \\
 W &: \WireType \to \mathcal{U} \\
-\end{array}
-&
-\begin{array}{rl}
-\id &: \Wire \to \Nb \\
-\id &= \lambda(i, \_). i \\
-\end{array}
-&
-\begin{array}{rl}
-\ty &: \Wire \to \WireType \\
-\ty &= \lambda(\_, t). t \\
-\end{array}
-\end{array}
-$$
-
-*Gates* $g$ are primitive operations with $n_g \geq 0$ fan-in inputs and $m_g \geq 0$ fan-out outputs defined with its input wire(s).
-
-$$
+\Wire &= \Nb \times \WireType \\
+\id(\abst{w}) : \Nb &= (\lambda(i, \_). i)(\abst{w}) \\
+\ty(\abst{w}) : \WireType &= (\lambda(\_, t). t)(\abst{w}) \\
+\end{array} &
 \begin{array}{rl}
 \Gate &= (g: \GateType) \times \Wire^{n_g} \\
-\end{array}
-$$
-$$
-\begin{array}{ccc}
-\begin{array}{rl}
-n &: \Gate + \GateType \to \Nb \\
-m &: \Gate + \GateType \to \Nb
-\end{array}
-&
-\begin{array}{rl}
-\ty &: \Gate \to \GateType \\
-\ty &= \lambda(t, \_). t
-\end{array}
-&
-\begin{array}{rl}
-\tin &: (g: \Gate) \to \Wire^{n_g} \\
-\tin &= \lambda (\_, \abst{\vec{x}}). \abst{\vec{x}} \\
+n_g, m_g: \Nb \\
+\ty(g): \GateType &= (\lambda(t, \_). t)(g) \\
+\gin(g): \Wire^{n_g} &= (\lambda(\_, \abst{\vec{x}}). \abst{\vec{x}})(g) \\
 \end{array}
 \end{array}
 $$
@@ -67,27 +39,30 @@ Gate constructors type checks its inputs $\abst{\vec{x}}$. e.g. $\text{Add}(\abs
 $$
 \begin{array}{cc}
 \begin{array}{rl}
-\vec{t}^{\vec{in}} &: \GateType \to \WireType^{n_g} \\
-\vec{t}^{\vec{out}} &: \GateType \to \WireType^{m_g}
+\tin{g} &: \WireType^{n_g} \\
+\tout{g} &: \WireType^{m_g}
 \end{array}
 &
 \begin{array}{rl}
 - ( - ) &: (g: \GateType) \to \Wire^{n_g} \to \Gate \\
-g(\abst{\vec{x}}) &= \maybe{(g,\abst{\vec{x}})}{\forall i. \vec{t}^{\vec{in},g}_{i} = \ty(\abst{x}_i)}
+g(\abst{\vec{x}}) &= \maybe{(g,\abst{\vec{x}})}{\forall i. \tin{g}_{i} = \ty(\abst{x}_i)}
 \end{array}
 \end{array}
 $$
 
-Arithmetize turns a program $f$ into an *Abstract Circuit* $\abst{f}$, which is a one-to-many-or-none relation between gates $g$ and output wire(s) $\abst{y}$ or $\bot$ for none. e.g. $(\text{Add}(\abst{a},\abst{b}), \abst{c}) \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$. $\abst{f}$ are also acyclic.
+Arithmetize turns a program $f$ into an *abstract circuit* $\abst{f}$, which is a one-to-many-or-none relation between gates $g$ and output wire(s) $\abst{y}$ or $\bot$ for none. e.g. $(\text{Add}(\abst{a},\abst{b}), \abst{c}) \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$. $\abst{f}$ are also acyclic.
 
 $$
-\AbsCirc = \set{
-  \abst{f} \subset \Gate \times \Option(\Nb) \middle\vert
-  \begin{array}{l}
-  \forall (g,\abst{y}),(h,\abst{y}) \in \abst{f}. \abst{y} \neq \bot \implies g = h \\
-  \forall (g,\abst{y}) \in \abst{f}. \abst{y} \neq \bot \land |\text{in}(g)| > 0 \implies \max(\id[\tin(g)]) < \min \left(\id[\out^{\abst{f}}(g)] \right)
-  \end{array}
+\begin{array}{rl}
+\text{OneToManyOrNone}(\abst{f}) &= \forall (g,\abst{y}),(h,\abst{y}) \in \abst{f}. \abst{y} \neq \bot \implies g = h \\
+\text{Acyclic}(\abst{f}) &= \forall (g,\abst{y}) \in \abst{f}. \abst{y} \neq \bot \land |\text{in}(g)| > 0 \implies \max(\id[\gin(g)]) < \min \left(\id[\out^{\abst{f}}(g)] \right) \\
+\AbsCirc &= \set{
+  \abst{f} \middle\vert
+  \abst{f} \subset \Gate \times \Option(\Wire) \land
+  \text{OneToManyOrNone}(\abst{f}) \land
+  \text{Acyclic}(\abst{f})
 }
+\end{array}
 $$
 A wire's output order relative to a gate and the output wires of a gate can be computed as follows:
 $$
@@ -104,13 +79,13 @@ $$
 \end{array}
 $$
 
-We can visualize a gate with an abstract circuit diagram:
+We can visualize a gate with an *abstract circuit diagram*:
 
 \begin{center}
 \begin{tabular}{ c c c c }
 \begin{math}
 \begin{array}{rl}
-(\abst{x}_1, \ldots, \abst{x}_{n_g}) &= \tin(g) \\
+(\abst{x}_1, \ldots, \abst{x}_{n_g}) &= \gin(g) \\
 \set{(g, \abst{y}_1), (g, \abst{y}_{m_g})} &\subseteq \abst{f}
 \end{array}
 \end{math}
@@ -143,76 +118,79 @@ e.g.
 \end{tabular}
 \end{center}
 
-We notate arithmetizing a program $f$ with predicates $\build{f = \vec{y}}{s}{s'}$, $\build{f = y}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the state; $s=(u, \abst{f})$ where $u$ is the current uuid, from $s$ to $s'$. Gadgets are compositions of $\bigwedge \build{f}{}{}$. Wires annotated with $*$, i.e. $\build{f = y^*}{}{}$, are the final output and are appended to $\abst{\vec{Y}}$. They, may be omitted notationally.
-
-$$
-\begin{array}{c}
-\begin{array}{rl}
-\AState = \Nb \times \AbsCirc \times \Wire^k &
-\begin{array}{ll}
-\build{-}{}{} &: \text{Program} \to \AState \to \AState \to \Bb \\
-\build{-}{s}{s'} &: \text{Program} \to \Bb
-\end{array}
-\end{array} \\
-\\
-\begin{array}{rlrlrl}
-u &: \AState \to \Nb &
-\abst{f} &: \AState \to \AbsCirc &
-\abst{\vec{Y}} &: \AState \to \Wire^k \\
-u_{(r,\_)} &= r &
-\abst{f}_{(\_,r,\_)} &= r &
-\abst{\vec{Y}}_{(\_,r)} &= r
-\end{array} \\
-\\
-\begin{array}{ccc}
-\build{g = \vec{y}}{s}{s'}
-= \left(\text{get}(s,g) = (s', \abst{\vec{y}})\right) &
-\build{f=y^*}{s}{s'}
-= \build{f=y}{(s,\abst{\vec{Y}})}{(s', \abst{\vec{Y}} \cat \abst{y})} &
-\build{f}{s_1}{s_{k+1}}
-= \bigwedge\limits_{i \in [k]} \build{f_i}{s_i}{s_{i+1}}
-\end{array}
-\end{array}
-$$
-
-Gates have a canonical program that it corresponds to, e.g $\build{x + y=z}{s}{s'} = \left(\text{get}(s,\text{Add}(\abst{x},\abst{y})) = (s', \abst{z})\right)$, thus a program can be arithmetized iff it can be decomposed into these canonical programs.
-
-These inserts yield new wires. However, wires are reused by an equivalence class on gates. If $g \equiv h$ where $(h,\_) \in \abst{f}$, then $\abst{\vec{y}}$ in $\build{g=\vec{y}}{s}{s}$ corresponds to the output wire(s) of $h$, leaving the state unchanged.
+We notate arithmetizing a program $f$ with *predicates* $\build{f = \vec{y}}{s}{s'}$, $\build{f = y}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the *state* from $s$ to $s'$ where $s=(u, \abst{f})$ and $u$ is the current uuid. *Gadgets* are compositions of $\bigwedge \build{f}{}{}$. Wires annotated with $*$, i.e. $\build{f = y^*}{}{}$, are the final output and are appended to $\abst{\vec{Y}}$. They, may be omitted notationally.
 
 $$
 \begin{array}{rl}
 \begin{array}{rl}
-\text{new} &: \Nb \to \Gate \to \Wire^{m_g} \\
-\text{new}(u,g) &= (u..u+m_g) \odot \vec{t}^{\vec{out},g} \\
-\\
-\entries  &: \Nb \to \Gate \to \AbsCirc \\
-\entries(u,g) &= \begin{cases}
-  \set{(g,\abst{y}) \middle\vert \abst{y} \in \text{new}(u,g)}
-  & m_g > 0 \\
-  \set{(g,\bot)}
-  & m_g = 0
-\end{cases} \\
-\\
-\aput &: \Gate \to \AState \to \AState \\
-\aput(g, s) &= (
-  u_s + m_g, \abst{f}_s \cup \entries(u_s, g), \abst{\vec{Y}}_s
-)
+\AState &= \Nb \times \AbsCirc \times \Wire^k \\
+u_s: \Nb &= (\lambda(u,\_).u)(s) \\
+\abst{f}_s: \AbsCirc &= (\lambda(\_,\abst{f},\_).\abst{f})(s) \\
+\abst{\vec{Y}}_s: \Wire^k &= (\lambda (\_,\abst{\vec{Y}}).\abst{\vec{Y}})(s)
 \end{array}
 &
-\begin{array}{rl}
-\Gate^{\abst{f}}_g &= \set{h \in \Gate \middle\vert
+\begin{array}{ll}
+\build{-}{-}{-} &: \text{Program} \to \AState \to \AState \to \Bb \\
+\build{g = \vec{y}}{s}{s'}
+&= \left(\text{get}(s,g) = (s', \abst{\vec{y}})\right) \\
+\build{f=y^*}{s}{s'}
+&= \build{f=y}{(s,\abst{\vec{Y}})}{(s', \abst{\vec{Y}} \cat \abst{y})} \\
+\build{f}{s_1}{s_{k+1}}
+&= \bigwedge\limits_{i \in [k]} \build{f_i}{s_i}{s_{i+1}}
+\end{array}
+\end{array}
+$$
+
+Gates have a *canonical program* that it corresponds to, e.g $\build{x + y=z}{s}{s'} = \left(\text{get}(s,\text{Add}(\abst{x},\abst{y})) = (s', \abst{z})\right)$, thus a program can be arithmetized iff it can be decomposed into these canonical programs. These inserts yield new wires. However, wires are reused by an equivalence class on gates. If $g \equiv h$ where $(h,\_) \in \abst{f}$, then $\abst{\vec{y}}$ in $\build{g=\vec{y}}{s}{s}$ corresponds to the output wire(s) of $h$, leaving the state unchanged.
+
+$$
+\Gate^{\abst{f}}_g = \set{h \in \Gate \middle\vert
   (h, \_) \in \abst{f} \land h \equiv g
-} \\
+}
+$$
+$$
+\begin{array}{cc}
+\begin{array}{rl}
+\text{new} &: \Nb \to \Gate \to \Wire^{m_g} \\
+\text{new}(u,g) &= (u..u+m_g) \odot \tout{g}
+\end{array} &
+\begin{array}{rl}
+\entries  &: \Nb \to \Gate \to \AbsCirc \\
+\entries(u,g) &= \set{\begin{cases}
+  (g,\abst{y})
+  & \abst{y} \in \text{new}(u,g) \\
+  (g,\bot)
+  & \text{otherwise}
+\end{cases}}
+\end{array} \\
+\begin{array}{rl}
+\aput &: \Gate \to \AState \to \AState \\
+\aput(g, s) &= \maybe{s'}{\begin{array}{rl}
+  u_{s'} &= u_s + m_g \\
+  \abst{f}_{s'} &= \abst{f}_s \cup \entries(u_s, g) \\
+  \abst{\vec{Y}}_{s'} &= \abst{\vec{Y}}_s
+\end{array}}
+\end{array} &
+\begin{array}{rl}
 \aget &: \AState \to (g: \Gate) \to \AState \times \Wire^{m_g} \\
 \aget(s, g)
 &= \begin{cases}
   (s, \out(\abst{f}_s, h)) & h \in \Gate^{\abst{f}_s}_g \\
   (\aput(g, s), \text{new}(u_s,g)) & \otherwise
-\end{cases} \\
-\\
-\text{arithmetize} &: (W[\vec{t}^{\vec{in}}] \to W[\vec{t}^{\vec{out}}]) \to \AbsCirc \times \Wire^{m'} \\
+\end{cases}
+\end{array}
+\end{array}
+$$
+$$
+\begin{array}{rl}
+\begin{array}{rl}
+\text{init} &: \WireType^k \to \AState \\
+\text{init}(\vec{t}) &= \opcirc\limits_{i \in [0..k]} \aput(\text{Input}^{t_{i+1}}_i) (0, \emptyset, ()) \\
+\end{array} &
+\begin{array}{rl}
+\text{arithmetize} &: (W[\tin{}] \to W[\tout{}]) \to \AbsCirc \times \Wire^{m'} \\
 \text{arithmetize}(f) &= \maybe{(\abst{f}, \abst{\vec{Y}})}{
-  \build{f}{\left(\opcirc\limits_{i \in \left[0..\left|\vec{t}^{\vec{in}}\right|\right]}\aput(\text{Input}^{t^{in}_{i+1}}_i)\right)(0,\emptyset, ())}{(\_, \abst{f}, \abst{\vec{Y}})}
+  \build{f}{\text{init}(\tin{})}{(\_, \abst{f}, \abst{\vec{Y}})}
 }
 \end{array}
 \end{array}
@@ -229,13 +207,12 @@ $= \maybe{\left(\abst{f}'', (\abst{z})\right)}{
   \build{x^2 + y = z^*}
     {(u, \abst{f},())}
     {(\_, \abst{f}'', (\abst{z}))}
-}$ \\
-$= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\build{\begin{array}{l}
+}
+= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\build{\begin{array}{l}
   x \times x = t \\
   t + y = z^*
-\end{array}}{(u, \abst{f}, ())}{(\_, \abst{f}'', (\abst{z}))}}$
-\\
-$= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\begin{array}{l}
+\end{array}}{(u, \abst{f}, ())}{(\_, \abst{f}'', (\abst{z}))}}
+= \maybe{\left(\abst{f}'', (\abst{z})\right)}{\begin{array}{l}
   \build{x \times x = t}{(u, \abst{f},())}{(u', \abst{f}',())} \\
   \build{t + y = z^*}{(u', \abst{f}', ())}{(\_, \abst{f}'', (\abst{z}))}
 \end{array}}
@@ -264,13 +241,11 @@ $= \left(\abst{f} \cup \set{\begin{array}{rl}
     \text{Add}((u,q),\abst{y}) & (u+1,q)
   \end{array}}, ((u+1,q))\right)
 $ \\
-where $(u,\abst{f},())$
+where $(u,\abst{f},()) = \text{init}(\tin{})$
 \\ 
-$= \opcirc\limits_{i \in [0..2]}\aput(\text{Input}^{t^{in}_{i+1}}_i)(0,\emptyset,())$
-\\
-$= \text{put}(\text{Input}^q_1) \circ \text{put}(\text{Input}^q_0, 0, \emptyset,())$
-\\
-$= \text{put}(\text{Input}^q_1, 1, \set{(\text{Input}^q_0, (0,q))}, ())$
+$= \opcirc\limits_{i \in [0..2]}\aput(\text{Input}^{t^{in}_{i+1}}_i)(0,\emptyset,())
+= \text{put}(\text{Input}^q_1) \circ \text{put}(\text{Input}^q_0, 0, \emptyset,())
+= \text{put}(\text{Input}^q_1, 1, \set{(\text{Input}^q_0, (0,q))}, ())$
 \\
 $= \left(2, \set{\begin{array}{rl}
   \text{Input}^q_0 & (0,q) \\
