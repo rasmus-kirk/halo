@@ -1,6 +1,6 @@
 ## Preprocessing
 
-We now define the preprocessing pipeline where $f : \text{Program}$ and $\text{Program} = W[\tin{}] \to W[\tout{}]$
+We now define the preprocessing pipeline:
 
 $$
 (R,x,w) = \mathrm{relation} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})
@@ -13,41 +13,6 @@ Note: refer to the appendix for the definition of notations used in this section
 We define the arithmetize computation as follows:
 $$
 (\abst{f}, \abst{\vec{Y}}) = \mathrm{arithmetize}(f)
-$$
-
-*Wires* $\abst{x}$ are abstract representations of values $x$, defined as a pair of unique identifier; uuid, and a *wire type tag*. $W$ maps the tag to the value's type e.g. $W(p) = \Fb_p, W(q) = \Fb_q$. *Gates* $g$ are primitive operations with $n_g \geq 0$ fan-in inputs and $m_g \geq 0$ fan-out outputs defined with its input wire(s).
-
-$$
-\begin{array}{cccc}
-\begin{array}{rl}
-W &: \WireType \to \mathcal{U} \\
-\Wire &= \Nb \times \WireType \\
-\id(\abst{w}) : \Nb &= (\lambda(i, \_). i)(\abst{w}) \\
-\ty(\abst{w}) : \WireType &= (\lambda(\_, t). t)(\abst{w}) \\
-\end{array} &
-\begin{array}{rl}
-\Gate &= (g: \GateType) \times \Wire^{n_g} \\
-n_g, m_g: \Nb \\
-\ty(g): \GateType &= (\lambda(t, \_). t)(g) \\
-\gin(g): \Wire^{n_g} &= (\lambda(\_, \abst{\vec{x}}). \abst{\vec{x}})(g) \\
-\end{array}
-\end{array}
-$$
-
-Gate constructors type checks its inputs $\abst{\vec{x}}$. e.g. $\text{Add}(\abst{a},\abst{b}) = (\text{Add}, (\abst{a},\abst{b}))$ type checks $\abst{a}, \abst{b}$ for the $\text{Add}$ gate type.
-
-$$
-\begin{array}{cc}
-\begin{array}{rl}
-\tin{g} &: \WireType^{n_g} \\
-\tout{g} &: \WireType^{m_g}
-\end{array}
-&
-\begin{array}{rl}
-- ( - ) &: (g: \GateType) \to \Wire^{n_g} \to \Gate \\
-g(\abst{\vec{x}}) &= \maybe{(g,\abst{\vec{x}})}{\forall i. \tin{g}_{i} = \ty(\abst{x}_i)}
-\end{array}
-\end{array}
 $$
 
 Arithmetize turns a program $f$ into an *abstract circuit* $\abst{f}$, which is a one-to-many-or-none relation between gates $g$ and output wire(s) $\abst{y}$ or $\bot$ for none. e.g. $(\text{Add}(\abst{a},\abst{b}), \abst{c}) \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$. $\abst{f}$ are also acyclic.
@@ -64,23 +29,49 @@ $$
 }
 \end{array}
 $$
-A wire's output order relative to a gate and the output wires of a gate can be computed as follows:
-$$
-\begin{array}{rl}
-\begin{array}{rl}
-\idx &: \AbsCirc \to \Wire \to \Nb \\
-\idx^{\abst{f}}(\abst{y}) &= \maybe{\id(\abst{y}) - \min\limits_{(g,\abst{w}) \in \abst{f}} \id(\abst{w})}{(g,\abst{y}) \in \abst{f}}
-\end{array}
-&
-\begin{array}{rl}
-\out &: \AbsCirc \to \Gate \to \Wire^{m_g} \\
-\out^{\abst{f}}(g) &= \maybe{\abst{\vec{y}}}{\abst{y}_i \in \set{\abst{y} \middle\vert (g,\abst{y}) \in \abst{f}} \land \id(\abst{y}_{i>1}) = \id(\abst{y}_{i-1}) + 1}
-\end{array}
-\end{array}
-$$
 
-We can visualize a gate with an *abstract circuit diagram*:
+*Wires* $\abst{x}$ are abstract representations of values $x$, defined as a pair of unique identifier; uuid, and a *wire type tag*. $W$ maps the tag to the value's type e.g. $W(p) = \Fb_p$. *Gates* $g$ are primitive operations and its inputs. Depending on *Gate Type*, they have $n_g \geq 0$[^short-hand-gate] fan-in wires typed $\tin{g}$ and $m_g \geq 0$ fan-out wires typed $\tout{g}$. Wires are type checked e.g. $\text{Add}(\abst{a},\abst{b})$ type checks $\abst{a}, \abst{b}$ for the $\text{Add}$ gate type. A candidate program is $f: W[\tin{}] \to W[\tout{}]$.
 
+[^short-hand-gate]: As a notational shorthand, we may omit $\ty$ e.g. $n_g := n_{\ty(g)}$.
+
+
+$$
+\begin{array}{c}
+\GateType
+= (n: \Nb) \times (m: \Nb) \times (\tin{}: \WireType^n) \times (\tout{}: \WireType^m) \times \cdots \\
+\begin{array}{ccc}
+\begin{array}{rl}
+n_g &= (\lambda(n,\_).n)(g) \\ 
+m_g &= (\lambda(\_,m,\_).m)(g) 
+\end{array} &
+\begin{array}{rl}
+\tin{g} &= (\lambda(\_,\tin{},\_).\tin{})(g) \\
+\tout{g} &= (\lambda(\_,\tout{},\_).\tout{})(g)
+\end{array} &
+\begin{array}{rl}
+- ( - ) &: (g: \GateType) \to \Wire^{n_g} \to \Gate \\
+g(\abst{\vec{x}}) &= \maybe{(g,\abst{\vec{x}})}{\forall i. \tin{g}_{i} = \ty(\abst{x}_i)}
+\end{array}
+\end{array}
+\end{array}
+$$
+$$
+\begin{array}{cccc}
+\begin{array}{rl}
+W &: \WireType \to \mathcal{U} \\
+\Wire &= \Nb \times \WireType \\
+\id(\abst{w}) : \Nb &= (\lambda(i, \_). i)(\abst{w}) \\
+\ty(\abst{w}) : \WireType &= (\lambda(\_, t). t)(\abst{w}) \\
+\end{array} &
+\begin{array}{rl}
+\Gate &= (g: \GateType) \times \Wire^{n_g} \\
+\ty(g): \GateType &= (\lambda(t, \_). t)(g) \\
+\gin(g): \Wire^{n_g} &= (\lambda(\_, \abst{\vec{x}}). \abst{\vec{x}})(g) \\
+\out^{\abst{f}}(g): \Wire^{m_g} &= \maybe{\abst{\vec{y}}}{\abst{y}_i \in \set{\abst{y} \middle\vert (g,\abst{y}) \in \abst{f}} \land \id(\abst{y}_{i>1}) = \id(\abst{y}_{i-1}) + 1}
+\end{array}
+\end{array}
+$$
+Gates in $\abst{f}$ can be visualized in an *abstract circuit diagram*
 \begin{center}
 \begin{tabular}{ c c c c }
 \begin{math}
@@ -130,7 +121,7 @@ u_s: \Nb &= (\lambda(u,\_).u)(s) \\
 \end{array}
 &
 \begin{array}{ll}
-\build{-}{-}{-} &: \text{Program} \to \AState \to \AState \to \Bb \\
+\build{-}{-}{-} &: (W[\tin{}] \to W[\tout{}]) \to \AState \to \AState \to \Bb \\
 \build{g = \vec{y}}{s}{s'}
 &= \left(\text{get}(s,g) = (s', \abst{\vec{y}})\right) \\
 \build{f=y^*}{s}{s'}
@@ -175,7 +166,7 @@ $$
 \aget &: \AState \to (g: \Gate) \to \AState \times \Wire^{m_g} \\
 \aget(s, g)
 &= \begin{cases}
-  (s, \out(\abst{f}_s, h)) & h \in \Gate^{\abst{f}_s}_g \\
+  (s, \out^{\abst{f}_s}(h)) & h \in \Gate^{\abst{f}_s}_g \\
   (\aput(g, s), \text{new}(u_s,g)) & \otherwise
 \end{cases}
 \end{array}
