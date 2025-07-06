@@ -30,10 +30,9 @@ $$
 \end{array}
 $$
 
-*Wires* $\abst{x}$ are abstract representations of values $x$, defined as a pair of unique identifier; uuid, and a *wire type tag*. $W$ maps the tag to the value's type e.g. $W(p) = \Fb_p$. *Gates* $g$ are primitive operations and its inputs. Depending on *Gate Type*, they have $n_g \geq 0$[^short-hand-gate] fan-in wires typed $\tin{g}$ and $m_g \geq 0$ fan-out wires typed $\tout{g}$. Wires are type checked e.g. $\text{Add}(\abst{a},\abst{b})$ type checks $\abst{a}, \abst{b}$ for the $\text{Add}$ gate type. A candidate program is $f: W[\tin{}] \to W[\tout{}]$.
+*Wires* $\abst{x}$ are abstract representations of values $x$, defined as a pair of unique identifier; uuid, and a *wire type tag*. $W$ maps the tag to the value's type e.g. $W(p) = \Fb_p$. *Gates* $g$ are primitive operations and its inputs. Depending on *Gate Type*, they have $n_g \geq 0$[^short-hand-gate] fan-in wires typed $\tin{g}$ and $m_g \geq 0$ fan-out wires typed $\tout{g}$. Wires are type checked e.g. $\text{Add}(\abst{a},\abst{b})$ type checks $\abst{a}, \abst{b}$ for the $\text{Add}$ gate type. Thus, a candidate program is $f: W[\tin{}] \to W[\tout{}]$.
 
 [^short-hand-gate]: As a notational shorthand, we may omit $\ty$ e.g. $n_g := n_{\ty(g)}$.
-
 
 $$
 \begin{array}{c}
@@ -109,7 +108,7 @@ e.g.
 \end{tabular}
 \end{center}
 
-We notate arithmetizing a program $f$ with *predicates* $\build{f = \vec{y}}{s}{s'}$, $\build{f = y}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the *state* from $s$ to $s'$ where $s=(u, \abst{f})$ and $u$ is the current uuid. *Gadgets* are compositions of $\bigwedge \build{f}{}{}$. Wires annotated with $*$, i.e. $\build{f = y^*}{}{}$, are the final output and are appended to $\abst{\vec{Y}}$. They, may be omitted notationally.
+We notate arithmetizing a program $f$ with *predicates* $\build{f = \vec{y}}{s}{s'}$, $\build{f = y}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the *state* from $s$ to $s'$ where $s=(u, \abst{f})$ and $u$ is the current uuid. *Gadgets* are compositions $\bigwedge \build{f}{}{}$. Wires annotated with $*$, i.e. $\build{f = y^*}{}{}$, are the final output and are appended to $\abst{\vec{Y}}$. They, may be omitted notationally.
 
 $$
 \begin{array}{rl}
