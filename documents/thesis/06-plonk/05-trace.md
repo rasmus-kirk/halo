@@ -1,4 +1,4 @@
-### Trace
+### Slots, Selectors and Gate Registry
 
 The rest of $\GateType$ definition includes $\eval_g$ the canonical program, and $\ctrn_g$.
 
@@ -11,17 +11,28 @@ $$
 \end{array}
 $$
 
-Recall $\Surkal$ performs vanishing argument on $F_{GC}$. The primtive terms in $F_{GC}$ are called slots and selectors. Slots; $A,B,C,\cdots$, hold values of a (concrete) circuit's wires privately, wheras selectors; $Q_l, Q_r, Q_o, \cdots$, are public values modelling the structure of the circuit. Slots and selectors are identified with $\Nb$. We define a data structure[^index-map-notation] indexed on them yielding optional values or thunks; the latter necessary for $\plookup$. An instantiation of this called the *trace table*; $C$, is what $\ctrn_g$ is computing.
+Recall $\Surkal$ performs vanishing argument on $F_{GC}$. The primtive terms in $F_{GC}$ are called slots and selectors. Slots; $A,B,C,\cdots$, hold values of a (concrete) circuit's wires privately, wheras selectors; $Q_l, Q_r, Q_o, \cdots$, are public values modelling the structure of the circuit. Slots and selectors are identified with $\Nb$. We define a data structure indexed on them yielding optional values or thunks; the latter necessary for $\plookup$. An instantiation of this called the *trace table*[^index-map-notation]; $C$, which is what $\ctrn_g$ assists in computing. We also define join $\sqcup$ to compute and $\times$ to combine values.
 
 $$
+\begin{array}{cc}
 \begin{array}{rl}
-\text{IndexMap}(X,Y) &= (s: \Nb) \to \Option\left(\begin{cases}
+\text{IndexMap} &= (X: \Nb \to \mathcal{U}) \to (Y: \mathcal{U}) \to (s: \Nb) \\
+&\pto \begin{cases}
 Y & X(s) = \bot \\
 X(s) \to Y & \text{otherwise}
-\end{cases}\right) \\
-\text{TypedIndexMap}(Y) &= (t: \WireType) \to \text{IndexMap}(X_\text{GateRegistry}(t),Y(t)) \\
-\text{TraceTable} &= \text{TypedIndexMap}(\lambda t. W(t)^n)
+\end{cases}
+\end{array} &
+\begin{array}{rl}
+\text{TypedIndexMap}
+&= (X: \WireType \to \Nb \to \mathcal{U}) \\
+&\to (Y: \WireType \to \mathcal{U}) \\
+&\to (t: \WireType) \\
+&\to \text{IndexMap}(X(t),Y(t))
 \end{array}
+\end{array}
+$$
+$$
+\text{TraceTable} = \text{TypedIndexMap}(X_\text{GateRegistry}, \lambda t. W(t)^n)
 $$
 $$
 \begin{array}{cc}
@@ -31,14 +42,13 @@ $$
 A \sqcup_f B &= \begin{cases}
 B 
 & A = \bot \\
-& \exists s. A(s) \neq \bot \\
-& A' = A[s \mapsto \bot] \\
-& x = \begin{cases}
+A[s \mapsto \bot] \sqcup_f B[s \mapsto A \sqcup^s_f B] 
+& \exists s. A(s) \neq \bot
+\end{cases} \\
+A \sqcup^s_f B &= \begin{cases}
 A(s) & B(s) = \bot \\
 f(A(s), B(s)) & X(s) = \bot \\
-\lambda x. f(A(s,x), B(s,x))
-\end{cases} \\
-A' \sqcup_f B' & B' = B[s \mapsto x]
+\lambda x. f(A(s,x), B(s,x)) & \text{otherwise}
 \end{cases}
 \end{array} &
 \begin{array}{rl}
@@ -46,84 +56,57 @@ A' \sqcup_f B' & B' = B[s \mapsto x]
 &\to (t: \WireType \to Y(t) \to Y(t) \to Y(t)) \\
 &\to \text{TypedIndexMap}(Y) \\
 &\to \text{TypedIndexMap}(Y) \\
-A \sqcup_f B &= \lambda t. A(t) \sqcup_{f(t)} B(t) \\
+A \sqcup_f B &= \lambda t. A(t) \sqcup_{f(t)} B(t)
+\end{array}
+\end{array}
+$$
+$$
+\begin{array}{cc}
+\begin{array}{rl}
+\times &: \text{IndexMap}(X,Y) \to \text{IndexMap}(X,Y') \\
+&\to \text{IndexMap}(X,Y \times Y') \\
+A \times B &= \lambda s. \begin{cases}
+(A(s),B(s)) & X(s) = \bot \\
+\lambda x. (A(s,x), B(s,x)) & \text{otherwise}
+\end{cases}
+\end{array} &
+\begin{array}{rl}
+\times &: \text{TypedIndexMap}(X,Y) \\
+&\to \text{TypedIndexMap}(X,Y') \\
+&\to \text{TypedIndexMap}(X,Y \times Y') \\
+A \times B &= \lambda t. A(t) \times B(t)
 \end{array}
 \end{array}
 $$
 
-[^index-map-notation]: $C(q,A)$ is notated $C^q(A)$, where $q:\WireType$ and $A:\Nb$. If thunk $X_{\text{GateRegistry}}(q,T) = \Fb_q$, then $C(q,T)(\xi)$ is notated $C^q_\xi(T)$.
+[^index-map-notation]: $C(q,A)$ is notated $C^q(A)$, where $q:\WireType$ and $A:\Nb$. If thunk $X_{\text{GateRegistry}}(q,T) = \Fb_q$, then $C(q,T,\xi)$ is notated $C^q_\xi(T)$.
 
-Each gate corresponds to some rows in $C$ via $\ctrn_g$.
-
-TODO fix Mapping definition
-
-\begin{center}
-\begin{tabular}{ c c c c }
-\begin{math}
-\begin{array}{c}
-\begin{array}{rl}
-C_{idx}(g,t') &= \set{i | i \in \Nb \land (\tin{g} \cat \tout{g})_i = t'}\\
-C_{val}(g,t') &= C_{idx}(g, t') + W(t') \\
-C_{row}(g,t') &= C_{val}(\ty(g), t')^{|\Slot| + |\Selector|} \\
-\text{Mapping}(g) &= (t': \WireType) \to C_{row}(g, t')^{k_{t'}}\\
-\end{array} \\
-\begin{array}{rl}
--[-]^{-}_{-} &: \VMap \to C_{row}(g,t)^k \to \AbsCirc \to (g: \Gate) \\
-&\to W(t)^k \\
-v[\vec{m}]^{\abst{f}}_g &= \left(\lambda m. \begin{cases}
-x & m = \text{inr}(x) \\
-& m = \text{inl}(x) \\
-v(\gin(g)_x) & x < n_g \\
-v(\out^{\abst{f}}(g)_{x-n_g}) & \text{otherwise}
-\end{cases} \right) [\vec{m}]
-\end{array}
-\end{array}
-\end{math}
-&
-\begin{tikzpicture}[
-  baseline={(current bounding box.center)}
-]
-\gate{id}{(0,0)}{$\ $}{$g$}{1}
-\draw[->,thick] (id-out-1) -- ($(id-out-1)+(0,-0.5)$);
-\draw[-,thick] ($(id.north)+(0,0.5)$) -- (id.north);
-\end{tikzpicture}
-&
-\begin{tabular}{|c|c|c|c|c|c|c|c|c|}
-\hline
-\multicolumn{9}{|c|}{$C$} \\
-\hline
-\multicolumn{4}{|c|}{$W(p)=\Fb_p$} & \multicolumn{4}{|c|}{$W(q)=\Fb_q$} & $\cdots$ \\
-\hline
-$A$ & $\cdots$ & $Q_l$ & $\cdots$ & $A$ & $\cdots$ & $Q_l$ & $\cdots$ & $\cdots$ \\
-\hline\hline
-\multicolumn{9}{|c|}{$\vdots$} \\
-\hline
-\multicolumn{4}{|c|}{$v [\ctrn_g(p)]^{\abst{f}}_g$} & \multicolumn{5}{|c|}{$\vdots$} \\
-\hline
-\multicolumn{9}{|c|}{$\vdots$} \\
-\hline
-\multicolumn{4}{|c|}{$\vdots$} & \multicolumn{4}{|c|}{$v [\ctrn_g(q)]^{\abst{f}}_g$} & $\ddots$ \\
-\hline
-\multicolumn{9}{|c|}{$\vdots$} \\
-\hline
-\end{tabular}
-\end{tabular}
-\end{center}
-
-TODO even though GateGroup isnt necessary to define trace as we can treat X_GateRegistry as a blackbox. we need GateRegistry to define pre and post compute on C, which trace will call.
+Slots can be shared by all gates, however selectors are gate specific. Groups of gates that use the same selectors are called *gate groups*.
 
 TODO GateGroup defn
 
+- vector of gate type
+- vector of selectors (in formalism it is implicit no selector are equal, in rust u have to enforce by computing via offsets, thus in rust its just SELECTOR_COUNT)
+- gc
+- pre, post
+
+The collection of all gate groups is called the *gate registry*.
+
 TODO GateRegistry defn
 
-TODO need alias Gate = Gate_GateRegistry
-
-TODO pre (t) and post (h1,h2) C construction from GateRegistry
+- vector of GateGroup
+- vector of slots (in rust its SLOT_COUNT)
+- f_gc
+- Gate = concat of GateGroup's GateTypes
+- pre post of all groups
 
 TODO contemplate consequences of theres no dynamic on the fly new gatetype construction / group update / registry update as in $\build{-}{}{}$.
 
+- registry is a variable in AState!!!
 
-We are now ready to define the trace computation as follows:
+### Trace
+
+The trace computation is defined as follows:
 $$
 (C, \vec{\sigma}, L) = \mathrm{trace}(\abst{f},\abst{\vec{Y}},\vec{x})
 $$
@@ -236,6 +219,64 @@ s_0 &= (\bot, ())
 $$
 
 **Gate Constraints**
+
+Each gate corresponds to some rows in $C$ via $\ctrn_g$.
+
+TODO fix Mapping definition
+
+\begin{center}
+\begin{tabular}{ c c c c }
+\begin{math}
+\begin{array}{c}
+\begin{array}{rl}
+C_{idx}(g,t') &= \set{i | i \in \Nb \land (\tin{g} \cat \tout{g})_i = t'}\\
+C_{val}(g,t') &= C_{idx}(g, t') + W(t') \\
+C_{row}(g,t') &= C_{val}(\ty(g), t')^{|\Slot| + |\Selector|} \\
+\text{Mapping}(g) &= (t': \WireType) \to C_{row}(g, t')^{k_{t'}}\\
+\end{array} \\
+\begin{array}{rl}
+-[-]^{-}_{-} &: \VMap \to C_{row}(g,t)^k \to \AbsCirc \to (g: \Gate) \\
+&\to W(t)^k \\
+v[\vec{m}]^{\abst{f}}_g &= \left(\lambda m. \begin{cases}
+x & m = \text{inr}(x) \\
+& m = \text{inl}(x) \\
+v(\gin(g)_x) & x < n_g \\
+v(\out^{\abst{f}}(g)_{x-n_g}) & \text{otherwise}
+\end{cases} \right) [\vec{m}]
+\end{array}
+\end{array}
+\end{math}
+&
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\gate{id}{(0,0)}{$\ $}{$g$}{1}
+\draw[->,thick] (id-out-1) -- ($(id-out-1)+(0,-0.5)$);
+\draw[-,thick] ($(id.north)+(0,0.5)$) -- (id.north);
+\end{tikzpicture}
+&
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|}
+\hline
+\multicolumn{9}{|c|}{$C$} \\
+\hline
+\multicolumn{4}{|c|}{$W(p)=\Fb_p$} & \multicolumn{4}{|c|}{$W(q)=\Fb_q$} & $\cdots$ \\
+\hline
+$A$ & $\cdots$ & $Q_l$ & $\cdots$ & $A$ & $\cdots$ & $Q_l$ & $\cdots$ & $\cdots$ \\
+\hline\hline
+\multicolumn{9}{|c|}{$\vdots$} \\
+\hline
+\multicolumn{4}{|c|}{$v [\ctrn_g(p)]^{\abst{f}}_g$} & \multicolumn{5}{|c|}{$\vdots$} \\
+\hline
+\multicolumn{9}{|c|}{$\vdots$} \\
+\hline
+\multicolumn{4}{|c|}{$\vdots$} & \multicolumn{4}{|c|}{$v [\ctrn_g(q)]^{\abst{f}}_g$} & $\ddots$ \\
+\hline
+\multicolumn{9}{|c|}{$\vdots$} \\
+\hline
+\end{tabular}
+\end{tabular}
+\end{center}
+
 
 $\Downarrow_G$ computes the trace table $C$ by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation (including $\Downarrow_G$), on resolved wires in $\Downarrow_R$.
 
@@ -439,6 +480,8 @@ We never remove the mappings in $v$ thus the order is preserved for $v$ despite 
 TODO: cleanup and make full preorder relation definition, i.e. $s \sqsubseteq f(s)$
 
 ### Concrete Gate Definitions
+
+TODO: all gates also does booleanity check, i.e. every (single output) gate has a flag to also assert if its bool
 
 TODO assert WireType = {p,q} here onwards; bar notation $\bar{p} = q$
 
