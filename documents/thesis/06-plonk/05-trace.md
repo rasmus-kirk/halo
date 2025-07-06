@@ -1,14 +1,6 @@
-
 ### Trace
 
-We define the trace computation as follows:
-$$
-(C, \vec{\sigma}, L) = \mathrm{trace}(\abst{f},\abst{\vec{Y}},\vec{x})
-$$
-
-**More on Gates**
-
-This is the rest of the definition for $\GateType$.
+The rest of $\GateType$ definition includes $\eval_g$ the canonical program, and $\ctrn_g$.
 
 $$
 \begin{array}{rl}
@@ -19,11 +11,51 @@ $$
 \end{array}
 $$
 
-Recall $\Surkal$ performs vanishing argument on $F_{GC}$. The primtive terms in $F_{GC}$ are called slots and selectors. Slots; $A,B,C,\cdots$, hold values of a (concrete) circuit's wires privately, wheras selectors; $Q_l, Q_r, Q_o, \cdots$, are public values modelling the structure of the circuit. Trace; among other things, computes the trace table $C$ which has slots and selectors for columns and $\ctrn$ informs the construction of rows. Thus, it must be that $\forall t. \exists p. W(t) = \Fb_p$ is a valid field to construct an $F_{GC}$. In short, each gate corresponds to some rows in $C$.
+Recall $\Surkal$ performs vanishing argument on $F_{GC}$. The primtive terms in $F_{GC}$ are called slots and selectors. Slots; $A,B,C,\cdots$, hold values of a (concrete) circuit's wires privately, wheras selectors; $Q_l, Q_r, Q_o, \cdots$, are public values modelling the structure of the circuit. Slots and selectors are identified with $\Nb$. We define a data structure[^index-map-notation] indexed on them yielding optional values or thunks; the latter necessary for $\plookup$. An instantiation of this called the *trace table*; $C$, is what $\ctrn_g$ is computing.
 
-TODO: define indexable map and C is a kind of it
+$$
+\begin{array}{rl}
+\text{IndexMap}(X,Y) &= (s: \Nb) \to \Option\left(\begin{cases}
+Y & X(s) = \bot \\
+X(s) \to Y & \text{otherwise}
+\end{cases}\right) \\
+\text{TypedIndexMap}(Y) &= (t: \WireType) \to \text{IndexMap}(X_\text{GateRegistry}(t),Y(t)) \\
+\text{TraceTable} &= \text{TypedIndexMap}(\lambda t. W(t)^n)
+\end{array}
+$$
+$$
+\begin{array}{cc}
+\begin{array}{rl}
+\sqcup &: \text{IndexMap}(X,Y) \to (Y \to Y \to Y) \\
+&\to \text{IndexMap}(X,Y) \to \text{IndexMap}(X,Y) \\
+A \sqcup_f B &= \begin{cases}
+B 
+& A = \bot \\
+& \exists s. A(s) \neq \bot \\
+& A' = A[s \mapsto \bot] \\
+& x = \begin{cases}
+A(s) & B(s) = \bot \\
+f(A(s), B(s)) & X(s) = \bot \\
+\lambda x. f(A(s,x), B(s,x))
+\end{cases} \\
+A' \sqcup_f B' & B' = B[s \mapsto x]
+\end{cases}
+\end{array} &
+\begin{array}{rl}
+\sqcup &: \text{TypedIndexMap}(Y) \\
+&\to (t: \WireType \to Y(t) \to Y(t) \to Y(t)) \\
+&\to \text{TypedIndexMap}(Y) \\
+&\to \text{TypedIndexMap}(Y) \\
+A \sqcup_f B &= \lambda t. A(t) \sqcup_{f(t)} B(t) \\
+\end{array}
+\end{array}
+$$
 
-TODO: $v[\ctrn...]$ needs to expand first before added to $C$ (gate group slot and selector offset). GateRegistry > GateGroup > GateType.
+[^index-map-notation]: $C(q,A)$ is notated $C^q(A)$, where $q:\WireType$ and $A:\Nb$. If thunk $X_{\text{GateRegistry}}(q,T) = \Fb_q$, then $C(q,T)(\xi)$ is notated $C^q_\xi(T)$.
+
+Each gate corresponds to some rows in $C$ via $\ctrn_g$.
+
+TODO fix Mapping definition
 
 \begin{center}
 \begin{tabular}{ c c c c }
@@ -78,6 +110,23 @@ $A$ & $\cdots$ & $Q_l$ & $\cdots$ & $A$ & $\cdots$ & $Q_l$ & $\cdots$ & $\cdots$
 \end{tabular}
 \end{center}
 
+TODO even though GateGroup isnt necessary to define trace as we can treat X_GateRegistry as a blackbox. we need GateRegistry to define pre and post compute on C, which trace will call.
+
+TODO GateGroup defn
+
+TODO GateRegistry defn
+
+TODO need alias Gate = Gate_GateRegistry
+
+TODO pre (t) and post (h1,h2) C construction from GateRegistry
+
+TODO contemplate consequences of theres no dynamic on the fly new gatetype construction / group update / registry update as in $\build{-}{}{}$.
+
+
+We are now ready to define the trace computation as follows:
+$$
+(C, \vec{\sigma}, L) = \mathrm{trace}(\abst{f},\abst{\vec{Y}},\vec{x})
+$$
 
 **Monotonic Functions**
 
