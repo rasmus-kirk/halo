@@ -15,6 +15,8 @@ $$
 (\abst{f}, \abst{\vec{Y}}) = \mathrm{arithmetize}(f)
 $$
 
+**Abstract Circuit, Gate and Wire**
+
 Arithmetize turns a program $f$ into an *abstract circuit* $\abst{f}$, which is a one-to-many-or-none relation between gates $g$ and output wire(s) $\abst{y}$ or $\bot$ for none. e.g. $(\text{Add}(\abst{a},\abst{b}), \abst{c}) \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$. $\abst{f}$ are also acyclic.
 
 $$
@@ -57,7 +59,7 @@ $$
 $$
 \begin{array}{cccc}
 \begin{array}{rl}
-W &: \WireType \to \mathcal{U} \\
+W &: \WireType \to \Uni \\
 \Wire &= \Nb \times \WireType \\
 \id(\abst{w}) &= (\lambda(i, \_). i)(\abst{w}) \\
 \ty(\abst{w}) &= (\lambda(\_, t). t)(\abst{w}) \\
@@ -108,6 +110,8 @@ e.g.
 \end{tabular}
 \end{center}
 
+**Circuit Building**
+
 We notate arithmetizing a program $f$ with *predicates* $\build{f = \vec{y}}{s}{s'}$, $\build{f = y}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the *state* from $s$ to $s'$ where $s=(u, \abst{f})$ and $u$ is the current uuid. *Gadgets* are compositions $\bigwedge \build{f}{}{}$. Wires annotated with $*$, i.e. $\build{f = y^*}{}{}$, are the final output and are appended to $\abst{\vec{Y}}$. They, may be omitted notationally.
 
 $$
@@ -150,7 +154,7 @@ $$
   (g,\abst{y})
   & \abst{y} \in \text{new}(u,g) \\
   (g,\bot)
-  & \text{otherwise}
+  & \otherwise
 \end{cases}}
 \end{array} \\
 \begin{array}{rl}
