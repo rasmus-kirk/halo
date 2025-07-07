@@ -11,75 +11,52 @@ $$
 \end{array}
 $$
 
-Recall $\Surkal$ performs vanishing argument on $F_{GC}$. The primtive terms in $F_{GC}$ are called slots and selectors. Slots; $A,B,C,\cdots$, hold values of a (concrete) circuit's wires privately, wheras selectors; $Q_l, Q_r, Q_o, \cdots$, are public values modelling the structure of the circuit. Slots and selectors are identified with $\Nb$. We define a data structure indexed on them yielding optional values or thunks; the latter necessary for $\plookup$. An instantiation of this called the *trace table*[^index-map-notation]; $C$, which is what $\ctrn_g$ assists in computing. We also define join $\sqcup$ to compute and $\times$ to combine values.
+Recall $\Surkal$ performs vanishing argument on $F_{GC}$. The primtive terms in $F_{GC}$ are called slots and selectors. Slots; $A,B,C,\cdots$, hold values of a (concrete) circuit's wires privately, wheras selectors; $Q_l, Q_r, Q_o, \cdots$, are public values modelling the structure of the circuit. Slots and selectors are identified with $\Nb$. We define a data structure indexed on them yielding optional values or thunks; the latter necessary for $\plookup$. An instantiation of this is called the *trace table*[^index-map-notation]; $C$, which is what $\ctrn_g$ assists in computing. We also define join $\sqcup$ to combine them.
 
 $$
-\begin{array}{cc}
 \begin{array}{rl}
-\text{IndexMap} &= (X: \Nb \to \mathcal{U}) \to (Y: \mathcal{U}) \to (s: \Nb) \\
-&\pto \begin{cases}
+\IndexMap &= (X: \Nb \to \Uni) \to (Y: \Uni) \to (s: \Nb) 
+\pto \begin{cases}
 Y & X(s) = \bot \\
-X(s) \to Y & \text{otherwise}
+X(s) \to Y & \otherwise
 \end{cases}
-\end{array} &
-\begin{array}{rl}
-\text{TypedIndexMap}
-&= (X: \WireType \to \Nb \to \mathcal{U}) \\
-&\to (Y: \WireType \to \mathcal{U}) \\
-&\to (t: \WireType) \\
-&\to \text{IndexMap}(X(t),Y(t))
 \end{array}
-\end{array}
-$$
-$$
-\text{TraceTable} = \text{TypedIndexMap}(X_\text{GateRegistry}, \lambda t. W(t)^n)
 $$
 $$
 \begin{array}{cc}
 \begin{array}{rl}
-\sqcup &: \text{IndexMap}(X,Y) \to (Y \to Y \to Y) \\
-&\to \text{IndexMap}(X,Y) \to \text{IndexMap}(X,Y) \\
+\sqcup &: \IndexMap(X,Y_1) \to (Y_1 \to Y_2 \to Y_3) \\
+&\to \IndexMap(X,Y_2) \to \IndexMap(X,Y_3) \\
 A \sqcup_f B &= \begin{cases}
-B 
-& A = \bot \\
-A[s \mapsto \bot] \sqcup_f B[s \mapsto A \sqcup^s_f B] 
-& \exists s. A(s) \neq \bot
+& \exists s. A(s) \neq \bot \land B(s) \neq \bot \\
+& x = A \sqcup^s_f B \\
+C[s \mapsto x]
+& C = A[s \mapsto \bot] \sqcup_f B[s \mapsto \bot] \\
+\bot & \otherwise
 \end{cases} \\
 A \sqcup^s_f B &= \begin{cases}
-A(s) & B(s) = \bot \\
 f(A(s), B(s)) & X(s) = \bot \\
-\lambda x. f(A(s,x), B(s,x)) & \text{otherwise}
-\end{cases}
+\lambda x. f(A(s,x), B(s,x)) & \otherwise
+\end{cases} \\
+A \times B &= A \sqcup_{\lambda a,b.(a,b)} B \\
 \end{array} &
 \begin{array}{rl}
-\sqcup &: \text{TypedIndexMap}(Y) \\
-&\to (t: \WireType \to Y(t) \to Y(t) \to Y(t)) \\
-&\to \text{TypedIndexMap}(Y) \\
-&\to \text{TypedIndexMap}(Y) \\
-A \sqcup_f B &= \lambda t. A(t) \sqcup_{f(t)} B(t)
-\end{array}
-\end{array}
-$$
-$$
-\begin{array}{cc}
-\begin{array}{rl}
-\times &: \text{IndexMap}(X,Y) \to \text{IndexMap}(X,Y') \\
-&\to \text{IndexMap}(X,Y \times Y') \\
-A \times B &= \lambda s. \begin{cases}
-(A(s),B(s)) & X(s) = \bot \\
-\lambda x. (A(s,x), B(s,x)) & \text{otherwise}
-\end{cases}
-\end{array} &
-\begin{array}{rl}
-\times &: \text{TypedIndexMap}(X,Y) \\
-&\to \text{TypedIndexMap}(X,Y') \\
-&\to \text{TypedIndexMap}(X,Y \times Y') \\
+\TypedIndexMap
+&= (X: \WireType \to \Nb \to \Uni) \\
+&\to (Y: \WireType \to \Uni) \\
+&\to (t: \WireType) \to \IndexMap(X(t),Y(t)) \\
+\TraceTable &= \TypedIndexMap(X_\GateRegistry, \lambda t. W(t)^n) \\
+\\
+\sqcup &: \TypedIndexMap(Y_1) \\
+&\to (t: \WireType \to Y_1(t) \to Y_2(t) \to Y_3(t)) \\
+&\to \TypedIndexMap(Y_2) \to \TypedIndexMap(Y_3) \\
+A \sqcup_f B &= \lambda t. A(t) \sqcup_{f(t)} B(t) \\
 A \times B &= \lambda t. A(t) \times B(t)
 \end{array}
 \end{array}
 $$
 
-[^index-map-notation]: $C(q,A)$ is notated $C^q(A)$, where $q:\WireType$ and $A:\Nb$. If thunk $X_{\text{GateRegistry}}(q,T) = \Fb_q$, then $C(q,T,\xi)$ is notated $C^q_\xi(T)$.
+[^index-map-notation]: $C(q,A)$ is notated $C^q(A)$, where $q:\WireType$ and $A:\Nb$. If thunk $X_{\GateRegistry}(q,T) = \Fb_q$, then $C(q,T,\xi)$ is notated $C^q_\xi(T)$.
 
 Slots can be shared by all gates, however selectors are gate specific. Groups of gates that use the same selectors are called *gate groups*.
 
@@ -241,7 +218,7 @@ v[\vec{m}]^{\abst{f}}_g &= \left(\lambda m. \begin{cases}
 x & m = \text{inr}(x) \\
 & m = \text{inl}(x) \\
 v(\gin(g)_x) & x < n_g \\
-v(\out^{\abst{f}}(g)_{x-n_g}) & \text{otherwise}
+v(\out^{\abst{f}}(g)_{x-n_g}) & \otherwise
 \end{cases} \right) [\vec{m}]
 \end{array}
 \end{array}
@@ -284,8 +261,8 @@ When the wire id stack $\abst{\vec{y}}$ is empty, $\underset{G}{\curvearrowright
 $$
 \begin{array}{rl}
 \begin{array}{rl}
-\text{TraceTable} &= (t: \WireType) \pto W(t)^{(|\Slot| + |\Selector|) \times k_t} \\
-\text{GState}^{k,k'} &= \text{TraceTable} \times \Gate^{k'} \times \Bb \times \RState^k \\
+\TraceTable &= (t: \WireType) \pto W(t)^{(|\Slot| + |\Selector|) \times k_t} \\
+\text{GState}^{k,k'} &= \TraceTable \times \Gate^{k'} \times \Bb \times \RState^k \\
 \abst{X}^{\abst{f}} &= \set{g \middle\vert (g, \abst{y}) \in \abst{f} \land (\abst{y} = \bot \lor \exists i,t. \abst{y} = \text{Input}^t_i) } \\
 \\
 \underset{G}{\curvearrowleft} &: T \times \text{GState}^{k,k''} \to T \times \text{GState}^{k',k''} \\
