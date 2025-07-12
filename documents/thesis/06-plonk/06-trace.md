@@ -1,85 +1,4 @@
-### Slots, Selectors and Gate Registry
 
-The rest of $\GateType$ definition includes $\eval_g$ the canonical program, and $\ctrn_g$.
-
-$$
-\begin{array}{rl}
-\GateType
-&= \cdots \times (W[\tin{g}] \to W[\tout{g}]) \times \text{Mapping}(g) \\ \\
-\eval_g: W[\tin{g}] \to W[\tout{g}] &= (\lambda(\_,\mathtt{canonical\_program},\_).\mathtt{canonical\_program})(g) \\
-\ctrn_g: \text{Mapping}(g) &= (\lambda(\_,\mathtt{mapping\_to\_rows}).\mathtt{mapping\_to\_rows})(g) \\
-\end{array}
-$$
-
-Recall $\Surkal$ performs vanishing argument on $F_{GC}$. The primtive terms in $F_{GC}$ are called slots and selectors. Slots; $A,B,C,\cdots$, hold values of a (concrete) circuit's wires privately, wheras selectors; $Q_l, Q_r, Q_o, \cdots$, are public values modelling the structure of the circuit. Slots and selectors are identified with $\Nb$. We define a data structure indexed on them yielding optional values or thunks; the latter necessary for $\plookup$. An instantiation of this is called the *trace table*[^index-map-notation]; $C$, which is what $\ctrn_g$ assists in computing. We also define join $\sqcup$ to combine them.
-
-$$
-\begin{array}{rl}
-\IndexMap &= (X: \Nb \to \Uni) \to (Y: \Uni) \to (s: \Nb) 
-\pto \begin{cases}
-Y & X(s) = \bot \\
-X(s) \to Y & \otherwise
-\end{cases}
-\end{array}
-$$
-$$
-\begin{array}{cc}
-\begin{array}{rl}
-\sqcup &: \IndexMap(X,Y_1) \to (Y_1 \to Y_2 \to Y_3) \\
-&\to \IndexMap(X,Y_2) \to \IndexMap(X,Y_3) \\
-A \sqcup_f B &= \begin{cases}
-& \exists s. A(s) \neq \bot \land B(s) \neq \bot \\
-& x = A \sqcup^s_f B \\
-C[s \mapsto x]
-& C = A[s \mapsto \bot] \sqcup_f B[s \mapsto \bot] \\
-\bot & \otherwise
-\end{cases} \\
-A \sqcup^s_f B &= \begin{cases}
-f(A(s), B(s)) & X(s) = \bot \\
-\lambda x. f(A(s,x), B(s,x)) & \otherwise
-\end{cases} \\
-A \times B &= A \sqcup_{\lambda a,b.(a,b)} B \\
-\end{array} &
-\begin{array}{rl}
-\TypedIndexMap
-&= (X: \WireType \to \Nb \to \Uni) \\
-&\to (Y: \WireType \to \Uni) \\
-&\to (t: \WireType) \to \IndexMap(X(t),Y(t)) \\
-\TraceTable &= \TypedIndexMap(X_\GateRegistry, \lambda t. W(t)^n) \\
-\\
-\sqcup &: \TypedIndexMap(Y_1) \\
-&\to (t: \WireType \to Y_1(t) \to Y_2(t) \to Y_3(t)) \\
-&\to \TypedIndexMap(Y_2) \to \TypedIndexMap(Y_3) \\
-A \sqcup_f B &= \lambda t. A(t) \sqcup_{f(t)} B(t) \\
-A \times B &= \lambda t. A(t) \times B(t)
-\end{array}
-\end{array}
-$$
-
-[^index-map-notation]: $C(q,A)$ is notated $C^q(A)$, where $q:\WireType$ and $A:\Nb$. If thunk $X_{\GateRegistry}(q,T) = \Fb_q$, then $C(q,T,\xi)$ is notated $C^q_\xi(T)$.
-
-Slots can be shared by all gates, however selectors are gate specific. Groups of gates that use the same selectors are called *gate groups*.
-
-TODO GateGroup defn
-
-- vector of gate type
-- vector of selectors (in formalism it is implicit no selector are equal, in rust u have to enforce by computing via offsets, thus in rust its just SELECTOR_COUNT)
-- gc
-- pre, post
-
-The collection of all gate groups is called the *gate registry*.
-
-TODO GateRegistry defn
-
-- vector of GateGroup
-- vector of slots (in rust its SLOT_COUNT)
-- f_gc
-- Gate = concat of GateGroup's GateTypes
-- pre post of all groups
-
-TODO contemplate consequences of theres no dynamic on the fly new gatetype construction / group update / registry update as in $\build{-}{}{}$.
-
-- registry is a variable in AState!!!
 
 ### Trace
 
@@ -200,6 +119,8 @@ $$
 Each gate corresponds to some rows in $C$ via $\ctrn_g$.
 
 TODO fix Mapping definition
+
+TODO ctrn; Mapping, needs to take slots and selectors as argument
 
 \begin{center}
 \begin{tabular}{ c c c c }

@@ -313,7 +313,7 @@ We now define the $\Surkal$ protocol using the above arguments.
 \textbf{Output} \\
   \Desc{$\Result(\top, \bot)$}{Either the verifier accepts with $\top$ or rejects with $\bot$}
 \begin{algorithmic}[1]
-  \State $(R: \Circuit, x: \PublicInputs, w : \Witness) = \mathrm{relation} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})$ 
+  \State $(R, x, w) = \SurkalPreprocess(f, \vec{x})$ 
   \State $\pi = \SurkalProver(R,x,w)$
   \State \textbf{return} $\SurkalVerifier(R,x,\pi)$
   \end{algorithmic}
