@@ -1,6 +1,6 @@
 
 
-### Preprocessing 2/3: Trace
+### Trace
 
 The trace computation is defined as follows:
 $$

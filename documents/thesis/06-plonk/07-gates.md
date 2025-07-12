@@ -1,5 +1,5 @@
 
-### Concrete Spec Definition
+**Concrete Spec Definition**
 
 TODO: all gates also does booleanity check, i.e. every (single output) gate has a flag to also assert if its bool
 

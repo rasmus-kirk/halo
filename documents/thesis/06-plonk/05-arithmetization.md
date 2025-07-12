@@ -13,7 +13,7 @@ $$
 [^notation]: refer to the appendix for the definition of notations used in this section.
 
 
-### Preprocessing 1/3: Arithmetizer
+### Arithmetizer
 
 We define the arithmetize computation as follows:
 $$
@@ -120,9 +120,9 @@ $$
 \begin{array}{rl}
 \begin{array}{rl}
 \AState &= \Nb \times \AbsCirc \times \Wire^k \\
-u_s: \Nb &= (\lambda(u,\_).u)(s) \\
-\abst{f}_s: \AbsCirc &= (\lambda(\_,\abst{f},\_).\abst{f})(s) \\
-\abst{\vec{Y}}_s: \Wire^k &= (\lambda (\_,\abst{\vec{Y}}).\abst{\vec{Y}})(s)
+u_s &= (\lambda(u,\_).u)(s) \\
+\abst{f}_s &= (\lambda(\_,\abst{f},\_).\abst{f})(s) \\
+\abst{\vec{Y}}_s &= (\lambda (\_,\abst{\vec{Y}}).\abst{\vec{Y}})(s)
 \end{array}
 &
 \begin{array}{ll}
