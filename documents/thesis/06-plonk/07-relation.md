@@ -8,11 +8,6 @@ $$
 \end{array}
 $$
 
-TODO
-
-- extend group function?; takes a group and vector of gates returns new group.
-- gate group construction needs to be done in reln.. not necessary in arith and trace
-
 $$
 \begin{array}{rl}
 \text{Term} &= \text{Slot} + \text{Selector} + \set{J} \\
@@ -39,6 +34,8 @@ a
 \end{array}
 $$
 
+TODO 
+
 - compute $k : (t: \text{WireType}) \to \text{Slot} \to W(t)$; $k^q_s : \Fb_q$
 - lookup thunk
   - up to $N$ minus blind rows
@@ -62,8 +59,6 @@ notation ideas
 - $w[\mathcal{C}_A] = \PCCommit(\text{fft}(\vec{C}[A]), \ldots)$ commit
 - $w_\zeta[\mathcal{C}_T] = \PCCommit(\text{fft}(?[T]), \ldots)$ commit thunk
 - $w[t,A,i]$ typed indexing (or maybe we dont need to if we split into two runs of prover and verifier)
-
-notation for finite type indexing of vectors / matrices / tensors
 
 **Relation Correctness Example**
 

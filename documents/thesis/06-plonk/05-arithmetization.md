@@ -1,12 +1,17 @@
 ## Preprocessing
 
-We now define the preprocessing pipeline:
+We now define the preprocessing pipeline[^notation]:
 
 $$
-(R,x,w) = \mathrm{relation} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})
+\begin{array}{rl}
+(R,x,w) 
+&= \SurkalPreprocess(f,\vec{x}) \\ 
+&= \mathrm{relation} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})
+\end{array}
 $$
 
-Note: refer to the appendix for the definition of notations used in this section.
+[^notation]: refer to the appendix for the definition of notations used in this section.
+
 
 ### Arithmetizer
 
