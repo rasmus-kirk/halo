@@ -153,23 +153,15 @@ v(\out^{\abst{f}}(g)_{x-n_g}) & \otherwise
 \draw[-,thick] ($(id.north)+(0,0.5)$) -- (id.north);
 \end{tikzpicture}
 &
-\begin{tabular}{|c|c|c|c|c|c|c|c|c|}
+\begin{tabular}{|c|c|c|c|c|c|c|c|}
 \hline
-\multicolumn{9}{|c|}{$C$} \\
-\hline
-\multicolumn{4}{|c|}{$W(p)=\Fb_p$} & \multicolumn{4}{|c|}{$W(q)=\Fb_q$} & $\cdots$ \\
-\hline
-$A$ & $\cdots$ & $Q_l$ & $\cdots$ & $A$ & $\cdots$ & $Q_l$ & $\cdots$ & $\cdots$ \\
+$C^p(A)$ & $\cdots$ & $C^p(Q_l)$ & $\cdots$ & $C^q(A)$ & $\cdots$ & $C^q(Q_l)$ & $\cdots$ \\
 \hline\hline
-\multicolumn{9}{|c|}{$\vdots$} \\
+\multicolumn{4}{|c|}{$\vdots$} & \multicolumn{4}{|c|}{$\vdots$} \\
 \hline
-\multicolumn{4}{|c|}{$v [\ctrn_g(p)]^{\abst{f}}_g$} & \multicolumn{5}{|c|}{$\vdots$} \\
+\multicolumn{4}{|c|}{$v [\ctrn_g(p)]^{\abst{f}}_g$} & \multicolumn{4}{|c|}{$v [\ctrn_g(q)]^{\abst{f}}_g$} \\
 \hline
-\multicolumn{9}{|c|}{$\vdots$} \\
-\hline
-\multicolumn{4}{|c|}{$\vdots$} & \multicolumn{4}{|c|}{$v [\ctrn_g(q)]^{\abst{f}}_g$} & $\ddots$ \\
-\hline
-\multicolumn{9}{|c|}{$\vdots$} \\
+\multicolumn{4}{|c|}{$\vdots$} & \multicolumn{4}{|c|}{$\vdots$} \\
 \hline
 \end{tabular}
 \end{tabular}
