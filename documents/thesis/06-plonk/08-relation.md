@@ -1,4 +1,4 @@
-### Relation
+### Preprocessing 3/3: Relation
 
 The construction of subterms of $F_{GC}$ is done by $\GateGroup$ via $gc$:
 
