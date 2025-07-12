@@ -1,6 +1,6 @@
-### Slots, Selectors and Gate Collection
+### Gate Spec
 
-The rest of the gate type definition includes $\eval_g$ the canonical program, and $\ctrn_g$. These will be used by trace.
+Before defining trace, we define the rest of the gate type definition includes $\eval_g$ the canonical program, and $\ctrn_g$.
 
 $$
 \begin{array}{rl}
@@ -60,13 +60,14 @@ $$
 The collection of all gate groups is called the *gate collection*; $GC$ where $\vec{G}_{GC}$ are the gate groups, $\vec{s}_{GC}$ are the slots all gates can use. The rest of the definitions are accumulations of the gate group's methods.
 
 $$
-\GateCollection = (\vec{G}: \GateGroup_i^k) \times \Nb^i \times \text{Eqn}_{i+\sum\limits_{G \in \vec{G}} j_G} \times \GateType^{\sum\limits_{G \in \vec{G}} |\vec{g}_G|} \times (\TraceTable \to \TraceTable)^2
+\GateCollection = (\vec{G}: \GateGroup_i^k) \times \Nb^i \times (X : \Nb \to \Uni)
 $$
 $$
 \begin{array}{ccc}
 \begin{array}{rl}
 \vec{G}(GC) &= (\lambda (\vec{G}, \_). \vec{G})(GC) \\
-\vec{s}_{GC} &= (\lambda (\_, \vec{s}). \vec{s})(GC)
+\vec{s}_{GC} &= (\lambda (\_, \vec{s}, \_). \vec{s})(GC) \\
+X_{GC} &= (\lambda (\_, X, \_). X)(GC)
 \end{array} &
 \begin{array}{rl}
 F_{GC}(\vec{s}, \vec{S}) &= \sum\limits_{i \in |\vec{G}(GC)|} \text{term}_{{\vec{G}(GC)}_i}(\vec{s}, \vec{S}_i) \\
@@ -79,28 +80,26 @@ F_{GC}(\vec{s}, \vec{S}) &= \sum\limits_{i \in |\vec{G}(GC)|} \text{term}_{{\vec
 \end{array}
 $$
 
-A *specification* defines a $\GateCollection$ that the user can extend whilst building circuits[^arith-spec] and the wire type information. 
+A *specification* defines a $\GateCollection$ that the user can extend whilst building circuits[^arith-spec] and wire type information. 
 
-[^arith-spec]: The arithmetizer does not need to know $\text{term}_g, \text{pre}_g, \text{post}_g, \vec{s}$ as these are specific to trace. The conversion to a type without these fields; $\abst{\Spec}$, is implicit.
+[^arith-spec]: $\AState$ implicitly contains a $s:\Spec$ but it does not need to know $\text{term}_g, \text{pre}_g, \text{post}_g, \vec{s}_G, \vec{s}_{GC}$ as these are specific to trace. Moreover, types $W, \WireType, \GateType$ in the previous section on arithmetizer are implicit for $W_s, \WireType_s, \GateType_s$.
 
 
 $$
+\begin{array}{cc}
 \begin{array}{rl}
 \Spec &= \GateCollection \times (\WireType: \Uni) \times (W: \WireType \to \Uni) \\
-\end{array}
-$$
-$$
-\begin{array}{cc}
-\begin{array}{rl}
-\GateCollection_s &= (\lambda(GC, \_). GC)(s)
 \end{array} &
 \begin{array}{rl}
+\GateCollection_s &= (\lambda(GC, \_). GC)(s)
+\end{array}
+\end{array}
+$$
+$$
+\begin{array}{ccc}
+\begin{array}{rl}
 \GateType_{s} &= \GateType_{\GateCollection_{s}}
-\end{array}
-\end{array}
-$$
-$$
-\begin{array}{cc}
+\end{array} &
 \begin{array}{rl}
 \WireType_s &= (\lambda(\_, \WireType, \_). \WireType)(s)
 \end{array} &
@@ -110,12 +109,7 @@ W_s &= (\lambda(\_, \_, W). W)(s)
 \end{array}
 $$
 
-TODO updates to arith
-
-- AState contains a $\abst{\Spec}$
-- a term of Spec is also a top level argument of preprocess?
-
-Lastly, we define a data structure indexed on slots and selectors called an *index map* that yields optional values or thunks; the latter necessary for $\plookup$. An instantiation of this is called the *trace table*[^index-map-notation]; $C$, which is what $\ctrn_g$ assists in computing. We also define map $-[-]$ and join $\sqcup$ to compute on and combine them.
+Lastly, we define a data structure indexed on slots and selectors called an *index map* that yields optional values or thunks of argument $X(s)$; the latter necessary for $\plookup$. An instantiation of this is called the *trace table*[^index-map-notation]; $C$, which is what $\ctrn_g$ assists in computing. We also define map $-[-]$ and join $\sqcup$ to compute on and combine index maps.
 
 $$
 \begin{array}{rl}
@@ -128,7 +122,7 @@ X(s) \to Y & \otherwise
 &= (X: \WireType \to \Nb \to \Uni)
 \to (Y: \WireType \to \Uni) 
 \to (t: \WireType) \to \IndexMap(X(t),Y(t)) \\
-\TraceTable &= \TypedIndexMap(X_\GateCollection, \lambda t. W(t)^n)
+\TraceTable &= (GC: \GateCollection) \to \TypedIndexMap(X_{GC}, \lambda t. W(t)^n)
 \end{array}
 $$
 $$
@@ -136,10 +130,11 @@ $$
 -[-] : (t: \WireType \to Y \to Z) \to \IndexMap(X,Y) \to \TypedIndexMap(X,Z) \\
 \begin{array}{rlrl}
 f[A] &= \lambda t. f(t)[A^t] &
-f[A] &= \maybe{f[A[s \mapsto \bot]]}{\exists s. A(s) \neq \bot}\begin{cases}
-[s \mapsto f(A(s))]
+f[A] &= \begin{cases}
+& A' = \maybe{f[A[s \mapsto \bot]]}{\exists s. A(s) \neq \bot} \\
+A'[s \mapsto f(A(s))]
 & X(s) = () \\
-[s \mapsto \lambda x. f(A(s,x))]
+A'[s \mapsto \lambda x. f(A(s,x))]
 & \otherwise
 \end{cases}
 \end{array}
@@ -171,4 +166,4 @@ A \times B &= A \sqcup_{\lambda a,b.(a,b)} B
 \end{array}
 $$
 
-[^index-map-notation]: $C(q,A)$ is notated $C^q(A)$, where $q:\WireType$ and $A:\Nb$. If thunk $X_{\GateCollection}(q,T) = \Fb_q$, then $C(q,T,\xi)$ is notated $C^q_\xi(T)$.
+[^index-map-notation]: Let $C$ be a trace table, $C(q,A)$ is notated $C^q(A)$. If thunk $X_{\GateCollection}(q,T) = \Fb_q$, then $C(q,T,\xi)$ is notated $C^q_\xi(T)$.

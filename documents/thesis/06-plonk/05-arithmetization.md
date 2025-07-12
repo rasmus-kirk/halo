@@ -13,7 +13,7 @@ $$
 [^notation]: refer to the appendix for the definition of notations used in this section.
 
 
-### Arithmetizer
+### Preprocessing 1/3: Arithmetizer
 
 We define the arithmetize computation as follows:
 $$
@@ -22,7 +22,9 @@ $$
 
 **Abstract Circuit, Gate and Wire**
 
-Arithmetize turns a program $f$ into an *abstract circuit* $\abst{f}$, which is a one-to-many-or-none relation between gates $g$ and output wire(s) $\abst{y}$ or $\bot$ for none. e.g. $(\text{Add}(\abst{a},\abst{b}), \abst{c}) \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$. $\abst{f}$ are also acyclic.
+Arithmetization turns a program $f$ into an *abstract circuit* $\abst{f}$, which is a one-to-many-or-none relation between gates $g$ and output wire(s) $\abst{y}$ or $\bot$ for none. e.g. $(\text{Add}(\abst{a},\abst{b}), \abst{c}) \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$. $\abst{f}$ are also acyclic. *Wires* $\abst{x}$ are abstract representations of values $x$, defined as a pair of unique identifier; uuid, and a *wire type tag*. $W$ maps the tag to the value's type e.g. $W(p) = \Fb_p$. *Gates* $g$ are primitive operations and its inputs. Depending on the *gate type*, they have $n_g \geq 0$[^short-hand-gate] fan-in wires typed $\tin{g}$ and $m_g \geq 0$ fan-out wires typed $\tout{g}$. Wires are type checked e.g. $\text{Add}(\abst{a},\abst{b})$ type checks $\abst{a}, \abst{b}$ for the $\text{Add}$ gate type. Thus, a candidate program is $f: W[\tin{}] \to W[\tout{}]$.
+
+[^short-hand-gate]: As a notational shorthand, we may omit $\ty$ e.g. $n_g := n_{\ty(g)}$.
 
 $$
 \begin{array}{rl}
@@ -36,11 +38,6 @@ $$
 }
 \end{array}
 $$
-
-*Wires* $\abst{x}$ are abstract representations of values $x$, defined as a pair of unique identifier; uuid, and a *wire type tag*. $W$ maps the tag to the value's type e.g. $W(p) = \Fb_p$. *Gates* $g$ are primitive operations and its inputs. Depending on the *gate type*, they have $n_g \geq 0$[^short-hand-gate] fan-in wires typed $\tin{g}$ and $m_g \geq 0$ fan-out wires typed $\tout{g}$. Wires are type checked e.g. $\text{Add}(\abst{a},\abst{b})$ type checks $\abst{a}, \abst{b}$ for the $\text{Add}$ gate type. Thus, a candidate program is $f: W[\tin{}] \to W[\tout{}]$.
-
-[^short-hand-gate]: As a notational shorthand, we may omit $\ty$ e.g. $n_g := n_{\ty(g)}$.
-
 $$
 \begin{array}{c}
 \GateType
