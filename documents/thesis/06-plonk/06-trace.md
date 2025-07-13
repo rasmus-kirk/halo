@@ -9,11 +9,13 @@ $$
 
 **Monotonic Functions**
 
-$\text{trace}$ computes the least fixed point of a composition of monotonic functions; $\Downarrow_R, \Downarrow_G, \Downarrow_C$, using $\text{sup}$. We also call a monotonic function a continuation if it is called by another. We call lift, to extend the argument of a monotonic function.
+$\text{trace}$ computes the least fixed point of a composition of monotonic functions; $\Downarrow_R, \Downarrow_G, \Downarrow_C$, using $\text{sup}$. We also call a monotonic function a continuation if it is called by another. We call lift, to extend the argument of a monotonic function. By the Kleene fixpoint theorem, the least fixed point can be computed by iterating the function until saturation, i.e. when the state does not change anymore.
 
 $$
 \begin{array}{rl}
 \begin{array}{rl}
+\lift &: (T \to T') \\
+&\to V \times T \times U \to V \times T' \times U\\
 \lift(f) &= \lambda (v,t,u). (v, f(t),u) \\
 g \circ^{\uparrow} f &= \lift(g) \circ \lift(f) 
 \end{array} &
@@ -26,10 +28,20 @@ s & \text{eq}(s, s') \\
 \end{array}
 \end{array}
 $$
+\begin{algorithm}[H]
+\caption*{
+  \textbf{sup:} iterative fixpoint theorem
+}
+\begin{algorithmic}[1]
+  \State $(s,s') := (\bot, s_0)$
+  \State \textbf{do:}
+    \State \algind $(s,s') := (s',f(s'))$
+    \State \textbf{while} $\neg\text{eq}(s,s')$
+  \State \textbf{return} $s$
+  \end{algorithmic}
+\end{algorithm}
 
-The monotonic functions[^dagger] defined below are specific to the $\Surkal$ protocol. Thus if the arithmetizer abover were to be extended for a different \plonk-ish protocol, the functions would be different.
-
-[^dagger]: for each monotonic function, we notate $\dagger$ as a check if the state has saturated in which the fixpoint compute can terminate. Wheras $s$ are the initial states and $\iota$ a constructor of it. 
+The monotonic functions defined here are specific to the $\Surkal$ protocol, i.e. it can be different for a different \plonk-ish protocol. For each monotonic function, we notate $\dagger$ as a check if the state has saturated. $s$ are the initial states and $\iota$ a constructor of it. 
 
 **Resolve**
 
@@ -116,17 +128,20 @@ $$
 
 **Gate Constraints**
 
-Each gate corresponds to some rows in $C$ via $\ctrn_g$.
+Each gate corresponds to some rows in the trace table[^index-map-notation] $C$ via $\ctrn_g$.
 
-TODO fix Mapping definition
+[^index-map-notation]: Let $C$ be a trace table, $C(q,A)$ is notated $C^q(A)$. If thunk $X(q,T) = \Fb_q$, then $C(q,T,\xi)$ is notated $C^q_\xi(T)$.
 
-TODO ctrn; Mapping, needs to take slots and selectors as argument
+TODO construct function from $v$, its not just apply vmap, it also computes A,B,C and provide as arg to thunk plookup columns; thunk body is pair, first is vec of index (A,B,C) and second is function from W(t) vec to W(t), thus the compute of this pair is hardcoded in this function rather than higher order in the thunk.
 
 \begin{center}
 \begin{tabular}{ c c c c }
 \begin{math}
 \begin{array}{c}
 \begin{array}{rl}
+\PreTable_s &= (X: \WireType_s \to \SlotNSelector \to \Uni)\\
+&\to \TypedIndexMap(X, \lambda t. (W(t) + \Nb)^n)\\
+\TraceTable_s &= \TypedIndexMap(X_s, \lambda t. W(t)^n)\\
 C_{idx}(g,t') &= \set{i | i \in \Nb \land (\tin{g} \cat \tout{g})_i = t'}\\
 C_{val}(g,t') &= C_{idx}(g, t') + W(t') \\
 C_{row}(g,t') &= C_{val}(\ty(g), t')^{|\Slot| + |\Selector|} \\
@@ -325,34 +340,6 @@ $$
 \end{array}
 \end{array}
 $$
-
-**Iterative Fixpoint Compute**
-
-The fixpoint of a monotone function $f$ notated $\mu s. f(s)$ can be computed using the kleene fixpoint theorem $\text{sup}_{n \in \Nb} f^n(s_0)$ where $n$ is the smallest $n$ such that $f^n(s_0) = f^{n+1}(s_0)$.
-
-Or as per defined in $\text{trace}$ recursively with the call $\text{sup}(f,=,\bot,s_0)$. Now we present the iterative definition used in code implementations to circumvent the recursion limit or stack overflow errors.
-
-\begin{algorithm}[H]
-\caption*{
-  \textbf{sup:} iterative kleene fixpoint theorem
-}
-\textbf{Inputs} \\
-  \Desc{$f: \text{State} \to \text{State}$}{Monotonic function.} \\
-  \Desc{$s_0 : \text{State}$}{Initial state.} \\
-  \Desc{$\text{eq}: \text{State} \to \text{State} \to \Bb$}{Equality predicate on states.} \\
-\textbf{Output} \\
-  \Desc{$s : \text{State}$}{Fixpoint of $f$.}
-\begin{algorithmic}[1]
-  \State $s := \bot$
-  \State $s' := s_0$ 
-  \State \textbf{do:}
-    \State \algind $s := s'$
-    \State \algind $s' := f(s')$
-    \State \textbf{while} $\neg\text{eq}(s,s')$
-  \State \textbf{return} $s$
-  \end{algorithmic}
-\end{algorithm}
-
 
 **Monotonicity Proof**
 

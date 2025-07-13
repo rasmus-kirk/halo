@@ -22,9 +22,9 @@ $$
 
 **Abstract Circuit, Gate and Wire**
 
-Arithmetization turns a program $f$ into an *abstract circuit* $\abst{f}$, which is a one-to-many-or-none relation between gates $g$ and output wire(s) $\abst{y}$ or $\bot$ for none. e.g. $(\text{Add}(\abst{a},\abst{b}), \abst{c}) \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$. $\abst{f}$ are also acyclic. *Wires* $\abst{x}$ are abstract representations of values $x$, defined as a pair of unique identifier; uuid, and a *wire type tag*. $W$ maps the tag to the value's type e.g. $W(p) = \Fb_p$. *Gates* $g$ are primitive operations and its inputs. Depending on the *gate type*, they have $n_g \geq 0$[^short-hand-gate] fan-in wires typed $\tin{g}$ and $m_g \geq 0$ fan-out wires typed $\tout{g}$. Wires are type checked e.g. $\text{Add}(\abst{a},\abst{b})$ type checks $\abst{a}, \abst{b}$ for the $\text{Add}$ gate type. Thus, a candidate program is $f: W[\tin{}] \to W[\tout{}]$.
+Arithmetization turns a program $f$ into an *abstract circuit* $\abst{f}$, which is a one-to-many-or-none relation between gates $g$ and output wire(s) $\abst{y}$ or $\bot$ for none, inducing an acyclic circuit. e.g. $(\text{Add}(\abst{a},\abst{b}), \abst{c}) \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$. *Wires* $\abst{x}=(i,t)$ where $i$ is a unique identifier and $t$ the *wire type tag*, are abstract representations of values $x$. $W$ maps the tag to the value's type e.g. $W(p) = \Fb_p$. *Gates* $g$ are primitive operations and its inputs. Depending on the *gate type*, they have $n_g \geq 0$[^short-hand-gate] fan-in wires typed $\tin{g}$ and $m_g \geq 0$ fan-out wires typed $\tout{g}$. Wires are type checked when constructing a gate e.g. $\text{Add}(\abst{a},\abst{b})$ type checks $\abst{a}, \abst{b}$ for the $\text{Add}$ gate type. Thus, a candidate program is $f: W[\tin{}] \to W[\tout{}]$.
 
-[^short-hand-gate]: As a notational shorthand, we may omit $\ty$ e.g. $n_g := n_{\ty(g)}$.
+[^short-hand-gate]: As a notational shorthand, we may omit $\ty$ e.g. $n_g := n_{\ty(g)}$. We notate $g$ as gate or gate type interchangably.
 
 $$
 \begin{array}{rl}
@@ -89,7 +89,7 @@ $\Longleftrightarrow$
 \begin{tikzpicture}[
   baseline={(current bounding box.center)}
 ]
-\gate{id}{(0,0)}{$\abst{x}_1$,$\cdots$,$\abst{x}_{n_g}$}{$\ty(g)$}{3}
+\gate{id}{(0,0)}{$\abst{x}_1$,$\cdots$,$\abst{x}_{n_g}$}{$g$}{3}
 \draw[-,thick] ($(id-in-1)+(0,0.25)$) -- (id-in-1);
 \draw[-,thick] ($(id-in-3)+(0,0.25)$) -- (id-in-3);
 \draw[->,thick] (id-out-1) -- ($(id-out-1)+(0,-0.4)$);
@@ -152,20 +152,18 @@ $$
 \end{array} &
 \begin{array}{rl}
 \entries  &: \Nb \to \Gate \to \AbsCirc \\
-\entries(u,g) &= \set{\begin{cases}
-  (g,\abst{y})
-  & \abst{y} \in \text{new}(u,g) \\
-  (g,\bot)
-  & \otherwise
-\end{cases}}
-\end{array} \\
+\entries(u,g) &= \set{
+  (g,\abst{y}) \middle \vert
+  \abst{y} \in \text{new}(u,g) \lor \abst{y} = \bot
+}
+\end{array} \\ \\
 \begin{array}{rl}
 \aput &: \Gate \to \AState \to \AState \\
-\aput(g, s) &= \maybe{s'}{\begin{array}{rl}
-  u_{s'} &= u_s + m_g \\
-  \abst{f}_{s'} &= \abst{f}_s \cup \entries(u_s, g) \\
-  \abst{\vec{Y}}_{s'} &= \abst{\vec{Y}}_s
-\end{array}}
+\aput(g, s) &= \left(\begin{array}{c}
+  u_s + m_g \\
+  \abst{f}_s \cup \entries(u_s, g) \\
+  \abst{\vec{Y}}_s
+\end{array}\right)
 \end{array} &
 \begin{array}{rl}
 \aget &: \AState \to (g: \Gate) \to \AState \times \Wire^{m_g} \\
@@ -181,7 +179,7 @@ $$
 \begin{array}{rl}
 \begin{array}{rl}
 \text{init} &: \WireType^k \to \AState \\
-\text{init}(\vec{t}) &= \opcirc\limits_{i \in [0..k]} \aput(\text{Input}^{t_{i+1}}_i) (0, \emptyset, ()) \\
+\text{init}(\vec{t}) &= \opcirc\limits_{i \in [k+1]} \aput(\text{Input}^{t_{i}}_{i-1}) (0, \emptyset, ()) \\
 \end{array} &
 \begin{array}{rl}
 \text{arithmetize} &: (W[\tin{}] \to W[\tout{}]) \to \AbsCirc \times \Wire^{m'} \\
@@ -239,9 +237,9 @@ $= \left(\abst{f} \cup \set{\begin{array}{rl}
 $ \\
 where $(u,\abst{f},()) = \text{init}(\tin{})$
 \\ 
-$= \opcirc\limits_{i \in [0..2]}\aput(\text{Input}^{t^{in}_{i+1}}_i)(0,\emptyset,())
-= \text{put}(\text{Input}^q_1) \circ \text{put}(\text{Input}^q_0, 0, \emptyset,())
-= \text{put}(\text{Input}^q_1, 1, \set{(\text{Input}^q_0, (0,q))}, ())$
+$= \opcirc\limits_{i \in [3]}\aput(\text{Input}^{t^{in}_{i}}_{i-1})(0,\emptyset,())
+= \text{put}(\text{Input}^q_1) \circ \text{put}(\text{Input}^q_0)(0, \emptyset,())
+= \text{put}(\text{Input}^q_1)(1, \set{(\text{Input}^q_0, (0,q))}, ())$
 \\
 $= \left(2, \set{\begin{array}{rl}
   \text{Input}^q_0 & (0,q) \\
