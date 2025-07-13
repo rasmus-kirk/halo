@@ -5,7 +5,7 @@ Before defining trace, we define the rest of $\GateType$; $\eval_g$ the canonica
 $$
 \begin{array}{c}
 \GateType
-= \cdots \times (\text{eval}: W[\tin{g}] \to W[\tout{g}]) \times (\ctrn: \text{Mapping}(g)) \\
+= \cdots \times (\text{eval}: W[\tin{g}] \to W[\tout{g}]) \times (\ctrn: \PreTable) \\
 \begin{array}{cc}
 \eval_g = (\lambda(\_,\eval,\_).\eval)(g) &
 \ctrn_g = (\lambda(\_,\ctrn).\ctrn)(g)
@@ -30,7 +30,7 @@ $$
 \end{array}
 $$
 
-The primtive terms in $F_{GC}$ are called slots and selectors. Slots; $A,B,C,\cdots$, hold concrete values of a circuit's wires privately, wheras selectors; $Q_l, Q_r, Q_o, \cdots$, are public values modelling the structure of the circuit. In $\ctrn_g$, slots can be used by all gates, however selectors are gate specific. Groups of gates that use the same selectors are called *gate groups* $G$ where $\vec{g}_G$ are the gate types, $\vec{s}_G$ are the selectors the gate types can use, $\text{term}_G$ is the $F_{GC}$ term the group contributes to, $\text{pre}_G$ and $\text{post}_G$ are used by trace.
+The primtive terms in $F_{GC}$ are called slots and selectors. Slots; $A,B,C,\cdots$, hold concrete values of a circuit's wires privately, wheras selectors; $Q_l, Q_r, Q_o, \cdots$, are public values modelling the structure of the circuit. In $\ctrn_g$, slots can be used by all gates, however selectors are gate specific. Groups of gates that use the same selectors are called *gate groups* $G$ where $\vec{g}_G$ are the gate types, $\vec{s}_G$ are the selectors the gate types can use, $\text{term}_G$ is the $F_{GC}$ term the group contributes to, $\text{pre}_G$ and $\text{post}_G$ are used by trace for $\plookup$ columns.
 
 $$
 \GateGroup_i = \mathcal{P}(\GateType) \times \Selector^j \times \text{Eqn}_{i+j} \times (\TraceTable \to \TraceTable)^2
@@ -59,7 +59,7 @@ $$
 \begin{array}{rl}
 \GateCollection &= (\vec{G}: \GateGroup_i^k) \times \Slot^i \\
 \vec{G}(GC) &= (\lambda (\vec{G}, \_). \vec{G})(GC) \\
-\vec{s}_{GC} &= (\lambda (\_, \vec{s}, \_). \vec{s})(GC)
+\vec{s}_{GC} &= (\lambda (\_, \vec{s}). \vec{s})(GC)
 \end{array} &
 \begin{array}{rl}
 F_{GC}(\vec{s}, \vec{S}) &= \sum\limits_{i \in |\vec{G}(GC)|} \text{term}_{{\vec{G}(GC)}_i}(\vec{s}, \vec{S}_i) \\
@@ -72,7 +72,7 @@ F_{GC}(\vec{s}, \vec{S}) &= \sum\limits_{i \in |\vec{G}(GC)|} \text{term}_{{\vec
 \end{array}
 $$
 
-A *specification* defines a $\GateCollection$ that the user can extend whilst building circuits and wire type information. In the previous section on arithmetizer, $\AState$ implicitly contains a $s:\Spec$ but it does not need to know $\text{term}_g, \text{pre}_g, \text{post}_g, \vec{s}_G, \vec{s}_{GC}$ as these are specific to trace. Moreover, types $W, \WireType, \GateType$ are implicit for $W_s, \WireType_s, \GateType_s$. Similarly in trace we will leave the spec instance $s$ implicit.
+A *specification* defines a $\GateCollection$ that the user can extend whilst building circuits and wire type information. In the previous section on arithmetize, we omitted $s:\Spec$ in $\AState$ leaving $W, \WireType, \GateType$ implicit for $W_s, \WireType_s, \GateType_s$. Moreover, it does not need to know $\text{term}_g, \text{pre}_g, \text{post}_g, \vec{s}_G, \vec{s}_{GC}$ as these are specific to trace.  Similarly in trace we will leave the spec instance $s$ implicit.
 
 
 $$
@@ -96,7 +96,7 @@ $$
 
 **Index Map**
 
-We define a data structure indexed on slots and selectors that yields optional values $Y$ or thunks of argument $X(s)$; the latter necessary for $\plookup$. An instantiation of this is called the *trace table*[^index-map-notation]; $C$, which is what $\ctrn_g$ assists in computing. We also define map $-[-]$ and join $\sqcup$ to compute on and combine index maps.
+We define a data structure indexed on slots and selectors that yields optional values $Y$ or thunks of argument $X(s)$; the latter necessary for $\plookup$. An instantiation of this is called the *trace table* $C$, which is what $\ctrn_g$ assists in computing. We also define map $-[-]$ and join $\sqcup$ to compute on and combine index maps.
 
 $$
 \begin{array}{rl}
@@ -108,8 +108,7 @@ X(s) \to Y & \otherwise
 \TypedIndexMap_s
 &= (X: \WireType_s \to \SlotNSelector \to \Uni)
 \to (Y: \WireType_s \to \Uni) 
-\to (t: \WireType_s) \to \IndexMap(X(t),Y(t)) \\
-\TraceTable &= (s: \Spec) \to \TypedIndexMap_s(X_s, \lambda t. W_s(t)^n)
+\to (t: \WireType_s) \to \IndexMap(X(t),Y(t))
 \end{array}
 $$
 $$
@@ -149,5 +148,3 @@ A \times B = A \sqcup_{\lambda a,b.(a,b)} B
 \end{array}
 \end{array}
 $$
-
-[^index-map-notation]: Let $C$ be a trace table, $C(q,A)$ is notated $C^q(A)$. If thunk $X(q,T) = \Fb_q$, then $C(q,T,\xi)$ is notated $C^q_\xi(T)$.
