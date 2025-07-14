@@ -73,11 +73,11 @@ $f[\vec{x} \mapsto \vec{y}]$ & $\begin{cases} & \vec{x} = x \cat \vec{x}' \\ f[x
 \hline
 $T \times U \times V = (T \times U) \times V = T \times (U \times V)$ & $(a, b, c) = ((a, b), c) = (a, (b, c))$ & Associative product types \\
 \hline
-$X \to Y \to Z = (X \to Y) \to Z = X \to (Y \to Z)$ & & Associative function type \\
-\hline
 $\Unit \times T = T \times \Unit = T$ & $((), t) = (t, ()) = (t)$ & Product is unital \\
 \hline
-$T \to U \to V = (T \times U) \to V$ & $f(x)(y) = f(x, y)$ & Currying \\
+$X \to Y \to Z = (X \to Y) \to Z = X \to (Y \to Z)$ & $f(x,y)=f(\lambda x.y)=f(x)(y)$ & Associative function type \\
+\hline
+$X \to Y \to Z = (X \times Y) \to Z$ & $f(x,y)=f(x)(y)=f((x, y))$ & Currying \\
 \hline
 \end{longtable*}
 

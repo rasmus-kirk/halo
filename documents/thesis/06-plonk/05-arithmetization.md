@@ -154,7 +154,7 @@ $$
 \entries  &: \Nb \to \Gate \to \AbsCirc \\
 \entries(u,g) &= \set{
   (g,\abst{y}) \middle \vert
-  \abst{y} \in \text{new}(u,g) \lor \abst{y} = \bot
+  \abst{y} \in \text{new}(u,g) \oplus \abst{y} = \bot
 }
 \end{array} \\ \\
 \begin{array}{rl}
