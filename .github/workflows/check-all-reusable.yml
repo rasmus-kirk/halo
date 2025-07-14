@@ -19,7 +19,6 @@ jobs:
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
-        uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Run format
         run: nix develop -c check-fmt
@@ -36,7 +35,6 @@ jobs:
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
-        uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Run lint check
         run: nix develop -c check-lint
@@ -53,7 +51,6 @@ jobs:
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
-        uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Run tests
         run: nix develop -c check-test
@@ -70,7 +67,6 @@ jobs:
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
-        uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Build
         run: nix build .#crates.${{ inputs.crate }}
