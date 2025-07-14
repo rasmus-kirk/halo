@@ -11,6 +11,7 @@
     runtimeInputs = latexPkgs;
     text = ''
       shopt -s globstar nullglob
+      INPUT="$1"
 
       # Determine the correct date command
       if command -v gdate > /dev/null; then
@@ -19,21 +20,27 @@
         DATE_CMD="date"
       fi
 
-      echo "$1"/**/*.md
+      if [ -f "$INPUT" ]; then
+        IN="$INPUT"
+        OUT="."
+      elif [ -d "$INPUT" ]; then
+        IN=("$INPUT"/**/*.md)
+        OUT="$INPUT"
+      else
+        echo "Error: '$INPUT' is neither a file nor a directory." >&2
+        exit 1
+      fi
 
       pandoc \
-        "$1"/**/*.md \
+        "''${IN[@]}" \
         -H ${self}/documents/thesis/header.tex \
+        --metadata-file ${self}/documents/thesis/metadata.yaml \
+        --resource-path ${self}/documents/thesis \
         --citeproc \
         --metadata date="$($DATE_CMD -d "@${toString self.lastModified}" -u "+%Y-%m-%d - %H:%M:%S %Z")" \
         --highlight-style ${self}/documents/thesis/gruvbox.theme \
-        -o "$1/out.pdf"
+        -o "$OUT/out.pdf"
     '';
-  };
-  mk-pandoc = pkgs.writeShellApplication {
-    name = "mk-pandoc";
-    runtimeInputs = latexPkgs;
-    text = ''${pkgs.lib.getExe mk-pandoc-script} "."'';
   };
   mk-pandoc-loop = pkgs.writeShellApplication {
     name = "pandoc-compile-continuous";
@@ -41,11 +48,10 @@
     text = ''
       set +e
       if [ -z "''${1:-}" ]; then
-        echo "Error: Missing first argument representing the dir (call with \".\")" >&2
-        exit 1
+        DIR="."
+      else
+        DIR="$1"
       fi
-      DIR="$1"
-      
 
       SPINNER_PID=""
 
@@ -175,7 +181,6 @@ in {
   thesis = thesis;
   default = thesis;
   loop = mk-pandoc-loop;
-  pandoc = mk-pandoc;
   spellcheck = spellcheck;
   spellcheck-watch = spellcheck-watch;
 }

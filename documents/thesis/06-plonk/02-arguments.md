@@ -9,6 +9,7 @@ of the following form:
 
 $$\forall a \in S : f(a) \meq 0$$
 
+
 For some polynomial $f(X) \in \Fb_{\leq d}$ and some set $S \subset \Fb$. The
 subset, $S$, may be much smaller than $\Fb$ as is the case for Plonk where
 $S = H$. Since we ultimately model the above check with challenge scalars,
