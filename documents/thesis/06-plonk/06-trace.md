@@ -128,38 +128,30 @@ $$
 
 **Gate Constraints**
 
-Each gate corresponds to some rows in the trace table[^index-map-notation] $C$ via $\ctrn_g$.
+Each gate corresponds to some rows in the trace table[^index-map-notation] $C$ via $\ctrn_g$ which computes a pair of vector of slots and selectors and a function that computes a scalar or thunk of a scalar
 
 [^index-map-notation]: Let $C$ be a trace table, $C(q,A)$ is notated $C^q(A)$. If thunk $X(q,T) = \Fb_q$, then $C(q,T,\xi)$ is notated $C^q_\xi(T)$.
 
-TODO construct function from $v$, its not just apply vmap, it also computes A,B,C and provide as arg to thunk plookup columns; thunk body is pair, first is vec of index (A,B,C) and second is function from W(t) vec to W(t), thus the compute of this pair is hardcoded in this function rather than higher order in the thunk.
+$$
+\begin{array}{rl}
+\begin{array}{rl}
+\text{Pre}^t_s &= (\abst{\vec{w}}: \Wire^k) \\
+&\times (W_s \circ \ty[\abst{\vec{w}}] \to X_s(t) \to W_s(t)) \\
+\PreTable_s &= \TypedIndexMap(\lambda t. (), \lambda t. (\text{Pre}^t_s)^n)\\
+\TraceTable_s &= \TypedIndexMap(X_s, \lambda t. W_s(t)^n)
+\end{array} &
+\begin{array}{rl}
+\mu &: \VMap \to (t: \WireType) \to (\text{Pre}^t_s)^n \to W_s(t)^n \\
+\mu_v(t, \vec{r}) &= \lambda (\abst{\vec{w}},f).\begin{cases}
+f(v[\abst{\vec{w}}]) & X_s(t) = () \\
+\lambda x. f(v[\abst{\vec{w}}],x) & \otherwise
+\end{cases} [\vec{r}]
+\end{array}
+\end{array}
+$$
 
 \begin{center}
 \begin{tabular}{ c c c c }
-\begin{math}
-\begin{array}{c}
-\begin{array}{rl}
-\PreTable_s &= (X: \WireType_s \to \SlotNSelector \to \Uni)\\
-&\to \TypedIndexMap(X, \lambda t. (W(t) + \Nb)^n)\\
-\TraceTable_s &= \TypedIndexMap(X_s, \lambda t. W(t)^n)\\
-C_{idx}(g,t') &= \set{i | i \in \Nb \land (\tin{g} \cat \tout{g})_i = t'}\\
-C_{val}(g,t') &= C_{idx}(g, t') + W(t') \\
-C_{row}(g,t') &= C_{val}(\ty(g), t')^{|\Slot| + |\Selector|} \\
-\text{Mapping}(g) &= (t': \WireType) \to C_{row}(g, t')^{k_{t'}}\\
-\end{array} \\
-\begin{array}{rl}
--[-]^{-}_{-} &: \VMap \to C_{row}(g,t)^k \to \AbsCirc \to (g: \Gate) \\
-&\to W(t)^k \\
-v[\vec{m}]^{\abst{f}}_g &= \left(\lambda m. \begin{cases}
-x & m = \text{inr}(x) \\
-& m = \text{inl}(x) \\
-v(\gin(g)_x) & x < n_g \\
-v(\out^{\abst{f}}(g)_{x-n_g}) & \otherwise
-\end{cases} \right) [\vec{m}]
-\end{array}
-\end{array}
-\end{math}
-&
 \begin{tikzpicture}[
   baseline={(current bounding box.center)}
 ]
@@ -174,7 +166,7 @@ $C^p(A)$ & $\cdots$ & $C^p(Q_l)$ & $\cdots$ & $C^q(A)$ & $\cdots$ & $C^q(Q_l)$ &
 \hline\hline
 \multicolumn{4}{|c|}{$\vdots$} & \multicolumn{4}{|c|}{$\vdots$} \\
 \hline
-\multicolumn{4}{|c|}{$v [\ctrn_g(p)]^{\abst{f}}_g$} & \multicolumn{4}{|c|}{$v [\ctrn_g(q)]^{\abst{f}}_g$} \\
+\multicolumn{4}{|c|}{$\mu [\ctrn_g(p)]$} & \multicolumn{4}{|c|}{$\mu [\ctrn_g(q)]$} \\
 \hline
 \multicolumn{4}{|c|}{$\vdots$} & \multicolumn{4}{|c|}{$\vdots$} \\
 \hline
@@ -209,7 +201,7 @@ f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \underset{G}{\curvearrowleft}
 &\begin{cases}
 & \vec{g} = g \cat \_ \\
 (C',\vec{g},b,v)
-& C' = \lambda t. C(t) \cat v[\ctrn_g(t)]^{\abst{f}}_g \\
+& C' = C \sqcup_{\cat} \mu[\ctrn_g(t)] \\
 (C, (), b, v)
 & \otherwise
 \end{cases} \\
