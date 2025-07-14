@@ -10,6 +10,8 @@
     name = "mk-pandoc-script";
     runtimeInputs = latexPkgs;
     text = ''
+      shopt -s globstar nullglob
+
       # Determine the correct date command
       if command -v gdate > /dev/null; then
         DATE_CMD="gdate"
@@ -17,20 +19,15 @@
         DATE_CMD="date"
       fi
 
+      echo "$1"/**/*.md
+
       pandoc \
-        ./01-introduction/*.md \
-        ./02-prerequisites/*.md \
-        ./03-chain-of-signatures/*.md \
-        ./04-pcdl/*.md \
-        ./05-asdl/*.md \
-        ./06-plonk/*.md \
-        ./07-appendix/*.md \
-        ./thesis.md \
-        -H header.tex \
+        "$1"/**/*.md \
+        -H ${self}/documents/thesis/header.tex \
         --citeproc \
         --metadata date="$($DATE_CMD -d "@${toString self.lastModified}" -u "+%Y-%m-%d - %H:%M:%S %Z")" \
-        --highlight-style gruvbox.theme \
-        -o "$1/thesis.pdf"
+        --highlight-style ${self}/documents/thesis/gruvbox.theme \
+        -o "$1/out.pdf"
     '';
   };
   mk-pandoc = pkgs.writeShellApplication {
@@ -40,9 +37,15 @@
   };
   mk-pandoc-loop = pkgs.writeShellApplication {
     name = "pandoc-compile-continuous";
-    runtimeInputs = [mk-pandoc pkgs.fswatch];
+    runtimeInputs = [mk-pandoc-script pkgs.fswatch];
     text = ''
       set +e
+      if [ -z "''${1:-}" ]; then
+        echo "Error: Missing first argument representing the dir (call with \".\")" >&2
+        exit 1
+      fi
+      DIR="$1"
+      
 
       SPINNER_PID=""
 
@@ -96,7 +99,7 @@
         SPINNER_PID=$!
 
         # Run pandoc and capture its output
-        output=$(mk-pandoc 2>&1)
+        output=$(mk-pandoc-script "$DIR" 2>&1)
         exit_code=$?
         end_ns=$(date +%s%N)
 
