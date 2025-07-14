@@ -72,7 +72,7 @@ F_{GC}(\vec{s}, \vec{S}) &= \sum\limits_{i \in |\vec{G}(GC)|} \text{term}_{{\vec
 \end{array}
 $$
 
-A *specification* defines a $\GateCollection$ that the user can extend whilst building circuits and wire type information. In the previous section on arithmetize, we omitted $s:\Spec$ in $\AState$ leaving $W, \WireType, \GateType$ implicit for $W_s, \WireType_s, \GateType_s$. Moreover, it does not need to know $\text{term}_g, \text{pre}_g, \text{post}_g, \vec{s}_G, \vec{s}_{GC}$ as these are specific to trace.  Similarly in trace we will leave the spec instance $s$ implicit.
+A *specification* defines a $\GateCollection$ that the user can extend whilst building circuits and wire type information. In the previous section on arithmetize, we omitted $s:\Spec$ in $\AState$ leaving $W, \WireType, \GateType$ implicit for $W_s, \WireType_s, \GateType_s$. Moreover, it does not need to know $\text{term}_g, \text{pre}_g, \text{post}_g, \vec{s}_G, \vec{s}_{GC}$ as these are specific to trace.  Beyond this section, we will leave the spec instance $s$ implicit as well.
 
 
 $$
@@ -100,35 +100,28 @@ We define a data structure indexed on slots and selectors that yields optional v
 
 $$
 \begin{array}{rl}
-\IndexMap &= (X: \SlotNSelector \to \Uni) \to (Y: \Uni) \to (s: \SlotNSelector) 
-\pto \begin{cases}
-Y & X(s) = () \\
-X(s) \to Y & \otherwise
-\end{cases} \\
-\TypedIndexMap_s
-&= (X: \WireType_s \to \SlotNSelector \to \Uni)
-\to (Y: \WireType_s \to \Uni) 
-\to (t: \WireType_s) \to \IndexMap(X(t),Y(t))
+\IndexMap &= (X,Y: \SlotNSelector \to \Uni) \to (s: \SlotNSelector) 
+\pto (X(s) \to Y(s)) \\
+\TypedIndexMap
+&= (X,Y: \WireType \to \SlotNSelector \to \Uni)
+\to (t: \WireType) \to \IndexMap(X(t),Y(t))
 \end{array}
 $$
 $$
 \begin{array}{cc}
 \begin{array}{rl}
--[-] &: (t: \WireType_s \to Y \to Z) \\
+-[-] &: (t: \WireType \to s: \SlotNSelector \\
+&\to Y(t,s) \to Z(t,s)) \\
 &\to \TypedIndexMap_s(X,Y) \to \TypedIndexMap_s(X,Z) \\
-f[A] &= \lambda t. f(t)[A^t] \\
-f[A] &= \begin{cases}
-A^s_f[s \mapsto f(A(s))]
-& X(s) = () \\
-A^s_f[s \mapsto \lambda x. f(A(s,x))]
-& \otherwise
-\end{cases} \\
+f[A] &= \lambda t. f(t)[A(t)] \\
+f[A] &= A^s_f[s \mapsto \lambda x. f(s,A(s,x))] \\
 A^s_f &= \maybe{f[A[s \mapsto \bot]]}{\exists s. A(s) \neq \bot} 
 \end{array} &
 \begin{array}{c}
 \begin{array}{rl}
-\sqcup &: \TypedIndexMap_s(Y_1) \to (t: \WireType_s \to Y_1(t) \to Y_2(t) \to Y_3(t)) \\
-&\to \TypedIndexMap_s(Y_2) \to \TypedIndexMap_s(Y_3) \\
+\sqcup &: \TypedIndexMap_s(X,Y_1) \to (t: \WireType \to s: \SlotNSelector \\
+&\to Y_1(t,s) \to Y_2(t,s) \to Y_3(t,s)) \\
+&\to \TypedIndexMap_s(X,Y_2) \to \TypedIndexMap_s(X,Y_3) \\
 A \sqcup_f B &= \lambda t. A(t) \sqcup_{f(t)} B(t) \\
 A \sqcup_f B &= \maybe{
 C[s \mapsto A \sqcup^s_f B]
@@ -136,14 +129,11 @@ C[s \mapsto A \sqcup^s_f B]
 \exists s. A(s) \neq \bot \land B(s) \neq \bot \\
 C = A[s \mapsto \bot] \sqcup_f B[s \mapsto \bot]
 \end{array}}\\
-A \sqcup^s_f B &= \begin{cases}
-f(A(s), B(s)) & X(s) = () \\
-\lambda x. f(A(s,x), B(s,x)) & \otherwise
-\end{cases}
+A \sqcup^s_f B &= \lambda x. f(s,A(s,x), B(s,x))
 \end{array} \\
 \begin{array}{cc}
 A \times B = \lambda t. A(t) \times B(t) &
-A \times B = A \sqcup_{\lambda a,b.(a,b)} B
+A \times B = A \sqcup_{\lambda \_,a,b.(a,b)} B
 \end{array}
 \end{array}
 \end{array}
