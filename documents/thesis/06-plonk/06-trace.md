@@ -45,7 +45,10 @@ The monotonic functions defined here are specific to the $\Surkal$ protocol, i.e
 
 **Resolve**
 
-$\Downarrow_R$ computes the values of wires $\abst{\vec{Y}}$ and inputs to assert gates given the input wire values $\vec{x}$.
+$\Downarrow_R$ computes the values of wires $\abst{\vec{Y}}$ and inputs to assert gates given the input wire values $\vec{x}$.[^respect]
+
+[^respect]: all assert gates (gates with no output wires) declared in $\abst{f}$ are respected.
+
  
 It does this by peeking from the stack $\abst{\vec{y}}$, querying $\text{?}$ for unresolved input wires, otherwise it will evaluate the output wire values and cache it in the value map $v$ with $[\cdot]$. The continuation $f$ and stack pop $\curvearrowleft$ are called after.
 
@@ -128,27 +131,33 @@ $$
 
 **Gate Constraints**
 
-Each gate corresponds to some rows in the trace table[^index-map-notation] $C$ via $\ctrn_g$ which computes a pair of vector of slots and selectors and a function that computes a scalar or thunk of a scalar
-
-[^index-map-notation]: Let $C$ be a trace table, $C(q,A)$ is notated $C^q(A)$. If thunk $X(q,T) = \Fb_q$, then $C(q,T,\xi)$ is notated $C^q_\xi(T)$.
+$\ctrn_g$ which declares for each wire type tag a pair of vector of input/output wires of the gate and a function that computes a scalar. $\Downarrow_v$ gets the value of the wire from the vmap $v$ and applies it to the function.
 
 $$
 \begin{array}{rl}
 \begin{array}{rl}
-\text{Pre}^t_s &= (\abst{\vec{w}}: \Wire^k) \\
-&\times (W_s \circ \ty[\abst{\vec{w}}] \to X_s(t) \to W_s(t)) \\
-\PreTable_s &= \TypedIndexMap(\lambda t. (), \lambda t. (\text{Pre}^t_s)^n)\\
-\TraceTable_s &= \TypedIndexMap(X_s, \lambda t. W_s(t)^n)
+\text{Pre} &= (t: \WireType) \to (s: \SlotNSelector) \\
+&\to X(s) \times (\abst{\vec{w}}: \Wire^k) \\
+&\times (W \circ \ty[\abst{\vec{w}}] \to X(s) \to W(t)) \\
+\PreTable &= \TypedIndexMap(X, \lambda t,s. \text{Pre}(t,s)^n)\\
+\TraceTable &= \TypedIndexMap(X, \lambda t,\_. W(t)^n) \\
+\ctrn_g &: \PreTable 
 \end{array} &
 \begin{array}{rl}
-\mu &: \VMap \to (t: \WireType) \to (\text{Pre}^t_s)^n \to W_s(t)^n \\
-\mu_v(t, \vec{r}) &= \lambda (\abst{\vec{w}},f).\begin{cases}
-f(v[\abst{\vec{w}}]) & X_s(t) = () \\
-\lambda x. f(v[\abst{\vec{w}}],x) & \otherwise
-\end{cases} [\vec{r}]
+\cat &: \TraceTable \to \TraceTable \to \TraceTable \\
+A \cat B &= A \sqcup_{\lambda \_,\vec{a}, \vec{b}. \vec{a} \cat \vec{b}} B \\
+\\
+\Downarrow &: \VMap \to (t: \WireType) \to (s: \SlotNSelector) \\
+&\to \text{Pre}(t,s)^n \to W(t)^n \\
+\Downarrow_v(\_,\vec{r}) &= \left(\lambda (x,\abst{\vec{w}},f). f(v[\abst{\vec{w}}],x)\right) [\vec{r}]
 \end{array}
 \end{array}
 $$
+
+Each gate corresponds to some number of rows for each wire type in the trace table[^index-map-notation] $C$
+
+[^index-map-notation]: Let $C$ be a trace table, $C(q,A,())$ is notated $C^q(A)$. If thunk $X(q,T) = \Fb_q$, then $C(q,T,\xi)$ is notated $C^q_\xi(T)$.
+
 
 \begin{center}
 \begin{tabular}{ c c c c }
@@ -166,7 +175,7 @@ $C^p(A)$ & $\cdots$ & $C^p(Q_l)$ & $\cdots$ & $C^q(A)$ & $\cdots$ & $C^q(Q_l)$ &
 \hline\hline
 \multicolumn{4}{|c|}{$\vdots$} & \multicolumn{4}{|c|}{$\vdots$} \\
 \hline
-\multicolumn{4}{|c|}{$\mu [\ctrn_g(p)]$} & \multicolumn{4}{|c|}{$\mu [\ctrn_g(q)]$} \\
+\multicolumn{4}{|c|}{$\Downarrow_v(p) [\ctrn_g(p)]$} & \multicolumn{4}{|c|}{$\Downarrow_v(q) [\ctrn_g(q)]$} \\
 \hline
 \multicolumn{4}{|c|}{$\vdots$} & \multicolumn{4}{|c|}{$\vdots$} \\
 \hline
@@ -174,25 +183,22 @@ $C^p(A)$ & $\cdots$ & $C^p(Q_l)$ & $\cdots$ & $C^q(A)$ & $\cdots$ & $C^q(Q_l)$ &
 \end{tabular}
 \end{center}
 
+$\Downarrow_G$ computes the trace table $C$ by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation (including $\Downarrow_G$), on resolved wires in $\Downarrow_R$. When the wire id stack $\abst{\vec{y}}$ is empty, $\underset{G}{\curvearrowright}$ will push assert gates and input gates $X^{\abst{f}}$ to the stack.
 
-$\Downarrow_G$ computes the trace table $C$ by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation (including $\Downarrow_G$), on resolved wires in $\Downarrow_R$.
-
-When the wire id stack $\abst{\vec{y}}$ is empty, $\underset{G}{\curvearrowright}$ will push assert gates and input gates $X^{\abst{f}}$ to the stack.
 $$
 \begin{array}{rl}
 \begin{array}{rl}
-\TraceTable &= (t: \WireType) \pto W(t)^{(|\Slot| + |\Selector|) \times k_t} \\
 \text{GState}^{k,k'} &= \TraceTable \times \Gate^{k'} \times \Bb \times \RState^k \\
 \abst{X}^{\abst{f}} &= \set{g \middle\vert (g, \abst{y}) \in \abst{f} \land (\abst{y} = \bot \lor \exists i,t. \abst{y} = \text{Input}^t_i) } \\
 \\
-\underset{G}{\curvearrowleft} &: T \times \text{GState}^{k,k''} \to T \times \text{GState}^{k',k''} \\
+\underset{G}{\curvearrowleft} &: T \times \text{GState}^{k'',k} \to T \times \text{GState}^{k'',k'} \\
 \underset{G}{\curvearrowleft} &= \lift(\curvearrowleft : \Gate^k \to \Gate^{k'}) \\
 \\
 \dagger_G &: \text{GState} \to \Bb \\
 \dagger_G &= \lambda(\_, \vec{g}, b, \_). |\vec{g}| = 0 \land b = \top \\
 \\
 \iota_G &: \text{RState} \to \text{GState} \\
-\iota_G(s) &= (\bot, (), \bot, s)
+\iota_G(s) &= (\lambda \_.\bot[s \mapsto ()], (), \bot, s)
 \end{array} &
 \begin{array}{rl}
 - \stackrel{\to}{\circ} \Downarrow^{-}_G &: (T \times \text{GState} \to T \times \text{GState}) \to \AbsCirc \\
@@ -201,7 +207,7 @@ f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \underset{G}{\curvearrowleft}
 &\begin{cases}
 & \vec{g} = g \cat \_ \\
 (C',\vec{g},b,v)
-& C' = C \sqcup_{\cat} \mu[\ctrn_g(t)] \\
+& C' = C \cat \Downarrow_v[\ctrn_g] \\
 (C, (), b, v)
 & \otherwise
 \end{cases} \\
