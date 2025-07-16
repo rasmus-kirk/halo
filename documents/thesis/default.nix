@@ -5,6 +5,7 @@
     haskellPackages.pandoc-crossref
     texlive.combined.scheme-full
     librsvg
+    uutils-coreutils-noprefix
   ];
   mk-pandoc-script = pkgs.writeShellApplication {
     name = "mk-pandoc-script";
@@ -12,38 +13,24 @@
     text = ''
       shopt -s globstar nullglob
 
-      # Determine the correct date command
-      if command -v gdate > /dev/null; then
-        DATE_CMD="gdate"
-      else
-        DATE_CMD="date"
-      fi
-
-      if [ $# -eq 0 ]; then
-        echo "Error: No arguments provided. Please provide at least one file or directory." >&2
+      if [ ! -d "$2" ]; then
+        echo "Error: Out dir ($2) is not a directory" >&2
         exit 1
       fi
 
-      if [ -z "''${1:-}" ]; then
-        echo "Error: Missing first argument, the output directory." >&2
-        exit 1
-      elif [ -d "$1" ]; then
-        OUT="$1"
-      else
-        echo "Error: '$1' is not a directory." >&2
-        exit 1
-      fi
+      name="$1"
+      out="$2"
+      in=()
+      shift 2
 
-      shift
-      IN=()
       for arg in "$@"; do
         # If argument is a file, add it to the array
         if [ -f "$arg" ]; then
-          IN+=("$arg")
+          in+=("$arg")
         # If argument is a directory, find all .md files recursively and add to array
         elif [ -d "$arg" ]; then
           while IFS= read -r file; do
-            IN+=("$file")
+            in+=("$file")
           done < <(find "$arg" -type f -name "*.md")
         else
           echo "Error: '$arg' is neither a file nor a directory." >&2
@@ -51,23 +38,27 @@
         fi
       done
 
-
       pandoc \
-        "''${IN[@]}" \
+        "''${in[@]}" \
         -H ${self}/documents/thesis/header.tex \
         --metadata-file ${self}/documents/thesis/metadata.yaml \
         --resource-path ${self}/documents/thesis \
         --citeproc \
-        --metadata date="$($DATE_CMD -d "@${toString self.lastModified}" -u "+%Y-%m-%d - %H:%M:%S %Z")" \
+        --metadata date="$(date -d "@${toString self.lastModified}" -u "+%Y-%m-%d - %H:%M:%S %Z")" \
         --highlight-style ${self}/documents/thesis/gruvbox.theme \
-        -o "$OUT/out.pdf"
+        -o "$out/$name"
     '';
   };
   mk-pandoc = pkgs.writeShellApplication {
     name = "mk-pandoc";
     runtimeInputs = [ mk-pandoc-script ];
     text = ''
-      mk-pandoc-script "." "$@"
+      if [ $# -eq 0 ]; then
+        echo "Error: No arguments provided. Please provide at least one file or directory." >&2
+        exit 1
+      fi
+
+      mk-pandoc-script "out.pdf" "." "$@"
     '';
   };
   mk-pandoc-loop = pkgs.writeShellApplication {
@@ -111,7 +102,7 @@
     buildPhase = ''
       export FONTCONFIG_FILE=${fonts}
       mkdir -p $out
-      ${pkgs.lib.getExe mk-pandoc-script} "${self}/documents/thesis" "$out"
+      ${pkgs.lib.getExe mk-pandoc-script} "thesis.pdf" "$out" "${self}/documents/thesis"
     '';
   };
 in {
