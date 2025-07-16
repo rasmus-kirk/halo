@@ -162,6 +162,8 @@ is $\frac{n}{|\Fb|}$.
 
 TODO
 
+<!--
+
 ## Outline
 
 We now define the $\Surkal$ protocol using the above arguments.
@@ -181,3 +183,5 @@ We now define the $\Surkal$ protocol using the above arguments.
   \State \textbf{return} $\SurkalVerifier(R,x,\pi)$
   \end{algorithmic}
 \end{algorithm}
+
+-->

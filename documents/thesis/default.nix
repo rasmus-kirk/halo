@@ -19,27 +19,38 @@
         DATE_CMD="date"
       fi
 
-      if [ -z "''${1:-}" ]; then
-        echo "Error: Missing first argument, the input directory or file." >&2
-        exit 1
-      elif [ -f "$1" ]; then
-        IN="$1"
-      elif [ -d "$1" ]; then
-        IN=("$1"/**/*.md)
-      else
-        echo "Error: '$1' is neither a file nor a directory." >&2
+      if [ $# -eq 0 ]; then
+        echo "Error: No arguments provided. Please provide at least one file or directory." >&2
         exit 1
       fi
 
-      if [ -z "''${2:-}" ]; then
-        echo "Error: Missing second argument, the output directory." >&2
+      if [ -z "''${1:-}" ]; then
+        echo "Error: Missing first argument, the output directory." >&2
         exit 1
-      elif [ -d "$2" ]; then
-        OUT="$2"
+      elif [ -d "$1" ]; then
+        OUT="$1"
       else
-        echo "Error: '$2' is not a directory." >&2
+        echo "Error: '$1' is not a directory." >&2
         exit 1
       fi
+
+      shift
+      IN=()
+      for arg in "$@"; do
+        # If argument is a file, add it to the array
+        if [ -f "$arg" ]; then
+          IN+=("$arg")
+        # If argument is a directory, find all .md files recursively and add to array
+        elif [ -d "$arg" ]; then
+          while IFS= read -r file; do
+            IN+=("$file")
+          done < <(find "$arg" -type f -name "*.md")
+        else
+          echo "Error: '$arg' is neither a file nor a directory." >&2
+          exit 1
+        fi
+      done
+
 
       pandoc \
         "''${IN[@]}" \
@@ -52,28 +63,34 @@
         -o "$OUT/out.pdf"
     '';
   };
+  mk-pandoc = pkgs.writeShellApplication {
+    name = "mk-pandoc";
+    runtimeInputs = [ mk-pandoc-script ];
+    text = ''
+      mk-pandoc-script "." "$@"
+    '';
+  };
   mk-pandoc-loop = pkgs.writeShellApplication {
     name = "pandoc-compile-continuous";
-    runtimeInputs = [mk-pandoc-script pkgs.entr];
+    runtimeInputs = [mk-pandoc pkgs.entr];
     text = ''
       set +e
       if [ -z "''${1:-}" ]; then
-        IN="."
-      else
-        IN="$1"
+        set -- "."
       fi
 
       # shellcheck disable=SC2016
       find . -type f -name "*.md" | entr -r sh -c '
         start=$(date +%s.%N)
-        mk-pandoc-script "$0" .
+        mk-pandoc "$@"
         end=$(date +%s.%N)
 
-        delta=$(echo "$end - $start" | bc)
+        rel_path=$(realpath --relative-to="." "$0")
         date=$(date "+%H:%M:%S")
+        delta=$(echo "$end - $start" | bc)
 
-        echo "$1: $date ($delta s)"
-      ' "$IN" "$1"
+        echo "./$rel_path: $date ($delta s)"
+      ' /_ "$@"
     '';
   };
   spellcheck = pkgs.writeShellApplication {
@@ -101,6 +118,7 @@ in {
   thesis = thesis;
   default = thesis;
   loop = mk-pandoc-loop;
+  pandoc = mk-pandoc-script;
   spellcheck = spellcheck;
   spellcheck-watch = spellcheck-watch;
 }
