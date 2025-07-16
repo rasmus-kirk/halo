@@ -12,22 +12,14 @@ $$\forall a \in S : f(a) \meq 0$$
 For some polynomial $f(X) \in \Fb_{\leq d}$ and some set $S \subset \Fb$. The
 subset, $S$, may be much smaller than $\Fb$ as is the case for Plonk where
 $S = H$. Since we ultimately model the above check with challenge scalars,
-using the entirety of $\Fb$ should lead to much better security. We therefore
-end up with the following checks of the following form instead:
-
-$$\forall \xi \in \Fb : F'(\xi) \meq 0$$
-
-Where $S \subset \Fb$ and $F'$ is defined by combining $F$ with a challenge
-scalar $\a$. Below we present the protocol that lets the verifier query
-polynomial identities of the form $\forall a \in S : F(s) \meq 0$ using a
-PCS. For a series of polynomials, $\{ F_1, F_2, \dots, F_k \} \in \Fb_{\leq
-d}$, we have the following protocol:
+using just $S$, might not be sound. For this purpose construct the **Single
+Polynomial Vanishing Argument Protocol**:
 
 \begin{algorithm}[H]
 \caption*{
-  \textbf{Single Polynomial Vanishing Argument Protocol:} Converts queries for polynomial
-  identities ranging over all values $a \in H \subset S$ to a secure
-  non-interactive protocol using polynomial commitments.
+  \textbf{Single Polynomial Vanishing Argument Protocol:} Checks queries
+  of the form $\forall a \in S : f(a) \meq 0$, but with scalars from $\Fb
+  \supseteq S$.
 }
 \textbf{Inputs} \\
   \Desc{$f: \Fb_{\leq d}[X]$}{The polynomial to check identity for.} \\
@@ -79,14 +71,14 @@ this, we conclude that the above vanishing argument is sound.
 
 **Extending to multiple $f$'s**
 
-We can use a linear combination of $\a$ to generalize the Single Polynomial
-Vanishing Argument:
+We can use a linear combination of $\a$ to generalize the **Single Polynomial
+Vanishing Argument**:
 
 \begin{algorithm}[H]
 \caption*{
-  \textbf{Vanishing Argument Protocol:} Converts queries for polynomial
-  identities ranging over all values $a \in H \subset S$ to a secure
-  non-interactive protocol using polynomial commitments.
+  \textbf{Vanishing Argument Protocol:} Checks queries of the form $\forall
+  a \in S : f(a) \meq 0$, with scalars from $\Fb \supseteq S$, for a list
+  of $\vec{f} \in \Fb^k_{\leq d}[X]$.
 }
 \textbf{Inputs} \\
   \Desc{$\vec{f}: \Fb^k_{\leq d}[X]$}{The polynomial to check identity for.} \\
@@ -115,32 +107,56 @@ need a linearly independent combination of $f$.
 
 ### Batched Evaluation Proofs
 
-<!-- TODO: Soundness -->
-
 If we have $m$ polynomials, $\vec{f}$, that all need to evaluate to
 zero at the same challenge $\xi$, normally, we could construct $m$ opening
-proofs, and verify these. We can, however, use the following technique to
-only create a single opening proofs.
+proofs, and verify these. We can, however, use the following protocol to
+only create a single opening proofs:
 
-- The prover starts by sending commitments for each $f_i(X)$: $C_{f_i} = \PCCommit(f_i(X), d)$.
-- The verifier sends the challenge $\xi$.
-- The prover sends the evaluations of all $f_i$ ($v_{f_i} = f_i(\xi)$) as well as the single opening proof $\pi_w$ for the batched polynomial $w(X) = \sum_{i = 0}^k \a^i f_i(X)$.
-
-Now, the verifier can construct the commitment ($C_w$) and evaluation ($v_w$)
-to $w$ themselves:
-
-$$
-\begin{aligned}
-  C_w &= \sum_{i = 0}^k \a^i C_{f_i} \\
-  v_w &= \sum_{i = 0}^k \a^i v_{f_i}
-\end{aligned}
-$$
-
-Finally, the verifier finally checks that $\PCCheck(C_w, d, \xi, v_w, \pi_w) \meq \top$
+\begin{algorithm}[H]
+\caption*{
+  \textbf{Batched Evaluations Proofs Protocol:}
+}
+\textbf{Inputs} \\
+  \Desc{$\vec{f}: \Fb^k_{\leq d}[X]$}{The polynomials to check identity for.} \\
+\textbf{Output} \\
+  \Desc{$\Result(\top, \bot)$}{
+    Either the verifier accepts with $\top$ or rejects with $\bot$.
+  }
+\begin{algorithmic}[1]
+  \State $P \to V:$ The prover commits to each polynomial $C_{f_i}(X)$ and sends these to the verifier.
+  \State $V \to P:$ The verifier sends challenge $\xi$ to the prover.
+  \State $P \to V:$ The prover sends the evaluations of all $f_i$ ($v_{f_i} = f_i(\xi)$.
+  \State $P \to V:$ The prover also sends a single opening proof $\pi_w$ for the batched polynomial $w(X) = \sum_{i = 0}^k \a^i f_i(X)$
+  \State $V:$ The verifier then constructs:
+    \Statex \algind $C_w = \sum_{i = 0}^k \a^i C_{f_i}$
+    \Statex \algind $v_w = \sum_{i = 0}^k \a^i v_{f_i}$
+  \State $V:$ The verifier checks:
+    \Statex \algind $\PCCheck(C_w, d, \xi, v_w, \pi_w) \meq \top$
+  \end{algorithmic}
+\end{algorithm}
 
 **Correctness:**
 
-The correctness of the protocol is trivial
+Since:
+
+- $C_w = \sum_{i = 0}^k \a^i C_{f_i} = \PCCommit(f, d, \bot)$ (Assuming a homomorphic commitment scheme)
+- $v_w = \sum_{i = 0}^k \a^i v_{f_i} = w(\xi)$ (By definition of $w$)
+
+The correctness of the protocol is derived from the correctness of the underlying PCS.
+
+**Soundness:**
+
+Recall that:
+
+$$\sum \a^i f_i(\xi) = \sum \a^i v_i$$
+
+This can be recontextualized as a polynomial:
+
+$$p(\a) = \sum \a^i (f_i(\xi) - v_i) = 0$$
+
+Then from Schwartz-Zippel, we acheive soundness, since the probability that
+this polynomial evaluates to zero given that it's not the zero-polynomial
+is $\frac{n}{|\Fb|}$.
 
 ### Grand Product Argument
 
