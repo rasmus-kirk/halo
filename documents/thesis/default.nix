@@ -11,7 +11,6 @@
     runtimeInputs = latexPkgs;
     text = ''
       shopt -s globstar nullglob
-      INPUT="$1"
 
       # Determine the correct date command
       if command -v gdate > /dev/null; then
@@ -20,14 +19,25 @@
         DATE_CMD="date"
       fi
 
-      if [ -f "$INPUT" ]; then
-        IN="$INPUT"
-        OUT="."
-      elif [ -d "$INPUT" ]; then
-        IN=("$INPUT"/**/*.md)
-        OUT="$INPUT"
+      if [ -z "''${1:-}" ]; then
+        echo "Error: Missing first argument, the input directory or file." >&2
+        exit 1
+      elif [ -f "$1" ]; then
+        IN="$1"
+      elif [ -d "$1" ]; then
+        IN=("$1"/**/*.md)
       else
-        echo "Error: '$INPUT' is neither a file nor a directory." >&2
+        echo "Error: '$1' is neither a file nor a directory." >&2
+        exit 1
+      fi
+
+      if [ -z "''${2:-}" ]; then
+        echo "Error: Missing second argument, the output directory." >&2
+        exit 1
+      elif [ -d "$2" ]; then
+        OUT="$2"
+      else
+        echo "Error: '$2' is not a directory." >&2
         exit 1
       fi
 
@@ -105,7 +115,7 @@
         SPINNER_PID=$!
 
         # Run pandoc and capture its output
-        output=$(mk-pandoc-script "$DIR" 2>&1)
+        output=$(mk-pandoc-script "$DIR" . 2>&1)
         exit_code=$?
         end_ns=$(date +%s%N)
 
@@ -174,7 +184,7 @@
     buildPhase = ''
       export FONTCONFIG_FILE=${fonts}
       mkdir -p $out
-      ${pkgs.lib.getExe mk-pandoc-script} "$out"
+      ${pkgs.lib.getExe mk-pandoc-script} "${self}/documents/thesis" "$out"
     '';
   };
 in {
