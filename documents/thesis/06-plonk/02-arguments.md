@@ -11,7 +11,8 @@ $$\forall a \in S : f(a) \meq 0$$
 
 For some polynomial $f(X) \in \Fb_{\leq d}$ and some set $S \subset \Fb$. The
 subset, $S$, may be much smaller than $\Fb$ as is the case for Plonk where
-$S = H$. Since we ultimately model the above check with challenge scalars,
+$S$ is set to be the set of roots of unity ($S = H = \{ \o^1, \o^2, \dots,
+\o^n \}$). Since we ultimately model the above check with challenge scalars,
 using just $S$, might not be sound. For this purpose construct the **Single
 Polynomial Vanishing Argument Protocol**:
 
@@ -33,8 +34,9 @@ Polynomial Vanishing Argument Protocol**:
   \State $P \to V:$ then commits to $f(X), t(X)$:
     \Statex \algind $C_f = \PCCommit(f(X), d, \bot), \quad C_t = \PCCommit(t(X), d, \bot)$
   \State $V \to P:$ The verifier sends challenge $\xi$ to the prover
-  \State $P \to V:$ The prover sends $(f(\xi) = v_f, \pi_f, t(\xi) = v_t, \pi_f)$ to the verifier.
+  \State $P \to V:$ The prover sends $(f(\xi) = v_f, \pi_f, t(\xi) = v_t, \pi_t)$ to the verifier.
   \State $V:$ The verifier then checks:
+    \Statex \algind $v_f \meq v_t \cdot z_S(\xi)$
     \Statex \algind $\PCCheck(C_f, d, \xi, v_f, \pi_f) \meq \top \; \land$
     \Statex \algind $\PCCheck(C_t, d, \xi, v_t, \pi_t) \meq \top$
   \end{algorithmic}
@@ -42,26 +44,29 @@ Polynomial Vanishing Argument Protocol**:
 
 **Correctness**
 
-For any $\xi \in \Fb \setminus H$, the following holds:
+Define $p(X) = f_i(\xi) - t(\xi) z_S(\xi)$. For any $\xi \in \Fb \setminus
+S$, the following holds:
 
 $$
 \begin{aligned}
-p(X) &= f_i(\xi) - t(\xi) z_S(\xi) \\
-     &= f_i(\xi) - \left( \frac{f_i(\xi)}{z_S(\xi)} \right) z_S(\xi) \\
-     &= 0
+p(\xi) &= f_i(\xi) - t(\xi) z_S(\xi) \\
+       &= f_i(\xi) - \left( \frac{f_i(\xi)}{z_S(\xi)} \right) z_S(\xi) \\
+       &= 0
 \end{aligned}
 $$
 $\qed$
 
 **Soundness**
 
+<!-- TODO(rasmus): The soundness argument doesn't limit the degree of p(X)! -->
+
 Due to the factor theorem[^factor-theorem] $z_S(X)$ only divides $f(X)$ if and
-only if all of $\o \in H : f(\o) = 0$. Then from this the Schwartz-Zippel
+only if all of $s \in S : f(s) = 0$. Then from this the Schwartz-Zippel
 Lemma[^schwartz-zippel] states that evaluating a nonzero polynomial on
 inputs chosen randomly from a large enough set is likely to find an input
-that produces a nonzero output. Specifically it ensures that $Pr[P(\xi)]
-\leq \frac{deg(P)}{|\Fb|}$. Clearly $\xi \in \Fb$ is a large enough set as
-$|\Fb| \gg |H|$ and therefore $Pr[P(\xi) | P \neq 0]$ is negligible. Lastly,
+that produces a nonzero output. Specifically, it ensures that $Pr[p(\xi) = 0]
+\leq \frac{deg(p(X))}{|\Fb|}$. Clearly $\xi \in \Fb$ is a large enough set as
+$|\Fb| \gg |S|$ and therefore $Pr[p(\xi) = 0 | P \neq 0]$ is negligible. Lastly,
 the evaluation checked depends on the soundness of the underlying PCS scheme
 used, but we assume that it has knowledge soundness and binding. From all
 this, we conclude that the above vanishing argument is sound.
@@ -73,6 +78,8 @@ this, we conclude that the above vanishing argument is sound.
 
 We can use a linear combination of $\a$ to generalize the **Single Polynomial
 Vanishing Argument**:
+
+<!-- TODO: verify this $\sum \a^i v_{f_i} = v_t \cdot z_S(\xi)$ -->
 
 \begin{algorithm}[H]
 \caption*{
@@ -87,13 +94,15 @@ Vanishing Argument**:
     Either the verifier accepts with $\top$ or rejects with $\bot$.
   }
 \begin{algorithmic}[1]
+  \State $V:$ The verifier sends a random challenge $\a$ to the prover.
   \State $P:$ The prover constructs $t(X)$:
-    \Statex \algind $t(X) = \sum_{i \in [k]} \frac{\a^i f_i(X)}{Z_s}, \quad z_S(X) = \prod_{s \in S}(X - s)$
+    \Statex \algind $t(X) = \sum_{i \in [k]} \frac{\a^i f_i(X)}{z_S}, \quad z_S(X) = \prod_{s \in S}(X - s)$
   \State $P \to V:$ then commits to $t(X)$ and each $f_i(X)$:
     \Statex \algind $C_{f_i} = \PCCommit(f_i(X), d, \bot), \quad C_t = \PCCommit(t(X), d, \bot)$
   \State $V \to P:$ The verifier sends challenge $\xi$ to the prover.
   \State $P \to V:$ The prover sends $(f_i(\xi) = v_{f_i}, \pi_{f_i}, t(\xi) = v_t, \pi_f)$ to the verifier.
   \State $V:$ The verifier then checks:
+    \Statex \algind $\sum \a^i v_{f_i} = v_t \cdot z_S(\xi)$
     \Statex \algind $\forall i \in [k] : \PCCheck(C_{f_i}, d, \xi, v_{f_i}, \pi_{f_i}) \meq \top \; \land$
     \Statex \algind $\PCCheck(C_t, d, \xi, v_t, \pi_t) \meq \top$
   \end{algorithmic}
@@ -110,7 +119,7 @@ need a linearly independent combination of $f$.
 If we have $m$ polynomials, $\vec{f}$, that all need to evaluate to
 zero at the same challenge $\xi$, normally, we could construct $m$ opening
 proofs, and verify these. We can, however, use the following protocol to
-only create a single opening proofs:
+only create a single opening proof:
 
 \begin{algorithm}[H]
 \caption*{
@@ -125,7 +134,7 @@ only create a single opening proofs:
 \begin{algorithmic}[1]
   \State $P \to V:$ The prover commits to each polynomial $C_{f_i}(X)$ and sends these to the verifier.
   \State $V \to P:$ The verifier sends challenge $\xi$ to the prover.
-  \State $P \to V:$ The prover sends the evaluations of all $f_i$ ($v_{f_i} = f_i(\xi)$.
+  \State $P \to V:$ The prover sends the evaluations of all $f_i(X)$ ($v_{f_i} = f_i(\xi))$.
   \State $P \to V:$ The prover also sends a single opening proof $\pi_w$ for the batched polynomial $w(X) = \sum_{i = 0}^k \a^i f_i(X)$
   \State $V:$ The verifier then constructs:
     \Statex \algind $C_w = \sum_{i = 0}^k \a^i C_{f_i}$
@@ -139,12 +148,14 @@ only create a single opening proofs:
 
 Since:
 
-- $C_w = \sum_{i = 0}^k \a^i C_{f_i} = \PCCommit(f, d, \bot)$ (Assuming a homomorphic commitment scheme)
-- $v_w = \sum_{i = 0}^k \a^i v_{f_i} = w(\xi)$ (By definition of $w$)
+- $C_w = \sum_{i = 0}^k \a^i C_{f_i} = \PCCommit(f(X), d, \bot)$ (Assuming a homomorphic commitment scheme)
+- $v_w = \sum_{i = 0}^k \a^i v_{f_i} = w(\xi)$ (By definition of $w(X)$)
 
 The correctness of the protocol is derived from the correctness of the underlying PCS.
 
 **Soundness:**
+
+<!-- TODO: Mind the soundness, should be fine -->
 
 Recall that:
 
@@ -156,9 +167,16 @@ $$p(\a) = \sum \a^i (f_i(\xi) - v_i) = 0$$
 
 Then from Schwartz-Zippel, we acheive soundness, since the probability that
 this polynomial evaluates to zero given that it's not the zero-polynomial
-is $\frac{n}{|\Fb|}$.
+is $\frac{k}{|\Fb|}$.
 
 ### Grand Product Argument
+
+- two polys f(X) g(X)
+- $\prod_{s \in S} f(s) \meq \prod_{s \in S} g(s)$
+- $z(\o) = 1$
+- $z(\o X) = \dots$
+- $f_1(X) = l_1(X)(z(X) - 1)$
+- $f_2(X) = f(X)z(X) - g(X)z(X)$
 
 TODO
 

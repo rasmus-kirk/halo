@@ -7,8 +7,8 @@ accumulation scheme. We have taken liberties to try to simplify the protocol
 at the cost of performance, but have taken an effort to preserve the following
 properties:
 
-1. The prover is bounded by $\Oc(n \log(n))$
-2. The verifier is bounded by $\Oc(\lg(n))$
+1. The prover is bounded by $\Oc(n \lg(n))$
+2. The verifier time is linear ($\Oc(n)$)
 3. The proof size is bounded by $\Oc(\lg(n))$
 
 Thus the optimizations omitted or simplified in this work only affects

@@ -1,6 +1,6 @@
 ## Protocol
 
-### Copy Constraints
+### Gate Constraints
 
 Imagine we want to prove that we have a witness for $3x_1^2 + 5x_2 = 47$,
 meaning we want to show that we know $x_1, x_2$ such that the equation equals
@@ -91,14 +91,14 @@ meaning we want to show that we know $x_1, x_2$ such that the equation equals
 \end{figure}
 
 This is a trivial problem, so we deduce that $x_1 = 2, x_2 = 7$. From the graphs
-above, we can construct some vectors representing the value of our circuit:
+above, we can construct some vectors representing the wire values of our circuit:
 
 $$
 \begin{aligned}
   \vec{w} &= [ 2, 7, 4, 3, 12, 5, 35, 47 ] \\
   \vec{a} &= [ 2, 7, 3, 12 ] \\
   \vec{b} &= [ 2, 5, 4, 35 ] \\
-  \vec{c} &= [ 4, 35, 12, 35 ]
+  \vec{c} &= [ 4, 35, 12, 42 ]
 \end{aligned}
 $$
 
@@ -120,8 +120,8 @@ the circuit relations by proving that a constructed polynomial $f_{GC}(X)
 
 $$f_{GC}(X) = a(X) q_l(X) + b(X) q_r(X) + c(X) q_o(X) + a(X) b(X) q_m(X) + q_c(X)$$
 
-Where $a(X), b(X), c(X)$ are public and the selector polynomials are
-private. Notice that we can represent this as a table:
+Where $a(X), b(X), c(X)$ are private and the selector polynomials are
+public. Notice that we can represent this as a table:
 
 \begin{center}
   \begin{tabular}{|c|c|c|c|c|c|c|c|c|}
@@ -145,8 +145,9 @@ private. Notice that we can represent this as a table:
 
 Lagrange interpolation is slow, with a runtime of $\Oc(n^2)$, we can
 instead use FFT to construct our polynomials, which has a runtime of $\Oc(n
-\log(n))$. For this, we construct the polynomials over $\o^1, \o^2, \dots,
-\o^6$, meaning that our table becomes:
+\log(n))$. For this, we construct the polynomials over the roots of unity
+($\o^1, \o^2, \dots, \o^6$ where $\o$ is the 6'th root of unity), meaning
+that our table becomes:
 
 \begin{center}
   \begin{tabular}{|c|c|c|c|c|c|c|c|c|}
@@ -179,10 +180,10 @@ Protocol** over each witness polynomial instead of $f_{GC}$. This securely
 gives the verifier $v_a = a(\xi), v_b = b(\xi), v_c = c(\xi)$ and the verifier
 can then check:
 
-$$0 = v_a q_l(\xi) + v_b q_r(\xi) + v_c q_o(\xi) + v_a v_b q_m(\xi) + q_c(\xi)$$
+$$v_f = v_a q_l(\xi) + v_b q_r(\xi) + v_c q_o(\xi) + v_a v_b q_m(\xi) + q_c(\xi)$$
 
 We still need to handle copy constraints, because as can be seen in the table,
 we need to verify identities between wires (like $a(\o^1) = b(\o^1)$). For
 this we need _Copy Constraints._
 
-## Copy Constraints
+### Copy Constraints
