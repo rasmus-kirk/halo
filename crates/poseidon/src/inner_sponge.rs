@@ -73,41 +73,36 @@ impl<P: PastaConfig> PoseidonSponge<P> {
     pub(crate) fn absorb(&mut self, x: &[P::BaseField]) {
         for x in x.iter() {
             match self.sponge_state {
-                SpongeState::Absorbed(n) => {
-                    if n == SPONGE_RATE {
-                        self.poseidon_block_cipher();
-                        self.sponge_state = SpongeState::Absorbed(1);
-                        self.state[0] += x;
-                    } else {
-                        self.sponge_state = SpongeState::Absorbed(n + 1);
-                        self.state[n] += x;
-                    }
+                SpongeState::Absorbed(n) if n < SPONGE_RATE => {
+                    self.sponge_state = SpongeState::Absorbed(n + 1);
+                    self.state[n] += x;
+                }
+                SpongeState::Absorbed(SPONGE_RATE) => {
+                    self.poseidon_block_cipher();
+                    self.sponge_state = SpongeState::Absorbed(1);
+                    self.state[0] += x;
                 }
                 SpongeState::Squeezed(_n) => {
-                    self.state[0] += x;
                     self.sponge_state = SpongeState::Absorbed(1);
+                    self.state[0] += x;
                 }
+                _ => panic!("Impossible case found"),
             }
         }
     }
 
     pub(crate) fn squeeze(&mut self) -> P::BaseField {
         match self.sponge_state {
-            SpongeState::Squeezed(n) => {
-                if n == SPONGE_RATE {
-                    self.poseidon_block_cipher();
-                    self.sponge_state = SpongeState::Squeezed(1);
-                    self.state[0]
-                } else {
-                    self.sponge_state = SpongeState::Squeezed(n + 1);
-                    self.state[n]
-                }
+            SpongeState::Squeezed(n) if n < SPONGE_RATE => {
+                self.sponge_state = SpongeState::Squeezed(n + 1);
+                self.state[n]
             }
-            SpongeState::Absorbed(_n) => {
+            SpongeState::Squeezed(SPONGE_RATE) | SpongeState::Absorbed(_) => {
                 self.poseidon_block_cipher();
                 self.sponge_state = SpongeState::Squeezed(1);
                 self.state[0]
             }
+            _ => panic!("Impossible case found"),
         }
     }
 
