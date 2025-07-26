@@ -81,6 +81,8 @@ $X \to Y \to Z = (X \times Y) \to Z$ & $f(x,y)=f(x)(y)=f((x, y))$ & Currying \\
 \hline
 $\Unit \to X = X$ & $f(()) = x \leftrightarrow f = x$ & Function has unit \\
 \hline
+$X \to \Option(Y) = X \pto Y$ & $[x \mapsto y] = \lambda x. \maybe{y}{x \mathrm{\ is\ defined}}$ & Partial are functions to options \\
+\hline
 \end{longtable*}
 
 **unused argument(s)** - we use underscores to denote that the argument is not used e.g. $\lambda \_. \cdots$, by associative product and currying, one underscore can mean multiple unused arguments.

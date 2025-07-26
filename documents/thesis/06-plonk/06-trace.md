@@ -52,6 +52,8 @@ $\Downarrow_R$ computes the values of wires $\abst{\vec{Y}}$ and inputs to asser
  
 It does this by peeking from the stack $\abst{\vec{y}}$, querying $\text{?}$ for unresolved input wires, otherwise it will evaluate the output wire values and cache it in the value map $v$ with $[\cdot]$. The continuation $f$ and stack pop $\curvearrowleft$ are called after.
 
+TODO relative gates
+
 $$
 \begin{array}{ccc}
 \begin{array}{rl}
@@ -131,74 +133,26 @@ $$
 
 **Gate Constraints**
 
-$\ctrn_g$ which declares for each wire type tag a pair of vector of input/output wires of the gate and a function that computes a scalar. $\Downarrow_v$ gets the value of the wire from the vmap $v$ and applies it to the function.
+$\Downarrow_G$ computes the trace table $C$ by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation (including $\Downarrow_G$), on resolved wires in $\Downarrow_R$. When the wire id stack $\abst{\vec{y}}$ is empty, $\underset{G}{\curvearrowright}$ will push assert gates and input gates $\vec{g}^{\abst{f}}$ to the stack. The pre-constraints of the gates are then resolved with vmap. Thus, tabulating the trace table.
+
+TODO relative gates
 
 $$
 \begin{array}{rl}
 \begin{array}{rl}
-\text{Pre} &= (t: \WireType) \to (s: \SlotNSelector) \\
-&\to X(s) \times (\abst{\vec{w}}: \Wire^k) \\
-&\times (W \circ \ty[\abst{\vec{w}}] \to X(s) \to W(t)) \\
-\PreTable &= \TypedIndexMap(X, \lambda t,s. \text{Pre}(t,s)^n)\\
-\TraceTable &= \TypedIndexMap(X, \lambda t,\_. W(t)^n) \\
-\ctrn_g &: \PreTable 
-\end{array} &
-\begin{array}{rl}
-\cat &: \TraceTable \to \TraceTable \to \TraceTable \\
-A \cat B &= A \sqcup_{\lambda \_,\vec{a}, \vec{b}. \vec{a} \cat \vec{b}} B \\
-\\
-\Downarrow &: \VMap \to (t: \WireType) \to (s: \SlotNSelector) \\
-&\to \text{Pre}(t,s)^n \to W(t)^n \\
-\Downarrow_v(\_,\vec{r}) &= \left(\lambda (x,\abst{\vec{w}},f). f(v[\abst{\vec{w}}],x)\right) [\vec{r}]
-\end{array}
-\end{array}
-$$
-
-Each gate corresponds to some number of rows for each wire type in the trace table[^index-map-notation] $C$
-
-[^index-map-notation]: Let $C$ be a trace table, $C(q,A,())$ is notated $C^q(A)$. If thunk $X(q,T) = \Fb_q$, then $C(q,T,\xi)$ is notated $C^q_\xi(T)$.
-
-
-\begin{center}
-\begin{tabular}{ c c c c }
-\begin{tikzpicture}[
-  baseline={(current bounding box.center)}
-]
-\gate{id}{(0,0)}{$\ $}{$g$}{1}
-\draw[->,thick] (id-out-1) -- ($(id-out-1)+(0,-0.5)$);
-\draw[-,thick] ($(id.north)+(0,0.5)$) -- (id.north);
-\end{tikzpicture}
-&
-\begin{tabular}{|c|c|c|c|c|c|c|c|}
-\hline
-$C^p(A)$ & $\cdots$ & $C^p(Q_l)$ & $\cdots$ & $C^q(A)$ & $\cdots$ & $C^q(Q_l)$ & $\cdots$ \\
-\hline\hline
-\multicolumn{4}{|c|}{$\vdots$} & \multicolumn{4}{|c|}{$\vdots$} \\
-\hline
-\multicolumn{4}{|c|}{$\Downarrow_v(p) [\ctrn_g(p)]$} & \multicolumn{4}{|c|}{$\Downarrow_v(q) [\ctrn_g(q)]$} \\
-\hline
-\multicolumn{4}{|c|}{$\vdots$} & \multicolumn{4}{|c|}{$\vdots$} \\
-\hline
-\end{tabular}
-\end{tabular}
-\end{center}
-
-$\Downarrow_G$ computes the trace table $C$ by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation (including $\Downarrow_G$), on resolved wires in $\Downarrow_R$. When the wire id stack $\abst{\vec{y}}$ is empty, $\underset{G}{\curvearrowright}$ will push assert gates and input gates $X^{\abst{f}}$ to the stack.
-
-$$
-\begin{array}{rl}
-\begin{array}{rl}
+\TraceTable &= \IndexMap(X, \lambda t,\_. W(t)^k) \\
 \text{GState}^{k,k'} &= \TraceTable \times \Gate^{k'} \times \Bb \times \RState^k \\
-\abst{X}^{\abst{f}} &= \set{g \middle\vert (g, \abst{y}) \in \abst{f} \land (\abst{y} = \bot \lor \exists i,t. \abst{y} = \text{Input}^t_i) } \\
+\vec{g}^{\abst{f}} &= \left[g \middle\vert (g, \abst{y}) \in \abst{f} \land (\abst{y} = \bot \lor \exists i,t. \abst{y} = \text{Input}^t_i) \right] \\
+\\
+\Downarrow &: \VMap \to F(\text{Pre}(t,s)^k \to W(t)^k) \\
+\Downarrow_v(\_,\vec{r}) &= \text{reduce}[\vec{r}]\\
+\text{reduce}(r) &= \begin{cases}
+f(x,v[\abst{\vec{w}}]) & r = (x, \abst{\vec{w}}, f) \\
+? & \otherwise
+\end{cases} \\
 \\
 \underset{G}{\curvearrowleft} &: T \times \text{GState}^{k'',k} \to T \times \text{GState}^{k'',k'} \\
-\underset{G}{\curvearrowleft} &= \lift(\curvearrowleft : \Gate^k \to \Gate^{k'}) \\
-\\
-\dagger_G &: \text{GState} \to \Bb \\
-\dagger_G &= \lambda(\_, \vec{g}, b, \_). |\vec{g}| = 0 \land b = \top \\
-\\
-\iota_G &: \text{RState} \to \text{GState} \\
-\iota_G(s) &= (\lambda \_.\bot[s \mapsto ()], (), \bot, s)
+\underset{G}{\curvearrowleft} &= \lift(\curvearrowleft : \Gate^k \to \Gate^{k'})
 \end{array} &
 \begin{array}{rl}
 - \stackrel{\to}{\circ} \Downarrow^{-}_G &: (T \times \text{GState} \to T \times \text{GState}) \to \AbsCirc \\
@@ -214,23 +168,76 @@ f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \underset{G}{\curvearrowleft}
 &\circ^\uparrow \lambda(\vec{g}, b, v, \abst{\vec{y}}). \\
 &\begin{cases}
 & b = \bot \\
-(X^{\abst{f}} \cat (), \top, v, ())
+(\vec{g}^{\abst{f}}, \top, v, ())
 & |\abst{\vec{y}}| = |\vec{g}| = 0 \\
 & \abst{\vec{y}} = \abst{y} \cat \_ \\
-(g \cat \vec{g}, b, v, \abst{\vec{y}})
+(g \cat \vec{g}, \bot, v, \abst{\vec{y}})
 & (g,\abst{y}) \in \abst{f} \\
-(\vec{g}, b, v, \abst{\vec{y}})
+(\vec{g}, \top, v, ())
 & \otherwise
 \end{cases}
+\end{array}
+\end{array}
+$$
+$$
+\begin{array}{rl}
+\begin{array}{rl}
+\dagger_G &: \text{GState} \to \Bb \\
+\dagger_G &= \lambda(\_, \vec{g}, b, \_). |\vec{g}| = 0 \land b = \top
+\end{array} &
+\begin{array}{rl}
+\iota_G &: \text{RState} \to \text{GState} \\
+\iota_G(s) &= (\lambda \_.\bot[s \mapsto ()], (), \bot, s)
 \end{array}
 \end{array}
 $$
 
 **Copy Constraints**
 
+TODO rephrase the following to new formalism
+
 $\Downarrow_C$ computes coordinate loops; equivalence class of slot positions of $C$ modulo wire, by peeking $\vec{g}$ and joining $c$ with the coordinate loop of the gate using $\sqcup$.
 
 After computing the coordinate loop of the full circuit, we mark a flag $\Bb$ that starts computing the coordinate map $m$ from coordinate to its neighbour in $c$ which then is used to compute the permutation $\vec{\sigma}$ of the slots in $C$.
+
+$$
+\begin{array}{rl}
+\begin{array}{rl}
+\text{Coord} &= \Slot \times \Nb \\
+\text{CLoop} &= (\abst{w}: \Wire) \pto \text{Coord}^{k_{\abst{w}}} \\
+\text{CMap} &= \text{Coord} \pto \text{Coord} \\
+\\
+\text{perm} &: \text{CLoop} \to \text{CMap} \\
+\text{perm}(l) &= \begin{cases}
+\bot[x \mapsto x] & l = \bot \\
+& \exists \abst{w}. \vec{s} = l(\abst{w}) \\
+& l' = \text{perm}(l[\abst{w} \mapsto \bot]) \\
+l'[\vec{s} \mapsto \vec{s}'] & s'_1 = s_{|\vec{s}|} \land s'_{i>1} = s_{i-1}
+\end{cases}
+\end{array} &
+\begin{array}{rl}
+\text{loop} &: \text{CLoop} \to \Nb \to \PreTable \to \text{CLoop} \\
+\text{loop}(X, i, t, \vec{p}) &= \begin{cases}
+X & \vec{p} = () \\
+& \vec{p} = p \cat \vec{p}' \\
+& l = \text{loop}(X,i+1,t,\vec{p}') \\
+& \vec{s}_{\abst{w}} = \left[ (s,i) \middle\vert p(t,s)_2 = (\abst{w}) \right] \\
+l[\abst{w} \mapsto \vec{s}_{\abst{w}}]
+& l(\abst{w}) = \bot \\
+l[\abst{w} \mapsto l(\abst{w}) \cat \vec{s}] & \otherwise
+\end{cases}
+\end{array}
+\end{array}
+$$
+
+TODO diagram, ctrn, to loop, to perm like in excalidraw
+
+TODO compute a CMap per wire type
+
+1. start with loop bot
+2. for each gate call it on ctrn
+3. get i from TraceTable in gate constraints
+4. At end of trace sup, map it with perm and into TypedIndexMap of perm columns.
 
 $$
 \begin{array}{rl}
@@ -299,8 +306,6 @@ x[i \mapsto \vec{l}] \sqcup y'
 \end{array}
 \end{array}
 $$
-
-TODO update for types; permutation $\vec{\sigma}$ per type, compute loop from ctrn
 
 **Full $\Surkal$ Trace**
 

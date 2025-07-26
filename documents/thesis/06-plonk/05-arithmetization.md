@@ -67,7 +67,7 @@ W &: \WireType \to \Uni \\
 \ty(\abst{w}) &= (\lambda(\_, t). t)(\abst{w}) \\
 \end{array} &
 \begin{array}{rl}
-\Gate &= (g: \GateType) \times \Wire^{n_g} \\
+\Gate &= (g: \GateType) \times \Wire^{n_g} \times \cdot \\
 \ty(g) &= (\lambda(t, \_). t)(g) \\
 \gin(g) &= (\lambda(\_, \abst{\vec{x}}). \abst{\vec{x}})(g) \\
 \out^{\abst{f}}(g): \Wire^{m_g} &= \maybe{\abst{\vec{y}}}{\abst{y}_i \in \set{\abst{y} \middle\vert (g,\abst{y}) \in \abst{f}} \land \id(\abst{y}_{i>1}) = \id(\abst{y}_{i-1}) + 1}
