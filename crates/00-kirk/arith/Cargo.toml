@@ -1,0 +1,12 @@
+[package]
+name = "arith"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.98"
+petgraph = "0.8.2"
+halo-group = { path = "../../group" }
+halo-accumulation = { path = "../../accumulation" }
+halo-poseidon = { path = "../../poseidon" }
+union-find = "0.4.3"

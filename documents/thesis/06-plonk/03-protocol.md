@@ -58,29 +58,24 @@ meaning we want to show that we know $x_1, x_2$ such that the equation equals
       \node (B) at (7, 7) {$5$};
       % Second Layer
       \node[draw, rectangle] (mul21) at (3, 6) {$\times$};
-      \node[above left=0.01cm of mul21] {$w_1$};
-      \node[above right=0.01cm of mul21] {$w_1$};
       \node[draw, rectangle] (mul22) at (6, 6) {$\times$};
-      \node[above left=0.01cm of mul22] {$w_2$};
-      \node[above right=0.01cm of mul22] {$w_6$};
       \draw[->] (input1) -- (2, 7) |- (mul21);
       \draw[->] (input1) -- (4, 7) |- (mul21);
       \draw[->] (input2) -- (5, 6.5) |- (mul22);
       \draw[->] (B) -- (7, 6.5) |- (mul22);
       % Third Layer
       \node[draw, rectangle] (mul31) at (2, 5) {$\times$};
-      \node[above left=0.01cm of mul31] {$w_4$};
-      \node[above right=0.01cm of mul31] {$w_3$};
+      \node[above right=0.01cm of mul31] {4};
       \draw[->] (mul21) -- (3, 5) |- (mul31);
       \draw[->] (A) -- (1, 5) |- (mul31);
       % Fourth Layer
       \node[draw, rectangle] (add41) at (4, 4) {$+$};
-      \node[above left=0.01cm of add41] {$w_5 = 12$};
-      \node[above right=0.01cm of add41] {$w_7 = 35$};
+      \node[above left=0.01cm of add41] {$12$};
+      \node[above right=0.01cm of add41] {$35$};
       \draw[->] (mul31) -- (2, 4) |- (add41);
       \draw[->] (mul22) -- (6, 4) |- (add41);
       % Fifth Layer
-      \node (output) at (4, 3) { $w_8 = 47$ };
+      \node (output) at (4, 3) { $47$ };
       \draw[->] (add41) -- (output);
     \end{tikzpicture}
   \end{subfigure}
@@ -187,3 +182,57 @@ we need to verify identities between wires (like $a(\o^1) = b(\o^1)$). For
 this we need _Copy Constraints._
 
 ### Copy Constraints
+
+For the copy constraints it helps to visualize the list of wires, recall
+from the previous section:
+
+$$\vec{w} = [ 2, 7, 4, 3, 12, 5, 35, 47 ]$$
+
+For example we want to show that $a(\o^1) = b(\o^1)$, first we concatinate
+the lists $\vec{a}, \vec{b}, \vec{c}$:
+
+$$\vec{w} = [ 2, 7, 3, 12 ] \cat [ 2, 5, 4, 35 ] \cat [ 4, 35, 12, 42 ] = [ 2, 7, 3, 12, 2, 5, 4, 35, 4, 35, 12, 42 ]$$
+
+Now, we wish to show, that for some permutation $\pi: \Fb^k \to \Fb^k$,
+the list remains unchanged once permuted:
+
+$$\vec{w} = \pi(\vec{w})$$
+
+This permutation permutes the list according to what wires we wish to show are equal:
+
+$$\vec{w} = [ 2, 7, 3, 12 ] \cat [ 2, 5, 4, 35 ] \cat [ 4, 35, 12, 42 ]$$
+
+From the circuit in Figure <!-- TODO --> we gather that the following wires
+must be equal:
+
+$$a_1 = b_1, \quad c_1 = b_3, \quad c_3 = a_4, \quad c_2 = b_4$$
+
+To highlight the values of $\vec{w}$ and $\pi(\vec{w})$, the specific values
+have been subbed out for variables below:
+
+$$
+\begin{aligned}
+  \vec{w}      &= [ a_1, a_2, a_3, a_4 ] \cat [ b_1, b_2, b_3, b_4 ] \cat [ c_1, c_2, c_3, c_4 ] \\
+  \pi(\vec{w}) &= [ b_1, a_2, a_3, c_3 ] \cat [ a_1, b_2, c_1, c_2 ] \cat [ b_3, b_4, a_4, c_4 ]
+\end{aligned}
+$$
+
+If the prover is honest, it's easy to see that these lists will match,
+in fact, that's why we have to use variables in the above list, otherwise
+the permutation _seems_ to do nothing. But as can also be seen above,
+if the prover tries to cheat by violating $a_1 = b_1$ then the permuted
+$\pi(\vec{w})$ will not be equal to the original $\vec{w}$. As in the above
+section we can model the vectors as polynomials using FFT, such that $w(\o^1)
+= w_1, w(\o^2) = w_2 \dots$. This reduces the problem to succinctly showing
+equality of two polynomials for all elements in a set $H$, which is exactly
+what the **Grand Product Argument** does.
+
+#### Grand Product Argument
+
+Given two polynomials $f(X), g(X)$ we want to check whether:
+
+$$\forall s \in S : f(s) = g(s)$$
+
+We can provide the challenge $\g$ and compare the products
+
+$$\prod_{s \in S} f(s) + \g = \prod_{s \in S} g(s) + \g$$

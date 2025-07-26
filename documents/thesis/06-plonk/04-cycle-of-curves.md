@@ -101,9 +101,6 @@ This leads to the following constraints:
     for the 2-bit limb:
   - $q_{p-range} (x \cdot (x - 1) \cdot (x - 2) \cdot (x - 3)) = 0$
 
-
-
-
 And the following gadgets:
 
 \begin{algorithm}[H]

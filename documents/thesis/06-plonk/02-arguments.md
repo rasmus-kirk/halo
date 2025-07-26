@@ -29,10 +29,12 @@ Polynomial Vanishing Argument Protocol**:
     Either the verifier accepts with $\top$ or rejects with $\bot$.
   }
 \begin{algorithmic}[1]
+  \State $P \to V:$ The prover commits to $f$ and the commitment to the verifier:
+    \Statex \algind $C_f = \PCCommit(f(X), d, \bot)$
   \State $P:$ The prover constructs $t(X)$:
     \Statex \algind $t(X) = \frac{f(X)}{z_S}, \quad z_S(X) = \prod_{s \in S}(X - s)$
-  \State $P \to V:$ then commits to $f(X), t(X)$:
-    \Statex \algind $C_f = \PCCommit(f(X), d, \bot), \quad C_t = \PCCommit(t(X), d, \bot)$
+  \State $P \to V:$ The prover then commits to $t(X)$ and sends the commitment to the verifier:
+    \Statex \algind $C_t = \PCCommit(t(X), d, \bot)$
   \State $V \to P:$ The verifier sends challenge $\xi$ to the prover
   \State $P \to V:$ The prover sends $(f(\xi) = v_f, \pi_f, t(\xi) = v_t, \pi_t)$ to the verifier.
   \State $V:$ The verifier then checks:
@@ -59,6 +61,7 @@ $\qed$
 **Soundness**
 
 <!-- TODO(rasmus): The soundness argument doesn't limit the degree of p(X)! -->
+<!-- TODO(rasmus): Or maybe it does, should probably argue for it... -->
 
 Due to the factor theorem[^factor-theorem] $z_S(X)$ only divides $f(X)$ if and
 only if all of $s \in S : f(s) = 0$. Then from this the Schwartz-Zippel
@@ -79,8 +82,6 @@ this, we conclude that the above vanishing argument is sound.
 We can use a linear combination of $\a$ to generalize the **Single Polynomial
 Vanishing Argument**:
 
-<!-- TODO: verify this $\sum \a^i v_{f_i} = v_t \cdot z_S(\xi)$ -->
-
 \begin{algorithm}[H]
 \caption*{
   \textbf{Vanishing Argument Protocol:} Checks queries of the form $\forall
@@ -94,11 +95,13 @@ Vanishing Argument**:
     Either the verifier accepts with $\top$ or rejects with $\bot$.
   }
 \begin{algorithmic}[1]
+  \State $P \to V:$ The prover commits to each $f_i$ and the commitments to the verifier:
+    \Statex \algind $C_{f_i} = \PCCommit(f_i(X), d, \bot)$
   \State $V:$ The verifier sends a random challenge $\a$ to the prover.
   \State $P:$ The prover constructs $t(X)$:
     \Statex \algind $t(X) = \sum_{i \in [k]} \frac{\a^i f_i(X)}{z_S}, \quad z_S(X) = \prod_{s \in S}(X - s)$
-  \State $P \to V:$ then commits to $t(X)$ and each $f_i(X)$:
-    \Statex \algind $C_{f_i} = \PCCommit(f_i(X), d, \bot), \quad C_t = \PCCommit(t(X), d, \bot)$
+  \State $P \to V:$ The prover then commits to $t(X)$ and sends the commitment to the verifier:
+    \Statex \algind $C_t = \PCCommit(t(X), d, \bot)$
   \State $V \to P:$ The verifier sends challenge $\xi$ to the prover.
   \State $P \to V:$ The prover sends $(f_i(\xi) = v_{f_i}, \pi_{f_i}, t(\xi) = v_t, \pi_f)$ to the verifier.
   \State $V:$ The verifier then checks:
@@ -134,8 +137,9 @@ only create a single opening proof:
 \begin{algorithmic}[1]
   \State $P \to V:$ The prover commits to each polynomial $C_{f_i}(X)$ and sends these to the verifier.
   \State $V \to P:$ The verifier sends challenge $\xi$ to the prover.
-  \State $P \to V:$ The prover sends the evaluations of all $f_i(X)$ ($v_{f_i} = f_i(\xi))$.
-  \State $P \to V:$ The prover also sends a single opening proof $\pi_w$ for the batched polynomial $w(X) = \sum_{i = 0}^k \a^i f_i(X)$
+  \State $P \to V:$ The prover sends evaluations of all $f_i(X)$ ($v_{f_i} = f_i(\xi))$.
+  \State $V \to P:$ The verifier sends challenge $\alpha$ to the prover.
+  \State $P \to V:$ The prover finally sends a single opening proof $\pi_w$ for the batched polynomial $w(X) = \sum_{i = 0}^k \a^i f_i(X)$
   \State $V:$ The verifier then constructs:
     \Statex \algind $C_w = \sum_{i = 0}^k \a^i C_{f_i}$
     \Statex \algind $v_w = \sum_{i = 0}^k \a^i v_{f_i}$
