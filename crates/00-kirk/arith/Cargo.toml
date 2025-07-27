@@ -10,3 +10,4 @@ halo-group = { path = "../../group" }
 halo-accumulation = { path = "../../accumulation" }
 halo-poseidon = { path = "../../poseidon" }
 union-find = "0.4.3"
+derivative = "2.2.0"

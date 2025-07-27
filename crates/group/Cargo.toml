@@ -11,10 +11,10 @@ criterion = "0.5"
 [dependencies]
 anyhow = "1"
 ark-ec = { features = [ "parallel" ], version = "0.5" }
-ark-ff = { features = [ "parallel" ], version = "0.5" }
 ark-pallas = "0.5"
 ark-poly = { features = [ "parallel" ], version = "0.5" }
 ark-serialize = { features = [ "parallel" ], version = "0.5" }
+ark-ff = { features = [ "parallel" ], version = "0.5" }
 ark-std = { features = [ "parallel" ], version = "0.5" }
 ark-vesta = "0.5"
 bincode = "2.0.0-rc.3"

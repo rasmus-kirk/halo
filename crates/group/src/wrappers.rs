@@ -22,7 +22,10 @@ include!(concat!(env!("OUT_DIR"), "/vesta/pp_paths.rs"));
 static PP_PALLAS: OnceLock<PublicParams<PallasConfig>> = OnceLock::new();
 static PP_VESTA: OnceLock<PublicParams<VestaConfig>> = OnceLock::new();
 
-pub trait PastaConfig: SWCurveConfig {
+pub trait PastaConfig: SWCurveConfig
+where
+    Self::ScalarField: std::fmt::Debug,
+{
     fn get_loaded_public_params() -> &'static OnceLock<PublicParams<Self>>;
     fn get_g_data() -> [&'static [u8]; 64];
     fn get_sh_data() -> &'static [u8];
@@ -34,6 +37,8 @@ pub trait PastaConfig: SWCurveConfig {
     fn scalar_into_bigint(x: Scalar<Self>) -> BigInt<4>;
     fn basefield_from_bigint(x: BigInt<4>) -> Option<BaseField<Self>>;
     fn scalar_from_bigint(x: BigInt<4>) -> Option<Scalar<Self>>;
+    fn basefield_from_u64(x: u64) -> BaseField<Self>;
+    fn scalar_from_u64(x: u64) -> Scalar<Self>;
 
     const POSEIDON_MDS: [[Self::BaseField; 3]; 3];
     const POSEIDON_ROUND_CONSTANTS: [[Self::BaseField; 3]; 55];
@@ -75,6 +80,12 @@ impl PastaConfig for ark_pallas::PallasConfig {
     }
     fn scalar_from_bigint(x: BigInt<4>) -> Option<Scalar<Self>> {
         Scalar::<Self>::from_bigint(x)
+    }
+    fn basefield_from_u64(x: u64) -> BaseField<Self> {
+        BaseField::<PallasConfig>::from_bigint(BigInt::from(x)).unwrap()
+    }
+    fn scalar_from_u64(x: u64) -> Scalar<Self> {
+        Scalar::<PallasConfig>::from_bigint(BigInt::from(x)).unwrap()
     }
 
     const POSEIDON_MDS: [[<PallasConfig as CurveConfig>::BaseField; 3]; 3] = FP_MDS;
@@ -118,6 +129,12 @@ impl PastaConfig for ark_vesta::VestaConfig {
     }
     fn scalar_from_bigint(x: BigInt<4>) -> Option<Scalar<Self>> {
         Scalar::<Self>::from_bigint(x)
+    }
+    fn basefield_from_u64(x: u64) -> BaseField<Self> {
+        BaseField::<VestaConfig>::from_bigint(BigInt::from(x)).unwrap()
+    }
+    fn scalar_from_u64(x: u64) -> Scalar<Self> {
+        Scalar::<VestaConfig>::from_bigint(BigInt::from(x)).unwrap()
     }
 
     const POSEIDON_MDS: [[<VestaConfig as CurveConfig>::BaseField; 3]; 3] = FQ_MDS;

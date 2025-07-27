@@ -1,6 +1,6 @@
 { pkgs, self, rust-overlay }:
 let
-  rustVersion = "1.87.0";
+  rustVersion = "1.88.0";
   rustFmtVersion = "2024-12-01";
   rust-bin = (rust-overlay.lib.mkRustBin {} pkgs);
   rustToolchain = rust-bin.stable.${rustVersion}.default.override {

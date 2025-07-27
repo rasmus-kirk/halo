@@ -1,10 +1,17 @@
 mod consts;
 mod group;
+mod poly;
 mod poseidon_consts;
 mod pp;
 mod wrappers;
 
+pub use ark_ff;
+pub use ark_pallas::PallasConfig;
+pub use ark_poly;
+pub use ark_std;
+pub use ark_vesta::VestaConfig;
 pub use group::*;
+pub use poly::*;
 pub use pp::PublicParams;
 pub use wrappers::PastaConfig;
 pub use wrappers::WrappedPoint;

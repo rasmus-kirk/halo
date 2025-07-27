@@ -161,18 +161,19 @@ mod tests {
     }
 
     #[test]
-    fn test_circuit_evaluation() -> Result<()> {
+    fn test_circuit_eval1() -> Result<()> {
         // Create circuit: (x1 + x2) * x3
         let mut circuit = CircuitSpec::<PallasConfig>::new();
+        let x7 = circuit.public_input_gate();
         let x2 = circuit.witness_gate();
         let x3 = circuit.witness_gate();
         let x5 = circuit.witness_gate();
-        let x7 = circuit.public_input_gate();
         let c11 = circuit.constant_gate(scalar(11));
         let a5 = circuit.add_gate(x2, x3);
         let mul25 = circuit.mul_gate(a5, x5);
         let mul175 = circuit.mul_gate(x7, mul25);
-        let _add186 = circuit.add_gate(c11, mul175);
+        let add186 = circuit.add_gate(c11, mul175);
+        circuit.output_gate(add186);
 
         // Evaluate with inputs x1=2.0, x2=3.0, x3=4.0
         let mut trace_builder = TraceBuilder::new(circuit);
@@ -203,7 +204,8 @@ mod tests {
         let mul35 = circuit.mul_gate(x7, c5);
         let mul12 = circuit.mul_gate(c3, mul4);
         let add47 = circuit.add_gate(mul12, mul35);
-        let _assert_eq = circuit.assert_eq_gate(add47, c47);
+        circuit.assert_eq_gate(add47, c47);
+        circuit.output_gate(add47);
 
         // Evaluate with inputs x1=2.0, x2=3.0, x3=4.0
         let mut trace_builder = TraceBuilder::new(circuit);
@@ -216,7 +218,6 @@ mod tests {
         test_copy_constraints(&trace);
 
         assert_eq!(scalar(47), trace.output());
-        assert!(false);
         Ok(())
     }
 

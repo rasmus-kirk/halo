@@ -254,19 +254,22 @@ pub fn chunked_commit<P: PastaConfig>(
 }
 
 /// Creates a proof that states: "I know a polynomial p of degree d' less than d, with commitment C s.t. p(z) = v" where p is private and d, z, v are public.
+/// Without evaluating p(X)
 ///
 /// rng: Required since the function uses randomness
 /// p: A univariate polynomial p(X)
 /// C: A commitment to p,
 /// d: A degree bound for p, we require that p.degree() <= d,
 /// z: An evaluation point z
+/// v: The evaluation of p(z)
 /// w: Commitment randomness ω for the Pedersen Commitment C
-pub fn open<R: Rng, P: PastaConfig>(
+pub fn open_without_eval<R: Rng, P: PastaConfig>(
     rng: &mut R,
     p: Poly<P>,
     C: Point<P>,
     d: usize,
     z: &Scalar<P>,
+    v: &Scalar<P>,
     w: Option<&Scalar<P>>,
 ) -> EvalProof<P> {
     let pp = PublicParams::get_pp();
@@ -277,9 +280,6 @@ pub fn open<R: Rng, P: PastaConfig>(
     assert!(n.is_power_of_two(), "n ({n}) is not a power of two");
     assert!(p.degree() <= d);
     assert!(d <= pp.D);
-
-    // 1. Compute the evaluation v := p(z) ∈ Fq.
-    let v = p.evaluate(z);
 
     let (p_prime, C_prime, w_prime, C_bar) = if let Some(w) = w {
         // (2). Sample a random polynomial p_bar ∈ F^(≤d)_q[X] such that p_bar(z) = 0.
@@ -296,7 +296,7 @@ pub fn open<R: Rng, P: PastaConfig>(
 
         // (5). Compute the challenge α := ρ(C, z, v, C_bar) ∈ F^∗_q.
         transcript.absorb_g(&[C, C_bar]);
-        transcript.absorb_fr(&[*z, v]);
+        transcript.absorb_fr(&[*z, *v]);
         let a = transcript.challenge();
 
         // 6. Compute the polynomial p' := p + α ⋅ p_bar = Σ^d_(i=0) c_i ⋅ X_i ∈ Fq[X].
@@ -325,7 +325,7 @@ pub fn open<R: Rng, P: PastaConfig>(
     // z_0 := (1, z, . . . , z^d) ∈ F^(d+1)_q
     // G_0 := (G_0, G_1, . . . , G_d) ∈ G_(d+1)
     transcript.absorb_g(&[C_prime]);
-    transcript.absorb_fr(&[*z, v]);
+    transcript.absorb_fr(&[*z, *v]);
     let mut xi_i = transcript.challenge();
     let H_prime = pp.H * xi_i;
 
@@ -390,6 +390,26 @@ pub fn open<R: Rng, P: PastaConfig>(
     };
 
     pi
+}
+
+/// Creates a proof that states: "I know a polynomial p of degree d' less than d, with commitment C s.t. p(z) = v" where p is private and d, z, v are public.
+///
+/// rng: Required since the function uses randomness
+/// p: A univariate polynomial p(X)
+/// C: A commitment to p,
+/// d: A degree bound for p, we require that p.degree() <= d,
+/// z: An evaluation point z
+/// w: Commitment randomness ω for the Pedersen Commitment C
+pub fn open<R: Rng, P: PastaConfig>(
+    rng: &mut R,
+    p: Poly<P>,
+    C: Point<P>,
+    d: usize,
+    z: &Scalar<P>,
+    w: Option<&Scalar<P>>,
+) -> EvalProof<P> {
+    let v = p.evaluate(z);
+    open_without_eval(rng, p, C, d, z, &v, w)
 }
 
 /// Cheaply checks that a proof, pi, is correct. It is not a full check
