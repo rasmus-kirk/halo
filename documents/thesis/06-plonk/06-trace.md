@@ -140,6 +140,7 @@ TODO relative gates
 $$
 \begin{array}{rl}
 \begin{array}{rl}
+A \cat B &= A \sqcup_{\lambda \_,\vec{a}, \vec{b}. \vec{a} \cat \vec{b}} B \\
 \TraceTable &= \IndexMap(X, \lambda t,\_. W(t)^k) \\
 \text{GState}^{k,k'} &= \TraceTable \times \Gate^{k'} \times \Bb \times \RState^k \\
 \vec{g}^{\abst{f}} &= \left[g \middle\vert (g, \abst{y}) \in \abst{f} \land (\abst{y} = \bot \lor \exists i,t. \abst{y} = \text{Input}^t_i) \right] \\

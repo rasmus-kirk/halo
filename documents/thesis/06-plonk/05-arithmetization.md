@@ -67,7 +67,7 @@ W &: \WireType \to \Uni \\
 \ty(\abst{w}) &= (\lambda(\_, t). t)(\abst{w}) \\
 \end{array} &
 \begin{array}{rl}
-\Gate &= (g: \GateType) \times \Wire^{n_g} \times \cdot \\
+\Gate &= (g: \GateType) \times \Wire^{n_g} \times \cdots \\
 \ty(g) &= (\lambda(t, \_). t)(g) \\
 \gin(g) &= (\lambda(\_, \abst{\vec{x}}). \abst{\vec{x}})(g) \\
 \out^{\abst{f}}(g): \Wire^{m_g} &= \maybe{\abst{\vec{y}}}{\abst{y}_i \in \set{\abst{y} \middle\vert (g,\abst{y}) \in \abst{f}} \land \id(\abst{y}_{i>1}) = \id(\abst{y}_{i-1}) + 1}
@@ -137,7 +137,10 @@ u_s &= (\lambda(u,\_).u)(s) \\
 \end{array}
 $$
 
-Gates have a *canonical program* that it corresponds to, e.g $\build{x + y=z}{s}{s'} = \left(\text{get}(s,\text{Add}(\abst{x},\abst{y})) = (s', \abst{z})\right)$, thus a program can be arithmetized iff it can be decomposed into these canonical programs. These inserts yield new wires. However, wires are reused by an equivalence class on gates. If $g \equiv h$ where $(h,\_) \in \abst{f}$, then $\abst{\vec{y}}$ in $\build{g=\vec{y}}{s}{s}$ corresponds to the output wire(s) of $h$, leaving the state unchanged.
+Gates have a *canonical program* that it corresponds to, e.g $\build{x + y=z}{s}{s'} = \left(\text{get}(s,\text{Add}(\abst{x},\abst{y})) = (s', \abst{z})\right)$, thus a program can be arithmetized iff it can be decomposed into these canonical programs. These inserts yield new wires. However, wires are reused by an equivalence class on gates.[^egglog-eq] If $g \equiv h$ where $(h,\_) \in \abst{f}$, then $\abst{\vec{y}}$ in $\build{g=\vec{y}}{s}{s}$ corresponds to the output wire(s) of $h$, leaving the state unchanged.
+
+[^egglog-eq]: Determining equivalence between gates is a sophisticated problem, a candidate is to use equality saturation such as @egglog, however we implement simpler ad hoc solutions that doesnt cover the full equivalence structure. We leave this definition open.
+
 
 $$
 \Gate^{\abst{f}}_g = \set{h \in \Gate \middle\vert
@@ -152,10 +155,11 @@ $$
 \end{array} &
 \begin{array}{rl}
 \entries  &: \Nb \to \Gate \to \AbsCirc \\
-\entries(u,g) &= \set{
-  (g,\abst{y}) \middle \vert
-  \abst{y} \in \text{new}(u,g) \oplus \abst{y} = \bot
-}
+\entries(u,g) &= \begin{cases}
+\set{(g,\abst{y}) \middle\vert \abst{y} \in \text{new}(u,g)}
+& m_g > 0 \\
+\set{(g,\bot)} & \otherwise
+\end{cases}
 \end{array} \\ \\
 \begin{array}{rl}
 \aput &: \Gate \to \AState \to \AState \\
