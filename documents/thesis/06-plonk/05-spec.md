@@ -39,11 +39,11 @@ $$
 \Slot_{GC} &= (\lambda (\_, \vec{s}). \vec{s})(GC)
 \end{array} &
 \begin{array}{rl}
-\GateType_{GC} &= \bigcup\limits_{G \in \vec{G}(GC)} \vec{g}_G \\
-\Selector_{GC} &= \bigcup\limits_{G \in \vec{G}(GC)} \Selector_G
+\GateType_{GC} &= \bigcup\limits_{\text{Grp} \in \vec{G}(GC)} \vec{g}_{\text{Grp}} \\
+\Selector_{GC} &= \bigcup\limits_{\text{Grp} \in \vec{G}(GC)} \Selector_{\text{Grp}}
 \end{array} &
-\begin{array}{rl}
-F_{GC}(\vec{s}, \vec{S}) &= \sum\limits_{i \in |\vec{G}(GC)|} \term_{{\vec{G}(GC)}_i}(\vec{s}, \vec{S}_i) \\
+\begin{array}{l}
+F_{GC}(\vec{s}, \vec{S}) \\= \sum\limits_{\text{Grp}_i \in \vec{G}(GC)} \term_{\text{Grp}_i}(\vec{s}, \vec{S}_i)
 \end{array}
 \end{array}
 $$
@@ -232,10 +232,10 @@ We now introduce two more projections from gate type.
 $$
 \begin{array}{c}
 \GateType
-= \cdots \times (\ctrn: \PreTable) \times (\base: \mathcal{P}(\GateType)) \times \cdots \\
+= \cdots \times (\ctrn: \PreTable) \times (\Base: \mathcal{P}(\GateType)) \times \cdots \\
 \begin{array}{cc}
 \ctrn_g = (\lambda(\_,\ctrn).\ctrn)(g) &
-\base_g = (\lambda(\_,\base,\_).\base)(g)
+\Base_g = (\lambda(\_,\Base,\_).\Base)(g)
 \end{array}
 \end{array}
 $$
@@ -287,14 +287,14 @@ This motivates how the vanishing argument enforces the structure of the gate if 
 
 **Relative Gates**
 
-$\base_g$ is a set of gate types that specify which gate types can be its *base gate*. If the set is non empty, we call $g$ a *relative gate* type. A relative gate will always have its base gate constraints appear immediately before it.[^dupe] The full definition of a gate is as follows:
+$\Base_g$ is a set of gate types that specify which gate types can be its *base gate*. If the set is non empty, we call $g$ a *relative gate* type. A relative gate will always have its base gate constraints appear immediately before it.[^dupe] The full definition of a gate is as follows:
 
 [^dupe]: If different relative gates have the same base gate, we can expect duplicate rows such that both relative gates have a copy of the base gate's constraints.
 
 
 $$
 \begin{array}{cc}
-\Gate = (g: \GateType) \times \Wire^{n_g} \times (b: \base_g) & b_g = (\lambda \_, b. b)(g) \\
+\Gate = (g: \GateType) \times \Wire^{n_g} \times (b: \Base_g) & b_g = (\lambda \_, b. b)(g) \\
 \end{array}
 $$
 
@@ -323,7 +323,7 @@ Using the terms, we have $-c + a \cdot b = 0$ enforcing the structure of $\text{
 Finally, the last two projections of $\GateType$ are as follows:
 
 $$
-\GateType = \cdots \times \left(\refg : F\left(\Option\left(\left[1+\min\limits_{b \in \base_g} \left|\ctrn_b(t,s) \right|\right]^k\right)\right)\right) \times (\eval: W[\tin{g} \cat ?] \to W[\tout{g}])
+\GateType = \cdots \times \left(\refg : F\left(\Option\left(\left[1+\min\limits_{b \in \Base_g} \left|\ctrn_b(t,s) \right|\right]^k\right)\right)\right) \times (\eval: W[\tin{g} \cat ?] \to W[\tout{g}])
 $$
 $$
 \begin{array}{cc}
@@ -332,32 +332,49 @@ $$
 \end{array}
 $$
 
-$\refg_g$ defines the offsets for relative gates. It is a function from index map indices to a vector of natural number offsets. The definition guarantees, that the offset stays within the pre-constraints of the base gate. $\abst{w}_{r \otimes b}$ maps the offset position with the wires in that cell. If the offset position is not a wire i.e. constant or $\plookup$ cell, then it is omitted. These wires will be available to $\eval_g$ when computing wires.
+$\refg_g$ defines the offsets for relative gates. It is a function from index map indices to a vector of natural number offsets. The definition guarantees, that the offset stays within the pre-constraints of the base gate. $\abst{w}_{r \otimes b}$ maps the offset position with the wires in that cell. If the offset position is not a wire i.e. constant or $\plookup$ cell, then it is omitted. The values for these wires will be available to the canonical program $\eval_g$.
 
 $$
 \begin{array}{rl}
-\abst{w}_{r \otimes b} &= (\lambda t,s,x,\vec{o}. \text{lookup}(\ctrn_b(t,s,x),\vec{o}))[\refg_r] \\
-\text{lookup}(\vec{c},\vec{o}) &= \begin{cases}
+\begin{array}{rl}
+\text{lin} &: (T \to T) \to T \to \IndexMap(\lambda \_. (), \lambda \_. T) \to T^k \\
+\text{lin}^f_b (A) &= \begin{cases}
+f(a, \text{lin}(A(t)[s \mapsto \bot])) & \exists t,s. a = A(t,s) \neq \bot \\
+b & \otherwise
+\end{cases} \\
+\\
+\refg_{\abst{w}} &: \Gate \to \Gate \to \Wire^k \\
+\refg_{\abst{w}}(r,b) &= \text{lin}^{\cat}_{()}((\lambda t,s,x,\vec{o}. \text{find}(\ctrn_b(t,s,x),\vec{o}))[\refg_r])
+\end{array} &
+\begin{array}{rl}
+\text{find}(\vec{c},\vec{o}) &= \begin{cases}
 () & \vec{o} = () \\
 & \vec{o} = o \cat \vec{o}' \\
-& \abst{\vec{w}} = \text{lookup}(\vec{c},\vec{o}') \\
+& \abst{\vec{w}} = \text{find}(\vec{c},\vec{o}') \\
 \abst{w} \cat \abst{\vec{w}} & c_{|\vec{c}| - o + 1} = (\_, (\abst{w}), \_) \\
 \abst{\vec{w}} & \otherwise
 \end{cases}
 \end{array}
+\end{array}
+$$
+$$
+\eval_g : \set{b: \Gate \middle\vert \ty(b) \in \Base_g } \to W[\tin{g} \cat \ty[\refg_{\abst{w}}(g,b)]] \to W[\tout{g}]
 $$
 
-TODO
+Gate groups also populate the offsets its terms can use as arguments via $\text{rels}_g$.
 
-linearize the imap of wires into a single vector of wires - linearize is cat each column i.e. Y(t,s) is constant over t,s
-
-map it by ty and concat with $\tin{g}$ is the arg for eval
-
-the linearize must also be done on ref mapped as (s,o) for gate group to populate all offsets its term can use
+$$
+\begin{array}{ccc}
+\text{Rel} = (\SlotNSelector) \times \Nb
+&
+\begin{array}{rl}
+\text{Rel}_g &: \mathcal{P}(\text{Rel}) \\
+\text{Rel}_g &= \text{lin}^{\cup}_{\emptyset}((\lambda \_,s,\_,\vec{o}. (\lambda o. (s,o))[\vec{o}])[\refg_g])
+\end{array}
+&
+\text{Rel}_{\text{Grp}} = \bigcup\limits_{g \in \GateType_{\text{Grp}}} \text{Rel}_g
+\end{array}
+$$
 
 In summary, relative gates allows $F_{GC}$ to have terms that uses cells from multiple rows instead of strictly one.
-
-$\eval_g$ is the canonical program.
-
-eval nows needs another argument of its base gate's type to find the wire via lookup linearize etc
 
