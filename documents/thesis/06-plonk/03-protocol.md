@@ -111,7 +111,7 @@ $$
 Now, we can use selector polynomials, $q_l(X), q_r(X), q_o(X), q_m(X),
 q_c(X)$, to show that the constructed polynomials $a(X), b(X), c(X)$ satisfy
 the circuit relations by proving that a constructed polynomial $f_{GC}(X)
-= 0$ at $i = [1, 6]$:
+= 0$ at $i = [1, 8]$:
 
 $$f_{GC}(X) = a(X) q_l(X) + b(X) q_r(X) + c(X) q_o(X) + a(X) b(X) q_m(X) + q_c(X)$$
 
@@ -119,49 +119,39 @@ Where $a(X), b(X), c(X)$ are private and the selector polynomials are
 public. Notice that we can represent this as a table:
 
 \begin{center}
-  \begin{tabular}{|c|c|c|c|c|c|c|c|c|}
+  \begin{tabu}{|c|[1pt]c|c|c|c|c|c|c|c|}
     \hline
-    $i$ & $a(i)$ & $b(i)$ & $c(i)$ & $q_l(i)$ & $q_r(i)$ & $q_o(i)$ & $q_m(i)$ & $q_c(i)$ \\
-    \hline
-    $1$ & $w_1 = 2$ & $w_1 = 2$ & $w_3 = 4$ & 0 & 0 & -1 & 1 & 0 \\
-    \hline
-    $2$ & $w_4 = 3$ & & & 1 & 0 & 0 & 0 & -3 \\
-    \hline
-    $3$ & $w_3 = 4$ & $w_4 = 3$ & $w_5 = 12$ & 0 & 0 & -1 & 1 & 0 \\
-    \hline
-    $4$ & $w_6 = 5$ & & & 1 & 0 & 0 & 0 & -5 \\
-    \hline
-    $5$ & $w_2 = 7$ & $w_6 = 5$ & $w_7 = 35$ & 0 & 0 & -1 & 1 & 0 \\
-    \hline
-    $6$ & $w_5 = 12$ & $w_7 = 35$ & $w_8 = 47$ & 1 & 1 & -1 & 0 & 0 \\
-    \hline
-  \end{tabular}
+    $i$ & $a(i)$ & $b(i)$ & $c(i)$ & $q_l(i)$ & $q_r(i)$ & $q_o(i)$ & $q_m(i)$ & $q_c(i)$ \\\tabucline[1pt]{-}
+    $1$ & 3      & 0      & 0      & 1        & 0        & 0        & 0        & -3       \\\hline
+    $2$ & 5      & 0      & 0      & 1        & 0        & 0        & 0        & -5       \\\hline
+    $3$ & 47     & 0      & 0      & 1        & 0        & 0        & 0        & -47      \\\hline
+    $4$ & 2      & 2      & 4      & 0        & 0        & -1       & 1        & 0        \\\hline
+    $5$ & 5      & 7      & 35     & 0        & 0        & -1       & 1        & 0        \\\hline
+    $6$ & 4      & 3      & 12     & 0        & 0        & -1       & 1        & 0        \\\hline
+    $7$ & 35     & 12     & 47     & 1        & 1        & -1       & 0        & 0        \\\hline
+    $8$ & 0      & 0      & 0      & 0        & 0        & 0        & 0        & 0        \\\hline
+  \end{tabu}
 \end{center}
 
 Lagrange interpolation is slow, with a runtime of $\Oc(n^2)$, we can
 instead use FFT to construct our polynomials, which has a runtime of $\Oc(n
 \log(n))$. For this, we construct the polynomials over the roots of unity
-($\o^1, \o^2, \dots, \o^6$ where $\o$ is the 6'th root of unity), meaning
+($\o^1, \o^2, \dots, \o^8$ where $\o$ is the 8'th root of unity), meaning
 that our table becomes:
 
 \begin{center}
-  \begin{tabular}{|c|c|c|c|c|c|c|c|c|}
+  \begin{tabu}{|c|[1pt]c|c|c|c|c|c|c|c|}
     \hline
-    $\o^i$ & $a(\o^i)$ & $b(\o^i)$ & $c(\o^i)$ & $q_l(\o^i)$ & $q_r(\o^i)$ & $q_o(\o^i)$ & $q_m(\o^i)$ & $q_c(\o^i)$ \\
-    \hline
-    $\o^1$ & $w_1 = 2$ & $w_1 = 2$ & $w_3 = 4$ & 0 & 0 & -1 & 1 & 0 \\
-    \hline
-    $\o^2$ & $w_4 = 3$ & & & 1 & 0 & 0 & 0 & -3 \\
-    \hline
-    $\o^3$ & $w_3 = 4$ & $w_4 = 3$ & $w_5 = 12$ & 0 & 0 & -1 & 1 & 0 \\
-    \hline
-    $\o^4$ & $w_6 = 5$ & & & 1 & 0 & 0 & 0 & -5 \\
-    \hline
-    $\o^5$ & $w_2 = 7$ & $w_6 = 5$ & $w_7 = 35$ & 0 & 0 & -1 & 1 & 0 \\
-    \hline
-    $\o^6$ & $w_5 = 12$ & $w_7 = 35$ & $w_8 = 47$ & 1 & 1 & -1 & 0 & 0 \\
-    \hline
-  \end{tabular}
+    $\o^i$ & $a(\o^i)$ & $b(\o^i)$ & $c(\o^i)$ & $q_l(\o^i)$ & $q_r(\o^i)$ & $q_o(\o^i)$ & $q_m(\o^i)$ & $q_c(\o^i)$ \\\tabucline[1pt]{-}
+    $\o^1$ & 3         & 0         & 0         & 1           & 0           & 0           & 0           & -3          \\\hline
+    $\o^2$ & 5         & 0         & 0         & 1           & 0           & 0           & 0           & -5          \\\hline
+    $\o^3$ & 47        & 0         & 0         & 1           & 0           & 0           & 0           & -47         \\\hline
+    $\o^4$ & 2         & 2         & 4         & 0           & 0           & -1          & 1           & 0           \\\hline
+    $\o^5$ & 5         & 7         & 35        & 0           & 0           & -1          & 1           & 0           \\\hline
+    $\o^6$ & 4         & 3         & 12        & 0           & 0           & -1          & 1           & 0           \\\hline
+    $\o^7$ & 35        & 12        & 47        & 1           & 1           & -1          & 0           & 0           \\\hline
+    $\o^8$ & 0         & 0         & 0         & 0           & 0           & 0           & 0           & 0           \\\hline
+  \end{tabu}
 \end{center}
 
 Now we wish to prove that:
@@ -223,16 +213,91 @@ the permutation _seems_ to do nothing. But as can also be seen above,
 if the prover tries to cheat by violating $a_1 = b_1$ then the permuted
 $\pi(\vec{w})$ will not be equal to the original $\vec{w}$. As in the above
 section we can model the vectors as polynomials using FFT, such that $w(\o^1)
-= w_1, w(\o^2) = w_2 \dots$. This reduces the problem to succinctly showing
-equality of two polynomials for all elements in a set $H$, which is exactly
-what the **Grand Product Argument** does.
-
-#### Grand Product Argument
+= w_1, w(\o^2) = w_2 \dots$.
 
 Given two polynomials $f(X), g(X)$ we want to check whether:
 
-$$\forall s \in S : f(s) = g(s)$$
+$$\forall \o \in H : f(\o^i) \meq g(\o^{\s(i)})$$
 
-We can provide the challenge $\g$ and compare the products
+One approach is to use the **Grand Product Argument**, defined earlier,
+which would show:
 
-$$\prod_{s \in S} f(s) + \g = \prod_{s \in S} g(s) + \g$$
+$$\prod_{\o \in H} f(\o) = \prod_{\o \in H} g(s)$$
+
+But this only proves there exists _some_ permutation between $f(X)$ and
+$g(X)$, not necessarily $\s(X)$. To prove for the specific permutation $\s$,
+we add the indices ($\{ (f(\o^i), \id(\o^i)) \mid i \in [1,n] \} \meq \{
+(g(\o^i), \s(\o^i)) \mid i \in [1,n] \}$). And to make it compatible to the
+grand-product argument, we can add the indices as terms:
+
+$$
+\begin{aligned}
+  \prod_{\o \in H} f'(\o) &= \prod_{\o \in H} g'(\o) \\
+                    f'(X) &= f(X) + \beta \cdot \id(X) + \g \\
+                    g'(X) &= g(X) + \beta \cdot \s(X) + \g
+\end{aligned}
+$$
+
+The $\beta$ and $\gamma$ terms are necessary for soundness.
+
+**Correctness:**
+
+Since $f(\o^i) = g(\o^{\s(i)})$: 
+
+$$
+\begin{aligned}
+  \prod_{i \in [n]} g'(\o^i) &= \prod_{i \in [n]} f'(\o^i) \\
+                             &= \prod_{i \in [n]} f(\o^i) + \id(\o^i) \\
+                             &= \prod_{i \in [n]} f(\o^{\s(i)}) + \s(\o^i) \\
+                             &= \prod_{i \in [n]} g(\o^i) + \s(\o^i) \\
+                             &= \prod_{i \in [n]} g'(\o^i)
+\end{aligned}
+$$
+
+**Soundness:**
+
+TODO
+
+\begin{quote}
+\color{GbGrey}
+
+\textbf{Example:}
+
+To highlight why this works, consider the following example, without the
+soundness values $\b, \g$:
+
+$$
+  \begin{alignedat}{10}
+    \id(1) &= 1 \quad & \id(2) &= 2 \quad & \id(3) &= 3 \quad & \id(4) &= 4 \quad & \id(5) &= 5 \quad & \id(6) &= 6 \quad \\
+    \s(1)  &= 1 \quad & \s(2)  &= 4 \quad & \s(3)  &= 5 \quad & \s(4)  &= 6 \quad & \s(5)  &= 3 \quad & \s(6)  &= 2 \quad
+  \end{alignedat}
+$$
+
+$$
+\begin{aligned}
+  \prod_{\o \in H} (f(\o) + \id(\o)) &= (f(\o^1) + 1)(f(\o^2) + 2)(f(\o^3) + 3)(f(\o^4) + 4)(f(\o^5) + 5)(f(\o^6) + 6) \\
+  \prod_{\o \in H} (g(\o) + \s(\o))  &= (g(\o^{\s(1)}) + 1)(g(\o^{\s(2)}) + 4)(g(\o^{\s(3)}) + 5)(g(\o^{\s(4)}) + 6)(g(\o^{\s(5)}) + 3)(g(\o^{\s(6)}) + 2) \\
+                                     &= (f(\o^1) + 1)(f(\o^4) + 4)(f(\o^5) + 5)(f(\o^6) + 6)(f(\o^3) + 3)(f(\o^2) + 2)
+\end{aligned}
+$$
+\end{quote}
+
+#### Permutation Argument Over Multiple Polynomials
+
+In Plonk, we don't have a single polynomial spanning over each $\vec{a},
+\vec{b}, \vec{c}$.
+
+\begin{center}
+  \begin{tabu}{|c|[1pt]c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
+    \hline
+    $\omega^i$ & $a$   & $b$   & $c$   & $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $id_a$ & $id_b$ & $id_c$ & $\s_a$ & $\s_b$ & $\s_c$ \\\tabucline[1pt]{-}
+    $\omega^1$ & 3     & 0     & 0     & 1     & 0     & 0     & 0     & -3    & 1      & 9      & 17     & 14     & 9      & 17     \\\hline
+    $\omega^2$ & 5     & 0     & 0     & 1     & 0     & 0     & 0     & -5    & 2      & 10     & 18     & 5      & 10     & 18     \\\hline
+    $\omega^3$ & 47    & 0     & 0     & 1     & 0     & 0     & 0     & -47   & 3      & 11     & 19     & 23     & 11     & 19     \\\hline
+    $\omega^4$ & 2     & 2     & 4     & 0     & 0     & -1    & 1     & 0     & 4      & 12     & 20     & 12     & 4      & 6      \\\hline
+    $\omega^5$ & 5     & 7     & 35    & 0     & 0     & -1    & 1     & 0     & 5      & 13     & 21     & 2      & 13     & 7      \\\hline
+    $\omega^6$ & 4     & 3     & 12    & 0     & 0     & -1    & 1     & 0     & 6      & 14     & 22     & 20     & 1      & 15     \\\hline
+    $\omega^7$ & 35    & 12    & 47    & 1     & 1     & -1    & 0     & 0     & 7      & 15     & 23     & 21     & 22     & 3      \\\hline
+    $\omega^8$ & 0     & 0     & 0     & 0     & 0     & 0     & 0     & 0     & 8      & 16     & 24     & 8      & 16     & 24     \\\hline
+  \end{tabu}
+\end{center}

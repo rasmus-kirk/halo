@@ -175,14 +175,62 @@ is $\frac{k}{|\Fb|}$.
 
 ### Grand Product Argument
 
-- two polys f(X) g(X)
-- $\prod_{s \in S} f(s) \meq \prod_{s \in S} g(s)$
-- $z(\o) = 1$
-- $z(\o X) = \dots$
-- $f_1(X) = l_1(X)(z(X) - 1)$
-- $f_2(X) = f(X)z(X) - g(X)z(X)$
+Suppose a prover, given polynomials $f'(X), g'(x)$ wanted to prove that
+these polynomials when viewed as sets are equal to each other. This is
+called multi-set equality, i.e, $\{ f(i) \mid i \in [1, n] \} \meq \{ g(i)
+\mid i \in [1, n] \}$, or $\forall \o \in H : f'(X) = g'(X)$. This relation
+can be modelled with a grand product:
 
-TODO
+$$\prod_{i \in n} f'(\o^i) = \prod_{i \in n} g'(\o^i)$$
+
+The prover can then create a polynomial, $z(X)$, to check this relation:
+
+$$
+\begin{aligned}
+  z(\o^1) &= 1 \\
+  z(\o^i) &= \prod_{1 \leq j < i} \frac{f'(\o^j)}{g'(\o^j)} \\
+\end{aligned}
+$$
+
+The prover needs to convince the verifier that $z(X)$ has the expected form:
+
+$$
+\begin{aligned}
+  z(\o^i)              &= \prod_{1 \leq j < i} \frac{f'(\o^j)}{g'(\o^j)} \\
+  z(\o^i)              &= z(\o^{i-1}) \frac{f'(\o^{i-1})}{g'(\o^{i-1})} \\
+  z(\o^{i+1})          &= z(\o^i) \frac{f'(\o^i)}{g'(\o^i)} \\
+  z(\o^{i+1}) g'(\o^i) &= z(\o^i) f'(\o^i) \\
+  z(\o^i) f'(\o^i)     &= z(\o \cdot \o^i) g'(\o^i) \\
+\end{aligned}
+$$
+
+While also proving that $z(\o^1) = 1$. This leads to the following polynomials:
+
+$$
+\begin{aligned}
+  f_{CC_1}(X) &= L_1(X)(Z(X) - 1) \\
+  f_{CC_2}(X) &= z(X) f'(X) - z(\o X) g'(X) \\
+\end{aligned}
+$$
+
+That should be zero for all $\o \in H$, which can be checked using the
+**Vanishing Argument Protocol**. Finally, it needs to be argued that checking
+these constraints lead to the desired goal of checking whether $\prod_{\o
+\in H} f'(\o) \meq \prod_{\o \in H} g'(\o)$. Notice that in the last case,
+$i = n$:
+
+$$
+\begin{aligned}
+  z(\o^n) f'(\o^n)                                                 &= z(\o^{n+1}) g'(\o) \\
+  \prod_{1 \leq j < i} \frac{f'(\o^j)}{g'(\o^j)} f'(\o^n)          &= g'(\o) \\
+  \prod_{1 \leq j < i} \frac{f'(\o^j) f'(\o^n)}{g'(\o^j) g'(\o^n)} &= 1 \\
+  \frac{\prod_{i \in [n]} f'(\o^i)}{\prod_{i \in [n]} g'(\o^i)}    &= 1 \\
+  \prod_{i \in [n]} f'(\o^i)                                       &= \prod_{i \in [n]} g'(\o^i) \\
+\end{aligned}
+$$
+
+And since, by the Vanishing Argument, $f_{CC_1}(X)$ and $f_{CC_2}(X)$ holds
+for all $\o \in H$, it also holds for $\o^n$.
 
 <!--
 

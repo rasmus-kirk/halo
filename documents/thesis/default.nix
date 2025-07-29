@@ -38,6 +38,9 @@
         fi
       done
 
+      #sort
+      mapfile -t in < <(for i in "''${in[@]}"; do echo "$i"; done | sort -n)
+
       pandoc \
         "''${in[@]}" \
         -H ${self}/documents/thesis/header.tex \
@@ -102,7 +105,15 @@
     buildPhase = ''
       export FONTCONFIG_FILE=${fonts}
       mkdir -p $out
-      ${pkgs.lib.getExe mk-pandoc-script} "thesis.pdf" "$out" "${self}/documents/thesis"
+      ${pkgs.lib.getExe mk-pandoc-script} "thesis.pdf" "$out" \
+        ${self}/documents/thesis
+        # ${self}/documents/thesis/01-introduction \
+        # ${self}/documents/thesis/02-prerequisites \
+        # ${self}/documents/thesis/03-chain-of-signatures \
+        # ${self}/documents/thesis/04-pcdl \
+        # ${self}/documents/thesis/05-asdl \
+        # ${self}/documents/thesis/06-plonk \
+        # ${self}/documents/thesis/07-appendix
     '';
   };
 in {
