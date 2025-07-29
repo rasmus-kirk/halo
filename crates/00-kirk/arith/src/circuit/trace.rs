@@ -5,15 +5,13 @@ use std::{array, collections::HashMap};
 use anyhow::Result;
 use halo_accumulation::pcdl;
 use halo_group::{
-    Evals, PastaConfig, Point, Poly, Scalar,
-    ark_ff::{BigInt, BigInteger, Field},
-    ark_poly::{EvaluationDomain, Polynomial, Radix2EvaluationDomain},
-    ark_std::iterable::Iterable,
+    Evals, PastaConfig, Point, Poly,
+    ark_poly::{EvaluationDomain, Radix2EvaluationDomain},
 };
 use union_find::{QuickUnionUf, UnionBySize, UnionFind};
 
 use crate::{
-    circuit_spec::SlotId,
+    circuit::SlotId,
     utils::{IteratorSplitExt, SELECTOR_POLYS, WITNESS_POLYS},
 };
 
@@ -133,11 +131,7 @@ impl<P: PastaConfig> Trace<P> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        circuit_spec::{CircuitSpec, SlotId},
-        trace::build_pi,
-        trace_builder::TraceBuilder,
-    };
+    use crate::circuit::{CircuitSpec, SlotId, TraceBuilder, build_pi};
     use anyhow::Result;
     use halo_group::{
         PallasConfig, PallasScalar, PastaConfig, ark_ff::Field, ark_poly::Polynomial,

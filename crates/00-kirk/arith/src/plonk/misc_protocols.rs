@@ -1,22 +1,15 @@
 #![allow(non_snake_case)]
-use std::marker::PhantomData;
-
 use anyhow::{Result, ensure};
 use halo_accumulation::pcdl::{self, EvalProof};
 use halo_group::{
     PastaConfig, Point, Poly,
     ark_ff::Field,
-    ark_poly::{
-        EvaluationDomain, GeneralEvaluationDomain, Polynomial, Radix2EvaluationDomain,
-        domain::DomainCoeff,
-    },
+    ark_poly::{EvaluationDomain, Polynomial, Radix2EvaluationDomain},
     ark_std::{Zero, rand::Rng},
 };
-use halo_poseidon::{Protocols, Sponge};
+use halo_poseidon::Sponge;
 
-use crate::circuit::Trace;
-
-struct VanishingArgumentProof<P: PastaConfig> {
+pub struct VanishingArgumentProof<P: PastaConfig> {
     n: usize,
     C_t: Point<P>,
     v_t: P::ScalarField,
@@ -27,7 +20,12 @@ struct VanishingArgumentProof<P: PastaConfig> {
 }
 
 impl<P: PastaConfig> VanishingArgumentProof<P> {
-    fn prove<R: Rng>(rng: &mut R, transcript: &mut Sponge<P>, fs: &[Poly<P>], n: usize) -> Self {
+    pub fn prove<R: Rng>(
+        rng: &mut R,
+        transcript: &mut Sponge<P>,
+        fs: &[Poly<P>],
+        n: usize,
+    ) -> Self {
         assert!(n.is_power_of_two());
         let d = n - 1;
 
@@ -84,7 +82,7 @@ impl<P: PastaConfig> VanishingArgumentProof<P> {
         }
     }
 
-    fn verify(transcript: &mut Sponge<P>, pi: Self) -> Result<()> {
+    pub fn verify(transcript: &mut Sponge<P>, pi: Self) -> Result<()> {
         ensure!(pi.n.is_power_of_two());
         let d = pi.n - 1;
 
@@ -111,7 +109,7 @@ impl<P: PastaConfig> VanishingArgumentProof<P> {
     }
 }
 
-struct BatchedEvaluationProofs<P: PastaConfig> {
+pub struct BatchedEvaluationProofs<P: PastaConfig> {
     n: usize,
     C_fs: Vec<Point<P>>,
     v_fs: Vec<P::ScalarField>,
@@ -119,7 +117,12 @@ struct BatchedEvaluationProofs<P: PastaConfig> {
 }
 
 impl<P: PastaConfig> BatchedEvaluationProofs<P> {
-    fn prove<R: Rng>(rng: &mut R, transcript: &mut Sponge<P>, fs: &[Poly<P>], n: usize) -> Self {
+    pub fn prove<R: Rng>(
+        rng: &mut R,
+        transcript: &mut Sponge<P>,
+        fs: &[Poly<P>],
+        n: usize,
+    ) -> Self {
         assert!(n.is_power_of_two());
         let d = n - 1;
 
@@ -147,7 +150,7 @@ impl<P: PastaConfig> BatchedEvaluationProofs<P> {
         }
     }
 
-    fn verify(transcript: &mut Sponge<P>, pi: Self, n: usize) -> Result<()> {
+    pub fn verify(transcript: &mut Sponge<P>, pi: Self, n: usize) -> Result<()> {
         assert!(n.is_power_of_two());
         let d = n - 1;
 
@@ -173,18 +176,4 @@ impl<P: PastaConfig> BatchedEvaluationProofs<P> {
 
         Ok(())
     }
-}
-
-struct PlonkProof<P: PastaConfig> {
-    _phantom: PhantomData<P>,
-}
-
-impl<P: PastaConfig> PlonkProof<P> {
-    pub fn prover(trace: Trace<P>) {
-        let transcript = Sponge::<P>::new(Protocols::PLONK);
-
-        //vanishing_argument_protocol(transcript, fs, d);
-    }
-
-    pub fn verifier() {}
 }

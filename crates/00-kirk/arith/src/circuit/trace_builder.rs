@@ -8,8 +8,7 @@ use halo_group::{
 use petgraph::algo::toposort;
 
 use crate::{
-    circuit_spec::{CircuitSpec, GateType, Wire},
-    trace::Trace,
+    circuit::{CircuitSpec, GateType, Trace, Wire},
     utils::{MultiAssign, SELECTOR_POLYS, WITNESS_POLYS},
 };
 

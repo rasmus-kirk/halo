@@ -1,7 +1,5 @@
 mod utils;
 
+pub mod circuit;
+pub mod expr;
 pub mod plonk;
-
-pub mod circuit_spec;
-pub mod trace;
-pub mod trace_builder;

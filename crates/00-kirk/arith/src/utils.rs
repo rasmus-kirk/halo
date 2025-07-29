@@ -1,13 +1,13 @@
-use std::{array, collections::HashSet, ops::Index};
+use std::array;
 
 use halo_group::{
-    Evals, PallasConfig, PastaConfig, Scalar,
+    Evals, PastaConfig, Scalar,
     ark_ff::{BigInt, BigInteger, Field},
-    ark_poly::{EvaluationDomain, Polynomial},
+    ark_poly::Polynomial,
     ark_std::Zero,
 };
 
-use crate::{circuit_spec::SlotId, trace::Trace};
+use crate::circuit::Trace;
 
 pub const WITNESS_POLYS: usize = 3;
 pub const SELECTOR_POLYS: usize = 5;
