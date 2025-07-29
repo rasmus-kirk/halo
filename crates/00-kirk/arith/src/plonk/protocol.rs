@@ -7,8 +7,7 @@ use halo_group::{
     PastaConfig, Point, Poly,
     ark_ff::Field,
     ark_poly::{
-        EvaluationDomain, GeneralEvaluationDomain, Polynomial, Radix2EvaluationDomain,
-        domain::DomainCoeff,
+        EvaluationDomain, Polynomial, Radix2EvaluationDomain,
     },
     ark_std::{Zero, rand::Rng},
 };
