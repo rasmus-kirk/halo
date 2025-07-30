@@ -22,12 +22,13 @@ $$
 
 **Abstract Circuit, Chips, Operations and Wires**
 
-Arithmetize turns a program $f$ into an *abstract circuit* $\abst{f}$, which is a one-to-many-or-none relation between chips $g$ and output wire(s) $\abst{y}$ or $\bot$ for none, inducing an acyclic circuit. e.g. $(\chip{Add}{\abst{a},\abst{b}}, \abst{c}) \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$.
+Arithmetize turns a program $f$ into an *abstract circuit* $\abst{f}$, which is a one-to-many-or-none relation between chips $g$ and output wire(s) $\abst{y}$ or $\bot$ for none, inducing an acyclic circuit. e.g. $\cpair{\chip{Add}{\abst{a},\abst{b}}}{\abst{c}} \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$.
 
 $$
 \begin{array}{rl}
-\text{OneToManyOrNone}(\abst{f}) &= \forall (g,\abst{y}),(h,\abst{y}) \in \abst{f}. \abst{y} \neq \bot \implies g = h \\
-\text{Acyclic}(\abst{f}) &= \forall (g,\abst{y}) \in \abst{f}. \abst{y} \neq \bot \land |\text{in}(g)| > 0 \implies \max(\id[\gin(g)]) < \min \left(\id[\out^{\abst{f}}(g)] \right) \\
+\cpair{g}{\abst{y}} &= (g,\abst{y}) \\
+\text{OneToManyOrNone}(\abst{f}) &= \forall \cpair{g}{\abst{y}},\cpair{h}{\abst{y}} \in \abst{f}. \abst{y} \neq \bot \implies g = h \\
+\text{Acyclic}(\abst{f}) &= \forall \cpair{g}{\abst{y}} \in \abst{f}. \abst{y} \neq \bot \land |\text{in}(g)| > 0 \implies \max(\id[\gin(g)]) < \min \left(\id[\out^{\abst{f}}(g)] \right) \\
 \AbsCirc &= \set{
   \abst{f} \middle\vert
   \abst{f} \subset \Chip \times \Option(\Wire) \land
@@ -78,7 +79,7 @@ g: \Chip &
 \end{array} \\
 \out^{\abst{f}}(g): \Wire^{m_g} = \maybe{\avec{y}}{
 \begin{array}{l}
-\forall i \in [m_g+1]. \abst{y}_i \in \set{\abst{y} \middle\vert (g,\abst{y}) \in \abst{f}} \\
+\forall i \in [m_g+1]. \abst{y}_i \in \set{\abst{y} \middle\vert \cpair{g}{\abst{y}} \in \abst{f}} \\
 \id(\abst{y}_{i>1}) > \id(\abst{y}_{i-1})
 \end{array}}
 \end{array} &
@@ -102,7 +103,7 @@ Chips in $\abst{f}$ can be visualized as an *abstract circuit diagram*
 \begin{math}
 \begin{array}{rl}
 (\abst{x}_1, \ldots, \abst{x}_{n_g}) &= \gin(g) \\
-\set{(g, \abst{y}_1), (g, \abst{y}_{m_g})} &\subseteq \abst{f}
+\set{\cpair{g}{\abst{y}_1}, \cpair{g}{\abst{y}_{m_g}}} &\subseteq \abst{f}
 \end{array}
 \end{math}
 &
@@ -169,7 +170,7 @@ s \cat \abst{y} &= \new(u_s, \abst{f}_s, \abst{y} \cat \avec{Y}_s)
 \end{array}
 $$
 
-Operations have a *canonical program* that it corresponds to, e.g $\build{x + y=z}{s}{s'} = \left(\text{get}(s,\chip{Add}{\abst{x},\abst{y}}) = (s', \abst{z})\right)$, thus a program can be arithmetized iff it can be decomposed into these canonical programs. These inserts yield new wires. However, wires are reused by an equivalence class on chips.[^egglog-eq] If $g \equiv h$ where $(h,\_) \in \abst{f}$, then $\avec{y}$ in $\build{g=\vec{y}}{s}{s}$ corresponds to the output wire(s) of $h$, leaving the state unchanged.
+Operations have a *canonical program* that it corresponds to, e.g $\build{x + y=z}{s}{s'} = \left(\text{get}(s,\chip{Add}{\abst{x},\abst{y}}) = (s', \abst{z})\right)$, thus a program can be arithmetized iff it can be decomposed into these canonical programs. These inserts yield new wires. However, if $g \equiv h$ where $\cpair{h}{\_} \in \abst{f}_s$, then $\avec{y}= \out^{\abst{f}}(h)$ in $\build{g=\vec{y}}{s}{s}$ leaving the state unchanged.[^egglog-eq] 
 
 [^egglog-eq]: Determining equivalence between chips is a sophisticated problem, a candidate is to use equality saturation such as @egglog, however we implement simpler ad hoc solutions that doesnt cover the full equivalence structure. We leave this definition open.
 
@@ -188,9 +189,9 @@ $$
 \begin{array}{rl}
 \entries  &: \Nb \to \Chip \to \AbsCirc \\
 \entries(u,g) &= \begin{cases}
-\set{(g,\abst{y}) \middle\vert \abst{y} \in \new(u,g)}
+\set{\cpair{g}{\abst{y}} \middle\vert \abst{y} \in \new(u,g)}
 & m_g > 0 \\
-\set{(g,\bot)} & \otherwise
+\set{\cpair{g}{\bot}} & \otherwise
 \end{cases}
 \end{array} \\ \\
 \begin{array}{rl}

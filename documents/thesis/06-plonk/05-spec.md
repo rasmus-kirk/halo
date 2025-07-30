@@ -48,7 +48,7 @@ $$
 
 A *specification*[^spec-benefit] defines a $\OpCollection$. In the previous section on arithmetize, we omitted $s:\Spec$ in $\AState$ leaving $W, \WireType, \Ops$ implicit for $W_s, \WireType_s, \Ops_s$. Moreover, it does not need to know $\term_{\Grp}, \Selector_{\Grp}, \Slot_{\Col}$ as these are specific to trace. We leave the spec instance $s$ and its conversion implicit for brevity[^more-brevity].
 
-[^more-brevity]: We can notationally index with spec directly to get fields of gate collection e.g. $\Ops_{s} = \Ops_{\Col_s}$
+[^more-brevity]: We can notationally index with spec directly to get fields of operation collection e.g. $\Ops_{s} = \Ops_{\Col_s}$
 
 $$
 \begin{array}{cccc}
@@ -223,7 +223,7 @@ $$
 
 **Pre-Constraints**
 
-The *pre-constraints* $\ctrn_g$ of the operation $g$ is an index map of a vector of *pre-values*. Note that the vectors across different wire types $t$ need not be the same length. Pre-values are defined in terms of a *reducer* type $R$ that computes a value for a wire type $W(t)$ given the thunk argument $X(t,s)$ and vector of concrete wire values; selected from the input and output wires of the gate[^sel-notation].
+The *pre-constraints* $\ctrn_g$ of the operation $g$ is an index map of a vector of *pre-values*. Note that the vectors across different wire types $t$ need not be the same length. Pre-values are defined in terms of a *reducer* type $R$ that computes a value for a wire type $W(t)$ given the thunk argument $X(t,s)$ and vector of concrete wire values; selected from the input and output wires of the chip[^sel-notation].
 
 [^sel-notation]: Although the selection is notated $\avec{w}$, it is a vector of naturals indexing the wire types. Trace can use this to recover the wires from $\abst{f}$.
 
@@ -240,7 +240,7 @@ g: \Ops &
 R_g(\avec{w}) = F(X(t,s) \to W[\vec{t}^{g,\avec{w}}] \to W(t))
 \end{array} \\
 \begin{array}{cc}
-\AWire_g = [1..n_g+m_g+1]\setminus \cdots &
+\AWire_g = [n_g+m_g+1]\setminus \cdots &
 \vec{t}^{g,\avec{w}} = (\lambda i. (\tin{g} \cat \tout{g})_i)[\avec{w}]
 \end{array}
 \end{array} &
@@ -261,10 +261,10 @@ wire | $\abst{w}$ | $()$ | $(\abst{w})$ | $\lambda (),w. w$
 $\plookup$ cell[^plookupdefn] | $\top$ | $(\_, \xi)$ | $\avec{w}$ | $\lambda \_,\xi,\vec{w}. \cdots$
 $\plookup$ default cell | $\bot$ | $(d,\_)$ | $\_$ | $\lambda d,\_.d$
 
-[^plookupdefn]: Defining and motivating $\plookup$ cells is deferred to when we define the lookup gates
+[^plookupdefn]: Defining and motivating $\plookup$ cells is deferred to when we define the lookup chips
 
 
-e.g. the pre-constraints for the gate $(\text{Add}_p(\abst{a}, \abst{b}), \abst{c}) \in \abst{f}$
+e.g. the pre-constraints for the chips $\cpair{\chipu{\text{Add}_p}{\abst{a}, \abst{b}}}{\abst{c}} \in \abst{f}$
 
 \begin{center}
 \begin{tabular}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
@@ -283,27 +283,32 @@ $\abst{a}$ & $\abst{b}$ & $\abst{c}$ & 1 & 1 & -1 & 0 & \multicolumn{7}{|c}{} \\
 
 Let $t:\Eqn_7 = A \cdot Q_l + B \cdot Q_r + C \cdot Q_o + A \cdot B \cdot Q_m$, thus when the reducers are resolved, we have $t=a+b-c=0$.
 
-This motivates how the vanishing argument enforces the structure of the gate if $t$ were a term of $F_{GC}$
+This motivates how the vanishing argument enforces the structure of the chip if $t$ were a term of $F_{GC}$
 
-From $\ctrn_g$, we can also populate the *loop*; a set or vector of positions modulo wire. This is used in copy constraints.
-
+From $\ctrn_g$, we can also populate the *loop*; a vector modelling an equivalence class of positions modulo wire. This is used in copy constraints.
+$$
+\begin{array}{ccc}
+\text{CopySlots} = \pset{\Slot} &
+\text{Coord} = \Slot \times \Nb &
+\text{CLoopN} = (\abst{w}: \Nb) \pto \text{Coord}^k
+\end{array}
+$$
 $$
 \begin{array}{rl}
 \begin{array}{rl}
-\text{CopySlots} &= \pset{\Slot}\\
-\text{Coord} &= \Slot \times \Nb \\
-\text{CLoopN} &= (\abst{w}: \Nb) \pto \text{Coord}^k \\
+\text{coords} &: (\Nb \to \text{Coord}^m) \to (\SlotNSelector) \\
+&\to \Nb \to \Pre_g \to \Nb \to \text{Coord}^k \\
+\text{coords} &= \lambda (l,s,o,p,j). \\
+&l(j) \cat \left[ ((s,i+o)) \middle\vert \text{wnat}(p) = j \right] ? ()
 \end{array} &
 \begin{array}{rl}
 \text{loopN} &: \Nb \to \PreTable_g \to \Wire^{n_g +m_g} \to \Nb \to \text{CLoopN} \\
 \text{loopN} &= \lambda(o, t, s, x, \vec{p}, \avec{w}, i). \\
 &\begin{cases}
 \bot & \vec{p} = () \lor x \neq () \\
-& \vec{p} = p \cat \vec{p}' \land l = \text{loopN}(t,s,x,\vec{p}',\avec{w},i+1) \\
-& \forall j \in \AWire_g. \vec{s}_j = \left[ (s,i+o) \middle\vert \text{wnat}(p) = j \right] \\
-l[\abst{w}_j \mapsto \vec{s}_j]
-& l(\abst{w}_j) = \bot \\
-l[\abst{w}_j \mapsto l(\abst{w}_j) \cat \vec{s}_j] & \otherwise
+& \vec{p} = p \cat \vec{p}' \land l = \text{loopN}(o,t,s,x,\vec{p}',\avec{w},i+1) \\
+l[\avec{w} \mapsto \vec{s}]
+& \vec{s} = \text{coord}(\lambda j. l(\abst{w}_j) ? (),s,o,p)[n_g+m_g+1] \\
 \end{cases}
 \end{array}
 \end{array}
@@ -311,7 +316,7 @@ $$
 
 **Relative Wires**
 
-An operation is called *relative* if it has $b_g > 0$. The last $b_g$ input wires are *relative wires* which are wires from another chip called the *base chip*. Thus, they are excluded in $\ctrn_g$ via $\AWire_g$. A base chip's constraints will appear immediately after its relative chip[^dupe]. $\Rel_g$ declares the slots or selectors that, the relative chip can reference from its base chip. Thus, constructing a relative gate checks that the relative wires must exist in the first row of the base chip's constraints in the declared positions in $\Rel_g$.
+An operation is called *relative* if it has $b_g > 0$. The last $b_g$ input wires are *relative wires* which are wires from another chip called the *base chip*. Thus, they are excluded in $\ctrn_g$ via $\AWire_g$. A base chip's constraints will appear immediately after its relative chip[^dupe]. $\Rel_g$ declares the slots or selectors that, the relative chip can reference from its base chip. Thus, constructing a relative chip checks that the relative wires must exist in the first row of the base chip's constraints in the declared positions in $\Rel_g$.
 
 [^dupe]: If different relative chips have the same base chip, there will be duplicate base chip rows such that both relative chips have a copy
 
@@ -321,7 +326,7 @@ $$
 \begin{array}{rl}
 g &: \Ops \\
 b_g &: \set{x : \Nb \middle\vert x \leq n_g} \\
-\AWire_g &= [1..n_g+m_g+1]\setminus[n_g-b_g+1..n_g+1] \\
+\AWire_g &= [n_g+m_g+1]\setminus[n_g-b_g+1..n_g+1] \\
 \Rel_g &: \pset{\SlotNSelector} \\
 \Rel_{\Grp} &= \bigcup\limits_{g \in \Ops_{\Grp}} \Rel_g 
 \end{array} &
@@ -342,9 +347,8 @@ $$
 \text{pos} &: \Chip \to \Wire \to \pset{\SlotNSelector} \\
 \text{pos}(g,w) &= \maybe{s \in \Rel_g}{
 \begin{array}{l}
-i = \text{wnat}(\ctrn_g(\ty(\abst{w}), s)_1) \\
-i \neq \bot \\
-\gin(g)_{i} = \abst{w}
+i = \text{wnat}(\ctrn_g(\ty(\abst{w}), s, ())_1) \\
+i \neq \bot \land \gin(g)_{i} = \abst{w}
 \end{array}}
 \end{array} &
 \begin{array}{rl}
@@ -358,7 +362,7 @@ b_g > 0 \implies \base(\abst{f}, \avec{r}) \neq \bot \\
 \end{array}
 $$
 
-e.g. parts of the pre-constraints for the gates $\chipu{\text{ChainMul}_p}{\abst{d},\abst{e},\abst{c}}, (\chipu{\text{Mul}_p}{\abst{a}, \abst{b}}, \abst{c}) \in \abst{f}$
+e.g. parts of the pre-constraints for the chips $\cpair{\chipu{\text{ChainMul}_p}{\abst{d},\abst{e},\abst{c}}}{\abst{r}}, \cpair{\chipu{\text{Mul}_p}{\abst{a}, \abst{b}}}{\abst{c}} \in \abst{f}$ where $b_{\text{ChainMul}_p} = 1$, $b_{\text{Mul}_p} = 0$ and $\Rel_{\text{ChainMul}_p} = \set{C}$, $\Rel_{\text{Mul}_p} = \emptyset$.
 
 \begin{center}
 \begin{tabular}{c c}
@@ -395,7 +399,7 @@ $A \cdot Q_l + B \cdot Q_r + C \cdot Q_o + A \cdot B \cdot Q_m$ \\
 \end{tabular}
 \end{center}
 
-Using the terms, we have $-c + a \cdot b = 0$ enforcing the structure of $\text{Mul}_p$ and $c \cdot d \cdot e - r = 0$ enforcing the structure of $\text{ChainMul}_p$. Notice how $C_1$ refers to the column $C$ one row below the last row for $\ctrn_{\text{ChainMul}_p}$ i.e. the row for $\ctrn_{\text{Mul}_p}$. Thus, $\build{a \times b \times d \times e = r}{}{}$ is expressed in two rows instead of of three.
+Using the terms, we have $-c + a \cdot b = 0$ enforcing the structure of $\text{Mul}_p$ and $c \cdot d \cdot e - r = 0$ enforcing the structure of $\text{ChainMul}_p$. Notice how $C_1$ refers to the column $C$ one row below the last row for $\ctrn_{\text{ChainMul}_p}$ i.e. the row for $\ctrn_{\text{Mul}_p}$. Thus, $\build{a \times b \times d \times e = r}{}{}$ is expressed in two rows instead of of three, if we were to use all $\text{Mul}_p$.
 
 In summary, relative wires allows $F_{GC}$ to have terms that uses cells from its previous row.
 

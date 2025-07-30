@@ -135,7 +135,7 @@ $$
 
 $\Downarrow_G$ computes the trace table $C$ by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation (including $\Downarrow_G$), on resolved wires in $\Downarrow_R$. When the wire id stack $\avec{y}$ is empty, $\underset{G}{\curvearrowright}$ will push assert gates and input gates $\vec{g}^{\abst{f}}$ to the stack. The pre-constraints of the gates are then resolved with vmap. Thus, tabulating the trace table.
 
-TODO relative gates
+TODO relative gates: two cases, base gate resolved (clone table), base gate just resolved now (first insert)
 
 $$
 \begin{array}{rl}
