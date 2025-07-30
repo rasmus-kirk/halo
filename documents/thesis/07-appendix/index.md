@@ -48,6 +48,8 @@ $[n..m]$ & $\set{n,n+1,\ldots,m-1}$ & Set of naturals with lower bound $n$ to $m
 $y \cat \vec{x}$ & $(y, x_1, x_2, \cdots, x_n)$ & Prepend $y$ to vector $\vec{x}$ \\
 $\vec{x} \cat y$ & $(x_1, x_2, \cdots, x_n, y)$ & Append $y$ to vector $\vec{x}$ \\
 \hline
+$\text{last}(\vec{v})$ & $\maybe{v}{\vec{v} = \_ \cat (v)}$ & last element \\
+\hline
 $\maybe{x}{\phi(x)}$ & $\begin{cases} x & \phi(x) \\ \bot & \otherwise \end{cases}$ & Maybe: $x$ if $\phi(x)$, else $\bot$ \\
 \hline
 $(s..t)$ & $\begin{cases} () & t \leq s \\ s \cat (s+1 .. t) \end{cases}$ & Vector of naturals from $s$ to $t-1$ \\

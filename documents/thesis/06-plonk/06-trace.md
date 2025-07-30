@@ -4,7 +4,7 @@
 
 The trace computation is defined as follows:
 $$
-(C, \vec{\sigma}, L) = \mathrm{trace}(\abst{f},\abst{\vec{Y}},\vec{x})
+(C, \vec{\sigma}, L) = \mathrm{trace}(\abst{f},\avec{Y},\vec{x})
 $$
 
 **Monotonic Functions**
@@ -45,12 +45,12 @@ The monotonic functions defined here are specific to the $\Surkal$ protocol, i.e
 
 **Resolve**
 
-$\Downarrow_R$ computes the values of wires $\abst{\vec{Y}}$ and inputs to assert gates given the input wire values $\vec{x}$.[^respect]
+$\Downarrow_R$ computes the values of wires $\avec{Y}$ and inputs to assert gates given the input wire values $\vec{x}$.[^respect]
 
 [^respect]: all assert gates (gates with no output wires) declared in $\abst{f}$ are respected.
 
  
-It does this by peeking from the stack $\abst{\vec{y}}$, querying $\text{?}$ for unresolved input wires, otherwise it will evaluate the output wire values and cache it in the value map $v$ with $[\cdot]$. The continuation $f$ and stack pop $\curvearrowleft$ are called after.
+It does this by peeking from the stack $\avec{y}$, querying $\text{?}$ for unresolved input wires, otherwise it will evaluate the output wire values and cache it in the value map $v$ with $[\cdot]$. The continuation $f$ and stack pop $\curvearrowleft$ are called after.
 
 TODO relative gates
 
@@ -79,19 +79,19 @@ $$
 \begin{array}{rl}
 \begin{array}{rl}
 \text{?} &: \VMap \to \Wire^k \to \Wire^{k'} \\
-v \text{?} \abst{\vec{y}} &= \begin{cases}
-() & \abst{\vec{y}} = () \\
-& \abst{\vec{y}} = \abst{y} \cat \abst{\vec{y}}' \\
-\abst{y} \cat v \text{?} \abst{\vec{y}}' & v(\abst{y}) = \bot \\
-v \text{?} \abst{\vec{y}}' & \otherwise
+v \text{?} \avec{y} &= \begin{cases}
+() & \avec{y} = () \\
+& \avec{y} = \abst{y} \cat \avec{y}' \\
+\abst{y} \cat v \text{?} \avec{y}' & v(\abst{y}) = \bot \\
+v \text{?} \avec{y}' & \otherwise
 \end{cases} \\
 \\
 \left[ \cdot \right] &: \VMap \to \AbsCirc \to \Wire \to \VMap \\
 v_{\abst{f}}\left[\abst{y}\right] &= \maybe{
-  v[\abst{\vec{y}} \mapsto \vec{y}]
+  v[\avec{y} \mapsto \vec{y}]
 }{\begin{array}{rl}
   \abst{f} &\ni (g, \abst{y}) \\
-  \abst{\vec{y}} &= \out^{\abst{f}}(g) \\
+  \avec{y} &= \out^{\abst{f}}(g) \\
   \vec{y} &= \eval_g(v[\gin(g)]) \\
 \end{array}}
 \end{array}
@@ -99,15 +99,15 @@ v_{\abst{f}}\left[\abst{y}\right] &= \maybe{
 \begin{array}{rl}
 - \stackrel{\to}{\circ} \Downarrow^{-}_R &: (T \times \RState \to T \times \RState) \to \AbsCirc \\
 &\to T \times \RState \to T \times \RState \\
-f \stackrel{\to}{\circ} \Downarrow^{\abst{f}}_R(t,v, \abst{\vec{y}}) &= \begin{cases}
-f(t,v,()) & \abst{\vec{y}} = () \\
- & \abst{\vec{y}} = \abst{y} \cat \_ \\
-\underset{R}{\curvearrowleft} (t, v, \abst{\vec{y}}) & v(\abst{y}) \neq \bot \\
+f \stackrel{\to}{\circ} \Downarrow^{\abst{f}}_R(t,v, \avec{y}) &= \begin{cases}
+f(t,v,()) & \avec{y} = () \\
+ & \avec{y} = \abst{y} \cat \_ \\
+\underset{R}{\curvearrowleft} (t, v, \avec{y}) & v(\abst{y}) \neq \bot \\
  & (g, \abst{y}) \in \abst{f} \\
- & \abst{\vec{x}} = v \text{?} \gin(g) \\
-\underset{R}{\curvearrowleft} \circ f(t, v_{\abst{f}}[\abst{y}], \abst{\vec{y}}) 
- & \abst{\vec{x}} = () \\
-(t, v, \abst{\vec{x}} \cat \abst{\vec{y}}) & \otherwise
+ & \avec{x} = v \text{?} \gin(g) \\
+\underset{R}{\curvearrowleft} \circ f(t, v_{\abst{f}}[\abst{y}], \avec{y}) 
+ & \avec{x} = () \\
+(t, v, \avec{x} \cat \avec{y}) & \otherwise
 \end{cases} \\
 \end{array}
 \end{array}
@@ -116,12 +116,12 @@ $$
 \begin{array}{ccc}
 \begin{array}{rl}
 \dagger_R &: \RState \to \Bb \\
-\dagger_R(\_, \abst{\vec{y}}) &= |\abst{\vec{y}}| = 0 
+\dagger_R(\_, \avec{y}) &= |\avec{y}| = 0 
 \end{array}
 &
 \begin{array}{rl}
 s &: \Wire^m \to W[\tin{}] \to \RState \\
-s^{\abst{\vec{Y}}}_{\vec{x}} &= (\bot[(0..|\vec{x}|) \mapsto \vec{x}], \abst{\vec{Y}} \cat \set{\abst{x} \middle\vert (g, \bot) \in \abst{f} \land \abst{x} \in \gin(g) \setminus \abst{\vec{Y}}})
+s^{\avec{Y}}_{\vec{x}} &= (\bot[(0..|\vec{x}|) \mapsto \vec{x}], \avec{Y} \cat \set{\abst{x} \middle\vert (g, \bot) \in \abst{f} \land \abst{x} \in \gin(g) \setminus \avec{Y}})
 \end{array}
 &
 \begin{array}{rl}
@@ -133,7 +133,7 @@ $$
 
 **Gate Constraints**
 
-$\Downarrow_G$ computes the trace table $C$ by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation (including $\Downarrow_G$), on resolved wires in $\Downarrow_R$. When the wire id stack $\abst{\vec{y}}$ is empty, $\underset{G}{\curvearrowright}$ will push assert gates and input gates $\vec{g}^{\abst{f}}$ to the stack. The pre-constraints of the gates are then resolved with vmap. Thus, tabulating the trace table.
+$\Downarrow_G$ computes the trace table $C$ by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation (including $\Downarrow_G$), on resolved wires in $\Downarrow_R$. When the wire id stack $\avec{y}$ is empty, $\underset{G}{\curvearrowright}$ will push assert gates and input gates $\vec{g}^{\abst{f}}$ to the stack. The pre-constraints of the gates are then resolved with vmap. Thus, tabulating the trace table.
 
 TODO relative gates
 
@@ -142,18 +142,18 @@ $$
 \begin{array}{rl}
 A \cat B &= A \sqcup_{\lambda \_,\vec{a}, \vec{b}. \vec{a} \cat \vec{b}} B \\
 \TraceTable &= \IndexMap(X, \lambda t,\_. W(t)^k) \\
-\text{GState}^{k,k'} &= \TraceTable \times \Gate^{k'} \times \Bb \times \RState^k \\
-\vec{g}^{\abst{f}} &= \left[g \middle\vert (g, \abst{y}) \in \abst{f} \land (\abst{y} = \bot \lor \exists i,t. \abst{y} = \text{Input}^t_i) \right] \\
+\text{GState}^{k,k'} &= \TraceTable \times \Chip^{k'} \times \Bb \times \RState^k \\
+\vec{g}^{\abst{f}} &= \left[g \middle\vert (g, \abst{y}) \in \abst{f} \land (\abst{y} = \bot \lor \exists i,t. \abst{y} = \Input^t_i) \right] \\
 \\
 \Downarrow &: \VMap \to F(\text{Pre}(t,s)^k \to W(t)^k) \\
 \Downarrow_v(\_,\vec{r}) &= \text{reduce}[\vec{r}]\\
 \text{reduce}(r) &= \begin{cases}
-f(x,v[\abst{\vec{w}}]) & r = (x, \abst{\vec{w}}, f) \\
+f(x,v[\avec{w}]) & r = (x, \avec{w}, f) \\
 ? & \otherwise
 \end{cases} \\
 \\
 \underset{G}{\curvearrowleft} &: T \times \text{GState}^{k'',k} \to T \times \text{GState}^{k'',k'} \\
-\underset{G}{\curvearrowleft} &= \lift(\curvearrowleft : \Gate^k \to \Gate^{k'})
+\underset{G}{\curvearrowleft} &= \lift(\curvearrowleft : \Chip^k \to \Chip^{k'})
 \end{array} &
 \begin{array}{rl}
 - \stackrel{\to}{\circ} \Downarrow^{-}_G &: (T \times \text{GState} \to T \times \text{GState}) \to \AbsCirc \\
@@ -166,13 +166,13 @@ f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \underset{G}{\curvearrowleft}
 (C, (), b, v)
 & \otherwise
 \end{cases} \\
-&\circ^\uparrow \lambda(\vec{g}, b, v, \abst{\vec{y}}). \\
+&\circ^\uparrow \lambda(\vec{g}, b, v, \avec{y}). \\
 &\begin{cases}
 & b = \bot \\
 (\vec{g}^{\abst{f}}, \top, v, ())
-& |\abst{\vec{y}}| = |\vec{g}| = 0 \\
-& \abst{\vec{y}} = \abst{y} \cat \_ \\
-(g \cat \vec{g}, \bot, v, \abst{\vec{y}})
+& |\avec{y}| = |\vec{g}| = 0 \\
+& \avec{y} = \abst{y} \cat \_ \\
+(g \cat \vec{g}, \bot, v, \avec{y})
 & (g,\abst{y}) \in \abst{f} \\
 (\vec{g}, \top, v, ())
 & \otherwise
@@ -246,7 +246,7 @@ $$
 \text{Coord} &= \text{Slot} \times \Nb \\
 \text{CLoop} &= (\abst{y} : \Nb) \pto \text{Coord}^{k_{\abst{y}}} \\
 \text{CMap} &= \text{Coord} \pto \text{Coord} \\
-\text{loop} &: \text{Row} \to \GateType \to \text{CLoop} \\
+\text{loop} &: \text{Row} \to \Ops \to \text{CLoop} \\
 \\
 \text{CState}^{k,k'} &= \Nb \times \text{Coord}^{|\text{Slot}| \times k} \times \text{CMap} \times \\
 &\Bb \times \text{CLoop} \times \text{GState}^{k'}\\
@@ -339,8 +339,8 @@ $$
 &
 \begin{array}{rl}
 \text{trace} &: \AbsCirc \to \Nb^m \to \Fb^n_q \to \text{TraceResult} \\
-\text{trace}(\abst{f}, \abst{\vec{Y}}, \vec{x})
-&= \text{res} \circ \text{sup}(\Downarrow^{\abst{f}},\text{eq},\iota(s_0),\iota(s^{\abst{\vec{Y}}}_{\vec{x}}))
+\text{trace}(\abst{f}, \avec{Y}, \vec{x})
+&= \text{res} \circ \text{sup}(\Downarrow^{\abst{f}},\text{eq},\iota(s_0),\iota(s^{\avec{Y}}_{\vec{x}}))
 \end{array}
 \end{array}
 $$
