@@ -1,71 +1,63 @@
 **Spec**
 
-Before defining trace, we need the complete definition for gate types. $\Surkal$ performs vanishing argument on $F_{GC}$; the *gate constraint polynomial*. $F_{GC}$ is defined as an *abstract equation*: a function from a vector of polymorphic type *arguments* to the type itself. This lets us define a function to be used for scalars, polynomials, elliptic curve points[^curve-mul] and wires (with $\AState$) in one definition, the latter being synonymous to a gadget.
+Before defining trace, we need the complete definition for operations. $\Surkal$ performs vanishing argument on $F_{GC}$; the *gate constraint polynomial*. $F_{GC}$ is defined as an *abstract equation*: a function from a vector of polymorphic type *arguments* to the type itself. This lets us define a function to be used for scalars, polynomials, elliptic curve points[^curve-mul] and wires (with $\AState$) in one definition, the latter being synonymous to an abstract circuit.
 
-[^curve-mul]: When $\text{Arg} = E[\Fb_p]$, multiplication with a field element does not exist. Thus some $\Eqn$ aren't defined for curve points.
+[^curve-mul]: When $\Arg = E[\Fb_p]$, multiplication with a field element does not exist. Thus some $\Eqn$ aren't defined for curve points.
 
 $$
 \begin{array}{cccc}
-\Eqn_k = \text{Arg}^k \to \text{Arg}
+\Eqn_k = \Arg^k \to \Arg
 &
-+ : \text{Arg} \to \text{Arg} \to \text{Arg}
++ : \Arg \to \Arg \to \Arg
 &
-\times : \Fb_p \to \text{Arg} \to \text{Arg}
+\times : \Fb_p \to \Arg \to \Arg
 &
-\times : \text{Arg} \to \text{Arg} \to \text{Arg}
+\times : \Arg \to \Arg \to \Arg
 \end{array}
 $$
 
-The primitive terms in $F_{GC}$ are called *slots* and *selectors*. Slots: $A,B,C,\cdots$, hold concrete values of a circuit's wires privately, whereas selectors: $Q_l, Q_r, Q_o, \cdots$, are public values modelling the structure of the circuit. Slots can be used by all gates, however selectors are gate specific. Groups of gates that use the same selectors are called *gate groups* $\Grp$ where $\GateType_{\Grp}$ are the gate types and $\term_{\Grp}$ is the $F_{GC}$ term the group contributes to.
+The primitive terms in $F_{GC}$ are called *slots* and *selectors*. Slots: $A,B,C,\cdots$, hold concrete values of a circuit's wires privately, whereas selectors: $Q_l, Q_r, Q_o, \cdots$, are public values modelling the structure of the abstract circuit. Slots can be used by all operations, however selectors are operation specific. Groups of operations that use the same selectors are called *operation groups* $\Grp$ where $\Ops_{\Grp}$ are the operations and $\term_{\Grp}$ is the $F_{GC}$ term the group contributes to.
 
 $$
-\GateGroup_i = \mathcal{P}(\GateType) \times \Selector^j \times \Eqn_{i+j}
-$$
-$$
-\begin{array}{ccc}
-\GateType_{\Grp} = (\lambda (\GateType, \_). \GateType)(\Grp) &
-\Selector_{\Grp} = (\lambda (\_, \vec{s}, \_). \vec{s})(\Grp) &
-\term_{\Grp} = (\lambda (\_, \text{gc}, \_). \text{gc})(\Grp)
+\begin{array}{cccc}
+\Grp: \OpGroup &
+\Ops_{\Grp}: \pset{\Ops} &
+\Selector_{\Grp}: \Selector^j &
+\term_{\Grp}: \Eqn_{i+j}
 \end{array}
 $$
 
-The collection of all gate groups is called the *gate collection*; $GC$ where $\vec{G}({GC})$ are the gate groups. The rest of the definitions are accumulations of the gate group's methods.
+The collection of all operation groups is called the *operation collection* $\Col$ where $\OpGroup_{\Col}$ are the operation groups. The rest of the definitions are accumulations of the operation group's methods.
 
 $$
 \begin{array}{ccc}
 \begin{array}{rl}
-\GateCollection &= (\vec{G}: \GateGroup_i^k) \times \Slot^i \\
-\vec{G}(GC) &= (\lambda (\vec{G}, \_). \vec{G})(GC) \\
-\Slot_{GC} &= (\lambda (\_, \vec{s}). \vec{s})(GC)
+\Col&: \OpCollection \\
+\OpGroup_{\Col} &: \pset{\OpGroup} \\
+\Slot_{\Col} &: \Slot^i
 \end{array} &
 \begin{array}{rl}
-\GateType_{GC} &= \bigcup\limits_{\Grp \in \vec{G}(GC)} \vec{g}_{\Grp} \\
-\Selector_{GC} &= \bigcup\limits_{\Grp \in \vec{G}(GC)} \Selector_{\Grp}
+\Ops_{\Col} &= \bigcup\limits_{\Grp \in \OpGroup_{\Col}} \Ops_{\Grp} \\
+\Selector_{\Col} &= \bigcup\limits_{\Grp \in \OpGroup_{\Col}} \Selector_{\Grp}
 \end{array} &
 \begin{array}{l}
-F_{GC}(\vec{s}, \vec{S}) \\= \sum\limits_{\Grp_i \in \vec{G}(GC)} \term_{\Grp_i}(\vec{s}, \vec{S}_i)
+F_{GC}(\vec{s}, \vec{S}) \\= \sum\limits_{\Grp_i \in \OpGroup_{\Col}} \term_{\Grp_i}(\vec{s}, \vec{S}_i)
 \end{array}
 \end{array}
 $$
 
-A *specification*[^spec-benefit] defines a $\GateCollection$. In the previous section on arithmetize, we omitted $s:\Spec$ in $\AState$ leaving $W, \WireType, \GateType$ implicit for $W_s, \WireType_s, \GateType_s$. Moreover, it does not need to know $\term_G, \Selector_G, \Slot_{GC}$ as these are specific to trace. We leave the spec instance $s$ and its conversion implicit for brevity[^more-brevity].
+A *specification*[^spec-benefit] defines a $\OpCollection$. In the previous section on arithmetize, we omitted $s:\Spec$ in $\AState$ leaving $W, \WireType, \Ops$ implicit for $W_s, \WireType_s, \Ops_s$. Moreover, it does not need to know $\term_{\Grp}, \Selector_{\Grp}, \Slot_{\Col}$ as these are specific to trace. We leave the spec instance $s$ and its conversion implicit for brevity[^more-brevity].
 
-[^more-brevity]: We can notationally index with spec directly to get fields of gate collection e.g. $\GateType_{s} = \GateType_{GC_{s}}$
+[^more-brevity]: We can notationally index with spec directly to get fields of gate collection e.g. $\Ops_{s} = \Ops_{\Col_s}$
 
-$$
-\begin{array}{cc}
-\Spec = (GC: \GateCollection) \times (\WireType: \Uni) \times (W: \WireType \to \Uni) \times (X: F(\Uni))
-\end{array}
-$$
 $$
 \begin{array}{cccc}
-GC_s = (\lambda(GC, \_). GC)(s)
+s : \Spec &
+\OpCollection_s : \OpCollection
 &
-\WireType_s = (\lambda(\_, \WireType, \_). \WireType)(s)
+\WireType_s: \Uni
 &
-W_s = (\lambda(\_, \_, W). W)(s)
-&
-X_s = (\lambda(\_, X).X)(s)
+W_s: \WireType_s \to \Uni
 \end{array}
 $$
 
@@ -78,7 +70,7 @@ In summary, spec can be visualized as follows:
 \tikzset{v/.style={draw, rounded corners, anchor=north}}
 \node[v] (spec) at (0,0) {$s: \Spec$};
 
-\node[v,anchor=east] (X) at ($(spec.west)+(-1,0)$) {$X_s$};
+\node[anchor=east] (X) at ($(spec.west)+(-1,0)$) {$\cdots$};
 
 \node[v] (wty) at ($(spec.south)+(-4,-0.5)$) {$\WireType_s$};
 \node[v] (t1) at ($(wty.south)+(0,-0.25)$) {$t_1$};
@@ -99,7 +91,7 @@ In summary, spec can be visualized as follows:
 \draw[|->] ($(t1.east)+(0.25,0)$) -- ($(w1.west)+(-0.25,0)$);
 \draw[|->] ($(t2.east)+(0.25,0)$) -- ($(w2.west)+(-0.25,0)$);
 
-\node[v] (col) at ($(spec.south)+(0,-0.5)$) {$GC_s$};
+\node[v] (col) at ($(spec.south)+(0,-0.5)$) {$\OpCollection_s$};
 \node[v] (slot) at ($(col.south)+(0,-0.25)$) {$\Slot_s$};
 \node[v] (A) at ($(slot.south)+(0,-0.25)$) {$A$};
 \node[v] (B) at ($(A.south)+(0,-0.25)$) {$B$};
@@ -110,18 +102,18 @@ In summary, spec can be visualized as follows:
 \draw[-] (B.south) -- (C.north);
 \draw[-,dashed] (C.south) -- ($(C.south)+(0,-0.5)$);
 
-\node[v,anchor=west] (G) at ($(spec.east)+(4.5,0)$) {$\vec{G}(GC_s)$};
+\node[v,anchor=west] (G) at ($(spec.east)+(4.5,0)$) {$\OpGroup_{s}$};
 \node[v] (G1) at ($(G.south |- slot.north)$) {$\Grp_1$};
 \node[v,anchor=east] (Sel1) at ($(G1.west)+(-0.5,0)$) {$\Selector_{\Grp_1}$};
 \node[v,anchor=north] (term1) at ($(G1.south)+(1,-0.25)$) {$\term_{\Grp_1}$};
-\node[v,anchor=west] (GTy1) at ($(G1.east)+(1,0)$) {$\GateType_{\Grp_1}$};
+\node[v,anchor=west] (GTy1) at ($(G1.east)+(1,0)$) {$\Ops_{\Grp_1}$};
 \draw[->] (G1.west) -- (Sel1.east);
 \draw[->] (G1.east) -- (term1.north);
 \draw[->] (G1.east) -- (GTy1.west);
 \node[v] (G2) at ($(G1.south)+(0,-1)$) {$\Grp_2$};
 \node[v,anchor=east] (Sel2) at ($(G2.west)+(-0.5,0)$) {$\Selector_{\Grp_2}$};
 \node[v,anchor=north] (term2) at ($(G2.south)+(1,-0.25)$) {$\term_{\Grp_2}$};
-\node[v,anchor=west] (GTy2) at ($(G2.east)+(1,0)$) {$\GateType_{\Grp_2}$};
+\node[v,anchor=west] (GTy2) at ($(G2.east)+(1,0)$) {$\Ops_{\Grp_2}$};
 \draw[->] (G2.west) -- (Sel2.east);
 \draw[->] (G2.east) -- (term2.north);
 \draw[->] (G2.east) -- (GTy2.west);
@@ -167,7 +159,7 @@ In summary, spec can be visualized as follows:
 \draw[->] (spec.south) -- (col.north);
 
 \node[anchor=north] (FGC) at ($(term1.north |- col.north)$) {$F_{GC}$};
-\node[anchor=north] (GTys) at ($(g1.north |- col.north)$) {$\GateType_s$};
+\node[anchor=north] (GTys) at ($(g1.north |- col.north)$) {$\Ops_s$};
 \node[anchor=north] (Sels) at ($(Q1.north |- col.north)$) {$\Selector_s$};
 \end{tikzpicture}
 \end{center}
@@ -187,14 +179,20 @@ An *index map*[^index-map-notation] maps wire types and slots or selectors to th
 
 [^not-spec]: This may not necessarily be $X_s$ from $s: \Spec$, but if it is not specified, we may assume it is $X_s$.
 
-
+$$
+\begin{array}{ccc}
+F(T) = \WireType \to \SlotNSelector \to T &
+X_{s: \Spec}: F(\Uni)
+\end{array}
+$$
+$$
+\begin{array}{c}
+\IndexMap = (X,Y: F(\Uni)) \to F(\Option(X(t,s) \to Y(t,s))) 
+\end{array}
+$$
 $$
 \begin{array}{cc}
 \begin{array}{rl}
-F(T) &= \WireType \to \SlotNSelector \to T \\
-\IndexMap &= (X,Y: F(\Uni)) \\
-&\to F(\Option(X(t,s) \to Y(t,s))) \\
-\\
 -[-] &: F(Y_1(t,s) \to Y_2(t,s)) \\
 &\to \IndexMap(X,Y_1) \to \IndexMap(X,Y_2) \\
 f[A] &= \lambda t. f(t)[A(t)] \\
@@ -225,48 +223,45 @@ $$
 
 **Pre-Constraints**
 
-We now introduce two more projections from gate type.
+The *pre-constraints* $\ctrn_g$ of the operation $g$ is an index map of a vector of *pre-values*. Note that the vectors across different wire types $t$ need not be the same length. Pre-values are defined in terms of a *reducer* type $R$ that computes a value for a wire type $W(t)$ given the thunk argument $X(t,s)$ and vector of concrete wire values; selected from the input and output wires of the gate[^sel-notation].
+
+[^sel-notation]: Although the selection is notated $\avec{w}$, it is a vector of naturals indexing the wire types. Trace can use this to recover the wires from $\abst{f}$.
 
 $$
+\begin{array}{cc}
 \begin{array}{c}
-(g: \GateType)
-= \cdots \times (\ctrn: \PreTable_g) \times (\Base: \mathcal{P}(\GateType)) \times \cdots \\
+\begin{array}{ccc}
+g: \Ops &
+\ctrn_g: \PreTable_g &
+\PreTable_g = \IndexMap(X, \lambda t,s. \Pre_g(t,s)^k)
+\end{array} \\
+\begin{array}{ccccc}
+\Pre_g = F(X(t,s) \times \AWire_g^k \times R_g(\avec{w}_p,t,s)) &
+R_g(\avec{w}) = F(X(t,s) \to W[\vec{t}^{g,\avec{w}}] \to W(t))
+\end{array} \\
 \begin{array}{cc}
-\ctrn_g = (\lambda(\_,\ctrn).\ctrn)(g) &
-\Base_g = (\lambda(\_,\Base,\_).\Base)(g)
+\AWire_g = [1..n_g+m_g+1]\setminus \cdots &
+\vec{t}^{g,\avec{w}} = (\lambda i. (\tin{g} \cat \tout{g})_i)[\avec{w}]
 \end{array}
-\end{array}
-$$
-
-The *pre-constraints* $\ctrn_g$ of the gate type $g$ is an index map of a vector of *pre-values*. Note that the vectors across different wire types $t$ need not be the same length. Pre-values are defined in terms of a *reducer* type $R$ that computes a value for a wire type $W(t)$ given the thunk argument $X(t,s)$ and vector of concrete wire values; selected from the input and output wires of the gate[^sel-notation].
-
-[^sel-notation]: Although the selection is notated $\abst{\vec{w}}$, it is a vector of naturals indexing the wire types. Trace can use this to recover the wires from $\abst{f}$.
-
-$$
-\begin{array}{cc}
-\begin{array}{rl}
-\AWire_g &= [1..n_g+m_g+1] \\
-\vec{t} &: (g: \WireType) \to \AWire^k \to \WireType^k \\
-\vec{t}^{g,\abst{\vec{w}}} &= (\lambda i. (\tin{g} \cat \tout{g})_i)[\abst{\vec{w}}]
 \end{array} &
 \begin{array}{rl}
-R_g(\abst{\vec{w}}) &= F(X(t,s) \to W[\vec{t}^{g,\abst{\vec{w}}}] \to W(t)) \\
-\text{Pre}_g &= F(X(t,s) \times \abst{\vec{w}}: \AWire_g^k \times R_g({\abst{\vec{w}}},t,s)) \\
-\text{PreTable}_g &= \IndexMap(X, \lambda t,s. \text{Pre}_g(t,s)^k)
+\text{wnat} &: \Pre_g \to \Nb \\
+\text{wnat} &= \lambda (\_, \avec{w}, \_). \\
+&\maybe{i}{\avec{w} = (i)}
 \end{array}
 \end{array}
 $$
 
 Typically a pre-value is of the following forms:
 
-pre-value | notation | reducer form
--|-|-
-constant | $c$ | $((),(),\lambda (). c)$
-wire | $\abst{w}$ | $((),(\abst{w}), \lambda (),w. w)$
-$\plookup$ cell[^plookupdefn] | $\top$ | $((\_, \xi), \abst{\vec{w}}, \lambda \_,\xi,\vec{w}. w_1 + \xi \cdot w_2 + \xi^2 \cdot w_3)$
-$\plookup$ default cell | $\bot$ | $((d,\_), \_, \lambda d,\_.d)$
+pre-value | notation | $X$ | $\AWire_g^k$ | $R_g$
+-|-|-|-|-
+constant | $c$ | $()$ | $()$ | $\lambda (). c$
+wire | $\abst{w}$ | $()$ | $(\abst{w})$ | $\lambda (),w. w$
+$\plookup$ cell[^plookupdefn] | $\top$ | $(\_, \xi)$ | $\avec{w}$ | $\lambda \_,\xi,\vec{w}. \cdots$
+$\plookup$ default cell | $\bot$ | $(d,\_)$ | $\_$ | $\lambda d,\_.d$
 
-[^plookupdefn]: we defer defining and motivating $\plookup$ cells to when we define the lookup gates
+[^plookupdefn]: Defining and motivating $\plookup$ cells is deferred to when we define the lookup gates
 
 
 e.g. the pre-constraints for the gate $(\text{Add}_p(\abst{a}, \abst{b}), \abst{c}) \in \abst{f}$
@@ -290,27 +285,63 @@ Let $t:\Eqn_7 = A \cdot Q_l + B \cdot Q_r + C \cdot Q_o + A \cdot B \cdot Q_m$, 
 
 This motivates how the vanishing argument enforces the structure of the gate if $t$ were a term of $F_{GC}$
 
-**Relative Gates**
+TODO: elaborate on loop (copy constraints here instead of trace cc)
 
-$\Base_g$ is a set of gate types that specify which gate types can be its *base gate*. If the set is non empty, we call $g$ a *relative gate* type. A relative gate will always have its base gate constraints appear immediately before it.[^dupe] The full definition of a gate is as follows:
+**Relative Wires**
 
-[^dupe]: If different relative gates have the same base gate, we can expect duplicate rows such that both relative gates have a copy of the base gate's constraints.
+An operation is called *relative* if it has $b_g > 0$; the number of relative wires. The last $b_g$ input wires are *relative wires* which are wires from another chip called the *base chip*. Thus, they are excluded in $\ctrn_g$ via $\AWire_g$. A base chip's constraints will appear immediately before its relative chip[^dupe]. $\Rel_g$ declares the slots or selectors that, the relative chip can reference from its base chip. Thus, constructing a relative gate checks that the relative wires must exist in the last row of the base chip's constraints in the declared positions in $\Rel_g$.
+
+[^dupe]: If different relative chips have the same base chip, there will be duplicate base chip rows such that both relative chips have a copy
 
 
 $$
 \begin{array}{cc}
-\Gate = (g: \GateType) \times \Wire^{n_g} \times (b: \Base_g) & b_g = (\lambda \_, b. b)(g) \\
+\begin{array}{rl}
+g &: \Ops \\
+b_g &: \set{x : \Nb \middle\vert x \leq n_g} \\
+\AWire_g &= [1..n_g+m_g+1]\setminus[n_g-b_g+1..n_g+1] \\
+\Rel_g &: \pset{\SlotNSelector} \\
+\Rel_{\Grp} &= \bigcup\limits_{g \in \Ops_{\Grp}} \Rel_g 
+\end{array} &
+\begin{array}{rl}
+\base &: \AbsCirc \to \Wire \to \Chip \\
+\base(\abst{f}, \avec{w}) &= \maybe{g}{
+\begin{array}{l}
+  \exists i. (g,\abst{w}_i) \in \abst{f} \\
+  \bigwedge(\lambda \abst{w}. \abst{w} \in \gin(g) \cup \out^{\abst{f}}(g))[\avec{w}] \\
+  \bigwedge(\lambda \abst{w}. \text{pos}(g, \abst{w}) \neq \emptyset)[\avec{w}]
+\end{array}} \\
+\end{array}
+\end{array}
+$$
+$$
+\begin{array}{cc} 
+\begin{array}{rl}
+\text{pos} &: \Chip \to \Wire \to \pset{\SlotNSelector} \\
+\text{pos}(g,w) &= \maybe{s \in \Rel_g}{
+\begin{array}{l}
+i = \text{wnat} \circ \text{last} \circ \ctrn_g(\ty(\abst{w}), s) \\
+i \neq \bot \\
+\gin(g)_{i} = \abst{w}
+\end{array}}
+\end{array} &
+\begin{array}{rl}
+- ( - ) &: (g: \Ops) \to \Wire^{n_g} \to (\abst{f}: \AbsCirc) \to \Chip \\
+g(\avec{x} \cat \avec{r})_{\abst{f}} &= \maybe{g'}{
+\begin{array}{l}
+\cdots \land |\avec{r}| = b_g \\
+b_g > 0 \implies \base(\abst{f}, \avec{r}) \neq \bot \\
+\end{array}}
+\end{array}
 \end{array}
 $$
 
-If gate $g_1$ has base gate $g_2$, we notate $g_1 \otimes g_2$ as the relative gate. 
-
-e.g. parts of the pre-constraints for the gates $\text{ChainMul}_p(\abst{d},\abst{e}) \otimes \text{Mul}_p(\abst{a}, \abst{b})$
+e.g. parts of the pre-constraints for the gates $\chipu{\text{ChainMul}_p}{\abst{d},\abst{e},\abst{c}}, (\chipu{\text{Mul}_p}{\abst{a}, \abst{b}}, \abst{c}) \in \abst{f}$
 
 \begin{center}
 \begin{tabular}{r|c|c|c|c|c|c|c|c|c}
 \cline{2-9}
-\multirow{2}{*}{$\GateType$} & \multicolumn{8}{c|}{$p$} & \multirow{2}{*}{$\term$} \\
+\multirow{2}{*}{$\Ops$} & \multicolumn{8}{c|}{$p$} & \multirow{2}{*}{$\term$} \\
 \cline{2-9}
 & $A$ & $B$ & $C$ & $Q_l$ & $Q_r$ & $Q_o$ & $Q_m$ & $Q_s$ \\
 \hline\hline
@@ -325,62 +356,6 @@ $Q_s \cdot (C_1 \cdot A \cdot B - C)$ \\
 
 Using the terms, we have $-c + a \cdot b = 0$ enforcing the structure of $\text{Mul}_p$ and $c \cdot d \cdot e - r = 0$ enforcing the structure of $\text{ChainMul}_p$. Notice how $C_1$ refers to the column $C$ one row above the first row for $\ctrn_{\text{ChainMul}_p}$ i.e. the row for $\ctrn_{\text{Mul}_p}$. Thus, $\build{a \times b \times d \times e = r}{}{}$ is expressed in two rows instead of of three.
 
-$$
-\begin{array}{cc}
-(g: \GateType) = \cdots \times \left(\refg : F\left(\Option\left(\left[1+\min\limits_{b \in \Base_g} \left|\ctrn_b(t,s) \right|\right]^k\right)\right)\right) \times \cdots
-&
-\refg_g = (\lambda(\_,\refg,\_).\refg)(g)
-\end{array}
-$$
+In summary, relative wires allows $F_{GC}$ to have terms that uses cells from its previous row.
 
-$\refg_g$ defines the offsets for relative gates. It is a function from index map indices to a vector of natural number offsets. The definition guarantees, that the offset stays within the pre-constraints of the base gate. $\refg_\Nb$ maps the offset position with the wire indices in that cell. If the offset position is not a wire i.e. constant or $\plookup$ cell, then it is omitted.
-
-$$
-\begin{array}{rl}
-\begin{array}{rl}
-\lin &: (T \to T \to T) \to T \to \IndexMap(\lambda \_. (), \lambda \_. T) \to T^k \\
-\lin^f_b (A) &= \begin{cases}
-f(a, \lin(A(t)[s \mapsto \bot])) & \exists t,s. a = A(t,s) \neq \bot \\
-b & \otherwise
-\end{cases} \\
-\\
-\refg_{\Nb} &: \AbsCirc \to \GateType \to \GateType \to \Nb^k \\
-\refg_{\Nb}(r,b) &= \lin^{\cat}_{()}((\lambda t,s,x,\vec{o}. \text{find}(\ctrn_b(t,s,x),\vec{o}))[\refg_r])
-\end{array} &
-\begin{array}{rl}
-\text{find}(\vec{c},\vec{o}) &= \begin{cases}
-() & \vec{o} = () \\
-& \vec{o} = o \cat \vec{o}' \\
-& \abst{\vec{w}} = \text{find}(\vec{c},\vec{o}') \\
-\abst{w} \cat \abst{\vec{w}} & c_{|\vec{c}| - o + 1} = (\_, (\abst{w}), \_) \\
-\abst{\vec{w}} & \otherwise
-\end{cases}
-\end{array}
-\end{array}
-$$
-Canonical programs must also account for wires from its base gate. This completes our definition of gate type.
-$$
-\begin{array}{c}
-(g: \GateType) = \cdots \times
-\left(\eval_g : (b: \Base_g) \to W[\tin{g} \cat \vec{t}^{g,\refg_{\Nb}(g,b)}] \to W[\tout{g}]\right) \\
-\eval_g = (\lambda(\_,\eval).\eval)(g)
-\end{array}
-$$
-
-Gate groups also populate the offsets its terms can use as arguments via $\text{rels}_g$.
-
-$$
-\begin{array}{ccc}
-\text{Rel} = (\SlotNSelector) \times \Nb
-&
-\begin{array}{rl}
-\text{Rel}_g &: \mathcal{P}(\text{Rel}) \\
-\text{Rel}_g &= \lin^{\cup}_{\emptyset}((\lambda \_,s,\_,\vec{o}. (\lambda o. (s,o))[\vec{o}])[\refg_g])
-\end{array}
-&
-\text{Rel}_{\Grp} = \bigcup\limits_{g \in \GateType_{\Grp}} \text{Rel}_g
-\end{array}
-$$
-
-In summary, relative gates allows $F_{GC}$ to have terms that uses cells from multiple rows instead of strictly one.
-
+TODO talk about W(omega X) and why this works

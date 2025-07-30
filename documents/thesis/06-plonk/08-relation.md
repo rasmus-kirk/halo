@@ -1,10 +1,10 @@
 ### Relation
 
-The construction of subterms of $F_{GC}$ is done by $\GateGroup$ via $gc$:
+The construction of subterms of $F_{GC}$ is done by $\OpGroup$ via $gc$:
 
 $$
 \begin{array}{rl}
-\GateGroup &= \GateType^k \times (gc: X^l \to X^{|\Slot| + |\Selector|} \to X)
+\OpGroup &= \Ops^k \times (gc: X^l \to X^{|\Slot| + |\Selector|} \to X)
 \end{array}
 $$
 
