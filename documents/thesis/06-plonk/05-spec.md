@@ -61,7 +61,7 @@ W_s: \WireType_s \to \Uni
 \end{array}
 $$
 
-In summary, spec can be visualized as follows:
+In summary, a specification can be visualized as follows:
 
 \begin{center}
 \begin{tikzpicture}[
@@ -285,11 +285,33 @@ Let $t:\Eqn_7 = A \cdot Q_l + B \cdot Q_r + C \cdot Q_o + A \cdot B \cdot Q_m$, 
 
 This motivates how the vanishing argument enforces the structure of the gate if $t$ were a term of $F_{GC}$
 
-TODO: elaborate on loop (copy constraints here instead of trace cc)
+From $\ctrn_g$, we can also populate the *loop*; a set or vector of positions modulo wire. This is used in copy constraints.
+
+$$
+\begin{array}{rl}
+\begin{array}{rl}
+\text{CopySlots} &= \pset{\Slot}\\
+\text{Coord} &= \Slot \times \Nb \\
+\text{CLoopN} &= (\abst{w}: \Nb) \pto \text{Coord}^k \\
+\end{array} &
+\begin{array}{rl}
+\text{loopN} &: \Nb \to \PreTable_g \to \Wire^{n_g +m_g} \to \Nb \to \text{CLoopN} \\
+\text{loopN} &= \lambda(o, t, s, x, \vec{p}, \avec{w}, i). \\
+&\begin{cases}
+\bot & \vec{p} = () \lor x \neq () \\
+& \vec{p} = p \cat \vec{p}' \land l = \text{loopN}(t,s,x,\vec{p}',\avec{w},i+1) \\
+& \forall j \in \AWire_g. \vec{s}_j = \left[ (s,i+o) \middle\vert \text{wnat}(p) = j \right] \\
+l[\abst{w}_j \mapsto \vec{s}_j]
+& l(\abst{w}_j) = \bot \\
+l[\abst{w}_j \mapsto l(\abst{w}_j) \cat \vec{s}_j] & \otherwise
+\end{cases}
+\end{array}
+\end{array}
+$$
 
 **Relative Wires**
 
-An operation is called *relative* if it has $b_g > 0$; the number of relative wires. The last $b_g$ input wires are *relative wires* which are wires from another chip called the *base chip*. Thus, they are excluded in $\ctrn_g$ via $\AWire_g$. A base chip's constraints will appear immediately before its relative chip[^dupe]. $\Rel_g$ declares the slots or selectors that, the relative chip can reference from its base chip. Thus, constructing a relative gate checks that the relative wires must exist in the last row of the base chip's constraints in the declared positions in $\Rel_g$.
+An operation is called *relative* if it has $b_g > 0$. The last $b_g$ input wires are *relative wires* which are wires from another chip called the *base chip*. Thus, they are excluded in $\ctrn_g$ via $\AWire_g$. A base chip's constraints will appear immediately after its relative chip[^dupe]. $\Rel_g$ declares the slots or selectors that, the relative chip can reference from its base chip. Thus, constructing a relative gate checks that the relative wires must exist in the first row of the base chip's constraints in the declared positions in $\Rel_g$.
 
 [^dupe]: If different relative chips have the same base chip, there will be duplicate base chip rows such that both relative chips have a copy
 
@@ -320,7 +342,7 @@ $$
 \text{pos} &: \Chip \to \Wire \to \pset{\SlotNSelector} \\
 \text{pos}(g,w) &= \maybe{s \in \Rel_g}{
 \begin{array}{l}
-i = \text{wnat} \circ \text{last} \circ \ctrn_g(\ty(\abst{w}), s) \\
+i = \text{wnat}(\ctrn_g(\ty(\abst{w}), s)_1) \\
 i \neq \bot \\
 \gin(g)_{i} = \abst{w}
 \end{array}}
@@ -339,23 +361,48 @@ $$
 e.g. parts of the pre-constraints for the gates $\chipu{\text{ChainMul}_p}{\abst{d},\abst{e},\abst{c}}, (\chipu{\text{Mul}_p}{\abst{a}, \abst{b}}, \abst{c}) \in \abst{f}$
 
 \begin{center}
+\begin{tabular}{c c}
 \begin{tabular}{r|c|c|c|c|c|c|c|c|c}
 \cline{2-9}
 \multirow{2}{*}{$\Ops$} & \multicolumn{8}{c|}{$p$} & \multirow{2}{*}{$\term$} \\
 \cline{2-9}
 & $A$ & $B$ & $C$ & $Q_l$ & $Q_r$ & $Q_o$ & $Q_m$ & $Q_s$ \\
 \hline\hline
-$\text{Mul}_p$ & $\abst{a}$ & $\abst{b}$ & $\abst{c}$ & 0 & 0 & -1 & 1 & 0 &
-$A \cdot Q_l + B \cdot Q_r + C \cdot Q_o + A \cdot B \cdot Q_m$ \\
-\hline
 $\text{ChainMul}_p$ & $\abst{d}$ & $\abst{e}$ & $\abst{r}$ & 0 & 0 & -1 & 1 & 1 &
 $Q_s \cdot (C_1 \cdot A \cdot B - C)$ \\
 \hline
+$\text{Mul}_p$ & $\abst{a}$ & $\abst{b}$ & $\abst{c}$ & 0 & 0 & -1 & 1 & 0 &
+$A \cdot Q_l + B \cdot Q_r + C \cdot Q_o + A \cdot B \cdot Q_m$ \\
+\hline
+\end{tabular} &
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\gate{cmul}{(0,0)}{$\abst{d}$,$\abst{e}$,$\abst{c}$}{$\text{CMul}_p$}{1}
+\gate{mul}{($(cmul.north)+(1,0)$)}{$\abst{a}$,$\abst{b}$}{$\text{Mul}_p$}{1}
+\draw[-,thick] ($(mul-in-1)+(0,0.25)$) -- (mul-in-1);
+\draw[-,thick] ($(mul-in-2)+(0,0.25)$) -- (mul-in-2);
+\draw[-,thick] ($(cmul-in-1)+(0,0.25)$) -- (cmul-in-1);
+\draw[-,thick] ($(cmul-in-2)+(0,0.25)$) -- (cmul-in-2);
+\draw[-,thick] (mul-out-1) -- ($(mul-out-1)+(0,-0.4)$);
+\draw[-,thick] ($(mul-out-1)+(0,-0.4)$) -- ($(mul-out-1)+(-0.65,-0.4)$);
+\draw[-,thick] ($(mul-out-1)+(-0.65,-0.4)$) -- ($(mul-out-1)+(-0.65,1.75)$);
+\draw[-,thick] ($(mul-out-1)+(-0.65,1.75)$) -- ($(cmul-in-3)+(0,0.35)$);
+\draw[-,thick] ($(cmul-in-3)+(0,0.35)$) -- (cmul-in-3);
+\node[draw, thick, circle, double, double distance=1pt, anchor=north] at ($(cmul-out-1)+(0,-0.4)$) {$\abst{r}$};
+\draw[-,thick] (cmul-out-1) -- ($(cmul-out-1)+(0,-0.4)$);
+\end{tikzpicture}
 \end{tabular}
 \end{center}
 
-Using the terms, we have $-c + a \cdot b = 0$ enforcing the structure of $\text{Mul}_p$ and $c \cdot d \cdot e - r = 0$ enforcing the structure of $\text{ChainMul}_p$. Notice how $C_1$ refers to the column $C$ one row above the first row for $\ctrn_{\text{ChainMul}_p}$ i.e. the row for $\ctrn_{\text{Mul}_p}$. Thus, $\build{a \times b \times d \times e = r}{}{}$ is expressed in two rows instead of of three.
+Using the terms, we have $-c + a \cdot b = 0$ enforcing the structure of $\text{Mul}_p$ and $c \cdot d \cdot e - r = 0$ enforcing the structure of $\text{ChainMul}_p$. Notice how $C_1$ refers to the column $C$ one row below the last row for $\ctrn_{\text{ChainMul}_p}$ i.e. the row for $\ctrn_{\text{Mul}_p}$. Thus, $\build{a \times b \times d \times e = r}{}{}$ is expressed in two rows instead of of three.
 
 In summary, relative wires allows $F_{GC}$ to have terms that uses cells from its previous row.
 
-TODO talk about W(omega X) and why this works
+**Canonical Program**
+
+$$
+\eval_g: W[\tin{g}] \to W[\tout{g}]
+$$
+
+*Canonical programs* are how the values of output wires are computed from the values of input wires. e.g. in $\eval_{\text{Mul}_p}(x,y) = x \times y$. Moreover, due to the way relative wires are defined as input wires, we have them in the canonical program too. e.g. $\eval_{\text{ChainMul}_p}(d,e,c) = d \times e \times c$.

@@ -203,31 +203,28 @@ After computing the coordinate loop of the full circuit, we mark a flag $\Bb$ th
 
 $$
 \begin{array}{rl}
-\begin{array}{rl}
-\text{Coord} &= \Slot \times \Nb \\
-\text{CLoop} &= (\abst{w}: \Wire) \pto \text{Coord}^{k_{\abst{w}}} \\
+\text{CLoop} &= (\abst{w}: \Wire) \pto \text{Coord}^k \\
 \text{CMap} &= \text{Coord} \pto \text{Coord} \\
 \\
 \text{perm} &: \text{CLoop} \to \text{CMap} \\
 \text{perm}(l) &= \begin{cases}
 \bot[x \mapsto x] & l = \bot \\
 & \exists \abst{w}. \vec{s} = l(\abst{w}) \\
-& l' = \text{perm}(l[\abst{w} \mapsto \bot]) \\
-l'[\vec{s} \mapsto \vec{s}'] & s'_1 = s_{|\vec{s}|} \land s'_{i>1} = s_{i-1}
+& \sigma = \text{perm}(l[\abst{w} \mapsto \bot]) \\
+\sigma[\vec{s} \mapsto \vec{s}'] & s'_1 = s_{|\vec{s}|} \land s'_{i>1} = s_{i-1}
+\end{cases} \\
+\\
+\text{loop} &: \Nb \to \Chip \to \text{CLoop} \\
+\text{loop}(o,g) &= \text{loopN}(o,\ctrn_g, \gin(g) \cat \out^{\abst{f}}(g))[n_g+m_g+1]\\
+\\
+\sqcup &: \text{CLoop} \to \text{CLoop} \to \text{CLoop} \\
+f \sqcup g &= \begin{cases}
+\bot & \not\exists \abst{w}. f(\abst{w}) \neq \bot \lor g(\abst{w}) \neq \bot \\
+& h = f[\abst{w} \mapsto \bot] \sqcup g[\abst{w} \mapsto \bot] \\
+h[\abst{w} \mapsto f(\abst{w}) \cat g(\abst{w})] & f(\abst{w}) \neq \bot \land g(\abst{w}) \neq \bot \\
+h[\abst{w} \mapsto f(\abst{w})] & f(\abst{w}) \neq \bot \\
+h[\abst{w} \mapsto g(\abst{w})] & \land g(\abst{w}) \neq \bot \\
 \end{cases}
-\end{array} &
-\begin{array}{rl}
-\text{loop} &: \text{CLoop} \to \Nb \to \PreTable \to \text{CLoop} \\
-\text{loop}(X, i, t, \vec{p}) &= \begin{cases}
-X & \vec{p} = () \\
-& \vec{p} = p \cat \vec{p}' \\
-& l = \text{loop}(X,i+1,t,\vec{p}') \\
-& \vec{s}_{\abst{w}} = \left[ (s,i) \middle\vert p(t,s)_2 = (\abst{w}) \right] \\
-l[\abst{w} \mapsto \vec{s}_{\abst{w}}]
-& l(\abst{w}) = \bot \\
-l[\abst{w} \mapsto l(\abst{w}) \cat \vec{s}] & \otherwise
-\end{cases}
-\end{array}
 \end{array}
 $$
 

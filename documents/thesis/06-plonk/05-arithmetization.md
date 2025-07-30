@@ -37,7 +37,7 @@ $$
 \end{array}
 $$
 
-*Operations*; amongst other data, defines $n_g \geq 0$ number of fan-in wires typed $\tin{g}$ and $m_g \geq 0$ number of fan-out wires typed $\tout{g}$ that a gadget of its operation must have. Wires are checked when constructing a chip e.g. $\chip{Add}{\abst{a},\abst{b}}$ type checks $\abst{a}, \abst{b}$ for the $\text{Add}$ operation.
+*Operations*; amongst other data, defines $n_g \geq 0$ number of fan-in wires typed $\tin{g}$ and $m_g \geq 0$ number of fan-out wires typed $\tout{g}$ that a chip of its operation must have. Wires are checked when constructing a chip e.g. $\chip{Add}{\abst{a},\abst{b}}$ type checks $\abst{a}, \abst{b}$ for the $\text{Add}$ operation.
 
 $$
 \begin{array}{cc}
@@ -63,7 +63,7 @@ g(\avec{x}) &= \maybe{g'}{
 \end{array}
 $$
 
-*Chips*[^short-hand-chip] $g$ are operations $\ty(g)$ instantiated with input wires $\gin(g)$. *Wires* $\abst{x}$; a unique identifier $\id(\abst{x})$ and *wire type tag* $\ty(\abst{x})$, are abstract representations of values $x: W(\ty(\abst{x}))$. $W$ maps the tag to the value's type e.g. $W(p) = \Fb_p$. 
+*Chips*[^short-hand-chip] $g$ are operations $\ty(g)$ initialized with input wires $\gin(g)$. *Wires* $\abst{x}$; a unique identifier $\id(\abst{x})$ and *wire type tag* $\ty(\abst{x})$, are abstract representations of values $x: W(\ty(\abst{x}))$. $W$ maps the tag to the value's type e.g. $W(p) = \Fb_p$.
 
 [^short-hand-chip]: As a notational shorthand, if $g:\Chip$, we may omit $\ty$ e.g. $n_g := n_{\ty(g)}$. We notate $g$ as operation or chip interchangably.
 
@@ -293,11 +293,11 @@ $
 
 Thus $\abst{x} = \wire{0}{q}$, $\abst{y} = \wire{1}{q}$, $\abst{t} = \wire{2}{q}$ and $\abst{z} = \wire{3}{q}$. The resulting abstract circuit can be notated as follows:
 
-\begin{tabularx}{\textwidth}{@{} c c Y Y @{}}
+\begin{tabularx}{\textwidth}{@{} r c c Y Y @{}}
 \toprule
-Variables & Predicate & One to Many or None Relation & Abstract Circuit Diagram
+ & Variables & Predicate & One to Many or None Relation & Abstract Circuit Diagram
 \\\hline \\
-$(\abst{f}, \avec{Y})$ &
+notation & $(\abst{f}, \avec{Y})$ &
 $\build{x^2+y=z^*}{}{}$ & 
 \begin{tikzpicture}[
   baseline={(current bounding box.center)}
@@ -345,6 +345,7 @@ $\build{x^2+y=z^*}{}{}$ &
 \draw[-,thick] (add-out-1) -- ($(add-out-1)+(0,-0.4)$);
 \node[draw, thick, circle, double, double distance=1pt, anchor=north] at ($(add-out-1)+(0,-0.4)$) {$\abst{z}$};
 \end{tikzpicture}
-\\
+\\ \hline
+use & object & proofs & code & readability
 \\\toprule
 \end{tabularx}

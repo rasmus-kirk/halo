@@ -59,6 +59,8 @@ $X \cat \vec{x}$ &  & Concatenate set $X$ (any order) to vector $\vec{x}$ \\
 \hline
 $f[\vec{x}]$ & $(f(x_1), f(x_2), \ldots, f(x_n))$ & Map function $f$ over vector $\vec{x}$ \\
 \hline
+$f[g_1 \mapsto g_2]$ & $ $ & Reindex and map values of partial map $f$ with $g_1, g_2$\\
+\hline
 $\vec{x} \setminus X$ &  & Remove all elements in set $X$ from vector $\vec{x}$ \\
 \hline
 $\vec{x} \odot \vec{y}$ & $((x_1,y_1),\cdots,(x_n,y_n))$ & Zip vectors $\vec{x}$ and $\vec{y}$ (Hadamard product) \\
