@@ -52,14 +52,14 @@ $\text{last}(\vec{v})$ & $\maybe{v}{\vec{v} = \_ \cat (v)}$ & last element \\
 \hline
 $\maybe{x}{\phi(x)}$ & $\begin{cases} x & \phi(x) \\ \bot & \otherwise \end{cases}$ & Maybe: $x$ if $\phi(x)$, else $\bot$ \\
 \hline
+$x ? y$ & $\begin{cases} x & x \neq \bot \\ y & \otherwise \end{cases}$ & $x$ unless it is $\bot$ then $y$ \\
+\hline
 $(s..t)$ & $\begin{cases} () & t \leq s \\ s \cat (s+1 .. t) \end{cases}$ & Vector of naturals from $s$ to $t-1$ \\
 \hline
 $\vec{x} \cat \vec{y}$ & $\begin{cases} \vec{y} & \vec{x} = () \\ \vec{x}' \cat (x \cat \vec{y}) & \vec{x} = \vec{x'} \cat x \end{cases}$ & Concatenate vectors $\vec{x}$ and $\vec{y}$ \\
 $X \cat \vec{x}$ &  & Concatenate set $X$ (any order) to vector $\vec{x}$ \\
 \hline
 $f[\vec{x}]$ & $(f(x_1), f(x_2), \ldots, f(x_n))$ & Map function $f$ over vector $\vec{x}$ \\
-\hline
-$f[g_1 \mapsto g_2]$ & $ $ & Reindex and map values of partial map $f$ with $g_1, g_2$\\
 \hline
 $\vec{x} \setminus X$ &  & Remove all elements in set $X$ from vector $\vec{x}$ \\
 \hline
