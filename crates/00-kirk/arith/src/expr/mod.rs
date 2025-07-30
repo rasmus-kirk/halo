@@ -76,6 +76,8 @@ impl<P: PastaConfig> Mul for Expr<P> {
 
 #[cfg(test)]
 mod tests {
+    use crate::circuit::GateType;
+
     use super::*;
     use halo_group::PallasConfig;
 

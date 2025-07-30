@@ -2,7 +2,8 @@ use std::{array, collections::HashMap};
 
 use anyhow::{Context, Result, anyhow, bail, ensure};
 use halo_group::{
-    Evals, PastaConfig,
+    Evals, PastaConfig, Scalar,
+    ark_poly::{EvaluationDomain, Evaluations, Radix2EvaluationDomain},
     ark_std::{One, Zero},
 };
 use petgraph::algo::toposort;
@@ -75,8 +76,8 @@ impl<P: PastaConfig> TraceBuilder<P> {
         let zero = P::ScalarField::zero();
         let one = P::ScalarField::one();
         let mut output = None;
-        let mut ws: [Evals<P>; WITNESS_POLYS] = array::from_fn(|_| Evals::new(vec![zero; n], n));
-        let mut qs: [Evals<P>; SELECTOR_POLYS] = array::from_fn(|_| Evals::new(vec![zero; n], n));
+        let mut ws: [_; WITNESS_POLYS] = array::from_fn(|_| vec![zero; n]);
+        let mut qs: [_; SELECTOR_POLYS] = array::from_fn(|_| vec![zero; n]);
 
         let topo_order = toposort(&spec.graph, None).map_err(|_| anyhow!("Cycle detected"))?;
         let mut wire_values = vec![P::ScalarField::zero(); spec.wire_count];
@@ -174,7 +175,7 @@ impl<P: PastaConfig> TraceBuilder<P> {
 
                     // ----- Gate Constraints ----- //
                     ws.multi_assign(row, [a, b, c]);
-                    //            [q_l,  q_r,  q_o,  q_m, q_c ]
+                    //                   [q_l,  q_r,  q_o,  q_m, q_c ]
                     qs.multi_assign(row, [zero, zero, -one, one, zero]);
 
                     // ----- Copy Constraints ----- //

@@ -11,7 +11,7 @@ use ark_ec::{
     short_weierstrass::{Projective, SWCurveConfig},
     CurveConfig, CurveGroup,
 };
-use ark_ff::{BigInt, PrimeField};
+use ark_ff::{BigInt, FftField, PrimeField};
 use ark_pallas::PallasConfig;
 use ark_vesta::VestaConfig;
 use bincode::{Decode, Encode};
@@ -25,6 +25,8 @@ static PP_VESTA: OnceLock<PublicParams<VestaConfig>> = OnceLock::new();
 pub trait PastaConfig: SWCurveConfig
 where
     Self::ScalarField: std::fmt::Debug,
+    Self::ScalarField: Clone,
+    Self: Clone,
 {
     fn get_loaded_public_params() -> &'static OnceLock<PublicParams<Self>>;
     fn get_g_data() -> [&'static [u8]; 64];

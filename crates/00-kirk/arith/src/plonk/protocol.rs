@@ -1,189 +1,159 @@
 #![allow(non_snake_case)]
-use std::marker::PhantomData;
+use std::{marker::PhantomData, time::Instant};
 
 use anyhow::{Result, ensure};
-use halo_accumulation::pcdl::{self, EvalProof};
+use halo_accumulation::pcdl::{self, EvalProof, commit};
 use halo_group::{
-    PastaConfig, Point, Poly,
-    ark_ff::Field,
+    Domain, Evals, PastaConfig, Point, Poly, Scalar,
+    ark_ff::{FftField, Field},
     ark_poly::{
-        EvaluationDomain, Polynomial, Radix2EvaluationDomain,
+        self, DenseUVPolynomial, EvaluationDomain, Evaluations, Polynomial, Radix2EvaluationDomain,
     },
-    ark_std::{Zero, rand::Rng},
+    ark_std::{One, Zero, rand::Rng},
 };
 use halo_poseidon::{Protocols, Sponge};
+use log::debug;
 
-use crate::circuit::Trace;
+use crate::{circuit::Trace, utils::WITNESS_POLYS};
 
-struct VanishingArgumentProof<P: PastaConfig> {
-    n: usize,
-    C_t: Point<P>,
-    v_t: P::ScalarField,
-    pi_t: EvalProof<P>,
-    C_fs: Vec<Point<P>>,
-    v_fs: Vec<P::ScalarField>,
-    pi_fs: Vec<EvalProof<P>>,
-}
-
-impl<P: PastaConfig> VanishingArgumentProof<P> {
-    fn prove<R: Rng>(rng: &mut R, transcript: &mut Sponge<P>, fs: &[Poly<P>], n: usize) -> Self {
-        assert!(n.is_power_of_two());
-        let d = n - 1;
-
-        // 1. The prover commits to each f_i and sends each commitment to the verifier
-        let C_fs: Vec<Point<P>> = fs.iter().map(|f| pcdl::commit(f, d, None)).collect();
-        transcript.absorb_g(&C_fs);
-
-        // 2. The verifier sends a random challenge α to the prover.
-        let alpha = transcript.challenge(); // Verifier sends challenge alpha
-
-        // 3. The prover constructs t(X):
-        let mut sum = Poly::<P>::zero();
-        for (i, f) in fs.iter().enumerate() {
-            sum = sum + f * alpha.pow([i as u64])
-        }
-        let domain = Radix2EvaluationDomain::new(n).unwrap();
-        let t = sum.mul_by_vanishing_poly(domain);
-
-        // 4. The prover sends a commitment to t(X)
-        let C_t: Point<P> = pcdl::commit(&t, d, None);
-        transcript.absorb_g(&[C_t]);
-
-        // 5. The verifier sends challenge ξ to the prover.
-        let xi = transcript.challenge();
-
-        // 6. The prover sends (f_i(ξ) = vfi, πfi, t(ξ) = vt, πf) to the verifier.
-        let mut pi_fs = Vec::with_capacity(fs.len());
-        let mut v_fs = Vec::with_capacity(fs.len());
-        for i in 0..fs.len() {
-            let v = fs[i].evaluate(&xi);
-            pi_fs.push(pcdl::open_without_eval(
-                rng,
-                fs[i].clone(),
-                C_fs[i],
-                d,
-                &xi,
-                &v,
-                None,
-            ));
-            v_fs.push(v);
-        }
-
-        let v_t = t.evaluate(&xi);
-        let pi_t = pcdl::open_without_eval(rng, t, C_t, d, &xi, &v_t, None);
-
-        VanishingArgumentProof {
-            n,
-            C_t,
-            v_t,
-            pi_t,
-            C_fs,
-            v_fs,
-            pi_fs,
-        }
-    }
-
-    fn verify(transcript: &mut Sponge<P>, pi: Self) -> Result<()> {
-        ensure!(pi.n.is_power_of_two());
-        let d = pi.n - 1;
-
-        transcript.absorb_g(&pi.C_fs);
-        let alpha = transcript.challenge();
-        transcript.absorb_g(&[pi.C_t]);
-        let xi = transcript.challenge();
-
-        let domain = Radix2EvaluationDomain::new(pi.n).unwrap();
-        let z_S = domain.vanishing_polynomial();
-
-        let mut sum = P::ScalarField::zero();
-        for (i, v_f) in pi.v_fs.iter().enumerate() {
-            sum += alpha.pow([i as u64]) * v_f
-        }
-
-        ensure!(sum == pi.v_t * z_S.evaluate(&xi));
-        for ((v_f, C_f), pi_f) in pi.v_fs.iter().zip(pi.C_fs).zip(pi.pi_fs) {
-            pcdl::check(&C_f, d, &xi, &v_f, pi_f)?
-        }
-        pcdl::check(&pi.C_t, d, &xi, &pi.v_t, pi.pi_t)?;
-
-        Ok(())
-    }
-}
-
-struct BatchedEvaluationProofs<P: PastaConfig> {
-    n: usize,
-    C_fs: Vec<Point<P>>,
-    v_fs: Vec<P::ScalarField>,
-    pi_w: EvalProof<P>,
-}
-
-impl<P: PastaConfig> BatchedEvaluationProofs<P> {
-    fn prove<R: Rng>(rng: &mut R, transcript: &mut Sponge<P>, fs: &[Poly<P>], n: usize) -> Self {
-        assert!(n.is_power_of_two());
-        let d = n - 1;
-
-        let C_fs: Vec<_> = fs.iter().map(|f| pcdl::commit(&f, d, None)).collect();
-        transcript.absorb_g(&C_fs);
-        let xi = transcript.challenge();
-        let v_fs: Vec<_> = fs.iter().map(|f| f.evaluate(&xi)).collect();
-
-        transcript.absorb_fr(&v_fs);
-        let alpha = transcript.challenge();
-
-        let mut w = Poly::<P>::zero();
-        for (i, f) in fs.iter().enumerate() {
-            w = w + f * alpha.pow([i as u64])
-        }
-        let C_w = C_fs.iter().sum();
-
-        let pi_w = pcdl::open(rng, w, C_w, d, &xi, None);
-
-        Self {
-            n,
-            C_fs,
-            v_fs,
-            pi_w,
-        }
-    }
-
-    fn verify(transcript: &mut Sponge<P>, pi: Self, n: usize) -> Result<()> {
-        assert!(n.is_power_of_two());
-        let d = n - 1;
-
-        transcript.absorb_g(&pi.C_fs);
-        let xi = transcript.challenge();
-        transcript.absorb_fr(&pi.v_fs);
-        let alpha = transcript.challenge();
-
-        let C_w: Point<P> = pi
-            .C_fs
-            .iter()
-            .enumerate()
-            .map(|(i, C_f)| *C_f * alpha.pow([i as u64]))
-            .sum();
-        let v_w: P::ScalarField = pi
-            .v_fs
-            .iter()
-            .enumerate()
-            .map(|(i, v_f)| *v_f * alpha.pow([i as u64]))
-            .sum();
-
-        pcdl::check(&C_w, d, &xi, &v_w, pi.pi_w)?;
-
-        Ok(())
-    }
-}
-
-struct PlonkProof<P: PastaConfig> {
+pub struct PlonkProof<P: PastaConfig> {
     _phantom: PhantomData<P>,
 }
 
 impl<P: PastaConfig> PlonkProof<P> {
-    pub fn prover(trace: Trace<P>) {
-        let transcript = Sponge::<P>::new(Protocols::PLONK);
+    pub fn prove(trace: Trace<P>) {
+        let transcript = &mut Sponge::<P>::new(Protocols::PLONK);
 
-        //vanishing_argument_protocol(transcript, fs, d);
+        // -------------------- Round 1 --------------------
+        let now = Instant::now();
+
+        let d = trace.rows - 1;
+        let C_ws: Vec<_> = trace
+            .w_polys
+            .iter()
+            .map(|w| commit::<P>(w, d, None))
+            .collect();
+        transcript.absorb_g(&C_ws);
+
+        debug!("Round 1 took {} s", now.elapsed().as_secs_f32());
+
+        // -------------------- Round 2 --------------------
+        let now = Instant::now();
+
+        // ζ = H(transcript)
+        // let zeta = transcript.challenge();
+        // let p = &w.plookup.compute(&x.h, zeta);
+
+        debug!("Round 2 took {} s", now.elapsed().as_secs_f32());
+
+        // -------------------- Round 3 --------------------
+        // β = H(transcript)
+        let beta = transcript.challenge();
+        // γ = H(transcript)
+        let gamma = transcript.challenge();
+
+        let mut f_prime = Evals::<P>::one(trace.domain);
+        let mut g_prime = Evals::<P>::one(trace.domain);
+        for i in 0..WITNESS_POLYS {
+            let f = (&trace.w_evals[i] + trace.id_evals[i].scale(beta)).add_scalar(gamma);
+            let g = (&trace.w_evals[i] + trace.sigma_evals[i].scale(beta)).add_scalar(gamma);
+            f_prime *= &f;
+            g_prime *= &g;
+        }
+
+        // Z
+        let mut z = vec![P::ScalarField::zero(); trace.rows];
+        for i in 0..trace.rows {
+            let one_index = (i + 1) % 8;
+            if one_index == 1 {
+                z[i] = P::ScalarField::one();
+            } else {
+                z[i] = z[i - 1] * f_prime[one_index]
+            }
+        }
+        let z = Evals::<P>::from_vec_and_domain(z, trace.domain);
+
+        let poly_z = z.interpolate_by_ref();
+        let zpl_com = pcdl::commit(&poly_z, trace.rows - 1, None);
+        transcript.absorb_g(&[zpl_com]);
+
+        // -------------------- Round 3 --------------------
+        let a = &trace.w_polys[0];
+        let b = &trace.w_polys[1];
+        let c = &trace.w_polys[2];
+        let q_l = &trace.q_polys[0];
+        let q_r = &trace.q_polys[1];
+        let q_m = &trace.q_polys[2];
+        let q_o = &trace.q_polys[3];
+        let q_c = &trace.q_polys[4];
+
+        let f_gc: Poly<P> = q_l * a + q_r * b + q_o * c + q_m * a * b + q_c;
+
+        let large_domain = Domain::<P>::new(3 * trace.rows).unwrap();
+        let a = Evals::<P>::from_poly_ref(&trace.w_polys[0], large_domain);
+        let b = Evals::<P>::from_poly_ref(&trace.w_polys[1], large_domain);
+        let c = Evals::<P>::from_poly_ref(&trace.w_polys[2], large_domain);
+        let q_l = Evals::<P>::from_poly_ref(&trace.q_polys[0], large_domain);
+        let q_r = Evals::<P>::from_poly_ref(&trace.q_polys[1], large_domain);
+        let q_m = Evals::<P>::from_poly_ref(&trace.q_polys[2], large_domain);
+        let q_o = Evals::<P>::from_poly_ref(&trace.q_polys[3], large_domain);
+        let q_c = Evals::<P>::from_poly_ref(&trace.q_polys[4], large_domain);
+        let f_gc_evals: Evals<P> = &a * &q_l + q_r * &b + q_o * c + q_m * &a * b + q_c;
+
+        let f_gc_fft = f_gc_evals.interpolate_by_ref();
+        let z_H = trace.domain.vanishing_polynomial();
+
+        let domain_32 = Domain::<P>::new(32).unwrap(); // or however you construct it
+        let offset = Scalar::<P>::GENERATOR;
+        let coset_domain = domain_32.get_coset(offset).unwrap();
+        let z_H = domain_32.vanishing_polynomial();
+
+        let z_H_evals = Evals::<P>::new(z_H.evaluate_over_domain(coset_domain));
+        let coset_evals = Evals::<P>::new(f_gc.evaluate_over_domain_by_ref(coset_domain));
+
+        // let f_evals = f_gc_evals.scale(Scalar::<P>::GENERATOR);
+        // let t_evals = coset_evals.divide_by_vanishing(trace.domain);
+        let mut t_evals = coset_evals / z_H_evals;
+        // t_evals.evals.evals.iter_mut().for_each(|x| *x /= offset);
+        let t_via_coset = t_evals.interpolate();
+        // let t_via_coset = scale_poly_input::<P>(&t_via_coset, offset);
+        // let t_evals = t_evals.scale(Scalar::<P>::GENERATOR.inverse().unwrap());
+        let (t, _) = f_gc.divide_by_vanishing_poly(trace.domain);
+
+        let a_offset = Evals::<P>::new(trace.w_polys[0].evaluate_over_domain_by_ref(coset_domain));
+        let ql_offset = Evals::<P>::new(trace.q_polys[0].evaluate_over_domain_by_ref(coset_domain));
+
+        assert_eq!(
+            (&a_offset * &ql_offset).interpolate(),
+            &trace.w_polys[0] * &trace.q_polys[0]
+        );
+        assert_eq!(
+            (&a * &q_l).interpolate(),
+            &trace.w_polys[0] * &trace.q_polys[0]
+        );
+        assert_eq!(f_gc_fft, f_gc);
+        assert_eq!(t_via_coset, t);
+
+        let (t, _) = f_gc.divide_by_vanishing_poly(trace.domain);
+
+        println!("domain_size: {}", trace.domain.size());
+        println!("f_gc degree: {}", f_gc.degree());
+        println!("t degree: {}", t.degree());
     }
 
     pub fn verifier() {}
+}
+
+/// Scales the input of the polynomial f(x) to get f(x / a)
+fn scale_poly_input<P: PastaConfig>(poly: &Poly<P>, a: Scalar<P>) -> Poly<P> {
+    let a_inv = a.inverse().expect("Offset must be invertible");
+    let mut coeffs = poly.coeffs.clone();
+
+    let mut power = Scalar::<P>::one();
+    for coeff in coeffs.iter_mut() {
+        *coeff *= power;
+        power *= a_inv;
+    }
+
+    Poly::<P>::from_coefficients_vec(coeffs)
 }

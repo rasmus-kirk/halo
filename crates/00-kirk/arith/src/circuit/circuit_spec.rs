@@ -46,7 +46,7 @@ impl SlotId {
         }
     }
 
-    pub fn to_sigma<P: PastaConfig>(&self, total_rows: usize) -> Scalar<P> {
+    pub fn to_scalar<P: PastaConfig>(&self, total_rows: usize) -> Scalar<P> {
         P::scalar_from_u64((self.row + (self.column - 1) * total_rows) as u64)
     }
 }

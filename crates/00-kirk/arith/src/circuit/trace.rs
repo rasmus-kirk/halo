@@ -5,14 +5,15 @@ use std::{array, collections::HashMap};
 use anyhow::Result;
 use halo_accumulation::pcdl;
 use halo_group::{
-    Evals, PastaConfig, Point, Poly,
-    ark_poly::{EvaluationDomain, Radix2EvaluationDomain},
+    Domain, Evals, PastaConfig, Point, Poly, Scalar,
+    ark_ff::Field,
+    ark_poly::{EvaluationDomain, Polynomial},
 };
 use union_find::{QuickUnionUf, UnionBySize, UnionFind};
 
 use crate::{
     circuit::SlotId,
-    utils::{IteratorSplitExt, SELECTOR_POLYS, WITNESS_POLYS},
+    utils::{SELECTOR_POLYS, Shift, WITNESS_POLYS},
 };
 
 /// Extracts the permutation vector π(w) from a union-find structure:
@@ -52,26 +53,32 @@ pub(crate) fn build_pi(mut uf: QuickUnionUf<UnionBySize>) -> Vec<SlotId> {
 
 pub struct Trace<P: PastaConfig> {
     pub(crate) rows: usize,
+    pub(crate) omega: Scalar<P>,
+    pub(crate) domain: Domain<P>,
+    pub(crate) output: Scalar<P>,
     pub(crate) sigma: Vec<SlotId>,
-    pub(crate) omega: P::ScalarField,
-    pub(crate) domain: Radix2EvaluationDomain<P::ScalarField>,
-    pub(crate) id_polys: [Poly<P>; WITNESS_POLYS],
-    pub(crate) sigma_polys: [Poly<P>; WITNESS_POLYS],
-    pub(crate) ws: [Poly<P>; WITNESS_POLYS],
-    pub(crate) qs: [Poly<P>; SELECTOR_POLYS],
     pub(crate) C_qs: [Point<P>; SELECTOR_POLYS],
-    pub(crate) output: P::ScalarField,
+    pub(crate) id_evals: [Evals<P>; WITNESS_POLYS],
+    pub(crate) id_polys: [Poly<P>; WITNESS_POLYS],
+    pub(crate) q_evals: [Evals<P>; SELECTOR_POLYS],
+    pub(crate) q_polys: [Poly<P>; SELECTOR_POLYS],
+    pub(crate) sigma_evals: [Evals<P>; WITNESS_POLYS],
+    pub(crate) sigma_polys: [Poly<P>; WITNESS_POLYS],
+    pub(crate) w_evals: [Evals<P>; WITNESS_POLYS],
+    pub(crate) w_polys: [Poly<P>; WITNESS_POLYS],
 }
 
 impl<P: PastaConfig> Trace<P> {
     pub fn new(
         copy_constraints: Vec<(SlotId, SlotId)>,
-        mut ws: [Evals<P>; WITNESS_POLYS],
-        mut qs: [Evals<P>; SELECTOR_POLYS],
+        ws: [Vec<Scalar<P>>; WITNESS_POLYS],
+        qs: [Vec<Scalar<P>>; SELECTOR_POLYS],
         output: P::ScalarField,
         n: usize,
     ) -> Self {
         let d = n - 1;
+        let domain = Domain::<P>::new(n).unwrap();
+        let omega = domain.element(1);
 
         let mut uf = QuickUnionUf::<UnionBySize>::new(WITNESS_POLYS * n);
 
@@ -79,41 +86,54 @@ impl<P: PastaConfig> Trace<P> {
             uf.union(x.to_usize(n), y.to_usize(n));
         }
         let sigma = build_pi(uf);
-        let mut sigmas: [_; WITNESS_POLYS] = sigma.iter().map(|x| x.to_sigma::<P>(n)).split_array();
-        let mut ids: [_; WITNESS_POLYS] = (0..n * WITNESS_POLYS)
-            .map(|i| SlotId::from_usize(i, n).to_sigma::<P>(n))
-            .split_array();
 
-        let id_polys: [Poly<P>; WITNESS_POLYS] = array::from_fn(|i| {
-            let eval = Evals::<P>::new(std::mem::take(&mut ids[i]), n);
-            eval.fft()
+        let w_evals = ws.map(|vec| Evals::<P>::from_vec_and_domain(vec, domain));
+        let q_evals = qs.map(|vec| Evals::<P>::from_vec_and_domain(vec, domain));
+        let sigma_evals: [Evals<P>; WITNESS_POLYS] = array::from_fn(|i| {
+            let mut evaluations: Vec<_> = sigma
+                .iter()
+                .skip(n * i)
+                .take(n)
+                .map(|j| j.to_scalar::<P>(n))
+                .collect();
+            Evals::<P>::from_vec_and_domain(evaluations, domain)
         });
-        let sigma_polys: [Poly<P>; WITNESS_POLYS] = array::from_fn(|i| {
-            let eval = Evals::<P>::new(std::mem::take(&mut sigmas[i]), n);
-            eval.fft()
+        let id_evals: [Evals<P>; WITNESS_POLYS] = array::from_fn(|i| {
+            let mut evaluations: Vec<_> = (n * i..n + n * i)
+                .map(|j| SlotId::from_usize(j, n).to_scalar::<P>(n))
+                .collect();
+            println!("y{:?}", evaluations);
+            Evals::<P>::from_vec_and_domain(evaluations, domain)
         });
-        let w_polys: [Poly<P>; WITNESS_POLYS] = array::from_fn(|i| {
-            let eval = std::mem::replace(&mut ws[i], Evals::new(vec![], n));
-            eval.fft()
-        });
-        let q_polys: [Poly<P>; SELECTOR_POLYS] = array::from_fn(|i| {
-            let eval = std::mem::replace(&mut qs[i], Evals::new(vec![], n));
-            eval.fft()
-        });
+        let id_polys: [Poly<P>; WITNESS_POLYS] =
+            array::from_fn(|i| id_evals[i].interpolate_by_ref());
+
+        for i in 1..n + 1 {
+            let eval = id_polys[0].evaluate(&omega.pow([i as u64]));
+            println!("z{:?}", eval)
+        }
+
+        let sigma_polys: [Poly<P>; WITNESS_POLYS] =
+            array::from_fn(|i| sigma_evals[i].interpolate_by_ref());
+        let w_polys: [Poly<P>; WITNESS_POLYS] = array::from_fn(|i| w_evals[i].interpolate_by_ref());
+        let q_polys: [Poly<P>; SELECTOR_POLYS] =
+            array::from_fn(|i| q_evals[i].interpolate_by_ref());
         let C_qs = array::from_fn(|i| pcdl::commit(&q_polys[i], d, None));
-        let domain = Radix2EvaluationDomain::<P::ScalarField>::new(n).unwrap();
-        let omega = domain.element(1);
 
         Self {
             rows: n,
             domain,
             omega,
+            C_qs,
             sigma,
             sigma_polys,
             id_polys,
-            C_qs,
-            ws: w_polys,
-            qs: q_polys,
+            w_polys,
+            q_polys,
+            sigma_evals,
+            id_evals,
+            w_evals,
+            q_evals,
             output,
         }
     }
@@ -131,7 +151,11 @@ impl<P: PastaConfig> Trace<P> {
 
 #[cfg(test)]
 mod tests {
-    use crate::circuit::{CircuitSpec, SlotId, TraceBuilder, build_pi};
+    use crate::{
+        circuit::{CircuitSpec, SlotId, TraceBuilder, build_pi},
+        plonk,
+        utils::WITNESS_POLYS,
+    };
     use anyhow::Result;
     use halo_group::{
         PallasConfig, PallasScalar, PastaConfig, ark_ff::Field, ark_poly::Polynomial,
@@ -148,8 +172,10 @@ mod tests {
         for i in 0..trace.sigma.len() {
             let id = SlotId::from_usize(i, trace.rows);
             let sigma = trace.sigma[i];
-            let v1 = trace.ws[id.column() - 1].evaluate(&trace.omega.pow([id.row() as u64]));
-            let v2 = trace.ws[sigma.column() - 1].evaluate(&trace.omega.pow([sigma.row() as u64]));
+            let v1 =
+                trace.w_polys[id.column_0_indexed()].evaluate(&trace.omega.pow([id.row() as u64]));
+            let v2 = trace.w_polys[sigma.column_0_indexed()]
+                .evaluate(&trace.omega.pow([sigma.row() as u64]));
             assert_eq!(v1, v2, "{:?} != {:?}", id, sigma)
         }
     }
@@ -212,6 +238,9 @@ mod tests {
         test_copy_constraints(&trace);
 
         assert_eq!(scalar(47), trace.output());
+
+        crate::plonk::PlonkProof::prove(trace);
+        assert!(false);
         Ok(())
     }
 

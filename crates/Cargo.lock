@@ -97,10 +97,13 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "derivative",
+ "env_logger",
  "halo-accumulation",
  "halo-group",
  "halo-poseidon",
+ "log",
  "petgraph",
+ "rayon",
  "union-find",
 ]
 
