@@ -9,7 +9,12 @@ use halo_group::{
 
 use crate::circuit::Trace;
 
+/// The maximum degree of the polynomial f(X) where t(X) = f(X) / z_H(X) is F_MAX_DEGREE_MULTIPLIER * row_count.
+/// This depends on the largest degree term in f(x) which is set by how many degree n polynomials are multiplied.
+pub const F_MAX_DEGREE_MULTIPLIER: usize = 3;
+/// How many witness polynomials the supported
 pub const WITNESS_POLYS: usize = 3;
+/// How many selector polynomials the supported
 pub const SELECTOR_POLYS: usize = 5;
 
 pub trait MultiAssign<T> {
@@ -27,22 +32,8 @@ impl<T, const N: usize> MultiAssign<T> for [Vec<T>; N] {
         }
     }
 }
-pub trait Shift<T> {
-    fn shift_right(&mut self);
-    fn shift_left(&mut self);
-}
-impl<T> Shift<T> for Vec<T> {
-    fn shift_right(&mut self) {
-        let last = self.pop().unwrap();
-        self.insert(0, last);
-    }
-    fn shift_left(&mut self) {
-        let evals_first = self.remove(0);
-        self.push(evals_first);
-    }
-}
 
-fn fmt_scalar<P: PastaConfig>(x: Scalar<P>) -> String {
+pub fn fmt_scalar<P: PastaConfig>(x: Scalar<P>) -> String {
     let x_big = P::scalar_into_bigint(x);
     let half = P::FP_MODULUS >> 1;
     let one_hundred = BigInt::<4>::new([0, 0, 0, 100]);
@@ -60,24 +51,6 @@ fn fmt_scalar<P: PastaConfig>(x: Scalar<P>) -> String {
     } else {
         format!("{}", x_big)
     }
-}
-
-fn reorder<T: Clone>(cols: &[Vec<T>]) -> Vec<Vec<T>> {
-    let num_cols = cols.len(); // Number of columns in column-major form
-    let num_rows = cols[0].len(); // Number of rows per column
-
-    // Flatten the column-major matrix into a flat vector (row-major order)
-    let mut flat = Vec::with_capacity(num_cols * num_rows);
-    for row in 0..num_rows {
-        for col in 0..num_cols {
-            flat.push(cols[col][row].clone());
-        }
-    }
-
-    // Group the flat vector into rows of `num_cols` elements each
-    flat.chunks(num_rows) // `* 1` is optional, just makes it explicit
-        .map(|chunk| chunk.to_vec())
-        .collect()
 }
 
 impl<P: PastaConfig> std::fmt::Debug for Trace<P> {

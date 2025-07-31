@@ -13,7 +13,7 @@ use union_find::{QuickUnionUf, UnionBySize, UnionFind};
 
 use crate::{
     circuit::SlotId,
-    utils::{SELECTOR_POLYS, Shift, WITNESS_POLYS},
+    utils::{SELECTOR_POLYS, WITNESS_POLYS},
 };
 
 /// Extracts the permutation vector π(w) from a union-find structure:
