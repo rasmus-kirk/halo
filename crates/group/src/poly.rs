@@ -1,8 +1,6 @@
-use std::ops::{Add, AddAssign, Div, DivAssign, Index, Mul, MulAssign, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Index, Mul, MulAssign, Sub, SubAssign};
 
-use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::Field;
-use ark_ff::{BigInt, FftField, PrimeField};
 use ark_poly::{EvaluationDomain, Evaluations, GeneralEvaluationDomain};
 use ark_std::{One, Zero};
 use rayon::prelude::*;
@@ -19,12 +17,21 @@ pub struct Evals<P: PastaConfig> {
 
 /// A thin wrapper for ark_poly Evaluations
 impl<P: PastaConfig> Evals<P> {
-    pub fn from_vec_and_domain(mut evals: Vec<Scalar<P>>, domain: Domain<P>) -> Self {
-        // shift right
-        let last = evals.pop().unwrap();
-        evals.insert(0, last);
-        let evals = Evaluations::from_vec_and_domain(evals, domain);
-        Self { evals }
+    pub fn from_vec_and_domain(evals: Vec<Scalar<P>>, domain: Domain<P>) -> Self {
+        let inner_evals = Evaluations::from_vec_and_domain(evals, domain);
+        Self::new(inner_evals).shift_right()
+    }
+
+    pub fn shift_right(mut self) -> Self {
+        let last = self.evals.evals.pop().unwrap();
+        self.evals.evals.insert(0, last);
+        self
+    }
+
+    pub fn shift_left(mut self) -> Self {
+        let first = self.evals.evals.remove(0);
+        self.evals.evals.push(first);
+        self
     }
 
     pub fn new(evals: Evaluations<Scalar<P>>) -> Self {
@@ -62,13 +69,13 @@ impl<P: PastaConfig> Evals<P> {
     }
 
     #[inline]
-    pub fn scale_in_place(mut self, other: P::ScalarField) -> Evals<P> {
+    pub fn scale(mut self, other: P::ScalarField) -> Evals<P> {
         self.evals.evals.par_iter_mut().for_each(|x| *x *= other);
         self
     }
 
     #[inline]
-    pub fn scale(&self, other: P::ScalarField) -> Evals<P> {
+    pub fn scale_ref(&self, other: P::ScalarField) -> Evals<P> {
         let mut evals = self.clone();
         evals.evals.evals.par_iter_mut().for_each(|x| *x *= other);
         evals
@@ -78,6 +85,26 @@ impl<P: PastaConfig> Evals<P> {
     pub fn add_scalar(mut self, other: P::ScalarField) -> Evals<P> {
         self.evals.evals.par_iter_mut().for_each(|x| *x += other);
         self
+    }
+
+    #[inline]
+    pub fn add_scalar_ref(&self, other: P::ScalarField) -> Evals<P> {
+        let mut evals = self.clone();
+        evals.evals.evals.par_iter_mut().for_each(|x| *x += other);
+        evals
+    }
+
+    #[inline]
+    pub fn sub_scalar(mut self, other: P::ScalarField) -> Evals<P> {
+        self.evals.evals.par_iter_mut().for_each(|x| *x -= other);
+        self
+    }
+
+    #[inline]
+    pub fn sub_scalar_ref(&self, other: P::ScalarField) -> Evals<P> {
+        let mut evals = self.clone();
+        evals.evals.evals.par_iter_mut().for_each(|x| *x -= other);
+        evals
     }
 
     pub fn omega(&self) -> Scalar<P> {
@@ -200,6 +227,45 @@ impl<'a, 'b, P: PastaConfig> Add<&'a Evals<P>> for &'b Evals<P> {
     }
 }
 
+// ---------- Sub ---------- //
+
+impl<P: PastaConfig> Sub for Evals<P> {
+    type Output = Evals<P>;
+    #[inline]
+    fn sub(mut self, other: Evals<P>) -> Evals<P> {
+        self -= &other;
+        self
+    }
+}
+
+impl<'a, P: PastaConfig> Sub<&'a Evals<P>> for Evals<P> {
+    type Output = Evals<P>;
+    #[inline]
+    fn sub(mut self, other: &'a Evals<P>) -> Evals<P> {
+        self -= &other;
+        self
+    }
+}
+
+impl<'a, P: PastaConfig> Sub<Evals<P>> for &'a Evals<P> {
+    type Output = Evals<P>;
+    #[inline]
+    fn sub(self, mut other: Evals<P>) -> Evals<P> {
+        other -= self;
+        other
+    }
+}
+
+impl<'a, 'b, P: PastaConfig> Sub<&'a Evals<P>> for &'b Evals<P> {
+    type Output = Evals<P>;
+    #[inline]
+    fn sub(self, other: &'a Evals<P>) -> Evals<P> {
+        Evals {
+            evals: &self.evals - &other.evals,
+        }
+    }
+}
+
 // ---------- AddAssign ---------- //
 
 impl<'a, P: PastaConfig> AddAssign<&'a Evals<P>> for Evals<P> {
@@ -209,68 +275,11 @@ impl<'a, P: PastaConfig> AddAssign<&'a Evals<P>> for Evals<P> {
     }
 }
 
-impl<'a, 'b, P: PastaConfig> Sub<&'a Evals<P>> for &'b Evals<P> {
-    type Output = Evals<P>;
-
-    #[inline]
-    fn sub(self, other: &'a Evals<P>) -> Evals<P> {
-        Evals {
-            evals: &self.evals - &other.evals,
-        }
-    }
-}
+// ---------- SubAssign ---------- //
 
 impl<'a, P: PastaConfig> SubAssign<&'a Evals<P>> for Evals<P> {
     #[inline]
     fn sub_assign(&mut self, other: &'a Evals<P>) {
         self.evals -= &other.evals;
-    }
-}
-
-impl<P: PastaConfig> Div for Evals<P> {
-    type Output = Evals<P>;
-
-    #[inline]
-    fn div(mut self, other: Evals<P>) -> Evals<P> {
-        self /= &other;
-        self
-    }
-}
-
-impl<'a, P: PastaConfig> Div<&'a Evals<P>> for Evals<P> {
-    type Output = Evals<P>;
-
-    #[inline]
-    fn div(mut self, other: &'a Evals<P>) -> Evals<P> {
-        self /= &other;
-        self
-    }
-}
-
-impl<'a, P: PastaConfig> Div<Evals<P>> for &'a Evals<P> {
-    type Output = Evals<P>;
-
-    #[inline]
-    fn div(self, mut other: Evals<P>) -> Evals<P> {
-        other /= self;
-        other
-    }
-}
-
-impl<'a, 'b, P: PastaConfig> Div<&'a Evals<P>> for &'b Evals<P> {
-    type Output = Evals<P>;
-
-    #[inline]
-    fn div(self, other: &'a Evals<P>) -> Evals<P> {
-        Evals {
-            evals: &self.evals / &other.evals,
-        }
-    }
-}
-
-impl<'a, P: PastaConfig> DivAssign<&'a Evals<P>> for Evals<P> {
-    #[inline]
-    fn div_assign(&mut self, other: &'a Evals<P>) {
-        self.evals /= &other.evals;
     }
 }
