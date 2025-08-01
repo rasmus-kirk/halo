@@ -4,7 +4,7 @@
 
 The trace computation is defined as follows:
 $$
-(C, \vec{\sigma}, L) = \mathrm{trace}(\abst{f},\avec{Y},\vec{x})
+(C, \sigma) = \mathrm{trace}(\abst{f},\avec{Y},\vec{x})
 $$
 
 **Monotonic Functions**
@@ -91,7 +91,7 @@ v_{\abst{f}}\left[\abst{y}\right] &= \maybe{
   v[\avec{y} \mapsto \vec{y}]
 }{\begin{array}{rl}
   \abst{f} &\ni (g, \abst{y}) \\
-  \avec{y} &= \out^{\abst{f}}(g) \\
+  \avec{y} &= \out(\abst{f},g) \\
   \vec{y} &= \eval_g(v[\gin(g)]) \\
 \end{array}}
 \end{array}
@@ -142,7 +142,7 @@ $$
 \begin{array}{rl}
 A \cat B &= A \sqcup_{\lambda \_,\vec{a}, \vec{b}. \vec{a} \cat \vec{b}} B \\
 \TraceTable &= \IndexMap(X, \lambda t,\_. W(t)^k) \\
-\text{GState}^{k,k'} &= \TraceTable \times \Chip^{k'} \times \Bb \times \RState^k \\
+\text{GState}^{k,k'} &= \TraceTable \times \Ggt^{k'} \times \Bb \times \RState^k \\
 \vec{g}^{\abst{f}} &= \left[g \middle\vert (g, \abst{y}) \in \abst{f} \land (\abst{y} = \bot \lor \exists i,t. \abst{y} = \Input^t_i) \right] \\
 \\
 \Downarrow &: \VMap \to F(\text{Pre}(t,s)^k \to W(t)^k) \\
@@ -153,7 +153,7 @@ f(x,v[\avec{w}]) & r = (x, \avec{w}, f) \\
 \end{cases} \\
 \\
 \underset{G}{\curvearrowleft} &: T \times \text{GState}^{k'',k} \to T \times \text{GState}^{k'',k'} \\
-\underset{G}{\curvearrowleft} &= \lift(\curvearrowleft : \Chip^k \to \Chip^{k'})
+\underset{G}{\curvearrowleft} &= \lift(\curvearrowleft : \Ggt^k \to \Ggt^{k'})
 \end{array} &
 \begin{array}{rl}
 - \stackrel{\to}{\circ} \Downarrow^{-}_G &: (T \times \text{GState} \to T \times \text{GState}) \to \AbsCirc \\
@@ -214,8 +214,8 @@ $$
 \sigma[\vec{s} \mapsto \vec{s}'] & s'_1 = s_{|\vec{s}|} \land s'_{i>1} = s_{i-1}
 \end{cases} \\
 \\
-\text{loop} &: \Nb \to \Chip \to \text{CLoop} \\
-\text{loop}(o,g) &= \text{loopN}(o,\ctrn_g, \gin(g) \cat \out^{\abst{f}}(g))[n_g+m_g+1]\\
+\text{loop} &: \Nb \to \Ggt \to \text{CLoop} \\
+\text{loop}(o,g) &= \text{loopN}(o,\ctrn_g, \gin(g) \cat \out(\abst{f},g))[n_g+m_g+1]\\
 \\
 \sqcup &: \text{CLoop} \to \text{CLoop} \to \text{CLoop} \\
 f \sqcup g &= \begin{cases}

@@ -7,7 +7,7 @@ TODO assert WireType = {p,q} here onwards; bar notation $\bar{p} = q$
 
 TODO: ctrn and loop too; term (in ctrn) includes $j$ lookup table index
 
-| $g: \Chip$                | $\text{eval}(g, \vec{x})$     | remarks                 |
+| $g: \Ggt$                | $\text{eval}(g, \vec{x})$     | remarks                 |
 |:-------------------------:|:-----------------------------:|:------------------------|
 | Input$_i()$               | $(x_i)$                       | from trace              |
 | Const$_{s,p}()$           | $(s)$                         |                         |

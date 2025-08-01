@@ -20,25 +20,25 @@ $$
 (\abst{f}, \avec{Y}) = \mathrm{arithmetize}(f)
 $$
 
-**Abstract Circuit, Chips, Operations and Wires**
+**Abstract Circuit, Gadgets, Operations and Wires**
 
-Arithmetize turns a program $f$ into an *abstract circuit* $\abst{f}$, which is a one-to-many-or-none relation between chips $g$ and output wire(s) $\abst{y}$ or $\bot$ for none, inducing an acyclic circuit. e.g. $\cpair{\chip{Add}{\abst{a},\abst{b}}}{\abst{c}} \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$.
+Arithmetize turns a program $f$ into an *abstract circuit* $\abst{f}$, which is a one-to-many-or-none relation between gadgets $g$ and output wire(s) $\abst{y}$ or $\bot$ for none, inducing an acyclic circuit. e.g. $\gpair{\ggt{Add}{a,b}}{\abst{c}} \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$.
 
 $$
 \begin{array}{rl}
-\cpair{g}{\abst{y}} &= (g,\abst{y}) \\
-\text{OneToManyOrNone}(\abst{f}) &= \forall \cpair{g}{\abst{y}},\cpair{h}{\abst{y}} \in \abst{f}. \abst{y} \neq \bot \implies g = h \\
-\text{Acyclic}(\abst{f}) &= \forall \cpair{g}{\abst{y}} \in \abst{f}. \abst{y} \neq \bot \land |\text{in}(g)| > 0 \implies \max(\id[\gin(g)]) < \min \left(\id[\out^{\abst{f}}(g)] \right) \\
+\gpair{g}{\abst{y}} = (g,\abst{y}) \ \ \ 
 \AbsCirc &= \set{
   \abst{f} \middle\vert
-  \abst{f} \subset \Chip \times \Option(\Wire) \land
+  \abst{f} \subset \Ggt \times \Option(\Wire) \land
   \text{OneToManyOrNone}(\abst{f}) \land
   \text{Acyclic}(\abst{f})
-}
+} \\
+\text{OneToManyOrNone}(\abst{f}) &= \forall \gpair{g}{\abst{y}},\gpair{h}{\abst{y}} \in \abst{f}. \abst{y} \neq \bot \implies g = h \\
+\text{Acyclic}(\abst{f}) &= \forall \gpair{g}{\abst{y}} \in \abst{f}. \abst{y} \neq \bot \land |\text{in}(g)| > 0 \implies \max(\id[\gin(g)]) < \min \left(\id[\out(\abst{f},g)] \right)
 \end{array}
 $$
 
-*Operations*; amongst other data, defines $n_g \geq 0$ number of fan-in wires typed $\tin{g}$ and $m_g \geq 0$ number of fan-out wires typed $\tout{g}$ that a chip of its operation must have. Wires are checked when constructing a chip e.g. $\chip{Add}{\abst{a},\abst{b}}$ type checks $\abst{a}, \abst{b}$ for the $\text{Add}$ operation.
+*Operations*; amongst other data, defines $n_g \geq 0$ number of fan-in wires typed $\tin{g}$ and $m_g \geq 0$ number of fan-out wires typed $\tout{g}$ that a gadget of its operation must have. Wires are checked when constructing a gadget e.g. $\ggt{Add}{a,b}$ type checks $\abst{a}, \abst{b}$ for the $\text{Add}$ operation.
 
 $$
 \begin{array}{cc}
@@ -54,32 +54,32 @@ m_g &: \Nb
 \end{array}
 \end{array} &
 \begin{array}{rl}
-- ( - ) &: (g: \Ops) \to \Wire^{n_g} \to \Chip \\
+- ( - ) &: (g: \Ops) \to \Wire^{n_g} \to \Ggt \\
 g(\avec{x}) &= \maybe{g'}{
 \begin{array}{l}
 \ty(g') = g \land \gin(g') = \avec{x} \\
 \tin{g} = \ty[\avec{x}] \land \cdots
-\end{array}} = \chipu{g}{\abst{x}_1, \cdots, \abst{x}_{n_g}}
+\end{array}}
 \end{array}
 \end{array}
 $$
 
-*Chips*[^short-hand-chip] $g$ are operations $\ty(g)$ initialized with input wires $\gin(g)$. *Wires* $\abst{x}$; a unique identifier $\id(\abst{x})$ and *wire type tag* $\ty(\abst{x})$, are abstract representations of values $x: W(\ty(\abst{x}))$. $W$ maps the tag to the value's type e.g. $W(p) = \Fb_p$.
+*Gadget*[^short-hand-gadget] $g$ are operations $\ty(g)$ initialized with input wires $\gin(g)$. *Wires* $\abst{x}$; a unique identifier $\id(\abst{x})$ and *wire type tag* $\ty(\abst{x})$, are abstract representations of values $x: W(\ty(\abst{x}))$. $W$ maps the tag to the value's type e.g. $W(p) = \Fb_p$.
 
-[^short-hand-chip]: As a notational shorthand, if $g:\Chip$, we may omit $\ty$ e.g. $n_g := n_{\ty(g)}$. We notate $g$ as operation or chip interchangably.
+[^short-hand-gadget]: As a notational shorthand, if $g:\Ggt$, we may omit $\ty$ e.g. $n_g := n_{\ty(g)}$. We notate $g$ as operation or gadget interchangably.
 
 
 $$
 \begin{array}{cc}
 \begin{array}{c}
 \begin{array}{ccc}
-g: \Chip &
+g: \Ggt &
 \ty(g): \Ops &
 \gin(g): \Wire^{n_g}
 \end{array} \\
-\out^{\abst{f}}(g): \Wire^{m_g} = \maybe{\avec{y}}{
+\out(\abst{f},g): \Wire^{m_g} = \maybe{\avec{y}}{
 \begin{array}{l}
-\forall i \in [m_g+1]. \abst{y}_i \in \set{\abst{y} \middle\vert \cpair{g}{\abst{y}} \in \abst{f}} \\
+\forall i \in [m_g+1]. \abst{y}_i \in \set{\abst{y} \middle\vert \gpair{g}{\abst{y}} \in \abst{f}} \\
 \id(\abst{y}_{i>1}) > \id(\abst{y}_{i-1})
 \end{array}}
 \end{array} &
@@ -90,20 +90,20 @@ W: \WireType \to \Uni \\
 \id(\abst{w}) : \Nb &
 \ty(\abst{w}) : \WireType
 \end{array} \\
-\wire{i}{t} = \new(i,t) = \maybe{\abst{w}}{\begin{array}{rl}
+\text{wire}(i,t) = \wire{i}{t} = \maybe{\abst{w}}{\begin{array}{rl}
 \id(\abst{w}) &= i \\
 \ty(\abst{w}) &= t
 \end{array}}
 \end{array}
 \end{array}
 $$
-Chips in $\abst{f}$ can be visualized as an *abstract circuit diagram*
+Gadgets in $\abst{f}$ can be visualized as an *abstract circuit diagram*
 \begin{center}
 \begin{tabular}{ c c c c }
 \begin{math}
 \begin{array}{rl}
 (\abst{x}_1, \ldots, \abst{x}_{n_g}) &= \gin(g) \\
-\set{\cpair{g}{\abst{y}_1}, \cpair{g}{\abst{y}_{m_g}}} &\subseteq \abst{f}
+\set{\gpair{g}{\abst{y}_1}, \gpair{g}{\abst{y}_{m_g}}} &\subseteq \abst{f}
 \end{array}
 \end{math}
 &
@@ -149,10 +149,10 @@ u_s: \Nb \\
 \avec{Y}_s: \Wire^k
 \end{array} \\
 \begin{array}{rl}
-\new(u,\abst{f},\avec{Y}) &= \maybe{s'}{\begin{array}{rl}
-u_{s'} &= u \\
-\abst{f}_{s'} &= \abst{f} \\
-\avec{Y}_{s'} &= \avec{Y}
+\new(u,\abst{f},\avec{Y}) &= \maybe{s}{\begin{array}{rl}
+u_{s} &= u \\
+\abst{f}_{s} &= \abst{f} \\
+\avec{Y}_{s} &= \avec{Y}
 \end{array}} \\
 s \cat \abst{y} &= \new(u_s, \abst{f}_s, \abst{y} \cat \avec{Y}_s)
 \end{array}
@@ -170,32 +170,32 @@ s \cat \abst{y} &= \new(u_s, \abst{f}_s, \abst{y} \cat \avec{Y}_s)
 \end{array}
 $$
 
-Operations have a *canonical program* that it corresponds to, e.g $\build{x + y=z}{s}{s'} = \left(\text{get}(s,\chip{Add}{\abst{x},\abst{y}}) = (s', \abst{z})\right)$, thus a program can be arithmetized iff it can be decomposed into these canonical programs. These inserts yield new wires. However, if $g \equiv h$ where $\cpair{h}{\_} \in \abst{f}_s$, then $\avec{y}= \out^{\abst{f}}(h)$ in $\build{g=\vec{y}}{s}{s}$ leaving the state unchanged.[^egglog-eq] 
+Operations have a *canonical program* that it corresponds to, e.g $\build{x + y=z}{s}{s'} = \left(\text{get}(s,\ggt{Add}{x,y}) = (s', \abst{z})\right)$, thus a program can be arithmetized iff it can be decomposed into these canonical programs. These inserts yield new wires. However, if $g \equiv h$ where $\gpair{h}{\_} \in \abst{f}_s$, then $\avec{y}= \out(\abst{f},h)$ in $\build{g=\vec{y}}{s}{s}$ leaving the state unchanged.[^egglog-eq] 
 
-[^egglog-eq]: Determining equivalence between chips is a sophisticated problem, a candidate is to use equality saturation such as @egglog, however we implement simpler ad hoc solutions that doesnt cover the full equivalence structure. We leave this definition open.
+[^egglog-eq]: Determining equivalence between gadget is a sophisticated problem, a candidate is to use equality saturation such as @egglog, however we implement simpler ad hoc solutions that doesnt cover the full equivalence structure. We leave this definition open.
 
 
 $$
-\Chip^{\abst{f}}_g = \set{h \in \Chip \middle\vert
+\Ggt^{\abst{f}}_g = \set{h \in \Ggt \middle\vert
   (h, \_) \in \abst{f} \land h \equiv g
 }
 $$
 $$
 \begin{array}{cc}
 \begin{array}{rl}
-\new &: \Nb \to \Chip \to \Wire^{m_g} \\
-\new(u,g) &= \new[(u..u+m_g) \odot \tout{g}]
+\new &: \Nb \to \Ggt \to \Wire^{m_g} \\
+\new(u,g) &= \text{wire}[(u..u+m_g) \odot \tout{g}]
 \end{array} &
 \begin{array}{rl}
-\entries  &: \Nb \to \Chip \to \AbsCirc \\
+\entries  &: \Nb \to \Ggt \to \AbsCirc \\
 \entries(u,g) &= \begin{cases}
-\set{\cpair{g}{\abst{y}} \middle\vert \abst{y} \in \new(u,g)}
+\set{\gpair{g}{\abst{y}} \middle\vert \abst{y} \in \new(u,g)}
 & m_g > 0 \\
-\set{\cpair{g}{\bot}} & \otherwise
+\set{\gpair{g}{\bot}} & \otherwise
 \end{cases}
 \end{array} \\ \\
 \begin{array}{rl}
-\aput &: \Chip \to \AState \to \AState \\
+\aput &: \Ggt \to \AState \to \AState \\
 \aput(g, s) &= \new\left(\begin{array}{c}
 u_s + m_g \\
 \abst{f}_s \cup \entries(u_s, g) \\
@@ -203,10 +203,10 @@ u_s + m_g \\
 \end{array}\right)
 \end{array} &
 \begin{array}{rl}
-\aget &: \AState \to (g: \Chip) \to \AState \times \Wire^{m_g} \\
+\aget &: \AState \to (g: \Ggt) \to \AState \times \Wire^{m_g} \\
 \aget(s, g)
 &= \begin{cases}
-  (s, \out^{\abst{f}_s}(h)) & h \in \Chip^{\abst{f}_s}_g \\
+  (s, \out(\abst{f}_s,h)) & h \in \Ggt^{\abst{f}_s}_g \\
   (\aput(g, s), \new(u_s,g)) & \otherwise
 \end{cases}
 \end{array}
@@ -219,7 +219,7 @@ $$
 \text{init}(\vec{t}) &= \opcirc\limits_{i \in [k+1]} \aput(\Input^{t_{i}}_{i-1}) (0, \emptyset, ()) \\
 \end{array} &
 \begin{array}{rl}
-\text{arithmetize} &: (W[\tin{}] \to W[\tout{}]) \to \AbsCirc \times \Wire^{m'} \\
+\text{arithmetize} &: (W[\tin{}] \to W[\tout{}]) \to \AbsCirc \times \Wire^k \\
 \text{arithmetize}(f) &= \maybe{(\abst{f}_s, \avec{Y}_s)}{
   \build{f}{\text{init}(\tin{})}{s}
 }
@@ -249,45 +249,45 @@ $= \maybe{\left(\abst{f}_{s''}, (\abst{z})\right)}{
 \end{array}}
 $ \\
 $= \maybe{\left(\abst{f}_{s''}, (\abst{z})\right)}{\begin{array}{rl}
-  \text{get}(u_s, \abst{f}_s, (), \chip{Mul}{\abst{x},\abst{x}}) &= (u_{s'}, \abst{f}_{s'}, (), (\abst{t})) \\
-  \text{get}(u_{s'}, \abst{f}_{s'}, (), \chip{Add}{\abst{t}, \abst{y}}) &= (u_{s''}, \abst{f}_{s''}, (\abst{z}), (\abst{z}))
+  \text{get}(u_s, \abst{f}_s, (), \ggt{Mul}{x,x}) &= (u_{s'}, \abst{f}_{s'}, (), (\abst{t})) \\
+  \text{get}(u_{s'}, \abst{f}_{s'}, (), \ggt{Add}{t,y}) &= (u_{s''}, \abst{f}_{s''}, (\abst{z}), (\abst{z}))
 \end{array}}
 $ \\
 $= \maybe{\left(\abst{f}_{s''}, (\abst{z})\right)}{\begin{array}{rl}
-  (u_s+1, \abst{f} \cup \set{\begin{array}{rl}\chip{Mul}{\abst{x},\abst{x}} & \wire{u_s}{q}\end{array}}, (), (\wire{u_s}{q})) &= (u_{s'}, \abst{f}_{s'}, (), (\abst{t})) \\
-  \text{get}(u_{s'}, \abst{f}_{s'}, (), \chip{Add}{\abst{t},\abst{y}}) &= (u_{s''}, \abst{f}_{s''}, (\abst{z}), (\abst{z}))
+  (u_s+1, \abst{f} \cup \set{\begin{array}{rl}\ggt{Mul}{x,x} & \wire{u_s}{q}\end{array}}, (), (\wire{u_s}{q})) &= (u_{s'}, \abst{f}_{s'}, (), (\abst{t})) \\
+  \text{get}(u_{s'}, \abst{f}_{s'}, (), \ggt{Add}{t,y}) &= (u_{s''}, \abst{f}_{s''}, (\abst{z}), (\abst{z}))
 \end{array}}
 $ \\
 $= \maybe{\left(\abst{f}_{s''}, (\abst{z})\right)}{
-  \text{get}(u_s+1, \abst{f}_s \cup \set{\begin{array}{rl}\chip{Mul}{\abst{x},\abst{x}} & \wire{u_s}{q}\end{array}}, (), \chip{Add}{\wire{u_s}{q},\abst{y}}) = (u_{s''}, \abst{f}_{s''}, (\abst{z}), (\abst{z}))
+  \text{get}(u_s+1, \abst{f}_s \cup \set{\begin{array}{rl}\ggt{Mul}{x,x} & \wire{u_s}{q}\end{array}}, (), \ggtw{Add}{\wire{u_s}{q},\abst{y}}) = (u_{s''}, \abst{f}_{s''}, (\abst{z}), (\abst{z}))
 }
 $ \\
 $= \maybe{\left(\abst{f}_{s''}, (\abst{z})\right)}{\left(u_s+2, \abst{f} \cup \set{\begin{array}{rl}
-    \chip{Mul}{\abst{x},\abst{x}} & \wire{u_s}{q} \\
-    \chip{Add}{\wire{u_s}{q},\abst{y}} & \wire{u_s+1}{q}
+    \ggt{Mul}{x,x} & \wire{u_s}{q} \\
+    \ggtw{Add}{\wire{u_s}{q},\abst{y}} & \wire{u_s+1}{q}
   \end{array}}, (\wire{u_s+1}{q}), (\wire{u_s+1}{q})\right) = (u_{s''}, \abst{f}_{s''}, (\abst{z}), (\abst{z}))}
 $ \\
 $= \left(\abst{f}_s \cup \set{\begin{array}{rl}
-    \chip{Mul}{\abst{x},\abst{x}} & \wire{u_s}{q} \\
-    \chip{Add}{\wire{u_s}{q},\abst{y}} & \wire{u_s+1}{q}
+    \ggt{Mul}{x,x} & \wire{u_s}{q} \\
+    \ggtw{Add}{\wire{u_s}{q},\abst{y}} & \wire{u_s+1}{q}
   \end{array}}, (\wire{u_s+1}{q})\right)
 $ \\
 where $(u_s,\abst{f}_s,()) = \text{init}(\tin{})$
 \\ 
 $= \opcirc\limits_{i \in [3]}\aput(\Input^{t^{in}_{i}}_{i-1})(0,\emptyset,())
 = \text{put}(\Input^q_1) \circ \text{put}(\Input^q_0)(0, \emptyset,())
-= \text{put}(\Input^q_1)(1, \set{\begin{array}{rl}\chipu{\Input^q_0}{} & \wire{0}{q} \end{array}}, ())$
+= \text{put}(\Input^q_1)(1, \set{\begin{array}{rl} \Input^q_0 & \wire{0}{q} \end{array}}, ())$
 \\
 $= \left(2, \set{\begin{array}{rl}
-  \chipu{\Input^q_0}{} & \wire{0}{q} \\
-  \chipu{\Input^q_1}{} & \wire{1}{q}
+  \Input^q_0 & \wire{0}{q} \\
+  \Input^q_1 & \wire{1}{q}
 \end{array}}, ()\right)$
 \\
 $\therefore \ (\abst{f}, \avec{Y}) = \left(\set{\begin{array}{rl}
-  \chipu{\Input^q_0}{} & \wire{0}{q} \\
-  \chipu{\Input^q_1}{} & \wire{1}{q} \\
-  \chip{Mul}{\wire{0}{q},\wire{0}{q}} & \wire{2}{q} \\
-  \chip{Add}{\wire{2}{q},\wire{1}{q}} & \wire{3}{q}
+  \Input^q_0 & \wire{0}{q} \\
+  \Input^q_1 & \wire{1}{q} \\
+  \ggtw{Mul}{\wire{0}{q},\wire{0}{q}} & \wire{2}{q} \\
+  \ggtw{Add}{\wire{2}{q},\wire{1}{q}} & \wire{3}{q}
 \end{array}}, (\wire{3}{q})\right)
 $
 \end{longtable}
@@ -305,8 +305,8 @@ $\build{x^2+y=z^*}{}{}$ &
 ]
 \node[draw, anchor=center] (in1) at (0,0) {$\Input^q_0$};
 \node[draw, anchor=center] (in2) at ($(in1.south)-(0,0.4)$) {$\Input^q_1$};
-\node[anchor=center] (mul) at ($(in2.south)-(0,0.4)$) {$\chip{Mul}{\abst{x},\abst{x}}$};
-\node[anchor=center] (add) at ($(mul.south)-(0,0.4)$) {$\chip{Add}{\abst{t},\abst{y}}$};
+\node[anchor=center] (mul) at ($(in2.south)-(0,0.4)$) {$\ggt{Mul}{x,x}$};
+\node[anchor=center] (add) at ($(mul.south)-(0,0.4)$) {$\ggt{Add}{t,y}$};
 
 \node[anchor=center] (x) at ($(in1.east)+(3.5,0)$) {$\abst{x}$};
 \node[anchor=center] (y) at ($(x.south)-(0,0.4)$) {$\abst{y}$};
