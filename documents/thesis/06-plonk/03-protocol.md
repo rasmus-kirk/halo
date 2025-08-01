@@ -309,13 +309,15 @@ We now define the $\Surkal$ protocol using the above arguments.
 }
 \textbf{Inputs} \\
   \Desc{$f: W[\tin{}] \to W[\tout{}]$}{NP problem / program.} \\
-  \Desc{$\vec{x} \in W[\tin{}]$}{The possibly private input to the program $f$} \\
+  \Desc{$\vec{x} \in W[\tin{}]$}{The prover's private input to the program $f$} \\
+  \Desc{$\vec{x}' \in W[\vec{t^{pub}}]$}{The verifier's public input to the trace table} \\
 \textbf{Output} \\
   \Desc{$\Result(\top, \bot)$}{Either the verifier accepts with $\top$ or rejects with $\bot$}
 \begin{algorithmic}[1]
-  \State $(R, x, w) = \SurkalPreprocess(f, \vec{x})$ 
-  \State $\pi = \SurkalProver(R,x,w)$
-  \State \textbf{return} $\SurkalVerifier(R,x,\pi)$
+  \State $P \to V:$ Prover computes and sends proof $\pi$ to verifier
+    \Statex \algind $\SurkalProver \circ \SurkalArithmetize(f, \vec{x}) = \pi$
+  \State $V:$ Verifier checks
+    \Statex \algind $\SurkalVerifier(\pi) \circ \SurkalArithmetize_{\text{public}}(f, \vec{x}') \stackrel{?}{=} \top$
   \end{algorithmic}
 \end{algorithm}
 
