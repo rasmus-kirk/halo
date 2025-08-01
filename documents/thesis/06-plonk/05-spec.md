@@ -1,187 +1,73 @@
-**Spec**
+**Equations**
 
-Before defining trace, we need the complete definition for operations. $\Surkal$ performs vanishing argument on $F_{GC}$; the *gate constraint polynomial*. $F_{GC}$ is defined as an *abstract equation*: a function from a vector of polymorphic type *arguments* to the type itself. This lets us define a function to be used for scalars, polynomials, elliptic curve points[^curve-mul] and wires (with $\AState$) in one definition, the latter being synonymous to an abstract circuit.
+Before defining trace, we need more definitions. $\Surkal$ performs vanishing argument on $F_{GC}$; the *gate constraint polynomial*. $F_{GC}$ is defined as an *abstract equation* structured as an abstract syntax tree. The atomics are *columns* and *scalars* $\Fb$.
 
-[^curve-mul]: When $\Arg = E[\Fb_p]$, multiplication with a field element does not exist. Thus some $\Eqn$ aren't defined for curve points.
+\vspace{1em}
+\begin{center}
+\begin{tabularx}{\textwidth}{X X X}
+\begin{grammar}
+<Eqn> ::= \lit{-} \synt{Eqn2}
+\alt \lit{(} \synt{Eqn2} \lit{)}
+\alt \synt{Column}
+\end{grammar} &
+\begin{grammar}
+<Eqn1> ::= \synt{Eqn} \synt{Eqn1'}
+\alt \synt{Scalar} \lit{×} \synt{Eqn2}
+
+<Eqn1'> ::= \lit{×} \synt{Eqn} \synt{Eqn1'}
+\alt $\epsilon$
+\end{grammar} &
+\begin{grammar}
+<Eqn2> ::= \synt{Eqn1} \synt{Eqn2'}
+
+<Eqn2'> ::= \lit{+} \synt{Eqn1} \synt{Eqn2'}
+\alt \lit{-} \synt{Eqn1} \synt{Eqn2'}
+\alt $\epsilon$
+\end{grammar}
+\end{tabularx}
+\end{center}
+
+This lets us define a function for polymorphic atomic column types: scalars, polynomials, elliptic curve points[^curve-mul] and wires (with $\AState$) in one definition, the latter being synonymous to an arithmetization. Computing the function then is tree traversal with combinators for each equation operation in the grammar.
+
+[^curve-mul]: Multiplication with curve points does not exist. Thus some $\Eqn$ aren't defined for curve points.
+
 
 $$
-\begin{array}{cccc}
-\Eqn_k = \Arg^k \to \Arg
-&
-+ : \Arg \to \Arg \to \Arg
-&
-\times : \Fb_p \to \Arg \to \Arg
-&
-\times : \Arg \to \Arg \to \Arg
+\begin{array}{rl}
+\text{foldEqn} &: (-: T \to T) \to (+: T \to T \to T) \to (\times_1: T \to T \to T) \to (\times_2: \Fb \to T \to T) \\
+&\to \Eqn \to (t: \Column \pto T) \to T \\
+e(C) &= \text{foldEqn}(-,+,\times_1,\times_2,e,C)
 \end{array}
 $$
 
-The primitive terms in $F_{GC}$ are called *slots* and *selectors*. Slots: $A,B,C,\cdots$, hold concrete values of a circuit's wires privately, whereas selectors: $Q_l, Q_r, Q_o, \cdots$, are public values modelling the structure of the abstract circuit. Slots can be used by all operations, however selectors are operation specific. Groups of operations that use the same selectors are called *operation groups* $\Grp$ where $\Ops_{\Grp}$ are the operations and $\term_{\Grp}$ is the $F_{GC}$ term the group contributes to.
-
-$$
-\begin{array}{cccc}
-\Grp: \OpGroup &
-\Ops_{\Grp}: \pset{\Ops} &
-\Selector_{\Grp}: \Selector^j &
-\term_{\Grp}: \Eqn_{i+j}
-\end{array}
-$$
-
-The collection of all operation groups is called the *operation collection* $\Col$ where $\OpGroup_{\Col}$ are the operation groups. The rest of the definitions are accumulations of the operation group's methods.
+Every operation $g$ declares the columns $\Column_g$ and a $\term_g$ of $F_{GC}$.
 
 $$
 \begin{array}{ccc}
-\begin{array}{rl}
-\Col&: \OpCollection \\
-\OpGroup_{\Col} &: \pset{\OpGroup} \\
-\Slot_{\Col} &: \Slot^i
-\end{array} &
-\begin{array}{rl}
-\Ops_{\Col} &= \bigcup\limits_{\Grp \in \OpGroup_{\Col}} \Ops_{\Grp} \\
-\Selector_{\Col} &= \bigcup\limits_{\Grp \in \OpGroup_{\Col}} \Selector_{\Grp}
-\end{array} &
-\begin{array}{l}
-F_{GC}(\vec{s}, \vec{S}) \\= \sum\limits_{\Grp_i \in \OpGroup_{\Col}} \term_{\Grp_i}(\vec{s}, \vec{S}_i)
-\end{array}
+g:\Ops &
+\Column_g: \pset{\Column} &
+\term_{g}: \Eqn
 \end{array}
 $$
 
-A *specification*[^spec-benefit] defines a $\OpCollection$. In the previous section on arithmetize, we omitted $s:\Spec$ in $\AState$ leaving $W, \WireType, \Ops$ implicit for $W_s, \WireType_s, \Ops_s$. Moreover, it does not need to know $\term_{\Grp}, \Selector_{\Grp}, \Slot_{\Col}$ as these are specific to trace. We leave the spec instance $s$ and its conversion implicit for brevity[^more-brevity].
-
-[^more-brevity]: We can notationally index with spec directly to get fields of operation collection e.g. $\Ops_{s} = \Ops_{\Col_s}$
+e.g. in basic \plonk we have the following single term
 
 $$
-\begin{array}{cccc}
-s : \Spec &
-\OpCollection_s : \OpCollection
-&
-\WireType_s: \Uni
-&
-W_s: \WireType_s \to \Uni
-\end{array}
+F_{GC}^{\plonkm}: \Eqn = A \times Q_l + B \times Q_r + C \times Q_o + A \times B \times Q_m + Q_c + PI
 $$
-
-In summary, a specification can be visualized as follows:
-
-\begin{center}
-\begin{tikzpicture}[
-  baseline={(current bounding box.center)}
-]
-\tikzset{v/.style={draw, rounded corners, anchor=north}}
-\node[v] (spec) at (0,0) {$s: \Spec$};
-
-\node[anchor=east] (X) at ($(spec.west)+(-1,0)$) {$\cdots$};
-
-\node[v] (wty) at ($(spec.south)+(-4,-0.5)$) {$\WireType_s$};
-\node[v] (t1) at ($(wty.south)+(0,-0.25)$) {$t_1$};
-\node[v] (t2) at ($(t1.south)+(0,-0.25)$) {$t_2$};
-
-\draw[-] (wty.south) -- (t1.north);
-\draw[-] (t1.south) -- (t2.north);
-\draw[-,dashed] (t2.south) -- ($(t2.south)+(0,-0.5)$);
-
-\node[v] (w) at ($(spec.south)+(-2,-0.5)$) {$W_s$};
-\node[v] (w1) at ($(w.south)+(0,-0.25)$) {$W(t_1)$};
-\node[v] (w2) at ($(w1.south)+(0,-0.25)$) {$W(t_2)$};
-
-\draw[-] (w.south) -- (w1.north);
-\draw[-] (w1.south) -- (w2.north);
-\draw[-,dashed] (w2.south) -- ($(w2.south)+(0,-0.5)$);
-
-\draw[|->] ($(t1.east)+(0.25,0)$) -- ($(w1.west)+(-0.25,0)$);
-\draw[|->] ($(t2.east)+(0.25,0)$) -- ($(w2.west)+(-0.25,0)$);
-
-\node[v] (col) at ($(spec.south)+(0,-0.5)$) {$\OpCollection_s$};
-\node[v] (slot) at ($(col.south)+(0,-0.25)$) {$\Slot_s$};
-\node[v] (A) at ($(slot.south)+(0,-0.25)$) {$A$};
-\node[v] (B) at ($(A.south)+(0,-0.25)$) {$B$};
-\node[v] (C) at ($(B.south)+(0,-0.25)$) {$C$};
-
-\draw[-] (slot.south) -- (A.north);
-\draw[-] (A.south) -- (B.north);
-\draw[-] (B.south) -- (C.north);
-\draw[-,dashed] (C.south) -- ($(C.south)+(0,-0.5)$);
-
-\node[v,anchor=west] (G) at ($(spec.east)+(4.5,0)$) {$\OpGroup_{s}$};
-\node[v] (G1) at ($(G.south |- slot.north)$) {$\Grp_1$};
-\node[v,anchor=east] (Sel1) at ($(G1.west)+(-0.5,0)$) {$\Selector_{\Grp_1}$};
-\node[v,anchor=north] (term1) at ($(G1.south)+(1,-0.25)$) {$\term_{\Grp_1}$};
-\node[v,anchor=west] (GTy1) at ($(G1.east)+(1,0)$) {$\Ops_{\Grp_1}$};
-\draw[->] (G1.west) -- (Sel1.east);
-\draw[->] (G1.east) -- (term1.north);
-\draw[->] (G1.east) -- (GTy1.west);
-\node[v] (G2) at ($(G1.south)+(0,-1)$) {$\Grp_2$};
-\node[v,anchor=east] (Sel2) at ($(G2.west)+(-0.5,0)$) {$\Selector_{\Grp_2}$};
-\node[v,anchor=north] (term2) at ($(G2.south)+(1,-0.25)$) {$\term_{\Grp_2}$};
-\node[v,anchor=west] (GTy2) at ($(G2.east)+(1,0)$) {$\Ops_{\Grp_2}$};
-\draw[->] (G2.west) -- (Sel2.east);
-\draw[->] (G2.east) -- (term2.north);
-\draw[->] (G2.east) -- (GTy2.west);
-
-\node[v,anchor=east] (Q1) at ($(Sel1.west)+(-0.5,0)$) {$Q_1$};
-\node[v] (QK1) at ($(Q1.south)+(0,-0.25)$) {$Q_{k_1}$};
-\node[v] (QK1S) at ($(QK1.south)+(0,-0.25)$) {$Q_{k_1 + 1}$};
-\node[v] (QK2) at ($(QK1S.south)+(0,-0.25)$) {$Q_{k_2}$};
-
-\draw[->] (Sel1.west) --(Q1.east);
-\draw[->] (Sel1.west) -- (QK1.east);
-\draw[->] (Sel2.west) -- (QK1S.east);
-\draw[->] (Sel2.west) -- (QK2.east);
-\draw[-,dashed] (Q1.south) -- (QK1.north);
-\draw[-] (QK1.south) -- (QK1S.north);
-\draw[-,dashed] (QK1S.south) -- (QK2.north);
-\draw[-,dashed] (QK2.south) -- ($(QK2.south)+(0,-0.5)$);
-
-\draw[-] (G.south) -- (G1.north);
-\draw[-] (G1.south) -- (G2.north);
-\draw[-,dashed] (G2.south) -- ($(G2.south)+(0,-0.5)$);
-
-\node[v,anchor=west] (g1) at ($(GTy1.east)+(0.5,0)$) {$g_1$};
-\node[v] (gj1) at ($(g1.south)+(0,-0.25)$) {$g_{j_1}$};
-\node[v] (gj1s) at ($(gj1.south)+(0,-0.25)$) {$g_{j_1 + 1}$};
-\node[v] (gj2) at ($(gj1s.south)+(0,-0.25)$) {$g_{j_2}$};
-
-\draw[->] (GTy1.east) -- (g1.west);
-\draw[->] (GTy1.east) -- (gj1.west);
-\draw[->] (GTy2.east) -- (gj1s.west);
-\draw[->] (GTy2.east) -- (gj2.west);
-\draw[-,dashed] (g1.south) -- (gj1.north);
-\draw[-] (gj1.south) -- (gj1s.north);
-\draw[-,dashed] (gj1s.south) -- (gj2.north);
-\draw[-,dashed] (gj2.south) -- ($(gj2.south)+(0,-0.5)$);
-
-\draw[->] (col.south) -- (slot.north);
-\draw[->] (col.north) -- (G.west);
-
-\draw[->] (spec.west) -- (X.east);
-\draw[->] (spec.south) -- (wty.north);
-\draw[->] (spec.south) -- (w.north);
-\draw[->] (spec.south) -- (col.north);
-
-\node[anchor=north] (FGC) at ($(term1.north |- col.north)$) {$F_{GC}$};
-\node[anchor=north] (GTys) at ($(g1.north |- col.north)$) {$\Ops_s$};
-\node[anchor=north] (Sels) at ($(Q1.north |- col.north)$) {$\Selector_s$};
-\end{tikzpicture}
-\end{center}
-
-[^spec-benefit]: With spec as a data structure, it is dynamic can be extended whilst arithmetizing.
-
 
 **Index Map**
 
-An *index map*[^index-map-notation] maps wire types and slots or selectors to thunks of $Y$ of argument[^not-spec] $X$; most have no arguments except for $\plookup$ columns. We also define map $-[-]$ and join $\sqcup$ with $F(T)$ as a function type from the indices to $T$.[^free-F]
+An *index map*[^index-map-notation] maps wire types and columns to thunks of $Y$ of argument $X$; most have no arguments except for $\plookup$ columns. We also define map $-[-]$ and join $\sqcup$ with $F(T)$ as a function type from the indices to $T$.[^free-F] If $Y(t,s)$ is a vector, then you can think of an index map as a table.
 
-[^free-F]: If $t,s$ appears free in $F$, then it is bound to the indices. i.e. $F(T(t,s)) = (t: \WireType) \to (s: \SlotNSelector) \to T(t,s)$.
+[^free-F]: If $t,s$ appears free in $F$, then it is bound to the indices. i.e. $F(T(t,s)) = (t: \WireType) \to (s: \Column) \to T(t,s)$.
 
 
 [^index-map-notation]: Let $C:\IndexMap(X,Y)$, then $C^q(A)$ is short for $C(q,A,())$ and $C^q_\xi(f)$ is short for $C(q,f,\xi :W(q))$ if $X(q,f) = W(q)$
 
-
-[^not-spec]: This may not necessarily be $X_s$ from $s: \Spec$, but if it is not specified, we may assume it is $X_s$.
-
 $$
 \begin{array}{ccc}
-F(T) = \WireType \to \SlotNSelector \to T &
+F(T) = \WireType \to \pset{\Column} \to T &
 X_{s: \Spec}: F(\Uni)
 \end{array}
 $$
@@ -223,7 +109,7 @@ $$
 
 **Pre-Constraints**
 
-The *pre-constraints* $\ctrn_g$ of the operation $g$ is an index map of a vector of *pre-values*. Note that the vectors across different wire types $t$ need not be the same length. Pre-values are defined in terms of a *reducer* type $R$ that computes a value for a wire type $W(t)$ given the thunk argument $X(t,s)$ and vector of concrete wire values; selected from the input and output wires of the chip[^sel-notation].
+The *pre-constraints* $\ctrn_g$ of the operation $g$ is an index map of a vector of *cells*. Note that the vectors across different wire types $t$ need not be the same length. Cells are defined in terms of a *reducer* type $R$ that computes a value for a wire type $W(t)$ given the thunk argument $X(t,s)$ and vector of concrete wire values selected from the input and output wires of the gadget[^sel-notation].
 
 [^sel-notation]: Although the selection is notated $\avec{w}$, it is a vector of naturals indexing the wire types. Trace can use this to recover the wires from $\abst{f}$.
 
@@ -233,10 +119,10 @@ $$
 \begin{array}{ccc}
 g: \Ops &
 \ctrn_g: \PreTable_g &
-\PreTable_g = \IndexMap(X, \lambda t,s. \Pre_g(t,s)^k)
+\PreTable_g = \IndexMap(X, \lambda t,s. \Cell_g(t,s)^k)
 \end{array} \\
 \begin{array}{ccccc}
-\Pre_g = F(X(t,s) \times \AWire_g^k \times R_g(\avec{w}_p,t,s)) &
+\Cell_g = F(X(t,s) \times \AWire_g^k \times R_g(\avec{w}_p,t,s)) &
 R_g(\avec{w}) = F(X(t,s) \to W[\vec{t}^{g,\avec{w}}] \to W(t))
 \end{array} \\
 \begin{array}{cc}
@@ -245,16 +131,16 @@ R_g(\avec{w}) = F(X(t,s) \to W[\vec{t}^{g,\avec{w}}] \to W(t))
 \end{array}
 \end{array} &
 \begin{array}{rl}
-\text{wnat} &: \Pre_g \to \Nb \\
+\text{wnat} &: \Cell_g \to \Nb \\
 \text{wnat} &= \lambda (\_, \avec{w}, \_). \\
 &\maybe{i}{\avec{w} = (i)}
 \end{array}
 \end{array}
 $$
 
-Typically a pre-value is of the following forms:
+Typically a cell is of the following forms:
 
-pre-value | notation | $X$ | $\AWire_g^k$ | $R_g$
+cell | notation | $X$ | $\AWire_g^k$ | $R_g$
 -|-|-|-|-
 constant | $c$ | $()$ | $()$ | $\lambda (). c$
 wire | $\abst{w}$ | $()$ | $(\abst{w})$ | $\lambda (),w. w$
@@ -264,40 +150,84 @@ $\plookup$ default cell | $\bot$ | $(d,\_)$ | $\_$ | $\lambda d,\_.d$
 [^plookupdefn]: Defining and motivating $\plookup$ cells is deferred to when we define the lookup chips
 
 
-e.g. the pre-constraints for the chips $\cpair{\chipu{\text{Add}_p}{\abst{a}, \abst{b}}}{\abst{c}} \in \abst{f}$
+e.g. the pre-constraints for the gadget $\gpair{\ggtu{\text{Add}_p}{\abst{a}, \abst{b}}}{\abst{c}} \in \abst{f}$
 
 \begin{center}
-\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
 \hline
-\multicolumn{14}{|c|}{$\ctrn_{\text{Add}_p}$} \\
+\multicolumn{18}{|c|}{$\ctrn_{\text{Add}_p}$} \\
 \hline
-\multicolumn{7}{|c|}{$p$} & \multicolumn{7}{|c|}{$q$} \\
+\multicolumn{9}{|c|}{$p$} & \multicolumn{9}{|c|}{$q$} \\
 \hline
-$A$ & $B$ & $C$ & $Q_l$ & $Q_r$ & $Q_o$ & $Q_m$ & 
-$A$ & $B$ & $C$ & $Q_l$ & $Q_r$ & $Q_o$ & $Q_m$ \\
+$A$ & $B$ & $C$ & $Q_l$ & $Q_r$ & $Q_o$ & $Q_m$ & $Q_c$ & $PI$ & 
+$A$ & $B$ & $C$ & $Q_l$ & $Q_r$ & $Q_o$ & $Q_m$ & $Q_c$ & $PI$ \\
 \hline\hline
-$\abst{a}$ & $\abst{b}$ & $\abst{c}$ & 1 & 1 & -1 & 0 & \multicolumn{7}{|c}{} \\
-\cline{1-7}
+$\abst{a}$ & $\abst{b}$ & $\abst{c}$ & 1 & 1 & -1 & 0 & 0 & 0 & \multicolumn{9}{|c}{} \\
+\cline{1-9}
 \end{tabular}
 \end{center}
 
-Let $t:\Eqn_7 = A \cdot Q_l + B \cdot Q_r + C \cdot Q_o + A \cdot B \cdot Q_m$, thus when the reducers are resolved, we have $t=a+b-c=0$.
+The constraints of the circuit $\build{(a + b) \times d = e}{}{}$ where cells are resolved as scalars are called a trace table $T$
 
-This motivates how the vanishing argument enforces the structure of the chip if $t$ were a term of $F_{GC}$
+\begin{center}
+\begin{tabular}{c c}
+\begin{tabular}{r|c|c|c|c|c|c|c|c|c|c|}
+\cline{2-11}
+\multirow{2}{*}{$\Ops$} & \multicolumn{9}{c|}{$p$} & $q$ \\
+\cline{2-11}
+& $A$ & $B$ & $C$ & $Q_l$ & $Q_r$ & $Q_o$ & $Q_m$ & $Q_c$ & $PI$ & $\cdots$ \\
+\hline\hline
+$\text{Add}_p$ & $a$ & $b$ & $c$ & 1 & 1 & -1 & 0 & 0 & 0 \\
+\cline{2-10}
+$\text{Mul}_p$ & $d$ & $c$ & $e$ & 0 & 0 & -1 & 1 & 0 & 0 \\
+\cline{2-10}
+\end{tabular} &
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\gate{mul}{(0,0)}{$\abst{d}$,$\abst{c}$}{$\text{Mul}_p$}{1}
+\gate{add}{($(mul.north)+(1,0)$)}{$\abst{a}$,$\abst{b}$}{$\text{Add}_p$}{1}
+\draw[-,thick] ($(add-in-1)+(0,0.25)$) -- (add-in-1);
+\draw[-,thick] ($(add-in-2)+(0,0.25)$) -- (add-in-2);
+\draw[-,thick] ($(mul-in-1)+(0,0.25)$) -- (mul-in-1);
+\draw[-,thick] (add-out-1) -- ($(add-out-1)+(0,-0.4)$);
+\draw[-,thick] ($(add-out-1)+(0,-0.4)$) -- ($(add-out-1)+(-0.65,-0.4)$);
+\draw[-,thick] ($(add-out-1)+(-0.65,-0.4)$) -- ($(add-out-1)+(-0.65,1.75)$);
+\draw[-,thick] ($(add-out-1)+(-0.65,1.75)$) -- ($(mul-in-2)+(0,0.35)$);
+\draw[-,thick] ($(mul-in-2)+(0,0.35)$) -- (mul-in-2);
+\node[draw, thick, circle, double, double distance=1pt, anchor=north] at ($(mul-out-1)+(0,-0.4)$) {$\abst{e}$};
+\draw[-,thick] (mul-out-1) -- ($(mul-out-1)+(0,-0.4)$);
+\end{tikzpicture}
+\end{tabular}
+\end{center}
 
-From $\ctrn_g$, we can also populate the *loop*; a vector modelling an equivalence class of positions modulo wire. This is used in copy constraints.
+We notate $@_i[T^t]$ as a *gate*; the row $i$ for the trace table of wire type $t$. Applying the gates to $F_{GC}^{\plonkm}$ from the previous example, we can see that it will resolve to zero only if the structure of the operation is respected. This motivates how the vanishing argument enforces the structure of the gadgets.
+
+$$
+\begin{array}{rl}
+F_{GC}^{\plonkm} &= A \times Q_l + B \times Q_r + C \times Q_o + A \times B \times Q_m + Q_c + PI
+\end{array}
+$$
 $$
 \begin{array}{ccc}
-\text{CopySlots} = \pset{\Slot} &
-\text{Coord} = \Slot \times \Nb &
+@_i(\vec{x}) = x_i &
+F_{GC}^{\plonkm}(@_1[T^p]) = a + b - c &
+F_{GC}^{\plonkm}( @_2[T^p]) = d \times c - e
+\end{array}
+$$
+
+From $\ctrn_g$, we can also populate the *loop*; a vector modelling an equivalence class of positions modulo wire. This is used in copy constraints where $\text{CC}$ are columns that will be copy constrained.
+$$
+\begin{array}{ccc}
+\text{Coord} = \text{CC} \times \Nb &
 \text{CLoopN} = (\abst{w}: \Nb) \pto \text{Coord}^k
 \end{array}
 $$
 $$
 \begin{array}{rl}
 \begin{array}{rl}
-\text{coords} &: (\Nb \to \text{Coord}^m) \to (\SlotNSelector) \\
-&\to \Nb \to \Pre_g \to \Nb \to \text{Coord}^k \\
+\text{coords} &: (\Nb \to \text{Coord}^m) \to \text{CC} \\
+&\to \Nb \to \Cell_g \to \Nb \to \text{Coord}^k \\
 \text{coords} &= \lambda (l,s,o,p,j). \\
 &l(j) \cat \left[ ((s,i+o)) \middle\vert \text{wnat}(p) = j \right] ? ()
 \end{array} &
@@ -316,7 +246,7 @@ $$
 
 **Relative Wires**
 
-An operation is called *relative* if it has $b_g > 0$. The last $b_g$ input wires are *relative wires* which are wires from another chip called the *base chip*. Thus, they are excluded in $\ctrn_g$ via $\AWire_g$. A base chip's constraints will appear immediately after its relative chip[^dupe]. $\Rel_g$ declares the slots or selectors that, the relative chip can reference from its base chip. Thus, constructing a relative chip checks that the relative wires must exist in the first row of the base chip's constraints in the declared positions in $\Rel_g$.
+An operation is called *relative* if it has $b_g > 0$. The last $b_g$ input wires are *relative wires* which are wires from another gadget called the *base gadget*. Thus, they are excluded in $\ctrn_g$ via $\AWire_g$. A base gadget's constraints will appear immediately after its relative gadget[^dupe]. $\Rel_g$ declares the columns that, the relative gadget can reference from its base gadget. Thus, constructing a relative gadget checks that the relative wires must exist in the first row of the base gadget's constraints in the declared positions in $\Rel_g$.
 
 [^dupe]: If different relative chips have the same base chip, there will be duplicate base chip rows such that both relative chips have a copy
 
@@ -327,16 +257,15 @@ $$
 g &: \Ops \\
 b_g &: \set{x : \Nb \middle\vert x \leq n_g} \\
 \AWire_g &= [n_g+m_g+1]\setminus[n_g-b_g+1..n_g+1] \\
-\Rel_g &: \pset{\SlotNSelector} \\
-\Rel_{\Grp} &= \bigcup\limits_{g \in \Ops_{\Grp}} \Rel_g 
+\Rel_g &: \pset{\Column}
 \end{array} &
 \begin{array}{rl}
-\base &: \AbsCirc \to \Wire \to \Chip \\
+\base &: \AbsCirc \to \Wire^k \to \Ggt \\
 \base(\abst{f}, \avec{w}) &= \maybe{g}{
 \begin{array}{l}
   \exists i. (g,\abst{w}_i) \in \abst{f} \\
-  \bigwedge(\lambda \abst{w}. \abst{w} \in \gin(g) \cup \out^{\abst{f}}(g))[\avec{w}] \\
-  \bigwedge(\lambda \abst{w}. \text{pos}(g, \abst{w}) \neq \emptyset)[\avec{w}]
+  \bigwedge(\lambda \abst{w}. \abst{w} \in \gin(g) \cup \out(\abst{f},g))[\avec{w}] \\
+  \bigwedge(\lambda \abst{w}. \text{pos}(\abst{f}, g, \abst{w}) \neq \emptyset)[\avec{w}]
 \end{array}} \\
 \end{array}
 \end{array}
@@ -344,15 +273,15 @@ $$
 $$
 \begin{array}{cc} 
 \begin{array}{rl}
-\text{pos} &: \Chip \to \Wire \to \pset{\SlotNSelector} \\
-\text{pos}(g,w) &= \maybe{s \in \Rel_g}{
+\text{pos} &: \AbsCirc \to \Ggt \to \Wire \to \pset{\Column} \\
+\text{pos}(\abst{f}, g,\abst{w}) &= \maybe{s \in \Rel_g}{
 \begin{array}{l}
-i = \text{wnat}(\ctrn_g(\ty(\abst{w}), s, ())_1) \\
-i \neq \bot \land \gin(g)_{i} = \abst{w}
+\avec{v} = \gin(g) \cat \out(\abst{f},g) \\
+\abst{v}_{\text{wnat}\circ @_1 \circ \ctrn_g^{\ty(\abst{w})}(s)} = \abst{w}
 \end{array}}
 \end{array} &
 \begin{array}{rl}
-- ( - ) &: (g: \Ops) \to \Wire^{n_g} \to (\abst{f}: \AbsCirc) \to \Chip \\
+- ( - ) &: (g: \Ops) \to \Wire^{n_g} \to (\abst{f}: \AbsCirc) \to \Ggt \\
 g(\avec{x} \cat \avec{r})_{\abst{f}} &= \maybe{g'}{
 \begin{array}{l}
 \cdots \land |\avec{r}| = b_g \\
@@ -362,7 +291,7 @@ b_g > 0 \implies \base(\abst{f}, \avec{r}) \neq \bot \\
 \end{array}
 $$
 
-e.g. parts of the pre-constraints for the chips $\cpair{\chipu{\text{ChainMul}_p}{\abst{d},\abst{e},\abst{c}}}{\abst{r}}, \cpair{\chipu{\text{Mul}_p}{\abst{a}, \abst{b}}}{\abst{c}} \in \abst{f}$ where $b_{\text{ChainMul}_p} = 1$, $b_{\text{Mul}_p} = 0$ and $\Rel_{\text{ChainMul}_p} = \set{C}$, $\Rel_{\text{Mul}_p} = \emptyset$.
+e.g. parts of the constraints for the gadgets $\gpair{\ggtu{\text{CMul}_p}{\abst{d},\abst{e},\abst{c}}}{\abst{r}}, \gpair{\ggtu{\text{Mul}_p}{\abst{a}, \abst{b}}}{\abst{c}} \in \abst{f}$ where $b_{\text{CMul}_p} = 1$, $b_{\text{Mul}_p} = 0$ and $\Rel_{\text{CMul}_p} = \set{C}$, $\Rel_{\text{Mul}_p} = \emptyset$.
 
 \begin{center}
 \begin{tabular}{c c}
@@ -372,11 +301,11 @@ e.g. parts of the pre-constraints for the chips $\cpair{\chipu{\text{ChainMul}_p
 \cline{2-9}
 & $A$ & $B$ & $C$ & $Q_l$ & $Q_r$ & $Q_o$ & $Q_m$ & $Q_s$ \\
 \hline\hline
-$\text{ChainMul}_p$ & $\abst{d}$ & $\abst{e}$ & $\abst{r}$ & 0 & 0 & -1 & 1 & 1 &
-$Q_s \cdot (C_1 \cdot A \cdot B - C)$ \\
+$\text{CMul}_p$ & $d$ & $e$ & $r$ & 0 & 0 & -1 & 1 & 1 &
+$Q_s \times (C_1 \times A \times B - C)$ \\
 \hline
-$\text{Mul}_p$ & $\abst{a}$ & $\abst{b}$ & $\abst{c}$ & 0 & 0 & -1 & 1 & 0 &
-$A \cdot Q_l + B \cdot Q_r + C \cdot Q_o + A \cdot B \cdot Q_m$ \\
+$\text{Mul}_p$ & $a$ & $b$ & $c$ & 0 & 0 & -1 & 1 & 0 &
+$A \times Q_l + B \times Q_r + C \times Q_o + A \times B \times Q_m$ \\
 \hline
 \end{tabular} &
 \begin{tikzpicture}[
@@ -399,7 +328,7 @@ $A \cdot Q_l + B \cdot Q_r + C \cdot Q_o + A \cdot B \cdot Q_m$ \\
 \end{tabular}
 \end{center}
 
-Using the terms, we have $-c + a \cdot b = 0$ enforcing the structure of $\text{Mul}_p$ and $c \cdot d \cdot e - r = 0$ enforcing the structure of $\text{ChainMul}_p$. Notice how $C_1$ refers to the column $C$ one row below the last row for $\ctrn_{\text{ChainMul}_p}$ i.e. the row for $\ctrn_{\text{Mul}_p}$. Thus, $\build{a \times b \times d \times e = r}{}{}$ is expressed in two rows instead of of three, if we were to use all $\text{Mul}_p$.
+Using the terms, we have $-c + a \cdot b = 0$ enforcing the structure of $\text{Mul}_p$ and $c \cdot d \cdot e - r = 0$ enforcing the structure of $\text{CMul}_p$. Notice how $C_1$ refers to the column $C$ one row below the last row for $\ctrn_{\text{CMul}_p}$ i.e. the row for $\ctrn_{\text{Mul}_p}$. Thus, $\build{a \times b \times d \times e = r}{}{}$ is expressed in two rows instead of of three, if we were to use all $\text{Mul}_p$.
 
 In summary, relative wires allows $F_{GC}$ to have terms that uses cells from its previous row.
 
@@ -409,4 +338,48 @@ $$
 \eval_g: W[\tin{g}] \to W[\tout{g}]
 $$
 
-*Canonical programs* are how the values of output wires are computed from the values of input wires. e.g. in $\eval_{\text{Mul}_p}(x,y) = x \times y$. Moreover, due to the way relative wires are defined as input wires, we have them in the canonical program too. e.g. $\eval_{\text{ChainMul}_p}(d,e,c) = d \times e \times c$.
+*Canonical programs* are how the values of output wires are computed from the values of input wires. e.g. in $\eval_{\text{Mul}_p}(x,y) = x \times y$. Moreover, due to the way relative wires are defined as input wires, we have them in the canonical program too. e.g. $\eval_{\text{CMul}_p}(d,e,c) = d \times e \times c$.
+
+**Spec**
+
+A *specification*[^spec-benefit] defines the config of the protocol. This includes marking columns as private or enabling it for copy constraints. In the previous section on arithmetize, we omitted $s:\Spec$ in $\AState$ leaving $W, \WireType, \Ops$ implicit for $W_s, \WireType_s, \Ops_s$. We will keep the spec instance $s$ implicit beyond this section as well.
+
+[^spec-benefit]: With spec as a data structure, it is dynamic can be extended whilst arithmetizing.
+
+
+$$
+\begin{array}{ccccc}
+s : \Spec &
+X_s: F(\Uni) &
+\WireType_s: \Uni &
+W_s: \WireType_s \to \Uni &
+\Ops_s : \pset{\Ops}
+\end{array}
+$$
+$$
+\begin{array}{cccc}
+\Column_s: \pset{\Column} = \bigcup\limits_{g \in \Ops_s} \Column_g &
+F_{GC}: \Eqn = \sum \bigcup\limits_{g \in \Ops_s} \term_g &
+\text{priv}_s: \pset{\Column_s} &
+\text{CC}_s: \pset{\Column_s}
+\end{array}
+$$
+
+In summary, these are the structures and their use at which level of abstraction:
+
+level | atomics | semantic groups | structure | purpose
+-|-|-|-|-
+0 | $w: W(t)$ | $@_i[T^t]: \text{Gate}$ | $T: \TraceTable$ | protocol
+1 | $\abst{w}: \Wire$ | $g: \Ggt$ | $\abst{f}: \AbsCirc$ | arithmetization
+2 | $\boxdot : \Cell$ | $\ty(g): \Ops$ | $s: \Spec$ | config
+
+**Unique Behaviour Operations**
+
+TODO
+
+When adding pre-constraints for a gadget, we simply append its rows to the trace table. However some operations are dealt differently where their ordering in the table matters, or if they omit some columns.
+
+- Asserts - they have no output wires, thus when resolving $\avec{Y}$ we won't encounter it, thus they are manually resolved when the trace is done
+- Relative Gadgets - as mentioned, we guarantee a copy of its base gadget's constraints appear immediately after its constraints
+- PublicInput - its gates must appear in sequence at the start of the trace table
+- Table - these are simply a column for the table vector that will be appended horizontally as a column to the trace table
