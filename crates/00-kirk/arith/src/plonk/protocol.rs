@@ -1,15 +1,12 @@
 #![allow(non_snake_case)]
-use std::{marker::PhantomData, time::Instant};
+use std::{array, time::Instant};
 
 use anyhow::{Result, ensure};
-use halo_accumulation::pcdl::{self, EvalProof, commit};
+use halo_accumulation::pcdl::{self, EvalProof, commit, open};
 use halo_group::{
     Domain, Evals, PastaConfig, Point, Poly, Scalar,
-    ark_ff::{FftField, Field},
-    ark_poly::{
-        self, DenseUVPolynomial, EvaluationDomain, Evaluations, Polynomial, Radix2EvaluationDomain,
-        univariate::SparsePolynomial,
-    },
+    ark_ff::Field,
+    ark_poly::{DenseUVPolynomial, EvaluationDomain, Polynomial, univariate::DensePolynomial},
     ark_std::{One, Zero, rand::Rng},
 };
 use halo_poseidon::{Protocols, Sponge};
@@ -17,29 +14,81 @@ use log::debug;
 
 use crate::{
     circuit::Trace,
-    utils::{F_MAX_DEGREE_MULTIPLIER, WITNESS_POLYS, fmt_scalar},
+    utils::{QUOTIENT_POLYS, SELECTOR_POLYS, WITNESS_POLYS},
 };
 
+pub struct PlonkProofEvalProofs<P: PastaConfig> {
+    r: EvalProof<P>,
+    r_omega: EvalProof<P>,
+}
+
+pub struct PlonkProofEvals<P: PastaConfig> {
+    ws: [Scalar<P>; WITNESS_POLYS],
+    qs: [Scalar<P>; SELECTOR_POLYS],
+    ts: [Scalar<P>; QUOTIENT_POLYS],
+    z: Scalar<P>,
+    z_omega: Scalar<P>,
+}
+
+pub struct PlonkProofCommitments<P: PastaConfig> {
+    ws: [Point<P>; WITNESS_POLYS],
+    ts: [Point<P>; QUOTIENT_POLYS],
+    z: Point<P>,
+    r: Point<P>,
+}
+
 pub struct PlonkProof<P: PastaConfig> {
-    _phantom: PhantomData<P>,
+    vs: PlonkProofEvals<P>,
+    Cs: PlonkProofCommitments<P>,
+    pis: PlonkProofEvalProofs<P>,
 }
 
 impl<P: PastaConfig> PlonkProof<P> {
-    pub fn prove(trace: Trace<P>) {
+    pub fn prove<R: Rng>(rng: &mut R, trace: Trace<P>) -> Self {
         let transcript = &mut Sponge::<P>::new(Protocols::PLONK);
+        println!("{:?}", trace.public_inputs);
+        println!("{:?}", trace.public_inputs_evals.evals.evals);
 
-        // -------------------- Round 1 --------------------
-        let now = Instant::now();
+        // -------------------- Round 0 --------------------
 
+        let r0_now = Instant::now();
+
+        let large_domain = Domain::<P>::new(QUOTIENT_POLYS * trace.rows).unwrap();
         let d = trace.rows - 1;
-        let C_ws: Vec<_> = trace
+
+        let public_inputs_evals =
+            Evals::<P>::from_poly_ref(&trace.public_inputs_poly, large_domain);
+        let w_evals: Vec<Evals<P>> = trace
             .w_polys
             .iter()
-            .map(|w| commit::<P>(w, d, None))
+            .map(|w| Evals::<P>::from_poly_ref(&w, large_domain))
             .collect();
+        let q_evals: Vec<Evals<P>> = trace
+            .q_polys
+            .iter()
+            .map(|w| Evals::<P>::from_poly_ref(&w, large_domain))
+            .collect();
+        let id_evals: Vec<Evals<P>> = trace
+            .id_polys
+            .iter()
+            .map(|w| Evals::<P>::from_poly_ref(&w, large_domain))
+            .collect();
+        let sigma_evals: Vec<Evals<P>> = trace
+            .sigma_polys
+            .iter()
+            .map(|w| Evals::<P>::from_poly_ref(&w, large_domain))
+            .collect();
+
+        debug!("Round 0 took {} s", r0_now.elapsed().as_secs_f32());
+
+        // -------------------- Round 1 --------------------
+        let r1_now = Instant::now();
+
+        let C_ws: [Point<P>; WITNESS_POLYS] =
+            array::from_fn(|i| commit(&trace.w_polys[i], d, None));
         transcript.absorb_g(&C_ws);
 
-        debug!("Round 1 took {} s", now.elapsed().as_secs_f32());
+        debug!("Round 1 took {} s", r1_now.elapsed().as_secs_f32());
 
         // -------------------- Round 2 --------------------
         let now = Instant::now();
@@ -51,27 +100,15 @@ impl<P: PastaConfig> PlonkProof<P> {
         debug!("Round 2 took {} s", now.elapsed().as_secs_f32());
 
         // -------------------- Round 3 --------------------
-        // β = H(transcript)
         let beta = transcript.challenge();
-        // γ = H(transcript)
         let gamma = transcript.challenge();
 
-        let mut f_prime = Evals::<P>::one(trace.domain);
-        let mut g_prime = Evals::<P>::one(trace.domain);
-        // let f = (&trace.w_evals[0] + &trace.id_evals[0]);
-        // let g = (&trace.w_evals[0] + &trace.sigma_evals[0]);
-        // f_prime *= &f;
-        // g_prime *= &g;
-        for i in 0..WITNESS_POLYS {
-            let f = (&trace.w_evals[i] + trace.id_evals[i].scale_ref(beta)).add_scalar(gamma);
-            let g = (&trace.w_evals[i] + trace.sigma_evals[i].scale_ref(beta)).add_scalar(gamma);
-            // let f = (&trace.w_evals[i] + &trace.id_evals[i]);
-            // let g = (&trace.w_evals[i] + &trace.sigma_evals[i]);
-            f_prime *= &f;
-            g_prime *= &g;
+        let mut f_prime = &w_evals[0] + &id_evals[0].scale_ref(&beta).add_scalar(&gamma);
+        let mut g_prime = &w_evals[0] + &sigma_evals[0].scale_ref(&beta).add_scalar(&gamma);
+        for i in 1..WITNESS_POLYS {
+            f_prime *= &(&w_evals[i] + &id_evals[i].scale_ref(&beta).add_scalar(&gamma));
+            g_prime *= &(&w_evals[i] + &sigma_evals[i].scale_ref(&beta).add_scalar(&gamma));
         }
-        let f_prime_poly = f_prime.interpolate_by_ref();
-        let g_prime_poly = g_prime.interpolate_by_ref();
 
         // Z
         let mut z = vec![P::ScalarField::zero(); trace.rows];
@@ -82,125 +119,240 @@ impl<P: PastaConfig> PlonkProof<P> {
                 z[zero_index] = P::ScalarField::one();
             } else {
                 // TODO: Fix this disgusting indexing
-                z[zero_index] = z[zero_index - 1] * f_prime[zero_index] / g_prime[zero_index]
+                let ratio = f_prime.index_small_domain(zero_index, trace.domain)
+                    / g_prime.index_small_domain(zero_index, trace.domain);
+                z[zero_index] = z[zero_index - 1] * ratio
             }
         }
         let z = Evals::<P>::from_vec_and_domain(z, trace.domain);
         let z_poly = z.interpolate_by_ref();
 
-        let z_omega = z.clone().shift_left();
-        let z_omega_poly = z_omega.interpolate_by_ref();
+        let C_z = pcdl::commit(&z_poly, trace.rows - 1, None);
+        transcript.absorb_g(&[C_z]);
 
-        let zpl_com = pcdl::commit(&z_poly, trace.rows - 1, None);
-        transcript.absorb_g(&[zpl_com]);
+        // -------------------- Round 4 --------------------
 
-        // -------------------- Round 3 --------------------
-        let large_domain = Domain::<P>::new(F_MAX_DEGREE_MULTIPLIER * trace.rows).unwrap();
-        let a = Evals::<P>::from_poly_ref(&trace.w_polys[0], large_domain);
-        let b = Evals::<P>::from_poly_ref(&trace.w_polys[1], large_domain);
-        let c = Evals::<P>::from_poly_ref(&trace.w_polys[2], large_domain);
-        let q_l = Evals::<P>::from_poly_ref(&trace.q_polys[0], large_domain);
-        let q_r = Evals::<P>::from_poly_ref(&trace.q_polys[1], large_domain);
-        let q_o = Evals::<P>::from_poly_ref(&trace.q_polys[2], large_domain);
-        let q_m = Evals::<P>::from_poly_ref(&trace.q_polys[3], large_domain);
-        let q_c = Evals::<P>::from_poly_ref(&trace.q_polys[4], large_domain);
-        let f_gc_evals: Evals<P> = &a * q_l + q_r * &b + q_o * c + q_m * a * b + q_c;
+        let alpha = transcript.challenge();
 
-        let f_gc_fft = f_gc_evals.interpolate_by_ref();
+        let f_gc: Evals<P> = &w_evals[0] * &q_evals[0]
+            + &q_evals[1] * &w_evals[1]
+            + &q_evals[2] * &w_evals[2]
+            + &q_evals[3] * &w_evals[0] * &w_evals[1]
+            + &q_evals[4]
+            + public_inputs_evals;
 
-        let a_poly = &trace.w_polys[0];
-        let b_poly = &trace.w_polys[1];
-        let c_poly = &trace.w_polys[2];
-        let q_l = &trace.q_polys[0];
-        let q_r = &trace.q_polys[1];
-        let q_o = &trace.q_polys[2];
-        let q_m = &trace.q_polys[3];
-        let q_c = &trace.q_polys[4];
+        let l1 = lagrange_basis::<P>(1, trace.domain, large_domain);
+        let z = Evals::<P>::from_poly_ref(&z_poly, large_domain);
+        let z_omega = z.clone().shift_left_small_domain(trace.domain);
 
-        let f_gc: Poly<P> =
-            q_l * a_poly + q_r * b_poly + q_o * c_poly + q_m * a_poly * b_poly + q_c;
+        let f_cc1 = l1 * (z.sub_scalar_ref(Scalar::<P>::ONE));
+        let f_cc2 = &z * f_prime - z_omega * g_prime;
 
-        let domain = trace.domain;
-        let (t, _rem) = f_gc.divide_by_vanishing_poly(domain);
+        let f = f_gc + f_cc1.scale(&alpha) + f_cc2.scale(&alpha.pow([2]));
+        let f_poly = f.interpolate();
+        let (t, _) = f_poly.divide_by_vanishing_poly(trace.domain);
 
-        //assert_eq!(rem, Poly::<P>::zero());
-        assert_eq!(f_gc_fft, f_gc);
         let xi = transcript.challenge();
         assert_eq!(
-            f_gc.evaluate(&xi),
+            f_poly.evaluate(&xi),
             t.evaluate(&xi) * trace.domain.vanishing_polynomial().evaluate(&xi)
         );
 
-        let l1 = lagrange_basis::<P>(1, domain);
-        let l1_poly = l1.interpolate_by_ref();
+        let ts = poly_split::<QUOTIENT_POLYS, P>(t.clone(), trace.rows);
+        let C_ts: [Point<P>; QUOTIENT_POLYS] = array::from_fn(|i| commit(&ts[i], d, None));
 
-        let f_cc1_poly = &l1_poly * (&z_poly - deg0::<P>(Scalar::<P>::ONE));
-        let f_cc2_poly = &z_poly * &f_prime_poly - &z_omega_poly * &g_prime_poly;
+        transcript.absorb_g(&C_ts);
 
-        let l1_evals = Evals::<P>::from_poly_ref(&l1_poly, large_domain);
-        let z_evals = Evals::<P>::from_poly_ref(&z_poly, large_domain);
-        let z_omega_evals = Evals::<P>::from_poly_ref(&z_omega_poly, large_domain);
-        let f_prime_evals = Evals::<P>::from_poly_ref(&f_prime_poly, large_domain);
-        let g_prime_evals = Evals::<P>::from_poly_ref(&g_prime_poly, large_domain);
-        let f_cc1 = l1_evals * (z_evals.sub_scalar_ref(Scalar::<P>::ONE));
-        let f_cc2 = z_evals * f_prime_evals - z_omega_evals * g_prime_evals;
-        let f_cc1_fft = f_cc1.interpolate();
-        let f_cc2_fft = f_cc2.interpolate();
+        // -------------------- Round 5 --------------------
 
-        assert_eq!(f_cc1_poly, f_cc1_fft);
-        assert_eq!(f_cc2_poly, f_cc2_fft);
-        for i in 1..trace.rows + 1 {
-            let omega_i = trace.omega.pow([i as u64]);
-            let omega_ii = trace.omega.pow([i as u64 + 1]);
+        let zeta = transcript.challenge();
 
-            let v_a = a_poly.evaluate(&omega_i);
-            let v_b = b_poly.evaluate(&omega_i);
-            let v_c = c_poly.evaluate(&omega_i);
-            let v_sa = trace.sigma_polys[0].evaluate(&omega_i);
-            let v_sb = trace.sigma_polys[1].evaluate(&omega_i);
-            let v_sc = trace.sigma_polys[2].evaluate(&omega_i);
-            let v_ia = trace.id_polys[0].evaluate(&omega_i);
-            let v_ib = trace.id_polys[1].evaluate(&omega_i);
-            let v_ic = trace.id_polys[2].evaluate(&omega_i);
-            let v_z = z_poly.evaluate(&omega_i);
-            let v_z_omega_check = z_poly.evaluate(&omega_ii);
-            let v_z_omega = z_omega_poly.evaluate(&omega_i);
-            let v_f_prime = f_prime_poly.evaluate(&omega_i);
-            let v_g_prime = g_prime_poly.evaluate(&omega_i);
-            let v_fg = f_prime_poly.evaluate(&omega_i) / f_prime_poly.evaluate(&omega_i);
+        let mut vec = Vec::new();
+        vec.extend_from_slice(&trace.q_polys);
+        vec.extend_from_slice(&trace.w_polys);
+        vec.extend_from_slice(&ts);
+        vec.push(z_poly.clone());
+        let r = geometric_polys::<P>(zeta, vec);
 
-            assert_eq!(v_z_omega, v_z_omega_check);
-            assert_eq!(v_z_omega, v_z * (v_f_prime / v_g_prime));
-            assert_eq!(v_z * v_f_prime, v_z_omega * v_g_prime);
-            assert_eq!(v_z * v_f_prime - v_z_omega * v_g_prime, Scalar::<P>::zero());
-            println!("{i:?}");
-            // println!("f_prime: {v_f_prime} = {v_a} + {v_ia} * {v_b} + {v_ib} * {v_c} + {v_ic}");
-            // println!("g_prime: {v_g_prime} = {v_a} + {v_sa} * {v_b} + {v_sb} * {v_c} + {v_sc}");
-            // println!("{v_z} * {v_f_prime} - {v_z_omega} * {v_g_prime}");
-            if i == 1 {
-                assert_eq!(l1_poly.evaluate(&omega_i), Scalar::<P>::one());
-            } else {
-                assert_eq!(l1_poly.evaluate(&omega_i), Scalar::<P>::zero());
-            }
-            assert_eq!(f_gc.evaluate(&omega_i), Scalar::<P>::zero());
-            assert_eq!(f_cc1_poly.evaluate(&omega_i), Scalar::<P>::zero());
-            assert_eq!(f_cc2_poly.evaluate(&omega_i), Scalar::<P>::zero());
+        let C_r = commit::<P>(&r, d, None);
+
+        transcript.absorb_g(&[C_r]);
+
+        let xi = transcript.challenge();
+        Self {
+            Cs: PlonkProofCommitments {
+                ws: C_ws,
+                ts: C_ts,
+                z: C_z,
+                r: C_r,
+            },
+            vs: PlonkProofEvals {
+                ws: trace.w_polys.map(|w| w.evaluate(&xi)),
+                qs: trace.q_polys.map(|q| q.evaluate(&xi)),
+                ts: ts.map(|t| t.evaluate(&xi)),
+                z: z_poly.evaluate(&xi),
+                z_omega: z_poly.evaluate(&(xi * trace.omega)),
+            },
+            pis: PlonkProofEvalProofs {
+                r: open(rng, r.clone(), C_r, d, &xi, None),
+                r_omega: open(rng, z_poly, C_z, d, &(xi * trace.omega), None),
+            },
         }
     }
 
-    pub fn verifier() {}
+    pub fn verify(self, trace: Trace<P>) -> Result<()> {
+        let pi = self;
+        let n = trace.rows;
+        let one = Scalar::<P>::one();
+        let mut transcript = Sponge::new(Protocols::PLONK);
+
+        // -------------------- Round 1 --------------------
+
+        transcript.absorb_g(&pi.Cs.ws);
+
+        // -------------------- Round 2 --------------------
+
+        // let zeta = transcript.challenge();
+
+        // -------------------- Round 3 --------------------
+
+        // β = H(transcript)
+        let beta = transcript.challenge();
+        // γ = H(transcript)
+        let gamma = transcript.challenge();
+        // δ = H(transcript)
+        transcript.absorb_g(&[pi.Cs.z]);
+
+        // -------------------- Round 4 --------------------
+
+        let alpha = transcript.challenge();
+        transcript.absorb_g(&pi.Cs.ts);
+
+        // -------------------- Round 5 --------------------
+
+        let zeta = transcript.challenge();
+        transcript.absorb_g(&[pi.Cs.r]);
+        let xi = transcript.challenge();
+        let xi_omega = xi * trace.omega;
+        let ids: [Scalar<P>; WITNESS_POLYS] = array::from_fn(|i| trace.id_polys[i].evaluate(&xi));
+        let sigmas: [Scalar<P>; WITNESS_POLYS] =
+            array::from_fn(|i| trace.sigma_polys[i].evaluate(&xi));
+
+        // f'(𝔷) = (A(𝔷) + β Sᵢ₁(𝔷) + γ) (B(𝔷) + β Sᵢ₂(𝔷) + γ) (C(𝔷) + β Sᵢ₃(𝔷) + γ)
+        // g'(𝔷) = (A(𝔷)) + β S₁(𝔷)) + γ) (B(𝔷)) + β S₂(𝔷)) + γ) (C(𝔷)) + β S₃(𝔷)) + γ)
+        let mut f_prime = pi.vs.ws[0] + beta * ids[0] + gamma;
+        let mut g_prime = pi.vs.ws[0] + beta * sigmas[0] + gamma;
+        for i in 1..WITNESS_POLYS {
+            f_prime *= pi.vs.ws[i] + beta * ids[i] + gamma;
+            g_prime *= pi.vs.ws[i] + beta * sigmas[i] + gamma;
+        }
+
+        // F_GC(𝔷) = A(𝔷)Qₗ(𝔷) + B(𝔷)Qᵣ(𝔷) + C(𝔷)Qₒ(𝔷) + A(𝔷)B(𝔷)Qₘ(𝔷) + Q꜀(𝔷) + PI(𝔷)
+        let f_gc = pi.vs.ws[0] * pi.vs.qs[0]
+            + pi.vs.ws[1] * pi.vs.qs[1]
+            + pi.vs.ws[2] * pi.vs.qs[2]
+            + pi.vs.ws[0] * pi.vs.ws[1] * pi.vs.qs[3]
+            + pi.vs.qs[4]
+            + public_input_eval::<P>(&trace.public_inputs, trace.domain, &xi);
+
+        let omega = trace.omega;
+        let l1 =
+            (omega * (xi.pow([n as u64]) - one)) / (P::scalar_from_u64(n as u64) * (xi - omega));
+        let z_H = xi.pow([n as u64]) - one;
+        let f_cc1 = l1 * (pi.vs.z - one);
+        let f_cc2 = pi.vs.z * f_prime - pi.vs.z_omega * g_prime;
+
+        let f = f_gc + alpha * f_cc1 + alpha.pow([2]) * f_cc2;
+        let t = t_reconstruct::<P>(pi.vs.ts, xi, n);
+
+        ensure!(
+            f == t * z_H,
+            "T(𝔷) ≠ (F_GC(𝔷) + α F_CC1(𝔷) + α² F_CC2(𝔷) + α³ F_PL1(𝔷) + α⁴ F_PL2(𝔷)) / Zₕ(𝔷)"
+        );
+
+        let mut vec = Vec::new();
+        vec.extend_from_slice(&pi.vs.qs);
+        vec.extend_from_slice(&pi.vs.ws);
+        vec.extend_from_slice(&pi.vs.ts);
+        vec.push(pi.vs.z);
+        let v_r = geometric_scalar::<P>(zeta, vec);
+        pcdl::check(&pi.Cs.r, n - 1, &xi, &v_r, pi.pis.r)?;
+        pcdl::check(&pi.Cs.z, n - 1, &xi_omega, &pi.vs.z_omega, pi.pis.r_omega)?;
+
+        Ok(())
+    }
 }
 
-fn lagrange_basis<P: PastaConfig>(i: usize, domain: Domain<P>) -> Evals<P> {
-    let mut evals = vec![Scalar::<P>::zero(); domain.size()];
+fn poly_split<const N: usize, P: PastaConfig>(p: Poly<P>, n: usize) -> [Poly<P>; N] {
+    let mut iter = p
+        .coeffs
+        .chunks(n as usize)
+        .map(DensePolynomial::from_coefficients_slice);
+    array::from_fn(|_| iter.next().unwrap())
+}
+
+fn t_reconstruct<P: PastaConfig>(
+    ts: [Scalar<P>; QUOTIENT_POLYS],
+    challenge: Scalar<P>,
+    n: usize,
+) -> Scalar<P> {
+    let mut result = Scalar::<P>::zero();
+    for (i, t) in ts.into_iter().enumerate() {
+        result += challenge.pow([(i * n) as u64]) * t
+    }
+    result
+}
+
+fn geometric_polys<P: PastaConfig>(zeta: Scalar<P>, vec: Vec<Poly<P>>) -> Poly<P> {
+    let mut result = Poly::<P>::zero();
+    for (i, p) in vec.into_iter().enumerate() {
+        result += &(p * zeta.pow([i as u64]))
+    }
+    result
+}
+
+fn geometric_scalar<P: PastaConfig>(zeta: Scalar<P>, vec: Vec<Scalar<P>>) -> Scalar<P> {
+    let mut result = Scalar::<P>::zero();
+    for (i, scalar) in vec.into_iter().enumerate() {
+        result += scalar * &zeta.pow([i as u64]);
+    }
+    result
+}
+
+fn lagrange_basis<P: PastaConfig>(
+    i: usize,
+    small_domain: Domain<P>,
+    large_domain: Domain<P>,
+) -> Evals<P> {
+    let mut evals = vec![Scalar::<P>::zero(); small_domain.size()];
     evals[i - 1] = Scalar::<P>::one();
-    Evals::from_vec_and_domain(evals, domain)
+    let li_poly = Evals::<P>::from_vec_and_domain(evals, small_domain).interpolate();
+    Evals::new(li_poly.evaluate_over_domain(large_domain))
+}
+
+fn public_input_eval<P: PastaConfig>(
+    public_inputs: &[Scalar<P>],
+    domain: Domain<P>,
+    xi: &Scalar<P>,
+) -> Scalar<P> {
+    let omega = domain.element(1);
+    let n = domain.size() as u64;
+    let one = Scalar::<P>::one();
+    let xi_n = xi.pow([n]);
+    let n = P::scalar_from_u64(n);
+
+    // (xi_n - one) * omega_j / n * (xi - omega_j)
+    let mut omega_j = omega;
+    let mut public_input_xi = Scalar::<P>::zero();
+    for x in public_inputs {
+        let l_j = ((xi_n - one) * omega_j) / (n * (*xi - omega_j));
+        public_input_xi += l_j * x;
+        omega_j *= omega;
+    }
+
+    public_input_xi
 }
 
 fn deg0<P: PastaConfig>(x: Scalar<P>) -> Poly<P> {
     Poly::<P>::from_coefficients_vec(vec![x])
-}
-
-fn sparse_to_dense<P: PastaConfig>(sparse: SparsePolynomial<Scalar<P>>) -> Poly<P> {
-    sparse.into()
 }

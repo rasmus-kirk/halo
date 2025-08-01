@@ -8,6 +8,7 @@ use halo_group::{
     Domain, Evals, PastaConfig, Point, Poly, Scalar,
     ark_ff::Field,
     ark_poly::{EvaluationDomain, Polynomial},
+    ark_std::Zero,
 };
 use union_find::{QuickUnionUf, UnionBySize, UnionFind};
 
@@ -51,12 +52,16 @@ pub(crate) fn build_pi(mut uf: QuickUnionUf<UnionBySize>) -> Vec<SlotId> {
     pi
 }
 
+#[derive(Clone)]
 pub struct Trace<P: PastaConfig> {
     pub(crate) rows: usize,
     pub(crate) omega: Scalar<P>,
     pub(crate) domain: Domain<P>,
     pub(crate) output: Scalar<P>,
     pub(crate) sigma: Vec<SlotId>,
+    pub(crate) public_inputs: Vec<Scalar<P>>,
+    pub(crate) public_inputs_poly: Poly<P>,
+    pub(crate) public_inputs_evals: Evals<P>,
     pub(crate) C_qs: [Point<P>; SELECTOR_POLYS],
     pub(crate) id_evals: [Evals<P>; WITNESS_POLYS],
     pub(crate) id_polys: [Poly<P>; WITNESS_POLYS],
@@ -71,6 +76,7 @@ pub struct Trace<P: PastaConfig> {
 impl<P: PastaConfig> Trace<P> {
     pub fn new(
         copy_constraints: Vec<(SlotId, SlotId)>,
+        public_inputs: Vec<Scalar<P>>,
         ws: [Vec<Scalar<P>>; WITNESS_POLYS],
         qs: [Vec<Scalar<P>>; SELECTOR_POLYS],
         output: P::ScalarField,
@@ -87,10 +93,14 @@ impl<P: PastaConfig> Trace<P> {
         }
         let sigma = build_pi(uf);
 
+        let mut public_inputs_clone = public_inputs.clone();
+        public_inputs_clone.resize(n, Scalar::<P>::zero());
+        let public_inputs_evals = Evals::<P>::from_vec_and_domain(public_inputs_clone, domain);
+
         let w_evals = ws.map(|vec| Evals::<P>::from_vec_and_domain(vec, domain));
         let q_evals = qs.map(|vec| Evals::<P>::from_vec_and_domain(vec, domain));
         let sigma_evals: [Evals<P>; WITNESS_POLYS] = array::from_fn(|i| {
-            let mut evaluations: Vec<_> = sigma
+            let evaluations: Vec<_> = sigma
                 .iter()
                 .skip(n * i)
                 .take(n)
@@ -99,7 +109,7 @@ impl<P: PastaConfig> Trace<P> {
             Evals::<P>::from_vec_and_domain(evaluations, domain)
         });
         let id_evals: [Evals<P>; WITNESS_POLYS] = array::from_fn(|i| {
-            let mut evaluations: Vec<_> = (n * i..n + n * i)
+            let evaluations: Vec<_> = (n * i..n + n * i)
                 .map(|j| SlotId::from_usize(j, n).to_scalar::<P>(n))
                 .collect();
             println!("y{:?}", evaluations);
@@ -118,12 +128,16 @@ impl<P: PastaConfig> Trace<P> {
         let w_polys: [Poly<P>; WITNESS_POLYS] = array::from_fn(|i| w_evals[i].interpolate_by_ref());
         let q_polys: [Poly<P>; SELECTOR_POLYS] =
             array::from_fn(|i| q_evals[i].interpolate_by_ref());
+        let public_inputs_poly = public_inputs_evals.interpolate_by_ref();
         let C_qs = array::from_fn(|i| pcdl::commit(&q_polys[i], d, None));
 
         Self {
             rows: n,
             domain,
             omega,
+            public_inputs,
+            public_inputs_poly,
+            public_inputs_evals,
             C_qs,
             sigma,
             sigma_polys,
@@ -153,12 +167,15 @@ impl<P: PastaConfig> Trace<P> {
 mod tests {
     use crate::{
         circuit::{CircuitSpec, SlotId, TraceBuilder, build_pi},
-        plonk,
+        plonk::{self, PlonkProof},
         utils::WITNESS_POLYS,
     };
     use anyhow::Result;
     use halo_group::{
-        PallasConfig, PallasScalar, PastaConfig, ark_ff::Field, ark_poly::Polynomial,
+        PallasConfig, PallasScalar, PastaConfig,
+        ark_ff::Field,
+        ark_poly::Polynomial,
+        ark_std::rand::{Rng, rngs::ThreadRng, thread_rng},
     };
     use union_find::{QuickUnionUf, UnionBySize, UnionFind};
 
@@ -208,6 +225,10 @@ mod tests {
         test_copy_constraints(&trace);
 
         assert_eq!(scalar(186), trace.output());
+
+        let rng = &mut thread_rng();
+        PlonkProof::prove(rng, trace.clone()).verify(trace)?;
+
         Ok(())
     }
 
@@ -239,8 +260,8 @@ mod tests {
 
         assert_eq!(scalar(47), trace.output());
 
-        crate::plonk::PlonkProof::prove(trace);
-        assert!(false);
+        let rng = &mut thread_rng();
+        PlonkProof::prove(rng, trace.clone()).verify(trace)?;
         Ok(())
     }
 

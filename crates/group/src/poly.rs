@@ -34,8 +34,21 @@ impl<P: PastaConfig> Evals<P> {
         self
     }
 
+    pub fn shift_left_small_domain(mut self, small_domain: Domain<P>) -> Self {
+        let offset = self.domain().size() / small_domain.size();
+        for _ in 0..offset {
+            self = self.shift_left()
+        }
+        self
+    }
+
     pub fn new(evals: Evaluations<Scalar<P>>) -> Self {
         Self { evals }
+    }
+
+    pub fn index_small_domain(&self, i: usize, small_domain: Domain<P>) -> Scalar<P> {
+        let offset = self.domain().size() / small_domain.size();
+        self[i * offset]
     }
 
     pub fn from_poly_ref(poly: &Poly<P>, domain: Domain<P>) -> Self {
@@ -50,6 +63,10 @@ impl<P: PastaConfig> Evals<P> {
 
     pub fn one(domain: Domain<P>) -> Self {
         Evals::<P>::from_vec_and_domain(vec![Scalar::<P>::one(); domain.size()], domain)
+    }
+
+    pub fn zero(domain: Domain<P>) -> Self {
+        Evals::<P>::from_vec_and_domain(vec![Scalar::<P>::zero(); domain.size()], domain)
     }
 
     pub fn divide_by_vanishing(mut self, vanishing_domain: Domain<P>) -> Self {
@@ -69,26 +86,26 @@ impl<P: PastaConfig> Evals<P> {
     }
 
     #[inline]
-    pub fn scale(mut self, other: P::ScalarField) -> Evals<P> {
+    pub fn scale(mut self, other: &P::ScalarField) -> Evals<P> {
         self.evals.evals.par_iter_mut().for_each(|x| *x *= other);
         self
     }
 
     #[inline]
-    pub fn scale_ref(&self, other: P::ScalarField) -> Evals<P> {
+    pub fn scale_ref(&self, other: &P::ScalarField) -> Evals<P> {
         let mut evals = self.clone();
         evals.evals.evals.par_iter_mut().for_each(|x| *x *= other);
         evals
     }
 
     #[inline]
-    pub fn add_scalar(mut self, other: P::ScalarField) -> Evals<P> {
+    pub fn add_scalar(mut self, other: &P::ScalarField) -> Evals<P> {
         self.evals.evals.par_iter_mut().for_each(|x| *x += other);
         self
     }
 
     #[inline]
-    pub fn add_scalar_ref(&self, other: P::ScalarField) -> Evals<P> {
+    pub fn add_scalar_ref(&self, other: &P::ScalarField) -> Evals<P> {
         let mut evals = self.clone();
         evals.evals.evals.par_iter_mut().for_each(|x| *x += other);
         evals

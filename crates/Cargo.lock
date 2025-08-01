@@ -96,6 +96,7 @@ name = "arith"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "criterion",
  "derivative",
  "env_logger",
  "halo-accumulation",

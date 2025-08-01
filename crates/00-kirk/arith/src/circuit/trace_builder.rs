@@ -82,6 +82,7 @@ impl<P: PastaConfig> TraceBuilder<P> {
         let topo_order = toposort(&spec.graph, None).map_err(|_| anyhow!("Cycle detected"))?;
         let mut wire_values = vec![P::ScalarField::zero(); spec.wire_count];
         let mut copy_constraints = Vec::with_capacity(2 * spec.graph.node_count());
+        let mut public_inputs = Vec::new();
 
         // Evaluate and collect inputs/outputs for gates
         for node_idx in topo_order {
@@ -104,10 +105,11 @@ impl<P: PastaConfig> TraceBuilder<P> {
                         .context("Wire unassigned!")?;
 
                     wire_values[output_wire.id] = *v;
+                    public_inputs.push(-(*v));
                     //                   [a,  b,    c  ]
                     ws.multi_assign(row, [*v, zero, zero]);
                     //            [q_l, q_r,  q_o, q_m,  q_c]
-                    qs.multi_assign(row, [one, zero, zero, zero, -(*v)]);
+                    qs.multi_assign(row, [one, zero, zero, zero, zero]);
                 }
                 GateType::Constant(slot_id, v) => {
                     let row = slot_id.row_0_indexed();
@@ -196,6 +198,6 @@ impl<P: PastaConfig> TraceBuilder<P> {
         }
 
         let out = output.context("No output gate found in circuit!")?;
-        Ok(Trace::new(copy_constraints, ws, qs, out, n))
+        Ok(Trace::new(copy_constraints, public_inputs, ws, qs, out, n))
     }
 }

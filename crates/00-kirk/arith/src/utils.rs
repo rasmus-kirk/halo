@@ -1,7 +1,7 @@
 use std::array;
 
 use halo_group::{
-    PastaConfig, Scalar,
+    Evals, PastaConfig, Scalar,
     ark_ff::{BigInt, BigInteger, Field},
     ark_poly::Polynomial,
     ark_std::Zero,
@@ -11,7 +11,7 @@ use crate::circuit::Trace;
 
 /// The maximum degree of the polynomial f(X) where t(X) = f(X) / z_H(X) is F_MAX_DEGREE_MULTIPLIER * row_count.
 /// This depends on the largest degree term in f(x) which is set by how many degree n polynomials are multiplied.
-pub const F_MAX_DEGREE_MULTIPLIER: usize = 3;
+pub const QUOTIENT_POLYS: usize = 3;
 /// How many witness polynomials the supported
 pub const WITNESS_POLYS: usize = 3;
 /// How many selector polynomials the supported
@@ -76,45 +76,52 @@ impl<P: PastaConfig> std::fmt::Debug for Trace<P> {
         writeln!(f, "{:?}", sigma_polys)?;
 
         let width = 4;
-        write!(f, "|   i || ")?;
+        let i_width = 2;
+        write!(f, "|  i ||")?;
         for i in 0..self.w_polys.len() {
-            write!(f, "  w_{} |", i)?;
+            write!(f, "  w{} |", i)?;
         }
         for i in 0..self.q_polys.len() {
-            write!(f, "  q_{} |", i)?;
+            write!(f, "  q{} |", i)?;
         }
+        write!(f, "  pi |")?;
         for i in 0..self.id_polys.len() {
-            write!(f, " id_{} |", i)?;
+            write!(f, " id{} |", i)?;
         }
         for i in 0..self.sigma_polys.len() {
-            write!(f, "  s_{} |", i)?;
+            write!(f, "  s{} |", i)?;
         }
-        write!(f, "\n|-----||-")?;
+
+        write!(f, "\n|----||")?;
         for _ in 0..self.q_polys.len()
             + self.w_polys.len()
             + self.id_polys.len()
             + self.sigma_polys.len()
+            + 1
         {
-            write!(f, "------|")?;
+            write!(f, "-----|")?;
         }
         write!(f, "\n")?;
 
         for i in 0..self.rows {
             let i = i + 1;
-            write!(f, "|   {i} || ")?;
+            let omega_i = &self.omega.pow([i as u64]);
+            write!(f, "| {:>i_width$} ||", i)?;
             for j in 0..self.w_polys.len() {
-                let eval = self.w_polys[j].evaluate(&self.omega.pow([i as u64]));
-                write!(f, " {:>width$} |", fmt_scalar::<P>(eval))?;
+                let eval = self.w_polys[j].evaluate(&omega_i);
+                write!(f, "{:>width$} |", fmt_scalar::<P>(eval))?;
             }
             for j in 0..self.q_polys.len() {
-                let eval = self.q_polys[j].evaluate(&self.omega.pow([i as u64]));
-                write!(f, " {:>width$} |", fmt_scalar::<P>(eval))?;
+                let eval = self.q_polys[j].evaluate(&omega_i);
+                write!(f, "{:>width$} |", fmt_scalar::<P>(eval))?;
+            }
+            let pi_i = self.public_inputs_poly.evaluate(&omega_i);
+            write!(f, "{:>width$} |", fmt_scalar::<P>(pi_i))?;
+            for j in 0..WITNESS_POLYS {
+                write!(f, "{:>width$} |", fmt_scalar::<P>(id_polys[j][i - 1]))?;
             }
             for j in 0..WITNESS_POLYS {
-                write!(f, " {:>width$} |", fmt_scalar::<P>(id_polys[j][i - 1]))?;
-            }
-            for j in 0..WITNESS_POLYS {
-                write!(f, " {:>width$} |", fmt_scalar::<P>(sigma_polys[j][i - 1]))?;
+                write!(f, "{:>width$} |", fmt_scalar::<P>(sigma_polys[j][i - 1]))?;
             }
             write!(f, "\n")?;
         }
