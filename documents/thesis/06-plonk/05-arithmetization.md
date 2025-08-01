@@ -303,19 +303,19 @@ $\build{x^2+y=z^*}{}{}$ &
 \begin{tikzpicture}[
   baseline={(current bounding box.center)}
 ]
-\node[draw, anchor=center] (in1) at (0,0) {$\Input^q_0$};
-\node[draw, anchor=center] (in2) at ($(in1.south)-(0,0.4)$) {$\Input^q_1$};
+\node[anchor=center] (in1) at (0,0) {$\Input^q_0$};
+\node[anchor=center] (in2) at ($(in1.south)-(0,0.4)$) {$\Input^q_1$};
 \node[anchor=center] (mul) at ($(in2.south)-(0,0.4)$) {$\ggt{Mul}{x,x}$};
 \node[anchor=center] (add) at ($(mul.south)-(0,0.4)$) {$\ggt{Add}{t,y}$};
 
-\node[anchor=center] (x) at ($(in1.east)+(3.5,0)$) {$\abst{x}$};
-\node[anchor=center] (y) at ($(x.south)-(0,0.4)$) {$\abst{y}$};
-\node[anchor=center] (t) at ($(y.south)-(0,0.4)$) {$\abst{t}$};
-\node[anchor=center] (z) at ($(t.south)-(0,0.4)$) {$\abst{z}$};
+\node[anchor=center] (x) at ($(in1.east)+(2,0)$) {$\abst{x}$};
+\node[anchor=center] (y) at ($(x |- in2)$) {$\abst{y}$};
+\node[anchor=center] (t) at ($(x |- mul)$) {$\abst{t}$};
+\node[anchor=center] (z) at ($(x |- add)$) {$\abst{z}$};
 \node[anchor=west] (outs) at ($(z.east)+(-0.125,0.075)$) {$\in \avec{Y}$};
 
 \node[] (g) at ($(in1.north)+(0,0.4)$) {$g$};
-\node[] (w) at ($(x.north)+(0,0.4)$) {$\abst{w}$};
+\node[] (w) at ($(x |- g)$) {$\abst{w}$};
 \node[] (f) at ($($(g)!.5!(w)$)$) {$\abst{f}$};
 
 \draw[-, dashed] (in1.east) -- (x.west);
