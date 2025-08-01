@@ -1,6 +1,11 @@
+Before defining trace, we need to define the rest of the abstractions. 
+
 **Equations**
 
-Before defining trace, we need more definitions. $\Surkal$ performs vanishing argument on $F_{GC}$; the *gate constraint polynomial*. $F_{GC}$ is defined as an *abstract equation* structured as an abstract syntax tree. The atomics are *columns* and *scalars* $\Fb$.
+$\Surkal$ performs vanishing argument on $F_{GC}$; the *gate constraint polynomial*. $F_{GC}$ is defined as an *abstract equation* structured as an abstract syntax tree. The atomics are *columns* and *scalars* $\Fb$. This lets us define a function for polymorphic types in place of the columns: scalars $\Fb_p$, polynomials $\Fb_p[X]$, elliptic curve points[^curve-mul] $E[\Fb]$ and wires $\abst{w}$ (with $\AState$) in one definition, the latter being synonymous to an circuit building. Computing the function then is tree traversal with combinators for each equation operation in the grammar.
+
+[^curve-mul]: Multiplication with curve points does not exist. Thus some $\Eqn$ aren't defined for curve points.
+
 
 \vspace{1em}
 \begin{center}
@@ -26,22 +31,17 @@ Before defining trace, we need more definitions. $\Surkal$ performs vanishing ar
 \end{grammar}
 \end{tabularx}
 \end{center}
-
-This lets us define a function for polymorphic atomic column types: scalars, polynomials, elliptic curve points[^curve-mul] and wires (with $\AState$) in one definition, the latter being synonymous to an arithmetization. Computing the function then is tree traversal with combinators for each equation operation in the grammar.
-
-[^curve-mul]: Multiplication with curve points does not exist. Thus some $\Eqn$ aren't defined for curve points.
-
-
 $$
+\begin{array}{cc}
 \begin{array}{rl}
-\text{foldEqn} &: (-: T \to T) \to (+: T \to T \to T) \to (\times_1: T \to T \to T) \to (\times_2: \Fb \to T \to T) \\
-&\to \Eqn \to (t: \Column \pto T) \to T \\
-e(C) &= \text{foldEqn}(-,+,\times_1,\times_2,e,C)
+\text{foldEqn}_i &: (T \to T) \to (T \to T \to T) \to (T \to T \to T) \to (\Fb \to T \to T) \\
+&\to \Eqn \to (\Column \pto T) \to T
+\end{array} &
+e(C) = \text{foldEqn}(-,+,\times,\times_\Fb,e,C)
 \end{array}
 $$
 
-Every operation $g$ declares the columns $\Column_g$ and a $\term_g$ of $F_{GC}$.
-
+Every operation $g$ declares the columns $\Column_g$ and a $\term_g$ of $F_{GC}$. 
 $$
 \begin{array}{ccc}
 g:\Ops &
@@ -49,9 +49,7 @@ g:\Ops &
 \term_{g}: \Eqn
 \end{array}
 $$
-
-e.g. in basic \plonk we have the following single term
-
+e.g. in basic \plonk we only have a single term
 $$
 F_{GC}^{\plonkm}: \Eqn = A \times Q_l + B \times Q_r + C \times Q_o + A \times B \times Q_m + Q_c + PI
 $$
@@ -122,7 +120,7 @@ g: \Ops &
 \PreTable_g = \IndexMap(X, \lambda t,s. \Cell_g(t,s)^k)
 \end{array} \\
 \begin{array}{ccccc}
-\Cell_g = F(X(t,s) \times \AWire_g^k \times R_g(\avec{w}_p,t,s)) &
+\Cell_g = F(X(t,s) \times (\avec{w}: \AWire_g^k) \times R_g(\avec{w}_p,t,s)) &
 R_g(\avec{w}) = F(X(t,s) \to W[\vec{t}^{g,\avec{w}}] \to W(t))
 \end{array} \\
 \begin{array}{cc}
@@ -149,8 +147,9 @@ $\plookup$ default cell | $\bot$ | $(d,\_)$ | $\_$ | $\lambda d,\_.d$
 
 [^plookupdefn]: Defining and motivating $\plookup$ cells is deferred to when we define the lookup chips
 
+**Pre-Constraint Example**
 
-e.g. the pre-constraints for the gadget $\gpair{\ggtu{\text{Add}_p}{\abst{a}, \abst{b}}}{\abst{c}} \in \abst{f}$
+Let the pre-constraints for the gadget $\gpair{\ggtu{\text{Add}_p}{\abst{a}, \abst{b}}}{\abst{c}} \in \abst{f}$ be as follows:
 
 \begin{center}
 \begin{tabular}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
@@ -167,7 +166,7 @@ $\abst{a}$ & $\abst{b}$ & $\abst{c}$ & 1 & 1 & -1 & 0 & 0 & 0 & \multicolumn{9}{
 \end{tabular}
 \end{center}
 
-The constraints of the circuit $\build{(a + b) \times d = e}{}{}$ where cells are resolved as scalars are called a trace table $T$
+Let $T$ be the trace table; resolved pre-constraints, for $\build{(a + b) \times d = e}{}{}$ be as follows:
 
 \begin{center}
 \begin{tabular}{c c}
@@ -201,20 +200,26 @@ $\text{Mul}_p$ & $d$ & $c$ & $e$ & 0 & 0 & -1 & 1 & 0 & 0 \\
 \end{tabular}
 \end{center}
 
-We notate $@_i[T^t]$ as a *gate*; the row $i$ for the trace table of wire type $t$. Applying the gates to $F_{GC}^{\plonkm}$ from the previous example, we can see that it will resolve to zero only if the structure of the operation is respected. This motivates how the vanishing argument enforces the structure of the gadgets.
+We notate $@_i[T]^t$ as a *gate*; the row $i$ for the trace table of wire type $t$. Applying the gates to $F_{GC}^{\plonkm}$ from the previous example, we can see that it will resolve to zero only if the structure of the operation is respected. This motivates how the vanishing argument enforces the structure of the gadgets.
 
 $$
 \begin{array}{rl}
-F_{GC}^{\plonkm} &= A \times Q_l + B \times Q_r + C \times Q_o + A \times B \times Q_m + Q_c + PI
+F_{GC}^{\plonkm}: \Eqn &= A \times Q_l + B \times Q_r + C \times Q_o + A \times B \times Q_m + Q_c + PI
 \end{array}
 $$
 $$
 \begin{array}{ccc}
-@_i(\vec{x}) = x_i &
-F_{GC}^{\plonkm}(@_1[T^p]) = a + b - c &
-F_{GC}^{\plonkm}( @_2[T^p]) = d \times c - e
+\begin{array}{rl}
+@ &: \Nb \to F(T^k \to T) \\
+@_i(\_,\vec{y}) &= y_i
+\end{array}
+&
+F_{GC}^{\plonkm}(@_1[T]^p) = a + b - c &
+F_{GC}^{\plonkm}(@_2[T]^p) = d \times c - e
 \end{array}
 $$
+
+**Loop**
 
 From $\ctrn_g$, we can also populate the *loop*; a vector modelling an equivalence class of positions modulo wire. This is used in copy constraints where $\text{CC}$ are columns that will be copy constrained.
 $$
@@ -228,12 +233,12 @@ $$
 \begin{array}{rl}
 \text{coords} &: (\Nb \to \text{Coord}^m) \to \text{CC} \\
 &\to \Nb \to \Cell_g \to \Nb \to \text{Coord}^k \\
-\text{coords} &= \lambda (l,s,o,p,j). \\
-&l(j) \cat \left[ ((s,i+o)) \middle\vert \text{wnat}(p) = j \right] ? ()
+\text{coords} &= \lambda (l,s,o,c,j). \\
+&l(j) \cat \left[ ((s,i+o)) \middle\vert \text{wnat}(c) = j \right] ? ()
 \end{array} &
 \begin{array}{rl}
 \text{loopN} &: \Nb \to \PreTable_g \to \Wire^{n_g +m_g} \to \Nb \to \text{CLoopN} \\
-\text{loopN} &= \lambda(o, t, s, x, \vec{p}, \avec{w}, i). \\
+\text{loopN} &= \lambda(o, (t, s, x, \vec{p}), \avec{w}, i). \\
 &\begin{cases}
 \bot & \vec{p} = () \lor x \neq () \\
 & \vec{p} = p \cat \vec{p}' \land l = \text{loopN}(o,t,s,x,\vec{p}',\avec{w},i+1) \\
@@ -291,7 +296,9 @@ b_g > 0 \implies \base(\abst{f}, \avec{r}) \neq \bot \\
 \end{array}
 $$
 
-e.g. parts of the constraints for the gadgets $\gpair{\ggtu{\text{CMul}_p}{\abst{d},\abst{e},\abst{c}}}{\abst{r}}, \gpair{\ggtu{\text{Mul}_p}{\abst{a}, \abst{b}}}{\abst{c}} \in \abst{f}$ where $b_{\text{CMul}_p} = 1$, $b_{\text{Mul}_p} = 0$ and $\Rel_{\text{CMul}_p} = \set{C}$, $\Rel_{\text{Mul}_p} = \emptyset$.
+**Relative Wires Example**
+
+Let parts of the constraints for the gadgets $\gpair{\ggtu{\text{CMul}_p}{\abst{d},\abst{e},\abst{c}}}{\abst{r}}, \gpair{\ggtu{\text{Mul}_p}{\abst{a}, \abst{b}}}{\abst{c}} \in \abst{f}$ where $b_{\text{CMul}_p} = 1$, $b_{\text{Mul}_p} = 0$ and $\Rel_{\text{CMul}_p} = \set{C}$, $\Rel_{\text{Mul}_p} = \emptyset$ be as follows:
 
 \begin{center}
 \begin{tabular}{c c}
@@ -330,8 +337,6 @@ $A \times Q_l + B \times Q_r + C \times Q_o + A \times B \times Q_m$ \\
 
 Using the terms, we have $-c + a \cdot b = 0$ enforcing the structure of $\text{Mul}_p$ and $c \cdot d \cdot e - r = 0$ enforcing the structure of $\text{CMul}_p$. Notice how $C_1$ refers to the column $C$ one row below the last row for $\ctrn_{\text{CMul}_p}$ i.e. the row for $\ctrn_{\text{Mul}_p}$. Thus, $\build{a \times b \times d \times e = r}{}{}$ is expressed in two rows instead of of three, if we were to use all $\text{Mul}_p$.
 
-In summary, relative wires allows $F_{GC}$ to have terms that uses cells from its previous row.
-
 **Canonical Program**
 
 $$
@@ -344,7 +349,7 @@ $$
 
 A *specification*[^spec-benefit] defines the config of the protocol. This includes marking columns as private or enabling it for copy constraints. In the previous section on arithmetize, we omitted $s:\Spec$ in $\AState$ leaving $W, \WireType, \Ops$ implicit for $W_s, \WireType_s, \Ops_s$. We will keep the spec instance $s$ implicit beyond this section as well.
 
-[^spec-benefit]: With spec as a data structure, it is dynamic can be extended whilst arithmetizing.
+[^spec-benefit]: With spec as a data structure, it is dynamic and can be extended whilst arithmetizing.
 
 
 $$
@@ -365,11 +370,11 @@ F_{GC}: \Eqn = \sum \bigcup\limits_{g \in \Ops_s} \term_g &
 \end{array}
 $$
 
-In summary, these are the structures and their use at which level of abstraction:
+In summary, these are the structures and their uses
 
-level | atomics | semantic groups | structure | purpose
+abstraction level | atomics | semantic groups | structure | use
 -|-|-|-|-
-0 | $w: W(t)$ | $@_i[T^t]: \text{Gate}$ | $T: \TraceTable$ | protocol
+0 | $w: W(t)$ | $@_i[T]^t: \text{Gate}$ | $T: \TraceTable$ | protocol
 1 | $\abst{w}: \Wire$ | $g: \Ggt$ | $\abst{f}: \AbsCirc$ | arithmetization
 2 | $\boxdot : \Cell$ | $\ty(g): \Ops$ | $s: \Spec$ | config
 

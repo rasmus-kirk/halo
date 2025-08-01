@@ -4,7 +4,7 @@
 
 The trace computation is defined as follows:
 $$
-(C, \sigma) = \mathrm{trace}(\abst{f},\avec{Y},\vec{x})
+(C, \sigma) = \mathrm{trace}(\vec{x},\abst{f},\avec{Y})
 $$
 
 **Monotonic Functions**

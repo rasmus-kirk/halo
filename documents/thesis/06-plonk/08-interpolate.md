@@ -1,4 +1,4 @@
-### Relation
+### Interpolate
 
 The construction of subterms of $F_{GC}$ is done by $\OpGroup$ via $gc$:
 

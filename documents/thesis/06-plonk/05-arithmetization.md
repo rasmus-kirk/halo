@@ -1,28 +1,30 @@
-## Preprocessing
+## Arithmetization
 
-We now define the preprocessing pipeline[^notation]:
+We now define the arithmetization pipeline[^notation]:
 
 $$
 \begin{array}{rl}
 (R,x,w) 
-&= \SurkalPreprocess(f,\vec{x}) \\ 
-&= \mathrm{relation} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})
+&= \SurkalArithmetize(f,\vec{x}) \\ 
+&= \mathrm{interpolate} \circ \mathrm{trace}(\vec{x}) \circ \mathrm{build}(f)
 \end{array}
 $$
 
 [^notation]: refer to the appendix for the definition of notations used in this section.
 
 
-### Arithmetizer
+### Build
 
-We define the arithmetize computation as follows:
+We define the build computation[^user-build] as follows:
 $$
-(\abst{f}, \avec{Y}) = \mathrm{arithmetize}(f)
+(\abst{f}, \avec{Y}) = \mathrm{build}(f)
 $$
 
-**Abstract Circuit, Gadgets, Operations and Wires**
+[^user-build]: Build is done by the user; writing circuits. However we will reason about it as an algorithm.
 
-Arithmetize turns a program $f$ into an *abstract circuit* $\abst{f}$, which is a one-to-many-or-none relation between gadgets $g$ and output wire(s) $\abst{y}$ or $\bot$ for none, inducing an acyclic circuit. e.g. $\gpair{\ggt{Add}{a,b}}{\abst{c}} \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$.
+**Build Primitives**
+
+Build turns a program $f$ into an *abstract circuit* $\abst{f}$, which is a one-to-many-or-none relation between gadgets $g$ and output wire(s) $\abst{y}$ or $\bot$ for none, inducing an acyclic circuit. e.g. $\gpair{\ggt{Add}{a,b}}{\abst{c}} \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$.
 
 $$
 \begin{array}{rl}
@@ -172,7 +174,7 @@ $$
 
 Operations have a *canonical program* that it corresponds to, e.g $\build{x + y=z}{s}{s'} = \left(\text{get}(s,\ggt{Add}{x,y}) = (s', \abst{z})\right)$, thus a program can be arithmetized iff it can be decomposed into these canonical programs. These inserts yield new wires. However, if $g \equiv h$ where $\gpair{h}{\_} \in \abst{f}_s$, then $\avec{y}= \out(\abst{f},h)$ in $\build{g=\vec{y}}{s}{s}$ leaving the state unchanged.[^egglog-eq] 
 
-[^egglog-eq]: Determining equivalence between gadget is a sophisticated problem, a candidate is to use equality saturation such as @egglog, however we implement simpler ad hoc solutions that doesnt cover the full equivalence structure. We leave this definition open.
+[^egglog-eq]: Determining equivalence between gadgets is a sophisticated problem, a candidate is to use equality saturation such as @egglog, however we implement simpler ad hoc solutions that doesnt cover the full equivalence structure. We leave this definition open.
 
 
 $$
@@ -219,20 +221,20 @@ $$
 \text{init}(\vec{t}) &= \opcirc\limits_{i \in [k+1]} \aput(\Input^{t_{i}}_{i-1}) (0, \emptyset, ()) \\
 \end{array} &
 \begin{array}{rl}
-\text{arithmetize} &: (W[\tin{}] \to W[\tout{}]) \to \AbsCirc \times \Wire^k \\
-\text{arithmetize}(f) &= \maybe{(\abst{f}_s, \avec{Y}_s)}{
+\text{build} &: (W[\tin{}] \to W[\tout{}]) \to \AbsCirc \times \Wire^k \\
+\text{build}(f) &= \maybe{(\abst{f}_s, \avec{Y}_s)}{
   \build{f}{\text{init}(\tin{})}{s}
 }
 \end{array}
 \end{array}
 $$
 
-**Arithmetize Correctness Example**
+**Build Correctness Example**
 
 Let $W(q)=\Fb_q$ and $f: \Fb_q^2 \to \Fb_q^1$ where $f(x,y) = x^2 + y$, then:
 
 \begin{longtable}{@{}l@{}}
-Let $(\abst{f}, \avec{Y}) = \text{arithmetize}(f)$
+Let $(\abst{f}, \avec{Y}) = \text{build}(f)$
 \\
 $= \maybe{\left(\abst{f}_{s''}, (\abst{z})\right)}{
   \build{x^2 + y = z}
