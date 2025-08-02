@@ -2,7 +2,7 @@ Before defining trace, we need to define the rest of the abstractions.
 
 **Equations**
 
-$\Surkal$ performs vanishing argument on $F_{GC}$; the *gate constraint polynomial*. $F_{GC}$ is defined as an *abstract equation* structured as an abstract syntax tree. The atomics are *columns* and *scalars* $\Fb$. This lets us define a function for polymorphic types in place of the columns: scalars $\Fb_p$, polynomials $\Fb_p[X]$, elliptic curve points[^curve-mul] $E[\Fb]$ and wires $\abst{w}$ (with $\AState$) in one definition, the latter being synonymous to an circuit building. Computing the function then is tree traversal with combinators for each equation operation in the grammar.
+$\Surkal$ performs vanishing argument on $F_{GC}$; the *gate constraint polynomial*. $F_{GC}$ is defined as an *abstract equation* structured as an abstract syntax tree. The atomics are *columns* and *scalars* $\Fb$. This lets us define a function for polymorphic types in place of the columns: scalars $\Fb_p$, polynomials $\Fb_p[X]$, elliptic curve points[^curve-mul] $E[\Fb]$ and wires $\abst{w}$ (with $\AState$) in one definition, the latter being synonymous to circuit building. Computing the function then is tree traversal with combinators for each equation operation in the grammar.
 
 [^curve-mul]: Multiplication with curve points does not exist. Thus some $\Eqn$ aren't defined for curve points.
 
@@ -149,38 +149,43 @@ $\plookup$ default cell | $\bot$ | $(d,\_)$ | $\_$ | $\lambda d,\_.d$
 
 **Pre-Constraint Example**
 
-Let the pre-constraints for the gadget $\gpair{\ggtu{\text{Add}_p}{\abst{a}, \abst{b}}}{\abst{c}} \in \abst{f}$ be as follows:
+Let the pre-constraints for the gadget $\gpair{\ggtu{\text{Add}_p}{\abst{a}, \abst{b}}}{\abst{c}}, \gpair{\ggtu{\text{Mul}_p}{\abst{d}, \abst{c}}}{\abst{e}} \in \abst{f}$ be as follows:
 
 \begin{center}
-\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
-\hline
-\multicolumn{18}{|c|}{$\ctrn_{\text{Add}_p}$} \\
-\hline
-\multicolumn{9}{|c|}{$p$} & \multicolumn{9}{|c|}{$q$} \\
-\hline
-$A$ & $B$ & $C$ & $Q_l$ & $Q_r$ & $Q_o$ & $Q_m$ & $Q_c$ & $PI$ & 
+\begin{tabular}{c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
+\cline{2-19}
+& \multicolumn{18}{|c|}{$\ctrn_{\text{Add}_p}$} \\
+\cline{2-19}
+& \multicolumn{9}{|c|}{$p$} & \multicolumn{9}{|c|}{$q$} \\
+\cline{2-19}
+& $A$ & $B$ & $C$ & $Q_l$ & $Q_r$ & $Q_o$ & $Q_m$ & $Q_c$ & $PI$ & 
 $A$ & $B$ & $C$ & $Q_l$ & $Q_r$ & $Q_o$ & $Q_m$ & $Q_c$ & $PI$ \\
 \hline\hline
-$\abst{a}$ & $\abst{b}$ & $\abst{c}$ & 1 & 1 & -1 & 0 & 0 & 0 & \multicolumn{9}{|c}{} \\
-\cline{1-9}
+$\text{Add}_p$ & $\abst{a}$ & $\abst{b}$ & $\abst{c}$ & 1 & 1 & -1 & 0 & 0 & 0 & \multicolumn{9}{|c}{} \\
+\cline{1-10}
+$\text{Mul}_p$ & $\abst{d}$ & $\abst{c}$ & $\abst{e}$ & 0 & 0 & -1 & 1 & 0 & 0 & \multicolumn{9}{|c}{} \\
+\cline{1-10}
 \end{tabular}
 \end{center}
-
-Let $T$ be the trace table; resolved pre-constraints, for $\build{(a + b) \times d = e}{}{}$ be as follows:
-
+We notate $@_i[T]^t$ as a *gate*; the row $i$ of wire type $t$ of the *trace table* $T$; resolved pre-constraints. Applying the gates to $F_{GC}^{\plonkm}$ from the previous example, we can see that it will resolve to zero only if the structure of the operation is respected. This motivates how the vanishing argument enforces the structure of the gadgets.
 \begin{center}
 \begin{tabular}{c c}
-\begin{tabular}{r|c|c|c|c|c|c|c|c|c|c|}
-\cline{2-11}
-\multirow{2}{*}{$\Ops$} & \multicolumn{9}{c|}{$p$} & $q$ \\
-\cline{2-11}
-& $A$ & $B$ & $C$ & $Q_l$ & $Q_r$ & $Q_o$ & $Q_m$ & $Q_c$ & $PI$ & $\cdots$ \\
-\hline\hline
-$\text{Add}_p$ & $a$ & $b$ & $c$ & 1 & 1 & -1 & 0 & 0 & 0 \\
-\cline{2-10}
-$\text{Mul}_p$ & $d$ & $c$ & $e$ & 0 & 0 & -1 & 1 & 0 & 0 \\
-\cline{2-10}
-\end{tabular} &
+\begin{math}
+\begin{array}{c}
+\begin{array}{rl}
+F_{GC}^{\plonkm}: \Eqn &= A \times Q_l + B \times Q_r + C \times Q_o + A \times B \times Q_m + Q_c + PI
+\end{array} \\
+\begin{array}{ccc}
+\begin{array}{rl}
+@ &: \Nb \to F(T^k \to T) \\
+@_i(\_,\vec{y}) &= y_i
+\end{array}
+&
+F_{GC}^{\plonkm}(@_1[T]^p) = a + b - c &
+F_{GC}^{\plonkm}(@_2[T]^p) = d \times c - e
+\end{array}
+\end{array}
+\end{math} &
 \begin{tikzpicture}[
   baseline={(current bounding box.center)}
 ]
@@ -199,25 +204,6 @@ $\text{Mul}_p$ & $d$ & $c$ & $e$ & 0 & 0 & -1 & 1 & 0 & 0 \\
 \end{tikzpicture}
 \end{tabular}
 \end{center}
-
-We notate $@_i[T]^t$ as a *gate*; the row $i$ for the trace table of wire type $t$. Applying the gates to $F_{GC}^{\plonkm}$ from the previous example, we can see that it will resolve to zero only if the structure of the operation is respected. This motivates how the vanishing argument enforces the structure of the gadgets.
-
-$$
-\begin{array}{rl}
-F_{GC}^{\plonkm}: \Eqn &= A \times Q_l + B \times Q_r + C \times Q_o + A \times B \times Q_m + Q_c + PI
-\end{array}
-$$
-$$
-\begin{array}{ccc}
-\begin{array}{rl}
-@ &: \Nb \to F(T^k \to T) \\
-@_i(\_,\vec{y}) &= y_i
-\end{array}
-&
-F_{GC}^{\plonkm}(@_1[T]^p) = a + b - c &
-F_{GC}^{\plonkm}(@_2[T]^p) = d \times c - e
-\end{array}
-$$
 
 **Loop**
 
@@ -298,7 +284,7 @@ $$
 
 **Relative Wires Example**
 
-Let parts of the constraints for the gadgets $\gpair{\ggtu{\text{CMul}_p}{\abst{d},\abst{e},\abst{c}}}{\abst{r}}, \gpair{\ggtu{\text{Mul}_p}{\abst{a}, \abst{b}}}{\abst{c}} \in \abst{f}$ where $b_{\text{CMul}_p} = 1$, $b_{\text{Mul}_p} = 0$ and $\Rel_{\text{CMul}_p} = \set{C}$, $\Rel_{\text{Mul}_p} = \emptyset$ be as follows:
+Let parts of the pre-constraints for the gadgets $\gpair{\ggtu{\text{CMul}_p}{\abst{d},\abst{e},\abst{c}}}{\abst{r}}, \gpair{\ggtu{\text{Mul}_p}{\abst{a}, \abst{b}}}{\abst{c}} \in \abst{f}$ where $b_{\text{CMul}_p} = 1$, $b_{\text{Mul}_p} = 0$ and $\Rel_{\text{CMul}_p} = \set{C}$, $\Rel_{\text{Mul}_p} = \emptyset$ be as follows:
 
 \begin{center}
 \begin{tabular}{c c}
@@ -308,10 +294,10 @@ Let parts of the constraints for the gadgets $\gpair{\ggtu{\text{CMul}_p}{\abst{
 \cline{2-9}
 & $A$ & $B$ & $C$ & $Q_l$ & $Q_r$ & $Q_o$ & $Q_m$ & $Q_s$ \\
 \hline\hline
-$\text{CMul}_p$ & $d$ & $e$ & $r$ & 0 & 0 & -1 & 1 & 1 &
+$\text{CMul}_p$ & $\abst{d}$ & $\abst{e}$ & $\abst{r}$ & 0 & 0 & 0 & 0 & 1 &
 $Q_s \times (C_1 \times A \times B - C)$ \\
 \hline
-$\text{Mul}_p$ & $a$ & $b$ & $c$ & 0 & 0 & -1 & 1 & 0 &
+$\text{Mul}_p$ & $\abst{a}$ & $\abst{b}$ & $\abst{c}$ & 0 & 0 & -1 & 1 & 0 &
 $A \times Q_l + B \times Q_r + C \times Q_o + A \times B \times Q_m$ \\
 \hline
 \end{tabular} &
@@ -335,7 +321,7 @@ $A \times Q_l + B \times Q_r + C \times Q_o + A \times B \times Q_m$ \\
 \end{tabular}
 \end{center}
 
-Using the terms, we have $-c + a \cdot b = 0$ enforcing the structure of $\text{Mul}_p$ and $c \cdot d \cdot e - r = 0$ enforcing the structure of $\text{CMul}_p$. Notice how $C_1$ refers to the column $C$ one row below the last row for $\ctrn_{\text{CMul}_p}$ i.e. the row for $\ctrn_{\text{Mul}_p}$. Thus, $\build{a \times b \times d \times e = r}{}{}$ is expressed in two rows instead of of three, if we were to use all $\text{Mul}_p$.
+Using the terms, we have $-c + a \cdot b = 0$ enforcing the structure of $\text{Mul}_p$ and $c \cdot d \cdot e - r = 0$ enforcing the structure of $\text{CMul}_p$. Notice $C_1$ is a distinct column that refers to the same column $C$ but one row below current. In this case it is the row for $\ctrn_{\text{Mul}_p}$. Thus, $\build{a \times b \times d \times e = r}{}{}$ is expressed in two rows instead of of three, if we were to use all $\text{Mul}_p$.
 
 **Canonical Program**
 
@@ -378,13 +364,63 @@ abstraction level | atomics | semantic groups | structure | use
 1 | $\abst{w}: \Wire$ | $g: \Ggt$ | $\abst{f}: \AbsCirc$ | arithmetization
 2 | $\boxdot : \Cell$ | $\ty(g): \Ops$ | $s: \Spec$ | config
 
-**Unique Behaviour Operations**
+**Trace Table Update Behaviours**
 
-TODO
+When adding constraints for a gadget, depending the the kind of operation, we will update the trace table in the following ways:
 
-When adding pre-constraints for a gadget, we simply append its rows to the trace table. However some operations are dealt differently where their ordering in the table matters, or if they omit some columns.
-
-- Asserts - they have no output wires, thus when resolving $\avec{Y}$ we won't encounter it, thus they are manually resolved when the trace is done
-- Relative Gadgets - as mentioned, we guarantee a copy of its base gadget's constraints appear immediately after its constraints
-- PublicInput - its gates must appear in sequence at the start of the trace table
-- Table - these are simply a column for the table vector that will be appended horizontally as a column to the trace table
+\begin{tabularx}{\textwidth}{@{} Y Y Y Y Y @{}}
+\toprule
+Basic & Relative  & Asserts  & PublicInput  & LookupTable  \\
+ & $b_g>0$ & $m_g=0$ & $\ty(g)=\text{PI}_t$ & $\ty(g)=\text{Tbl}_t$
+\\\hline 
+append &
+append with base &
+appends after trace &
+prepends after trace &
+as column after trace
+\\\hline \\
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\node[draw, minimum width=1.5cm,minimum height=0.75cm] (b1) at (0,0) {$\vdots$};
+\node[draw, minimum width=1.5cm, pattern=north east lines, anchor=north] (b2) at (b1.south) {$g$};
+\node[draw, minimum width=1.5cm, anchor=north] (b3) at (b2.south) {$\vdots$};
+\end{tikzpicture}
+&
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\node[draw, minimum width=1.5cm,minimum height=0.75cm] (b1) at (0,0) {$\vdots$};
+\node[draw, minimum width=1.5cm, pattern=north east lines, anchor=north] (b2) at (b1.south) {$g$};
+\node[draw, minimum width=1.5cm, pattern=north west lines, anchor=north] (b3) at (b2.south) {$\base_g$};
+\node[draw, minimum width=1.5cm, anchor=north] (b4) at (b3.south) {$\vdots$};
+\end{tikzpicture}
+& 
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\node[draw, minimum width=1.5cm,minimum height=0.75cm] (b1) at (0,0) {$\vdots$};
+\node[draw, minimum width=1.5cm, pattern=north east lines, anchor=north] (b2) at (b1.south) {$g_1$};
+\node[draw, minimum width=1.5cm, pattern=north west lines, anchor=north] (b3) at (b2.south) {$\vdots$};
+\node[draw, minimum width=1.5cm, pattern=north east lines, anchor=north] (b4) at (b3.south) {$g_k$};
+\end{tikzpicture}
+&
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\node[draw, minimum width=1.5cm, pattern=north east lines] (b1) at (0,0) {$g_1$};
+\node[draw, minimum width=1.5cm, pattern=north west lines, anchor=north] (b2) at (b1.south) {$\vdots$};
+\node[draw, minimum width=1.5cm, pattern=north east lines, anchor=north] (b3) at (b2.south) {$g_k$};
+\node[draw, minimum width=1.5cm,minimum height=0.75cm, anchor=north] (b4) at (b3.south) {$\vdots$};
+\end{tikzpicture}
+&
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\node[draw, minimum width=1.5cm,minimum height=2.25cm] (b1) at (0,0) {$\vdots$};
+\node[draw, minimum width=0.6cm, minimum height=0.75cm, anchor=north west, pattern= north west lines] (b2) at (b1.north east) {$g_1$};
+\node[draw, minimum width=0.6cm, minimum height=0.73cm, anchor=north west, pattern= north east lines] (b3) at (b2.south west) {$\vdots$};
+\node[draw, minimum width=0.6cm, minimum height=0.75cm, anchor=north west, pattern= north west lines] (b4) at (b3.south west) {$g_k$};
+\end{tikzpicture} \\
+\\\toprule
+\end{tabularx}
