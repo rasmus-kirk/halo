@@ -18,4 +18,14 @@ criterion_group! {
         poly_evals_fft,
 }
 
-criterion_main!(misc);
+mod protocol;
+use protocol::*;
+
+criterion_group! {
+    name = protocol;
+    config = Criterion::default().sample_size(SAMPLE_SIZE).measurement_time(Duration::from_secs(SECONDS));
+    targets =
+        prover_verifier,
+}
+
+criterion_main!(misc, protocol);

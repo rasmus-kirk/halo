@@ -3,14 +3,15 @@ use std::ops::{Add, AddAssign, Index, Mul, MulAssign, Sub, SubAssign};
 use ark_ff::Field;
 use ark_poly::{EvaluationDomain, Evaluations, GeneralEvaluationDomain};
 use ark_std::{One, Zero};
+use derivative::Derivative;
 use rayon::prelude::*;
 
 use crate::{PastaConfig, Poly, Scalar};
 
-// pub type Evals<P> = Evaluations<Scalar<P>, GeneralEvaluationDomain<Scalar<P>>>;
 pub type Domain<P> = GeneralEvaluationDomain<Scalar<P>>;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Derivative, Clone, PartialEq, Eq)]
+#[derivative(Debug(bound = "Scalar<P>: std::fmt::Debug"))]
 pub struct Evals<P: PastaConfig> {
     pub evals: Evaluations<Scalar<P>, Domain<P>>,
 }

@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use std::{array, collections::HashMap};
+use std::{array, collections::HashMap, time::Instant};
 
 use anyhow::Result;
 use halo_accumulation::pcdl;
@@ -10,12 +10,69 @@ use halo_group::{
     ark_poly::{EvaluationDomain, Polynomial},
     ark_std::Zero,
 };
+use log::debug;
 use union_find::{QuickUnionUf, UnionBySize, UnionFind};
 
 use crate::{
     circuit::SlotId,
     utils::{SELECTOR_POLYS, WITNESS_POLYS},
 };
+
+pub(crate) fn build_sigma<P: PastaConfig>(
+    eqs: Vec<Vec<SlotId>>,
+    domain: Domain<P>,
+) -> (
+    Vec<SlotId>,
+    [Evals<P>; WITNESS_POLYS],
+    [Evals<P>; WITNESS_POLYS],
+) {
+    let rows = domain.size();
+    assert!(rows.is_power_of_two());
+
+    // 2. Initialize identity permutation
+    let id = (0..(rows * WITNESS_POLYS))
+        .map(|i| SlotId::from_usize(i, rows))
+        .collect::<Vec<_>>();
+
+    // 3. For each non-trivial equivalence class, form a cycle
+    let mut sigma = id.clone();
+    for wires in eqs {
+        if wires.len() <= 1 {
+            continue;
+        }
+
+        for i in 0..wires.len() {
+            let from = wires[i];
+            let to = wires[(i + 1) % wires.len()];
+            sigma[from.to_usize(rows)] = to;
+        }
+    }
+
+    // let sigma_evals: [Evals<P>; WITNESS_POLYS] = array::from_fn(|i| {
+    //     let evaluations: Vec<_> = sigma
+    //         .iter()
+    //         .skip(rows * i)
+    //         .take(rows)
+    //         .map(|slot_id| slot_id.to_scalar::<P>(rows))
+    //         .collect();
+    //     Evals::<P>::from_vec_and_domain(evaluations, domain)
+    // });
+
+    let mut id_vecs: [Vec<_>; WITNESS_POLYS] = array::from_fn(|_| Vec::with_capacity(rows));
+    let mut sigma_vecs: [Vec<_>; WITNESS_POLYS] = array::from_fn(|_| Vec::with_capacity(rows));
+    for (i, (id_chunk, sigma_chunk)) in id.chunks(rows).zip(sigma.chunks(rows)).enumerate() {
+        for (id, sigma) in id_chunk.iter().zip(sigma_chunk) {
+            id_vecs[i].push(id.to_scalar::<P>(rows));
+            sigma_vecs[i].push(sigma.to_scalar::<P>(rows));
+        }
+    }
+
+    (
+        sigma,
+        id_vecs.map(|vec| Evals::from_vec_and_domain(vec, domain)),
+        sigma_vecs.map(|vec| Evals::from_vec_and_domain(vec, domain)),
+    )
+}
 
 /// Extracts the permutation vector π(w) from a union-find structure:
 /// each cycle represents a set of wires that are equal under copy constraints,
@@ -75,23 +132,20 @@ pub struct Trace<P: PastaConfig> {
 
 impl<P: PastaConfig> Trace<P> {
     pub fn new(
-        copy_constraints: Vec<(SlotId, SlotId)>,
+        copy_constraints: Vec<Vec<SlotId>>,
         public_inputs: Vec<Scalar<P>>,
         ws: [Vec<Scalar<P>>; WITNESS_POLYS],
         qs: [Vec<Scalar<P>>; SELECTOR_POLYS],
         output: P::ScalarField,
         n: usize,
     ) -> Self {
+        let now = Instant::now();
+
         let d = n - 1;
         let domain = Domain::<P>::new(n).unwrap();
         let omega = domain.element(1);
 
-        let mut uf = QuickUnionUf::<UnionBySize>::new(WITNESS_POLYS * n);
-
-        for (x, y) in copy_constraints.iter() {
-            uf.union(x.to_usize(n), y.to_usize(n));
-        }
-        let sigma = build_pi(uf);
+        let (sigma, id_evals, sigma_evals) = build_sigma(copy_constraints, domain);
 
         let mut public_inputs_clone = public_inputs.clone();
         public_inputs_clone.resize(n, Scalar::<P>::zero());
@@ -99,30 +153,9 @@ impl<P: PastaConfig> Trace<P> {
 
         let w_evals = ws.map(|vec| Evals::<P>::from_vec_and_domain(vec, domain));
         let q_evals = qs.map(|vec| Evals::<P>::from_vec_and_domain(vec, domain));
-        let sigma_evals: [Evals<P>; WITNESS_POLYS] = array::from_fn(|i| {
-            let evaluations: Vec<_> = sigma
-                .iter()
-                .skip(n * i)
-                .take(n)
-                .map(|j| j.to_scalar::<P>(n))
-                .collect();
-            Evals::<P>::from_vec_and_domain(evaluations, domain)
-        });
-        let id_evals: [Evals<P>; WITNESS_POLYS] = array::from_fn(|i| {
-            let evaluations: Vec<_> = (n * i..n + n * i)
-                .map(|j| SlotId::from_usize(j, n).to_scalar::<P>(n))
-                .collect();
-            println!("y{:?}", evaluations);
-            Evals::<P>::from_vec_and_domain(evaluations, domain)
-        });
+
         let id_polys: [Poly<P>; WITNESS_POLYS] =
             array::from_fn(|i| id_evals[i].interpolate_by_ref());
-
-        for i in 1..n + 1 {
-            let eval = id_polys[0].evaluate(&omega.pow([i as u64]));
-            println!("z{:?}", eval)
-        }
-
         let sigma_polys: [Poly<P>; WITNESS_POLYS] =
             array::from_fn(|i| sigma_evals[i].interpolate_by_ref());
         let w_polys: [Poly<P>; WITNESS_POLYS] = array::from_fn(|i| w_evals[i].interpolate_by_ref());
@@ -131,15 +164,17 @@ impl<P: PastaConfig> Trace<P> {
         let public_inputs_poly = public_inputs_evals.interpolate_by_ref();
         let C_qs = array::from_fn(|i| pcdl::commit(&q_polys[i], d, None));
 
+        debug!("trace_time: {:?}", now.elapsed().as_secs_f32());
+
         Self {
             rows: n,
             domain,
             omega,
+            sigma,
             public_inputs,
             public_inputs_poly,
             public_inputs_evals,
             C_qs,
-            sigma,
             sigma_polys,
             id_polys,
             w_polys,
@@ -161,23 +196,33 @@ impl<P: PastaConfig> Trace<P> {
     pub fn s(self) -> Result<()> {
         Ok(())
     }
+
+    pub fn test_copy_constraints(&self) {
+        for i in 0..self.sigma.len() {
+            let id = SlotId::from_usize(i, self.rows);
+            let sigma = self.sigma[i];
+            let v1 =
+                self.w_polys[id.column_0_indexed()].evaluate(&self.omega.pow([id.row() as u64]));
+            let v2 = self.w_polys[sigma.column_0_indexed()]
+                .evaluate(&self.omega.pow([sigma.row() as u64]));
+            assert_eq!(v1, v2, "{:?} != {:?}", id, sigma)
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
-        circuit::{CircuitSpec, SlotId, TraceBuilder, build_pi},
-        plonk::{self, PlonkProof},
+        circuit::{CircuitSpec, GateType, SlotId, TraceBuilder, build_pi},
+        plonk::PlonkProof,
         utils::WITNESS_POLYS,
     };
     use anyhow::Result;
     use halo_group::{
-        PallasConfig, PallasScalar, PastaConfig,
-        ark_ff::Field,
-        ark_poly::Polynomial,
-        ark_std::rand::{Rng, rngs::ThreadRng, thread_rng},
+        PallasConfig, PallasScalar, PastaConfig, ark_ff::Field, ark_poly::Polynomial,
+        ark_std::rand::thread_rng,
     };
-    use union_find::{QuickUnionUf, UnionBySize, UnionFind};
+    use petgraph::algo::toposort;
 
     use super::Trace;
 
@@ -222,7 +267,7 @@ mod tests {
 
         println!("{:?}", trace);
 
-        test_copy_constraints(&trace);
+        trace.test_copy_constraints();
 
         assert_eq!(scalar(186), trace.output());
 
@@ -256,7 +301,7 @@ mod tests {
 
         println!("{:?}", trace);
 
-        test_copy_constraints(&trace);
+        trace.test_copy_constraints();
 
         assert_eq!(scalar(47), trace.output());
 
@@ -266,22 +311,47 @@ mod tests {
     }
 
     #[test]
-    fn test_pi() {
-        // We have 6 wires: a1,b1,c1,a2,b2,c2 mapped to indices 0..5
-        // Copy constraints:
-        let mut uf = QuickUnionUf::<UnionBySize>::new(6);
-        uf.union(3, 4); // a2 = b2
-        uf.union(2, 3); // c1 = a2
-        uf.union(2, 4); // c1 = b2
+    fn test_poseidon() -> Result<()> {
+        // Create circuit: (x1 + x2) * x3
+        let mut circuit = CircuitSpec::<PallasConfig>::new();
+        let x1 = circuit.witness_gate();
+        let x2 = circuit.witness_gate();
+        let x3 = circuit.witness_gate();
+        let [p0, p1, p2] = circuit.poseidon_gate(0, [x1, x2, x3]);
+        let [p3, p4, p5] = circuit.poseidon_gate(1, [p1, p2, p2]);
 
-        let pi = build_pi(uf);
+        let xa11 = circuit.witness_gate();
+        let xa12 = circuit.witness_gate();
+        let a1 = circuit.add_gate(xa11, xa12);
+        let xa21 = circuit.witness_gate();
+        let a2 = circuit.add_gate(a1, xa21);
+        let xa31 = circuit.witness_gate();
+        let a3 = circuit.add_gate(a2, xa31);
 
-        // For singleton sets, pi[i] = i
-        // For the equivalence class {2,3,4}, we expect a cycle: 2->3, 3->4, 4->2
-        let expected: Vec<_> = vec![0, 1, 3, 4, 2, 5]
-            .iter()
-            .map(|i| SlotId::from_usize(*i, 2))
-            .collect();
-        assert_eq!(expected, pi);
+        let m1 = circuit.mul_gate(p0, p3);
+        let m2 = circuit.mul_gate(m1, p4);
+        let m3 = circuit.mul_gate(m2, p5);
+        let m4 = circuit.mul_gate(m3, a3);
+        circuit.output_gate(m4);
+
+        let topo_order = toposort(&circuit.graph, None).unwrap();
+
+        let mut seen = false;
+        for node_idx in topo_order {
+            match circuit.graph[node_idx] {
+                GateType::Poseidon(_) => {
+                    if !seen {
+                        seen = true;
+                    } else {
+                        seen = false;
+                    }
+                }
+                _ => assert!(!seen),
+            }
+        }
+
+        println!("{:?}", circuit);
+
+        Ok(())
     }
 }

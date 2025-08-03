@@ -42,10 +42,12 @@ where
     fn basefield_from_u64(x: u64) -> BaseField<Self>;
     fn scalar_from_u64(x: u64) -> Scalar<Self>;
 
-    const POSEIDON_MDS: [[Self::BaseField; 3]; 3];
-    const POSEIDON_ROUND_CONSTANTS: [[Self::BaseField; 3]; 55];
-    const FP_MODULUS: BigInt<4>;
-    const FQ_MODULUS: BigInt<4>;
+    const SCALAR_POSEIDON_MDS: [[Scalar<Self>; 3]; 3];
+    const BASE_POSEIDON_MDS: [[Self::BaseField; 3]; 3];
+    const SCALAR_POSEIDON_ROUND_CONSTANTS: [[Self::ScalarField; 3]; 55];
+    const BASE_POSEIDON_ROUND_CONSTANTS: [[Self::BaseField; 3]; 55];
+    const SCALAR_MODULUS: BigInt<4>;
+    const BASE_MODULUS: BigInt<4>;
     const CURVE_NAME: &'static str;
 }
 
@@ -90,11 +92,14 @@ impl PastaConfig for ark_pallas::PallasConfig {
         Scalar::<PallasConfig>::from_bigint(BigInt::from(x)).unwrap()
     }
 
-    const POSEIDON_MDS: [[<PallasConfig as CurveConfig>::BaseField; 3]; 3] = FP_MDS;
-    const POSEIDON_ROUND_CONSTANTS: [[<PallasConfig as CurveConfig>::BaseField; 3]; 55] =
+    const SCALAR_POSEIDON_MDS: [[<PallasConfig as CurveConfig>::ScalarField; 3]; 3] = FP_MDS;
+    const BASE_POSEIDON_MDS: [[<PallasConfig as CurveConfig>::BaseField; 3]; 3] = FQ_MDS;
+    const SCALAR_POSEIDON_ROUND_CONSTANTS: [[<PallasConfig as CurveConfig>::ScalarField; 3]; 55] =
         FP_ROUND_CONSTANTS;
-    const FP_MODULUS: BigInt<4> = <PallasConfig as CurveConfig>::ScalarField::MODULUS;
-    const FQ_MODULUS: BigInt<4> = <PallasConfig as CurveConfig>::BaseField::MODULUS;
+    const BASE_POSEIDON_ROUND_CONSTANTS: [[<PallasConfig as CurveConfig>::BaseField; 3]; 55] =
+        FQ_ROUND_CONSTANTS;
+    const SCALAR_MODULUS: BigInt<4> = <PallasConfig as CurveConfig>::ScalarField::MODULUS;
+    const BASE_MODULUS: BigInt<4> = <PallasConfig as CurveConfig>::BaseField::MODULUS;
     const CURVE_NAME: &'static str = "Pallas";
 }
 
@@ -139,11 +144,14 @@ impl PastaConfig for ark_vesta::VestaConfig {
         Scalar::<VestaConfig>::from_bigint(BigInt::from(x)).unwrap()
     }
 
-    const POSEIDON_MDS: [[<VestaConfig as CurveConfig>::BaseField; 3]; 3] = FQ_MDS;
-    const POSEIDON_ROUND_CONSTANTS: [[<VestaConfig as CurveConfig>::BaseField; 3]; 55] =
+    const SCALAR_POSEIDON_MDS: [[<VestaConfig as CurveConfig>::ScalarField; 3]; 3] = FQ_MDS;
+    const BASE_POSEIDON_MDS: [[<VestaConfig as CurveConfig>::BaseField; 3]; 3] = FP_MDS;
+    const SCALAR_POSEIDON_ROUND_CONSTANTS: [[<VestaConfig as CurveConfig>::ScalarField; 3]; 55] =
         FQ_ROUND_CONSTANTS;
-    const FP_MODULUS: BigInt<4> = <VestaConfig as CurveConfig>::ScalarField::MODULUS;
-    const FQ_MODULUS: BigInt<4> = <VestaConfig as CurveConfig>::BaseField::MODULUS;
+    const BASE_POSEIDON_ROUND_CONSTANTS: [[<VestaConfig as CurveConfig>::BaseField; 3]; 55] =
+        FP_ROUND_CONSTANTS;
+    const SCALAR_MODULUS: BigInt<4> = <VestaConfig as CurveConfig>::ScalarField::MODULUS;
+    const BASE_MODULUS: BigInt<4> = <VestaConfig as CurveConfig>::BaseField::MODULUS;
     const CURVE_NAME: &'static str = "Vesta";
 }
 

@@ -1,11 +1,11 @@
-use ark_ec::short_weierstrass::Affine;
-use ark_ec::short_weierstrass::Projective;
-use ark_ec::CurveGroup;
-use ark_ff::One;
-use ark_ff::PrimeField;
-use ark_ff::Zero;
-use ark_ff::{BigInt, BigInteger};
-use halo_group::PastaConfig;
+use halo_group::{
+    ark_ec::{
+        short_weierstrass::{Affine, Projective},
+        CurveGroup,
+    },
+    ark_ff::{BigInt, BigInteger, One, PrimeField, Zero},
+    PastaConfig, Scalar,
+};
 
 use crate::inner_sponge::PoseidonSponge;
 
@@ -64,7 +64,7 @@ impl<P: PastaConfig> Sponge<P> {
             let bits = x.into_bigint().to_bits_le();
 
             // absorb
-            if P::FP_MODULUS < P::FQ_MODULUS {
+            if P::SCALAR_MODULUS < P::BASE_MODULUS {
                 let fe = P::basefield_from_bigint(BigInt::<4>::from_bits_le(&bits)).unwrap();
                 self.sponge.absorb(&[fe]);
             } else {

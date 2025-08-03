@@ -1,11 +1,13 @@
-use std::array;
+use std::{array, fmt};
 
 use derivative::Derivative;
 use halo_group::{PastaConfig, Scalar};
 use petgraph::Direction::{Incoming, Outgoing};
-use petgraph::graph::{DiGraph, NodeIndex};
+use petgraph::dot::{Config, Dot};
+use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
+use petgraph::visit::EdgeRef;
 
-use crate::utils::WITNESS_POLYS;
+const NEW_WTINESS_POLYS: usize = 15;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SlotId {
@@ -61,9 +63,10 @@ impl std::fmt::Debug for SlotId {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Wire {
     pub(crate) id: usize,
+    /// The node identifier of the incoming gate
     pub(crate) node_idx: NodeIndex,
-    /// None for witness and public-input gates
-    pub(crate) output_slot_id: Option<SlotId>,
+    /// An identifier for which output of the incoming gate this wire carries
+    pub(crate) output_id: u32,
 }
 
 #[derive(Clone, Copy, Derivative)]
@@ -73,11 +76,27 @@ pub(crate) enum GateType<P: PastaConfig> {
     PublicInput,
     Output,
     AssertEq,
-    Constant(SlotId, Scalar<P>),
-    Add([SlotId; 3]),
-    Multiply([SlotId; 3]),
+    Poseidon([Scalar<P>; NEW_WTINESS_POLYS]),
+    Constant(Scalar<P>),
+    Add,
+    Multiply,
+}
+impl<P: PastaConfig> fmt::Display for GateType<P> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            GateType::Witness => write!(f, "Witness"),
+            GateType::PublicInput => write!(f, "PublicInput"),
+            GateType::Output => write!(f, "Output"),
+            GateType::AssertEq => write!(f, "AssertEq"),
+            GateType::Constant(_) => write!(f, "Constant"),
+            GateType::Poseidon(_) => write!(f, "Poseidon"),
+            GateType::Add => write!(f, "Add"),
+            GateType::Multiply => write!(f, "Multiply"),
+        }
+    }
 }
 
+#[derive(Clone)]
 pub struct CircuitSpec<P: PastaConfig> {
     pub(crate) graph: DiGraph<GateType<P>, Wire>,
     pub(crate) witness_wire_count: usize,
@@ -97,76 +116,96 @@ impl<P: PastaConfig> CircuitSpec<P> {
         }
     }
 
-    pub(crate) fn get_gate_inputs(&self, node_idx: NodeIndex) -> Vec<Wire> {
+    pub(crate) fn get_parent_node(&self, edge: EdgeIndex) -> NodeIndex {
         self.graph
-            .edges_directed(node_idx, Incoming)
-            .map(|x| x.weight().clone())
-            .collect()
+            .edge_endpoints(edge)
+            .expect("Edge not in graph!")
+            .0
     }
 
-    pub(crate) fn get_gate_outputs(&self, node_idx: NodeIndex) -> Vec<Wire> {
+    pub(crate) fn get_child_node(&self, edge: EdgeIndex) -> NodeIndex {
+        self.graph
+            .edge_endpoints(edge)
+            .expect("Edge not in graph!")
+            .1
+    }
+
+    pub(crate) fn get_gate_inputs<const N: usize>(
+        &self,
+        node_idx: NodeIndex,
+    ) -> [(Wire, EdgeIndex); N] {
+        let nodes: Vec<_> = self
+            .graph
+            .edges_directed(node_idx, Incoming)
+            .map(|x| (x.weight().clone(), x.id()))
+            .collect();
+        assert_eq!(nodes.len(), N);
+        array::from_fn(|i| nodes[i])
+    }
+
+    pub(crate) fn get_gate_outputs(&self, node_idx: NodeIndex) -> Vec<(Wire, EdgeIndex)> {
         self.graph
             .edges_directed(node_idx, Outgoing)
-            .map(|x| x.weight().clone())
+            .map(|x| (x.weight().clone(), x.id()))
             .collect()
     }
 
-    fn get_slot_ids(&mut self) -> [SlotId; WITNESS_POLYS] {
-        let row = self.row_count;
-        self.row_count += 1;
-        let f = |column| SlotId::new(row + 1, column + 1);
-        let slot_ids = array::from_fn(f);
-        println!("{:?}", slot_ids);
-        slot_ids
-    }
-
-    fn new_wire(&mut self, node_idx: NodeIndex, output_slot_id: Option<SlotId>) -> Wire {
-        let wire_id = self.wire_count;
+    fn new_wire(&mut self, node_idx: NodeIndex, output_id: u32) -> Wire {
+        let id = self.wire_count;
         self.wire_count += 1;
         Wire {
-            id: wire_id,
+            id,
             node_idx,
-            output_slot_id,
+            output_id,
         }
     }
 
     pub fn constant_gate(&mut self, c: P::ScalarField) -> Wire {
-        let slot_ids = self.get_slot_ids();
-        let constant_node = self.graph.add_node(GateType::Constant(slot_ids[0], c));
-        self.new_wire(constant_node, Some(slot_ids[0]))
+        let constant_node = self.graph.add_node(GateType::Constant(c));
+        self.row_count += 1;
+        self.new_wire(constant_node, 0)
     }
 
     pub fn witness_gate(&mut self) -> Wire {
         self.witness_wire_count += 1;
         let node = self.graph.add_node(GateType::Witness);
-        self.new_wire(node, None)
+        self.new_wire(node, 0)
     }
 
     pub fn public_input_gate(&mut self) -> Wire {
-        assert!(
-            self.witness_wire_count == 0,
-            "Public input gates must be added before witness gates!"
-        );
         self.public_input_wire_count += 1;
-        let slot_ids = self.get_slot_ids();
+        self.row_count += 1;
         let node = self.graph.add_node(GateType::PublicInput);
-        self.new_wire(node, Some(slot_ids[0]))
+        self.new_wire(node, 0)
     }
 
     pub fn add_gate(&mut self, left: Wire, right: Wire) -> Wire {
-        let slot_ids = self.get_slot_ids();
-        let node = self.graph.add_node(GateType::Add(slot_ids));
+        let node = self.graph.add_node(GateType::Add);
         self.graph.add_edge(left.node_idx, node, left);
         self.graph.add_edge(right.node_idx, node, right);
-        self.new_wire(node, slot_ids.last().copied())
+        self.row_count += 1;
+        self.new_wire(node, 0)
     }
 
     pub fn mul_gate(&mut self, left: Wire, right: Wire) -> Wire {
-        let slot_ids = self.get_slot_ids();
-        let node = self.graph.add_node(GateType::Multiply(slot_ids));
+        let node = self.graph.add_node(GateType::Multiply);
         self.graph.add_edge(left.node_idx, node, left);
         self.graph.add_edge(right.node_idx, node, right);
-        self.new_wire(node, slot_ids.last().copied())
+        self.row_count += 1;
+        self.new_wire(node, 0)
+    }
+
+    pub fn poseidon_gate(&mut self, round: usize, input_wires: [Wire; 3]) -> [Wire; 3] {
+        self.row_count += 1;
+
+        let round_constants: [Scalar<P>; NEW_WTINESS_POLYS] =
+            array::from_fn(|i| P::SCALAR_POSEIDON_ROUND_CONSTANTS[i / 3][i % 3]);
+        let node = self.graph.add_node(GateType::Poseidon(round_constants));
+
+        for wire in input_wires {
+            self.graph.add_edge(wire.node_idx, node, wire);
+        }
+        array::from_fn(|i| self.new_wire(node, i as u32))
     }
 
     pub fn assert_eq_gate(&mut self, left: Wire, right: Wire) {
@@ -178,5 +217,12 @@ impl<P: PastaConfig> CircuitSpec<P> {
     pub fn output_gate(&mut self, input: Wire) {
         let node = self.graph.add_node(GateType::Output);
         self.graph.add_edge(input.node_idx, node, input);
+    }
+}
+
+impl<P: PastaConfig> std::fmt::Debug for CircuitSpec<P> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let dot = Dot::with_config(&self.graph, &[Config::EdgeNoLabel]);
+        write!(f, "{dot:?}")
     }
 }

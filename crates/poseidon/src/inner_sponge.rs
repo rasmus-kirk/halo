@@ -1,6 +1,4 @@
-use ark_ff::Field;
-use ark_ff::Zero;
-use halo_group::PastaConfig;
+use halo_group::{ark_ff::Field, ark_ff::Zero, PastaConfig, Scalar};
 
 const SPONGE_CAPACITY: usize = 1;
 const SPONGE_RATE: usize = 2;
@@ -24,10 +22,10 @@ fn apply_mds_matrix<P: PastaConfig>(
     state: &[P::BaseField; STATE_SIZE],
 ) -> [P::BaseField; STATE_SIZE] {
     let mut ret = [P::BaseField::zero(); 3];
-    for i in 0..P::POSEIDON_MDS.len() {
+    for i in 0..P::BASE_POSEIDON_MDS.len() {
         ret[i] = state
             .iter()
-            .zip(P::POSEIDON_MDS[i])
+            .zip(P::BASE_POSEIDON_MDS[i])
             .map(|(s, m)| *s * m)
             .sum::<P::BaseField>();
     }
@@ -39,7 +37,7 @@ fn full_round<P: PastaConfig>(state: &mut [P::BaseField; STATE_SIZE], r: usize) 
         *state_i = sbox(*state_i);
     }
     *state = apply_mds_matrix::<P>(state);
-    for (i, x) in P::POSEIDON_ROUND_CONSTANTS[r].iter().enumerate() {
+    for (i, x) in P::BASE_POSEIDON_ROUND_CONSTANTS[r].iter().enumerate() {
         state[i] += x;
     }
 }
@@ -65,7 +63,7 @@ impl<P: PastaConfig> PoseidonSponge<P> {
 
     pub(crate) fn new() -> Self {
         Self {
-            state: [<P::BaseField as Zero>::zero(); STATE_SIZE],
+            state: [P::BaseField::zero(); STATE_SIZE],
             sponge_state: SpongeState::Absorbed(0),
         }
     }
@@ -115,9 +113,10 @@ impl<P: PastaConfig> PoseidonSponge<P> {
 #[cfg(test)]
 mod self_tests {
     use super::*;
-    use ark_ff::{AdditiveGroup, BigInt, BigInteger, Field, UniformRand};
-    use ark_pallas::PallasConfig;
-    use ark_vesta::{Fr as Fp, VestaConfig};
+    use halo_group::{
+        ark_ff::{AdditiveGroup, BigInt, BigInteger, Field, UniformRand},
+        Fp, Fq, PallasConfig, VestaConfig,
+    };
 
     fn gen_bigint_range<const N: usize>(
         min: &BigInt<N>,
@@ -137,40 +136,40 @@ mod self_tests {
         }
     }
 
-    fn minas_apply_mds_matrix(state: &[Fp]) -> Vec<Fp> {
-        PallasConfig::POSEIDON_MDS
+    fn minas_apply_mds_matrix(state: &[Fq]) -> Vec<Fq> {
+        PallasConfig::BASE_POSEIDON_MDS
             .iter()
             .map(|m| {
                 state
                     .iter()
                     .zip(m.iter())
-                    .fold(Fp::ZERO, |x, (s, &m)| m * s + x)
+                    .fold(Fq::ZERO, |x, (s, &m)| m * s + x)
             })
             .collect()
     }
 
     // Helper to create Fp elements from integers for testing
-    fn fp_from_u64(x: u64) -> Fp {
-        Fp::from(x)
+    fn fq_from_u64(x: u64) -> Fq {
+        Fq::from(x)
     }
 
     #[test]
     fn test_sbox() {
         // Test sbox(x) = x^7
-        let x = fp_from_u64(2);
+        let x = fq_from_u64(2);
         let expected = x.pow([7]);
         assert_eq!(sbox(x), expected, "sbox(2) should compute 2^7");
 
         // Test sbox(0) = 0
-        assert_eq!(sbox(Fp::ZERO), Fp::ZERO, "sbox(0) should be 0");
+        assert_eq!(sbox(Fq::ZERO), Fq::ZERO, "sbox(0) should be 0");
 
         // Test sbox(1) = 1
-        assert_eq!(sbox(Fp::ONE), Fp::ONE, "sbox(1) should be 1");
+        assert_eq!(sbox(Fq::ONE), Fq::ONE, "sbox(1) should be 1");
     }
 
     #[test]
     fn test_apply_mds_matrix() {
-        let state = [fp_from_u64(1), fp_from_u64(2), fp_from_u64(3)];
+        let state = [fq_from_u64(1), fq_from_u64(2), fq_from_u64(3)];
         let result = minas_apply_mds_matrix(&state);
         assert_eq!(
             result.len(),
@@ -192,7 +191,7 @@ mod self_tests {
         let sponge = PoseidonSponge::<PallasConfig>::new();
         assert_eq!(
             sponge.state,
-            [Fp::ZERO; 3],
+            [Fq::ZERO; 3],
             "New sponge state should be zero"
         );
         assert!(
@@ -204,14 +203,14 @@ mod self_tests {
     #[test]
     fn test_poseidon_sponge_absorb_single() {
         let mut sponge = PoseidonSponge::<PallasConfig>::new();
-        let input = fp_from_u64(42);
+        let input = fq_from_u64(42);
         sponge.absorb(&[input]);
         assert_eq!(
             sponge.state[0], input,
             "First absorb should add input to state[0]"
         );
-        assert_eq!(sponge.state[1], Fp::ZERO, "state[1] should remain zero");
-        assert_eq!(sponge.state[2], Fp::ZERO, "state[2] should remain zero");
+        assert_eq!(sponge.state[1], Fq::ZERO, "state[1] should remain zero");
+        assert_eq!(sponge.state[2], Fq::ZERO, "state[2] should remain zero");
         assert!(
             matches!(sponge.sponge_state, SpongeState::Absorbed(1)),
             "Sponge state should be Absorbed(1)"
@@ -221,10 +220,10 @@ mod self_tests {
     #[test]
     fn test_poseidon_sponge_reset() {
         let mut sponge = PoseidonSponge::<PallasConfig>::new();
-        sponge.absorb(&[fp_from_u64(42)]);
+        sponge.absorb(&[fq_from_u64(42)]);
         sponge.squeeze();
         sponge.reset();
-        assert_eq!(sponge.state, [Fp::ZERO; 3], "Reset should clear state");
+        assert_eq!(sponge.state, [Fq::ZERO; 3], "Reset should clear state");
         assert!(
             matches!(sponge.sponge_state, SpongeState::Absorbed(0)),
             "Reset should set state to Absorbed(0)"
@@ -236,14 +235,14 @@ mod self_tests {
     #[test]
     fn hamid_discussion() {
         let rng = &mut rand::thread_rng();
-        let bigint = gen_bigint_range(&BigInt::zero(), &PallasConfig::FQ_MODULUS, rng);
+        let bigint = gen_bigint_range(&BigInt::zero(), &PallasConfig::BASE_MODULUS, rng);
 
         let mut sponge = PoseidonSponge::<PallasConfig>::new();
         sponge.absorb(&[PallasConfig::basefield_from_bigint(bigint).unwrap()]);
         let fq = sponge.squeeze();
 
         let mut sponge = PoseidonSponge::<VestaConfig>::new();
-        sponge.absorb(&[PallasConfig::scalar_from_bigint(bigint).unwrap()]);
+        sponge.absorb(&[VestaConfig::basefield_from_bigint(bigint).unwrap()]);
         let fp = sponge.squeeze();
 
         assert!(fp.0 != fq.0)
@@ -253,9 +252,7 @@ mod self_tests {
 #[cfg(test)]
 mod mina_tests {
     use super::*;
-    use ark_ff::Field;
-    use ark_pallas::PallasConfig;
-    use ark_vesta::{Fq, Fr as Fp, VestaConfig};
+    use halo_group::{ark_ff::Field, Fp, Fq, PallasConfig, VestaConfig};
     use serde::Deserialize;
     use std::{fs::File, path::PathBuf}; // needed for ::new() sponge
 
@@ -281,7 +278,7 @@ mod mina_tests {
 
     fn test_vectors<F>(hash: F)
     where
-        F: Fn(&[Fp]) -> Fp,
+        F: Fn(&[Fq]) -> Fq,
     {
         // read test vectors from given file
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -294,7 +291,7 @@ mod mina_tests {
         // execute test vectors
         for test_vector in test_vectors.test_vectors {
             // deserialize input & ouptut
-            let input: Vec<Fp> = test_vector
+            let input: Vec<Fq> = test_vector
                 .input
                 .into_iter()
                 .map(|hexstring| from_hex(&hexstring))
@@ -312,7 +309,7 @@ mod mina_tests {
 
     #[test]
     fn poseidon_test_vectors_kimchi() {
-        fn hash(input: &[Fp]) -> Fp {
+        fn hash(input: &[Fq]) -> Fq {
             let mut hash = PoseidonSponge::<PallasConfig>::new();
             hash.absorb(input);
             hash.squeeze()
@@ -337,8 +334,8 @@ mod mina_tests {
         ];
 
         let mut sponge = PoseidonSponge::<VestaConfig>::new();
-        let inputs_fq: Vec<_> = inputs_hex.into_iter().map(from_hex::<Fq>).collect();
-        sponge.absorb(&inputs_fq);
+        let inputs_fp: Vec<Fp> = inputs_hex.into_iter().map(from_hex::<Fp>).collect();
+        sponge.absorb(&inputs_fp);
 
         assert_eq!(sponge.squeeze(), from_hex(expected_out_hex))
     }
@@ -360,8 +357,8 @@ mod mina_tests {
         ];
 
         let mut sponge = PoseidonSponge::<PallasConfig>::new();
-        let inputs_fp: Vec<_> = inputs_hex.into_iter().map(from_hex::<Fp>).collect();
-        sponge.absorb(&inputs_fp);
+        let inputs_fq: Vec<_> = inputs_hex.into_iter().map(from_hex::<Fq>).collect();
+        sponge.absorb(&inputs_fq);
 
         assert_eq!(sponge.squeeze(), from_hex(expected_out_hex))
     }

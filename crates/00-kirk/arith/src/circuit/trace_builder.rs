@@ -1,11 +1,13 @@
-use std::{array, collections::HashMap};
+use std::{array, collections::HashMap, time::Instant};
 
 use anyhow::{Context, Result, anyhow, bail, ensure};
 use halo_group::{
-    Evals, PastaConfig, Scalar,
+    Domain, Evals, PastaConfig, Scalar,
+    ark_ff::Field,
     ark_poly::{EvaluationDomain, Evaluations, Radix2EvaluationDomain},
     ark_std::{One, Zero},
 };
+use log::debug;
 use petgraph::algo::toposort;
 
 use crate::{
@@ -13,17 +15,39 @@ use crate::{
     utils::{MultiAssign, SELECTOR_POLYS, WITNESS_POLYS},
 };
 
+use super::SlotId;
+
 pub struct TraceBuilder<P: PastaConfig> {
     spec: CircuitSpec<P>,
     witnesses: HashMap<Wire, P::ScalarField>,
     public_inputs: HashMap<Wire, P::ScalarField>,
+    public_row_count: usize,
+    row_count: usize,
 }
 
 impl<P: PastaConfig> TraceBuilder<P> {
+    fn get_slot_ids(&mut self) -> [SlotId; WITNESS_POLYS] {
+        let row = self.row_count + self.spec.public_input_wire_count;
+        self.row_count += 1;
+        let f = |column| SlotId::new(row + 1, column + 1);
+        let slot_ids = array::from_fn(f);
+        slot_ids
+    }
+
+    fn get_witness_slot_ids(&mut self) -> [SlotId; WITNESS_POLYS] {
+        let row = self.public_row_count;
+        self.public_row_count += 1;
+        let f = |column| SlotId::new(row + 1, column + 1);
+        let slot_ids = array::from_fn(f);
+        slot_ids
+    }
+
     pub fn new(spec: CircuitSpec<P>) -> Self {
         let witnesses = HashMap::with_capacity(spec.witness_wire_count);
         let public_inputs = HashMap::with_capacity(spec.public_input_wire_count);
         Self {
+            row_count: 0,
+            public_row_count: 0,
             spec,
             witnesses,
             public_inputs,
@@ -56,8 +80,10 @@ impl<P: PastaConfig> TraceBuilder<P> {
         Ok(())
     }
 
-    pub fn trace(self) -> Result<Trace<P>> {
-        let spec = self.spec;
+    pub fn trace(mut self) -> Result<Trace<P>> {
+        let now = Instant::now();
+
+        let spec = self.spec.clone();
         let n = spec.row_count.next_power_of_two();
 
         ensure!(
@@ -73,131 +99,185 @@ impl<P: PastaConfig> TraceBuilder<P> {
             self.public_inputs.len()
         );
 
-        let zero = P::ScalarField::zero();
-        let one = P::ScalarField::one();
+        let O = P::ScalarField::zero();
+        let I = P::ScalarField::one();
         let mut output = None;
-        let mut ws: [_; WITNESS_POLYS] = array::from_fn(|_| vec![zero; n]);
-        let mut qs: [_; SELECTOR_POLYS] = array::from_fn(|_| vec![zero; n]);
+        let mut ws: [_; WITNESS_POLYS] = array::from_fn(|_| vec![O; n]);
+        let mut rs: [_; WITNESS_POLYS] = array::from_fn(|_| vec![O; n]);
+        let mut qs: [_; SELECTOR_POLYS] = array::from_fn(|_| vec![O; n]);
 
         let topo_order = toposort(&spec.graph, None).map_err(|_| anyhow!("Cycle detected"))?;
-        let mut wire_values = vec![P::ScalarField::zero(); spec.wire_count];
-        let mut copy_constraints = Vec::with_capacity(2 * spec.graph.node_count());
+        let mut wire_value_map = vec![Scalar::<P>::zero(); spec.wire_count];
+        let mut wire_slot_map = vec![Vec::new(); spec.wire_count];
+        let mut node_map = HashMap::new();
         let mut public_inputs = Vec::new();
 
         // Evaluate and collect inputs/outputs for gates
         for node_idx in topo_order {
             match spec.graph[node_idx] {
                 GateType::Witness => {
-                    let output_wire = spec.get_gate_outputs(node_idx)[0];
-                    let v = self
-                        .witnesses
-                        .get(&output_wire)
-                        .context("Wire unassigned!")?;
+                    let (out_wire, _) = spec.get_gate_outputs(node_idx)[0];
+                    let v = self.witnesses.get(&out_wire).context("Wire unassigned!")?;
 
-                    wire_values[output_wire.id] = *v;
+                    wire_value_map[out_wire.id] = *v;
                 }
                 GateType::PublicInput => {
-                    let output_wire = spec.get_gate_outputs(node_idx)[0];
-                    let row = output_wire.output_slot_id.unwrap().row_0_indexed();
+                    let slots = self.get_witness_slot_ids();
+                    let (out_wire, _) = spec.get_gate_outputs(node_idx)[0];
                     let v = self
                         .public_inputs
-                        .get(&output_wire)
+                        .get(&out_wire)
                         .context("Wire unassigned!")?;
 
-                    wire_values[output_wire.id] = *v;
-                    public_inputs.push(-(*v));
-                    //                   [a,  b,    c  ]
-                    ws.multi_assign(row, [*v, zero, zero]);
-                    //            [q_l, q_r,  q_o, q_m,  q_c]
-                    qs.multi_assign(row, [one, zero, zero, zero, zero]);
-                }
-                GateType::Constant(slot_id, v) => {
-                    let row = slot_id.row_0_indexed();
-                    let output_wire = spec.get_gate_outputs(node_idx)[0];
+                    let row = slots[0].row_0_indexed();
+                    node_map.insert(node_idx, slots);
 
-                    wire_values[output_wire.node_idx.index()] = v;
-                    //                   [a,  b,    c  ]
-                    ws.multi_assign(row, [v, zero, zero]);
-                    //            [q_l, q_r,  q_o, q_m,  q_c]
-                    qs.multi_assign(row, [one, zero, zero, zero, -v]);
+                    public_inputs.push(-(*v));
+                    wire_value_map[out_wire.id] = *v;
+                    wire_slot_map[out_wire.id].push(slots[0]);
+                    ws.multi_assign(row, [*v, O, O, O, O, O, O, O, O, O, O, O, O, O, O]);
+                    //                   [l, r, o, m, c, p]
+                    qs.multi_assign(row, [I, O, O, O, O, O]);
+                }
+                GateType::Constant(v) => {
+                    let (out_wire, _) = spec.get_gate_outputs(node_idx)[0];
+
+                    let slots = self.get_slot_ids();
+                    let row = slots[0].row_0_indexed();
+                    node_map.insert(node_idx, slots);
+
+                    wire_value_map[out_wire.id] = v;
+                    wire_slot_map[out_wire.id].push(slots[0]);
+                    ws.multi_assign(row, [v, O, O, O, O, O, O, O, O, O, O, O, O, O, O]);
+                    //                   [l, r, o, m,  c, p]
+                    qs.multi_assign(row, [I, O, O, O, -v, O]);
                 }
                 GateType::Output => {
-                    let input_wire = spec.get_gate_inputs(node_idx)[0];
+                    let [(in_wire, _)] = spec.get_gate_inputs(node_idx);
                     match output {
-                        None => output = Some(wire_values[input_wire.id]),
+                        None => output = Some(wire_value_map[in_wire.id]),
                         Some(_) => bail!("Multiple output gates found in circuit!"),
                     }
                 }
                 GateType::AssertEq => {
-                    let input_wires = spec.get_gate_inputs(node_idx);
-                    copy_constraints.push((
-                        input_wires[0].output_slot_id.unwrap(),
-                        input_wires[1].output_slot_id.unwrap(),
-                    ));
+                    let [(l_wire, l_edge_idx), (r_wire, r_edge_idx)] =
+                        spec.get_gate_inputs(node_idx);
+                    let l_slots = node_map[&spec.get_parent_node(l_edge_idx)];
+                    let r_slots = node_map[&spec.get_parent_node(r_edge_idx)];
+
+                    wire_slot_map[l_wire.id].push(r_slots[r_wire.output_id as usize]);
+                    wire_slot_map[r_wire.id].push(l_slots[l_wire.output_id as usize]);
                 }
-                GateType::Add(slot_ids) => {
-                    let input_wires = spec.get_gate_inputs(node_idx);
-                    let output_wire = spec.get_gate_outputs(node_idx)[0];
-                    let row = slot_ids[0].row_0_indexed();
+                GateType::Add => {
+                    let [(l_wire, _), (r_wire, _)] = spec.get_gate_inputs(node_idx);
+                    let (out_wire, _) = spec.get_gate_outputs(node_idx)[0];
+
+                    let slots = self.get_slot_ids();
+                    let row = slots[0].row_0_indexed();
+                    node_map.insert(node_idx, slots);
 
                     // ----- Values ----- //
-                    let a = wire_values[input_wires[0].id];
-                    let b = wire_values[input_wires[1].id];
+                    let a = wire_value_map[l_wire.id];
+                    let b = wire_value_map[r_wire.id];
                     let c = a + b;
-                    wire_values[output_wire.id] = c;
+                    wire_value_map[out_wire.id] = c;
 
                     // ----- Gate Constraints ----- //
-                    ws.multi_assign(row, [a, b, c]);
-                    //            [q_l, q_r, q_o,  q_m,  q_c ]
-                    qs.multi_assign(row, [one, one, -one, zero, zero]);
+                    ws.multi_assign(row, [a, b, c, O, O, O, O, O, O, O, O, O, O, O, O]);
+                    //                   [l, r,  o, m, c, p ]
+                    qs.multi_assign(row, [I, I, -I, O, O, O]);
+                    rs.multi_assign(row, [O; WITNESS_POLYS]);
 
                     // ----- Copy Constraints ----- //
-                    match (input_wires[0].output_slot_id, input_wires[1].output_slot_id) {
-                        (None, None) if input_wires[0].node_idx == input_wires[1].node_idx => {
-                            copy_constraints.push((slot_ids[0], slot_ids[1]));
-                        }
-                        (None, None) => (),
-                        (Some(l_slot_id), None) => copy_constraints.push((l_slot_id, slot_ids[0])),
-                        (None, Some(r_slot_id)) => copy_constraints.push((r_slot_id, slot_ids[1])),
-                        (Some(l_slot_id), Some(r_slot_id)) => {
-                            copy_constraints.push((l_slot_id, slot_ids[0]));
-                            copy_constraints.push((r_slot_id, slot_ids[1]));
-                        }
-                    };
+                    wire_slot_map[l_wire.id].push(slots[0]);
+                    wire_slot_map[r_wire.id].push(slots[1]);
+                    wire_slot_map[out_wire.id].push(slots[2]);
                 }
-                GateType::Multiply(slot_ids) => {
-                    let input_wires = spec.get_gate_inputs(node_idx);
-                    let output_wire = spec.get_gate_outputs(node_idx)[0];
-                    let row = slot_ids[0].row_0_indexed();
+                GateType::Multiply => {
+                    let [(l_wire, _), (r_wire, _)] = spec.get_gate_inputs(node_idx);
+                    let (out_wire, _) = spec.get_gate_outputs(node_idx)[0];
 
-                    let a = wire_values[input_wires[0].id];
-                    let b = wire_values[input_wires[1].id];
+                    let slots = self.get_slot_ids();
+                    let row = slots[0].row_0_indexed();
+                    node_map.insert(node_idx, slots);
+
+                    let a = wire_value_map[l_wire.id];
+                    let b = wire_value_map[r_wire.id];
                     let c = a * b;
-                    wire_values[output_wire.id] = c;
+                    wire_value_map[out_wire.id] = c;
 
                     // ----- Gate Constraints ----- //
-                    ws.multi_assign(row, [a, b, c]);
-                    //                   [q_l,  q_r,  q_o,  q_m, q_c ]
-                    qs.multi_assign(row, [zero, zero, -one, one, zero]);
+                    ws.multi_assign(row, [a, b, c, O, O, O, O, O, O, O, O, O, O, O, O]);
+                    //                   [l, r,  o, m, c, p]
+                    qs.multi_assign(row, [O, O, -I, I, O, O]);
+                    rs.multi_assign(row, [O; WITNESS_POLYS]);
 
                     // ----- Copy Constraints ----- //
-                    match (input_wires[0].output_slot_id, input_wires[1].output_slot_id) {
-                        (None, None) if input_wires[0].node_idx == input_wires[1].node_idx => {
-                            copy_constraints.push((slot_ids[0], slot_ids[1]));
-                        }
-                        (None, None) => (),
-                        (Some(l_slot_id), None) => copy_constraints.push((l_slot_id, slot_ids[0])),
-                        (None, Some(r_slot_id)) => copy_constraints.push((r_slot_id, slot_ids[0])),
-                        (Some(l_slot_id), Some(r_slot_id)) => {
-                            copy_constraints.push((l_slot_id, slot_ids[0]));
-                            copy_constraints.push((r_slot_id, slot_ids[1]));
-                        }
-                    };
+                    wire_slot_map[l_wire.id].push(slots[0]);
+                    wire_slot_map[r_wire.id].push(slots[1]);
+                    wire_slot_map[out_wire.id].push(slots[2]);
+                }
+                GateType::Poseidon(r) => {
+                    let [(wire_s0, _), (wire_s1, _), (wire_s2, _)] = spec.get_gate_inputs(node_idx);
+
+                    let slots = self.get_slot_ids();
+                    let row = slots[0].row_0_indexed();
+                    node_map.insert(node_idx, slots);
+
+                    let m = P::SCALAR_POSEIDON_MDS;
+                    let w00 = wire_value_map[wire_s0.id];
+                    let w01 = wire_value_map[wire_s1.id];
+                    let w02 = wire_value_map[wire_s2.id];
+
+                    let (w03, w04, w05) = poseidon_round::<P>(m, r[0], r[1], r[2], w00, w01, w02);
+                    let (w06, w07, w08) = poseidon_round::<P>(m, r[3], r[4], r[5], w03, w04, w05);
+                    let (w09, w10, w11) = poseidon_round::<P>(m, r[6], r[7], r[8], w06, w07, w08);
+                    let (w12, w13, w14) = poseidon_round::<P>(m, r[9], r[10], r[11], w09, w10, w11);
+
+                    // ----- Gate Constraints ----- //
+                    ws.multi_assign(row, [
+                        w00, w01, w02, w03, w04, w05, w06, w07, w08, w09, w10, w11, w12, w13, w14,
+                    ]);
+                    //                   [l, r, o, m, c, p]
+                    qs.multi_assign(row, [O, O, O, O, O, I]);
+                    rs.multi_assign(row, r);
+
+                    // ----- Copy Constraints ----- //
+                    wire_slot_map[wire_s0.id].push(slots[0]);
+                    wire_slot_map[wire_s1.id].push(slots[1]);
+                    wire_slot_map[wire_s2.id].push(slots[2]);
                 }
             }
         }
 
+        debug!("trace_builder_time: {:?}", now.elapsed().as_secs_f32());
+
         let out = output.context("No output gate found in circuit!")?;
-        Ok(Trace::new(copy_constraints, public_inputs, ws, qs, out, n))
+        Ok(Trace::new(wire_slot_map, public_inputs, ws, qs, out, n))
     }
+}
+
+fn sbox<F: Field>(mut x: F) -> F {
+    let mut square = x;
+    square.square_in_place();
+    x *= square;
+    square.square_in_place();
+    x *= square;
+    x
+}
+
+fn poseidon_round<P: PastaConfig>(
+    M: [[Scalar<P>; 3]; 3],
+    r0: Scalar<P>,
+    r1: Scalar<P>,
+    r2: Scalar<P>,
+    w0: Scalar<P>,
+    w1: Scalar<P>,
+    w2: Scalar<P>,
+) -> (Scalar<P>, Scalar<P>, Scalar<P>) {
+    (
+        r0 + (M[0][0] * sbox(w0) + M[0][1] * sbox(w1) + M[0][2] * sbox(w2)),
+        r1 + (M[1][0] * sbox(w0) + M[1][1] * sbox(w1) + M[1][2] * sbox(w2)),
+        r2 + (M[2][0] * sbox(w0) + M[2][1] * sbox(w1) + M[2][2] * sbox(w2)),
+    )
 }

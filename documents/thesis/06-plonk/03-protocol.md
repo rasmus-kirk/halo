@@ -240,24 +240,6 @@ $$
 
 The $\beta$ and $\gamma$ terms are necessary for soundness.
 
-**Correctness:**
-
-Since $f(\o^i) = g(\o^{\s(i)})$: 
-
-$$
-\begin{aligned}
-  \prod_{i \in [n]} g'(\o^i) &= \prod_{i \in [n]} f'(\o^i) \\
-                             &= \prod_{i \in [n]} f(\o^i) + \id(\o^i) \\
-                             &= \prod_{i \in [n]} f(\o^{\s(i)}) + \s(\o^i) \\
-                             &= \prod_{i \in [n]} g(\o^i) + \s(\o^i) \\
-                             &= \prod_{i \in [n]} g'(\o^i)
-\end{aligned}
-$$
-
-**Soundness:**
-
-TODO
-
 \begin{quote}
 \color{GbGrey}
 
@@ -281,6 +263,24 @@ $$
 \end{aligned}
 $$
 \end{quote}
+
+**Correctness:**
+
+Since $f(\o^i) = g(\o^{\s(i)})$: 
+
+$$
+\begin{aligned}
+  \prod_{i \in [n]} g'(\o^i) &= \prod_{i \in [n]} f'(\o^i) \\
+                             &= \prod_{i \in [n]} f(\o^i) + \id(\o^i) \\
+                             &= \prod_{i \in [n]} f(\o^{\s(i)}) + \s(\o^i) \\
+                             &= \prod_{i \in [n]} g(\o^i) + \s(\o^i) \\
+                             &= \prod_{i \in [n]} g'(\o^i)
+\end{aligned}
+$$
+
+**Soundness:**
+
+TODO
 
 #### Permutation Argument Over Multiple Polynomials
 
