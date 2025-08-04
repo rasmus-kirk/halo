@@ -244,7 +244,7 @@ pub fn prover_verifier(c: &mut Criterion) {
         let prover_time = start_time.elapsed().as_secs_f32();
 
         let start_time = Instant::now();
-        // pi.verify(trace.clone()).unwrap();
+        pi.verify(trace.clone()).unwrap();
         let verifier_time = start_time.elapsed().as_secs_f32();
 
         println!(

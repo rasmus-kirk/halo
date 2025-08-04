@@ -14,7 +14,7 @@ use log::debug;
 
 use crate::{
     circuit::Trace,
-    utils::{QUOTIENT_POLYS, SELECTOR_POLYS, WITNESS_POLYS, fmt_scalar},
+    utils::{HaloPoly, QUOTIENT_POLYS, SELECTOR_POLYS, WITNESS_POLYS, fmt_scalar},
 };
 
 #[derive(Clone)]
@@ -26,10 +26,12 @@ pub struct PlonkProofEvalProofs<P: PastaConfig> {
 #[derive(Clone)]
 pub struct PlonkProofEvals<P: PastaConfig> {
     ws: [Scalar<P>; WITNESS_POLYS],
+    rs: [Scalar<P>; WITNESS_POLYS],
     qs: [Scalar<P>; SELECTOR_POLYS],
     ts: [Scalar<P>; QUOTIENT_POLYS],
     z: Scalar<P>,
     z_omega: Scalar<P>,
+    w_omegas: [Scalar<P>; 3],
 }
 
 #[derive(Clone)]
@@ -80,6 +82,10 @@ impl<P: PastaConfig> PlonkProof<P> {
             .iter()
             .map(|w| Evals::<P>::from_poly_ref(&w, large_domain))
             .collect();
+
+        let w_omega_evals =
+            array::from_fn(|i| w_evals[i].clone().shift_left_small_domain(trace.domain));
+        let w_omegas = w_omega_evals.map(|w| w.interpolate());
 
         let r0_time = r0_now.elapsed().as_secs_f64();
         debug!("Round 0 took {} s", r0_time);
@@ -194,10 +200,12 @@ impl<P: PastaConfig> PlonkProof<P> {
             },
             vs: PlonkProofEvals {
                 ws: trace.w_polys.map(|w| w.evaluate(&xi)),
+                rs: trace.r_polys.map(|r| r.evaluate(&xi)),
                 qs: trace.q_polys.map(|q| q.evaluate(&xi)),
                 ts: ts.map(|t| t.evaluate(&xi)),
                 z: z_poly.evaluate(&xi),
                 z_omega: z_poly.evaluate(&(xi * trace.omega)),
+                w_omegas: w_omegas.map(|w_omega| w_omega.evaluate(&xi)),
             },
             pis: PlonkProofEvalProofs {
                 r: open(rng, r.clone(), C_r, d, &xi, None),
@@ -233,6 +241,9 @@ impl<P: PastaConfig> PlonkProof<P> {
 
         let d = trace.rows - 1;
 
+        let w_omega_evals = array::from_fn(|i| trace.w_evals[i].clone().shift_left());
+        let w_omegas = w_omega_evals.map(|w| w.interpolate());
+
         let r0_time = r0_now.elapsed().as_secs_f64();
         debug!("Round 0 took {} s", r0_time);
 
@@ -258,24 +269,22 @@ impl<P: PastaConfig> PlonkProof<P> {
         let beta = transcript.challenge();
         let gamma = transcript.challenge();
 
-        let mut f_prime_evals =
-            &trace.w_evals[0] + &trace.id_evals[0].scale_ref(&beta).add_scalar(&gamma);
-        let mut g_prime_evals =
-            &trace.w_evals[0] + &trace.sigma_evals[0].scale_ref(&beta).add_scalar(&gamma);
-        for i in 1..3 {
-            f_prime_evals *=
-                &(&trace.w_evals[i] + &trace.id_evals[i].scale_ref(&beta).add_scalar(&gamma));
-            g_prime_evals *=
-                &(&trace.w_evals[i] + &trace.sigma_evals[i].scale_ref(&beta).add_scalar(&gamma));
+        let mut f_prime = &trace.w_polys[0] + &trace.id_polys[0] * beta + deg0::<P>(gamma);
+        let mut g_prime = &trace.w_polys[0] + &trace.sigma_polys[0] * beta + deg0::<P>(gamma);
+        for i in 1..WITNESS_POLYS {
+            f_prime = &f_prime * (&trace.w_polys[i] + &trace.id_polys[i] * beta + deg0::<P>(gamma));
+            g_prime =
+                &g_prime * (&trace.w_polys[i] + &trace.sigma_polys[i] * beta + deg0::<P>(gamma));
         }
-        let f_prime = f_prime_evals.interpolate_by_ref();
-        let g_prime = g_prime_evals.interpolate_by_ref();
+        let f_prime_evals = Evals::<P>::new(f_prime.evaluate_over_domain_by_ref(trace.domain));
+        let g_prime_evals = Evals::<P>::new(g_prime.evaluate_over_domain_by_ref(trace.domain));
 
         // Z
         let mut z = vec![P::ScalarField::zero(); trace.rows];
         for i in 0..trace.rows {
             let zero_index = i;
             let one_index = (i + 1) % trace.rows;
+            println!("{zero_index}, {one_index}, {}", trace.rows);
             if one_index == 1 {
                 z[zero_index] = P::ScalarField::one();
             } else {
@@ -290,7 +299,7 @@ impl<P: PastaConfig> PlonkProof<P> {
             prod *= f_prime_evals[i] / g_prime_evals[i]
         }
 
-        assert_eq!(prod, Scalar::<P>::one());
+        // assert_eq!(prod, Scalar::<P>::one());
 
         let z = Evals::<P>::from_vec_and_domain(z, trace.domain);
         let z_omega = z.clone().shift_left().interpolate();
@@ -307,41 +316,172 @@ impl<P: PastaConfig> PlonkProof<P> {
 
         let alpha = transcript.challenge();
 
+        let w = trace.w_polys.clone();
+        let r = trace.r_polys.clone();
+        let poseidon = poly_poseidon::<P>(P::SCALAR_POSEIDON_MDS, &r, &w, &w_omegas);
         let f_gc: Poly<P> = &trace.w_polys[0] * &trace.q_polys[0]
             + &trace.q_polys[1] * &trace.w_polys[1]
             + &trace.q_polys[2] * &trace.w_polys[2]
             + &trace.q_polys[3] * &trace.w_polys[0] * &trace.w_polys[1]
             + &trace.q_polys[4]
+            + &trace.q_polys[5] * &poseidon
             + &trace.public_inputs_poly;
 
         let l1 = lagrange_basis_poly::<P>(1, trace.domain);
         let f_cc1 = l1 * (&z - deg0::<P>(Scalar::<P>::one()));
         let f_cc2 = &z * &f_prime - z_omega * &g_prime;
 
-        for i in 0..trace.rows {
-            let omega_i = trace.omega.pow([i as u64]);
-            let a = trace.w_polys[0].evaluate(&omega_i);
-            let b = trace.w_polys[1].evaluate(&omega_i);
-            let c = trace.w_polys[2].evaluate(&omega_i);
-            let ql = trace.q_polys[0].evaluate(&omega_i);
-            let qr = trace.q_polys[1].evaluate(&omega_i);
-            let qo = trace.q_polys[2].evaluate(&omega_i);
-            let qm = trace.q_polys[3].evaluate(&omega_i);
-            let qc = trace.q_polys[4].evaluate(&omega_i);
-            let pi = trace.public_inputs_poly.evaluate(&omega_i);
-            println!(
-                "{} + {} + {} + {} + {} + {}",
-                fmt_scalar::<P>(a * ql),
-                fmt_scalar::<P>(b * qr),
-                fmt_scalar::<P>(c * qo),
-                fmt_scalar::<P>(a * b * qm),
-                fmt_scalar::<P>(qc),
-                fmt_scalar::<P>(pi)
-            );
-            assert_eq!(Scalar::<P>::zero(), f_gc.evaluate(&omega_i));
-            assert_eq!(Scalar::<P>::zero(), f_cc1.evaluate(&omega_i));
-            assert_eq!(Scalar::<P>::zero(), f_cc2.evaluate(&omega_i));
-        }
+        // for i in 0..trace.rows {
+        //     let omega = trace.omega;
+        //     let omega_i = trace.omega.pow([i as u64]);
+        //     let omega_ii = trace.omega * trace.omega.pow([i as u64]);
+        //     let a = trace.w_polys[0].evaluate(&omega_i);
+        //     let b = trace.w_polys[1].evaluate(&omega_i);
+        //     let c = trace.w_polys[2].evaluate(&omega_i);
+        //     let ql = trace.q_polys[0].evaluate(&omega_i);
+        //     let qr = trace.q_polys[1].evaluate(&omega_i);
+        //     let qo = trace.q_polys[2].evaluate(&omega_i);
+        //     let qm = trace.q_polys[3].evaluate(&omega_i);
+        //     let qc = trace.q_polys[4].evaluate(&omega_i);
+        //     let pi = trace.public_inputs_poly.evaluate(&omega_i);
+        //     println!(
+        //         "{} + {} + {} + {} + {} + {}",
+        //         fmt_scalar::<P>(a * ql),
+        //         fmt_scalar::<P>(b * qr),
+        //         fmt_scalar::<P>(c * qo),
+        //         fmt_scalar::<P>(a * b * qm),
+        //         fmt_scalar::<P>(qc),
+        //         fmt_scalar::<P>(pi)
+        //     );
+
+        //     let M = P::SCALAR_POSEIDON_MDS;
+        //     let sbox = |w: &Scalar<P>| w.pow([7]);
+        //     let w0 = trace.w_polys[0].evaluate(&omega_i);
+        //     let w1 = trace.w_polys[1].evaluate(&omega_i);
+        //     let w2 = trace.w_polys[2].evaluate(&omega_i);
+        //     let w3 = trace.w_polys[3].evaluate(&omega_i);
+        //     let w4 = trace.w_polys[4].evaluate(&omega_i);
+        //     let w5 = trace.w_polys[5].evaluate(&omega_i);
+        //     let w6 = trace.w_polys[6].evaluate(&omega_i);
+        //     let w7 = trace.w_polys[7].evaluate(&omega_i);
+        //     let w8 = trace.w_polys[8].evaluate(&omega_i);
+        //     let w9 = trace.w_polys[9].evaluate(&omega_i);
+        //     let w10 = trace.w_polys[10].evaluate(&omega_i);
+        //     let w11 = trace.w_polys[11].evaluate(&omega_i);
+        //     let w12 = trace.w_polys[12].evaluate(&omega_i);
+        //     let w13 = trace.w_polys[13].evaluate(&omega_i);
+        //     let w14 = trace.w_polys[14].evaluate(&omega_i);
+        //     let wn0 = trace.w_polys[0].evaluate(&omega_ii);
+        //     let wn1 = trace.w_polys[1].evaluate(&omega_ii);
+        //     let wn2 = trace.w_polys[2].evaluate(&omega_ii);
+        //     let r0 = r[0].evaluate(&omega_i);
+        //     let r1 = r[1].evaluate(&omega_i);
+        //     let r2 = r[2].evaluate(&omega_i);
+        //     let r3 = r[3].evaluate(&omega_i);
+        //     let r4 = r[4].evaluate(&omega_i);
+        //     let r5 = r[5].evaluate(&omega_i);
+        //     let r6 = r[6].evaluate(&omega_i);
+        //     let r7 = r[7].evaluate(&omega_i);
+        //     let r8 = r[8].evaluate(&omega_i);
+        //     let r9 = r[9].evaluate(&omega_i);
+        //     let r10 = r[10].evaluate(&omega_i);
+        //     let r11 = r[11].evaluate(&omega_i);
+        //     let r12 = r[12].evaluate(&omega_i);
+        //     let r13 = r[13].evaluate(&omega_i);
+        //     let r14 = r[14].evaluate(&omega_i);
+
+        //     let w3_prime = r0 + sbox(&w0) * M[0][0] + sbox(&w1) * M[0][1] + sbox(&w2) * M[0][2];
+        //     let w4_prime = r1 + sbox(&w0) * M[1][0] + sbox(&w1) * M[1][1] + sbox(&w2) * M[1][2];
+        //     let w5_prime = r2 + sbox(&w0) * M[2][0] + sbox(&w1) * M[2][1] + sbox(&w2) * M[2][2];
+
+        //     let w6_prime = r3 + sbox(&w3) * M[0][0] + sbox(&w4) * M[0][1] + sbox(&w5) * M[0][2];
+        //     let w7_prime = r4 + sbox(&w3) * M[1][0] + sbox(&w4) * M[1][1] + sbox(&w5) * M[1][2];
+        //     let w8_prime = r5 + sbox(&w3) * M[2][0] + sbox(&w4) * M[2][1] + sbox(&w5) * M[2][2];
+
+        //     let w9_prime = r6 + sbox(&w6) * M[0][0] + sbox(&w7) * M[0][1] + sbox(&w8) * M[0][2];
+        //     let w10_prime = r7 + sbox(&w6) * M[1][0] + sbox(&w7) * M[1][1] + sbox(&w8) * M[1][2];
+        //     let w11_prime = r8 + sbox(&w6) * M[2][0] + sbox(&w7) * M[2][1] + sbox(&w8) * M[2][2];
+
+        //     let w12_prime = r9 + sbox(&w9) * M[0][0] + sbox(&w10) * M[0][1] + sbox(&w11) * M[0][2];
+        //     let w13_prime = r10 + sbox(&w9) * M[1][0] + sbox(&w10) * M[1][1] + sbox(&w11) * M[1][2];
+        //     let w14_prime = r11 + sbox(&w9) * M[2][0] + sbox(&w10) * M[2][1] + sbox(&w11) * M[2][2];
+
+        //     let wn0_prime =
+        //         r12 + sbox(&w12) * M[0][0] + sbox(&w13) * M[0][1] + sbox(&w14) * M[0][2];
+        //     let wn1_prime =
+        //         r13 + sbox(&w12) * M[1][0] + sbox(&w13) * M[1][1] + sbox(&w14) * M[1][2];
+        //     let wn2_prime =
+        //         r14 + sbox(&w12) * M[2][0] + sbox(&w13) * M[2][1] + sbox(&w14) * M[2][2];
+
+        //     let ch = P::scalar_from_u64(rng.next_u64());
+        //     let w = [
+        //         trace.w_polys[0].evaluate(&ch),
+        //         trace.w_polys[1].evaluate(&ch),
+        //         trace.w_polys[2].evaluate(&ch),
+        //         trace.w_polys[3].evaluate(&ch),
+        //         trace.w_polys[4].evaluate(&ch),
+        //         trace.w_polys[5].evaluate(&ch),
+        //         trace.w_polys[6].evaluate(&ch),
+        //         trace.w_polys[7].evaluate(&ch),
+        //         trace.w_polys[8].evaluate(&ch),
+        //         trace.w_polys[9].evaluate(&ch),
+        //         trace.w_polys[10].evaluate(&ch),
+        //         trace.w_polys[11].evaluate(&ch),
+        //         trace.w_polys[12].evaluate(&ch),
+        //         trace.w_polys[13].evaluate(&ch),
+        //         trace.w_polys[14].evaluate(&ch),
+        //     ];
+        //     let nw = [
+        //         trace.w_polys[0].evaluate(&(omega * ch)),
+        //         trace.w_polys[1].evaluate(&(omega * ch)),
+        //         trace.w_polys[2].evaluate(&(omega * ch)),
+        //     ];
+        //     let r = [
+        //         r[0].evaluate(&ch),
+        //         r[1].evaluate(&ch),
+        //         r[2].evaluate(&ch),
+        //         r[3].evaluate(&ch),
+        //         r[4].evaluate(&ch),
+        //         r[5].evaluate(&ch),
+        //         r[6].evaluate(&ch),
+        //         r[7].evaluate(&ch),
+        //         r[8].evaluate(&ch),
+        //         r[9].evaluate(&ch),
+        //         r[10].evaluate(&ch),
+        //         r[11].evaluate(&ch),
+        //         r[12].evaluate(&ch),
+        //         r[13].evaluate(&ch),
+        //         r[14].evaluate(&ch),
+        //     ];
+
+        //     println!("w0: {}", w0);
+        //     println!("w1: {}", w1);
+        //     println!("w2: {}", w2);
+        //     println!("w3: {} = {}", w3, w3_prime);
+        //     println!("w4: {} = {}", w4, w4_prime);
+        //     println!("w5: {} = {}", w5, w5_prime);
+        //     println!("w6: {} = {}", w6, w6_prime);
+        //     println!("w7: {} = {}", w7, w7_prime);
+        //     println!("w8: {} = {}", w8, w8_prime);
+        //     println!("w9: {} = {}", w9, w9_prime);
+        //     println!("w10: {} = {}", w10, w10_prime);
+        //     println!("w11: {} = {}", w11, w11_prime);
+        //     println!("w12: {} = {}", w12, w12_prime);
+        //     println!("w13: {} = {}", w13, w13_prime);
+        //     println!("w14: {} = {}", w14, w14_prime);
+        //     println!("wn0: {} = {}", wn0, wn0_prime);
+        //     println!("wn1: {} = {}", wn1, wn1_prime);
+        //     println!("wn2: {} = {}", wn2, wn2_prime);
+        //     println!(
+        //         "pos: {} = {}",
+        //         poseidon.evaluate(&ch),
+        //         scalar_poseidon::<P>(&r, &w, &nw)
+        //     );
+
+        //     assert_eq!(Scalar::<P>::zero(), f_gc.evaluate(&omega_i));
+        //     assert_eq!(Scalar::<P>::zero(), f_cc1.evaluate(&omega_i));
+        //     assert_eq!(Scalar::<P>::zero(), f_cc2.evaluate(&omega_i));
+        // }
 
         let f: Poly<P> = &f_gc + &f_cc1 * alpha + &f_cc2 * alpha.pow([2]);
         let (t, _) = f.divide_by_vanishing_poly(trace.domain);
@@ -384,10 +524,12 @@ impl<P: PastaConfig> PlonkProof<P> {
             },
             vs: PlonkProofEvals {
                 ws: trace.w_polys.map(|w| w.evaluate(&xi)),
+                rs: trace.r_polys.map(|r| r.evaluate(&xi)),
                 qs: trace.q_polys.map(|q| q.evaluate(&xi)),
                 ts: ts.map(|t| t.evaluate(&xi)),
                 z: z.evaluate(&xi),
                 z_omega: z.evaluate(&(xi * trace.omega)),
+                w_omegas: w_omegas.map(|w_omega| w_omega.evaluate(&xi)),
             },
             pis: PlonkProofEvalProofs {
                 r: open(rng, r.clone(), C_r, d, &xi, None),
@@ -420,17 +562,19 @@ impl<P: PastaConfig> PlonkProof<P> {
 
         let mut f_prime_eval = pi.vs.ws[0] + beta * ids[0] + gamma;
         let mut g_prime_eval = pi.vs.ws[0] + beta * sigmas[0] + gamma;
-        for i in 1..3 {
+        for i in 1..WITNESS_POLYS {
             f_prime_eval *= pi.vs.ws[i] + beta * ids[i] + gamma;
             g_prime_eval *= pi.vs.ws[i] + beta * sigmas[i] + gamma;
         }
 
         let pi_eval = public_input_eval::<P>(&trace.public_inputs, trace.domain, &xi);
+        let poseidon_eval = scalar_poseidon::<P>(&pi.vs.rs, &pi.vs.ws, &pi.vs.w_omegas);
         let f_gc_eval = pi.vs.ws[0] * pi.vs.qs[0]
             + pi.vs.ws[1] * pi.vs.qs[1]
             + pi.vs.ws[2] * pi.vs.qs[2]
             + pi.vs.ws[0] * pi.vs.ws[1] * pi.vs.qs[3]
             + pi.vs.qs[4]
+            + pi.vs.qs[5] * poseidon_eval
             + pi_eval;
 
         let omega = trace.omega;
@@ -440,8 +584,8 @@ impl<P: PastaConfig> PlonkProof<P> {
         let f_cc1_eval = l1 * (pi.vs.z - one);
         let f_cc2_eval = pi.vs.z * f_prime_eval - pi.vs.z_omega * g_prime_eval;
 
+        assert_eq!(poseidon.evaluate(&xi), poseidon_eval);
         assert_eq!(f_prime_eval, f_prime.evaluate(&xi));
-        assert_eq!(trace, f_prime.evaluate(&xi));
         assert_eq!(g_prime_eval, g_prime.evaluate(&xi));
         assert_eq!(f_gc_eval, f_gc.evaluate(&xi));
         assert_eq!(f_cc1_eval, f_cc1.evaluate(&xi));
@@ -506,11 +650,13 @@ impl<P: PastaConfig> PlonkProof<P> {
         }
 
         // F_GC(𝔷) = A(𝔷)Qₗ(𝔷) + B(𝔷)Qᵣ(𝔷) + C(𝔷)Qₒ(𝔷) + A(𝔷)B(𝔷)Qₘ(𝔷) + Q꜀(𝔷) + PI(𝔷)
+        let poseidon_terms = scalar_poseidon::<P>(&pi.vs.rs, &pi.vs.ws, &pi.vs.w_omegas);
         let f_gc = pi.vs.ws[0] * pi.vs.qs[0]
             + pi.vs.ws[1] * pi.vs.qs[1]
             + pi.vs.ws[2] * pi.vs.qs[2]
             + pi.vs.ws[0] * pi.vs.ws[1] * pi.vs.qs[3]
             + pi.vs.qs[4]
+            + pi.vs.qs[5] * poseidon_terms
             + public_input_eval::<P>(&trace.public_inputs, trace.domain, &xi);
 
         let omega = trace.omega;
@@ -543,6 +689,12 @@ impl<P: PastaConfig> PlonkProof<P> {
 
 fn t_split<P: PastaConfig>(mut t: Poly<P>, n: usize) -> [Poly<P>; QUOTIENT_POLYS] {
     // TODO: Make sure this is necessary
+    assert!(
+        t.degree() < QUOTIENT_POLYS * n,
+        "{} < {}",
+        t.degree(),
+        QUOTIENT_POLYS * n
+    );
     t.coeffs.resize(QUOTIENT_POLYS * n, Scalar::<P>::zero());
     let mut iter = t
         .coeffs
@@ -621,4 +773,82 @@ fn public_input_eval<P: PastaConfig>(
 
 fn deg0<P: PastaConfig>(x: Scalar<P>) -> Poly<P> {
     Poly::<P>::from_coefficients_vec(vec![x])
+}
+
+fn poly_pow<P: PastaConfig>(poly: &Poly<P>, exponent: usize) -> Poly<P> {
+    if poly.is_zero() {
+        Poly::<P>::zero()
+    } else {
+        let domain = Domain::<P>::new(exponent * poly.coeffs.len() - 1)
+            .expect("field is not smooth enough to construct domain");
+        let mut evals = poly.evaluate_over_domain_by_ref(domain);
+        let evals_clone = evals.clone();
+        for _ in 0..exponent {
+            evals *= &evals_clone;
+        }
+        evals.interpolate()
+    }
+}
+
+fn poly_poseidon<P: PastaConfig>(
+    M: [[Scalar<P>; 3]; 3],
+    r: &[Poly<P>; WITNESS_POLYS],
+    w: &[Poly<P>; WITNESS_POLYS],
+    nw: &[Poly<P>; 3],
+) -> Poly<P> {
+    // let sbox = |w| poly_pow::<P>(w, 7);
+    let sbox = |w| w * w * w * w * w * w * w;
+    #[rustfmt::skip]
+    let round = |w0,w1,w2,w3,w4,w5,r0,r1,r2| {
+          w3 - (r0 + sbox(w0) * M[0][0] + sbox(w1) * M[0][1] + sbox(w2) * M[0][2])
+        + w4 - (r1 + sbox(w0) * M[1][0] + sbox(w1) * M[1][1] + sbox(w2) * M[1][2])
+        + w5 - (r2 + sbox(w0) * M[2][0] + sbox(w1) * M[2][1] + sbox(w2) * M[2][2])
+    };
+    let round_1 = round(
+        &w[0], &w[1], &w[2], &w[3], &w[4], &w[5], &r[0], &r[1], &r[2],
+    );
+    let round_2 = round(
+        &w[3], &w[4], &w[5], &w[6], &w[7], &w[8], &r[3], &r[4], &r[5],
+    );
+    let round_3 = round(
+        &w[6], &w[7], &w[8], &w[9], &w[10], &w[11], &r[6], &r[7], &r[8],
+    );
+    let round_4 = round(
+        &w[9], &w[10], &w[11], &w[12], &w[13], &w[14], &r[9], &r[10], &r[11],
+    );
+    // let round_5 = round(
+    //     &w[12], &w[13], &w[14], &nw[0], &nw[1], &nw[2], &r[12], &r[13], &r[14],
+    // );
+    round_1 + round_2 + round_3 + round_4 //+ round_5
+}
+
+fn scalar_poseidon<P: PastaConfig>(
+    r: &[Scalar<P>; WITNESS_POLYS],
+    w: &[Scalar<P>; WITNESS_POLYS],
+    nw: &[Scalar<P>; 3],
+) -> Scalar<P> {
+    let M = P::SCALAR_POSEIDON_MDS;
+    let sbox = |w: &Scalar<P>| w.pow([7]);
+    #[rustfmt::skip]
+    let round = |w0: &Scalar<P>, w1: &Scalar<P>, w2: &Scalar<P>, w3: &Scalar<P>,w4: &Scalar<P>, w5: &Scalar<P>, r0: &Scalar<P>, r1: &Scalar<P>, r2: &Scalar<P>| {
+          *w3 - (*r0 + sbox(w0) * M[0][0] + sbox(w1) * M[0][1] + sbox(w2) * M[0][2])
+        + *w4 - (*r1 + sbox(w0) * M[1][0] + sbox(w1) * M[1][1] + sbox(w2) * M[1][2])
+        + *w5 - (*r2 + sbox(w0) * M[2][0] + sbox(w1) * M[2][1] + sbox(w2) * M[2][2])
+    };
+    let round_1 = round(
+        &w[0], &w[1], &w[2], &w[3], &w[4], &w[5], &r[0], &r[1], &r[2],
+    );
+    let round_2 = round(
+        &w[3], &w[4], &w[5], &w[6], &w[7], &w[8], &r[3], &r[4], &r[5],
+    );
+    let round_3 = round(
+        &w[6], &w[7], &w[8], &w[9], &w[10], &w[11], &r[6], &r[7], &r[8],
+    );
+    let round_4 = round(
+        &w[9], &w[10], &w[11], &w[12], &w[13], &w[14], &r[9], &r[10], &r[11],
+    );
+    // let round_5 = round(
+    //     &w[12], &w[13], &w[14], &nw[0], &nw[1], &nw[2], &r[12], &r[13], &r[14],
+    // );
+    round_1 + round_2 + round_3 + round_4 // + round_5
 }

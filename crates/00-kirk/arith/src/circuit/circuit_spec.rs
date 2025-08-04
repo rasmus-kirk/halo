@@ -74,9 +74,10 @@ pub struct Wire {
 pub(crate) enum GateType<P: PastaConfig> {
     Witness,
     PublicInput,
-    Output,
+    Output(usize),
     AssertEq,
-    Poseidon([Scalar<P>; NEW_WTINESS_POLYS]),
+    Poseidon([Wire; 3], [Scalar<P>; NEW_WTINESS_POLYS]),
+    PoseidonEnd([Wire; 3]),
     Constant(Scalar<P>),
     Add,
     Multiply,
@@ -86,10 +87,11 @@ impl<P: PastaConfig> fmt::Display for GateType<P> {
         match self {
             GateType::Witness => write!(f, "Witness"),
             GateType::PublicInput => write!(f, "PublicInput"),
-            GateType::Output => write!(f, "Output"),
+            GateType::Output(n) => write!(f, "Output({})", n),
             GateType::AssertEq => write!(f, "AssertEq"),
             GateType::Constant(_) => write!(f, "Constant"),
-            GateType::Poseidon(_) => write!(f, "Poseidon"),
+            GateType::Poseidon(_, _) => write!(f, "Poseidon"),
+            GateType::PoseidonEnd(_) => write!(f, "PoseidonEnd"),
             GateType::Add => write!(f, "Add"),
             GateType::Multiply => write!(f, "Multiply"),
         }
@@ -101,6 +103,7 @@ pub struct CircuitSpec<P: PastaConfig> {
     pub(crate) graph: DiGraph<GateType<P>, Wire>,
     pub(crate) witness_wire_count: usize,
     pub(crate) public_input_wire_count: usize,
+    pub(crate) output_wire_count: usize,
     pub(crate) row_count: usize,
     pub(crate) wire_count: usize,
 }
@@ -111,9 +114,14 @@ impl<P: PastaConfig> CircuitSpec<P> {
             graph: DiGraph::new(),
             public_input_wire_count: 0,
             witness_wire_count: 0,
+            output_wire_count: 0,
             wire_count: 0,
             row_count: 0,
         }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.wire_count == 0
     }
 
     pub(crate) fn get_parent_node(&self, edge: EdgeIndex) -> NodeIndex {
@@ -134,20 +142,24 @@ impl<P: PastaConfig> CircuitSpec<P> {
         &self,
         node_idx: NodeIndex,
     ) -> [(Wire, EdgeIndex); N] {
-        let nodes: Vec<_> = self
+        let edges: Vec<_> = self
             .graph
             .edges_directed(node_idx, Incoming)
             .map(|x| (x.weight().clone(), x.id()))
             .collect();
-        assert_eq!(nodes.len(), N);
-        array::from_fn(|i| nodes[i])
+        // nodes.sort_by_key(|x| x.0.output_id);
+        assert_eq!(edges.len(), N);
+        array::from_fn(|i| edges[i])
     }
 
     pub(crate) fn get_gate_outputs(&self, node_idx: NodeIndex) -> Vec<(Wire, EdgeIndex)> {
-        self.graph
+        let mut edges: Vec<_> = self
+            .graph
             .edges_directed(node_idx, Outgoing)
             .map(|x| (x.weight().clone(), x.id()))
-            .collect()
+            .collect();
+        edges.sort_by_key(|x| x.0.output_id);
+        edges
     }
 
     fn new_wire(&mut self, node_idx: NodeIndex, output_id: u32) -> Wire {
@@ -198,10 +210,27 @@ impl<P: PastaConfig> CircuitSpec<P> {
     pub fn poseidon_gate(&mut self, round: usize, input_wires: [Wire; 3]) -> [Wire; 3] {
         self.row_count += 1;
 
+        for i in 0..NEW_WTINESS_POLYS {
+            println!("{}, {}", 5 * round + i / 3, i % 3);
+            // let _ = P::SCALAR_POSEIDON_ROUND_CONSTANTS[round + i / 3][round + i % 3];
+        }
+        println!("done");
         let round_constants: [Scalar<P>; NEW_WTINESS_POLYS] =
-            array::from_fn(|i| P::SCALAR_POSEIDON_ROUND_CONSTANTS[i / 3][i % 3]);
-        let node = self.graph.add_node(GateType::Poseidon(round_constants));
+            array::from_fn(|i| P::SCALAR_POSEIDON_ROUND_CONSTANTS[5 * round + i / 3][i % 3]);
+        let node = self
+            .graph
+            .add_node(GateType::Poseidon(input_wires, round_constants));
 
+        for wire in input_wires {
+            self.graph.add_edge(wire.node_idx, node, wire);
+        }
+        array::from_fn(|i| self.new_wire(node, i as u32))
+    }
+
+    pub fn poseidon_gate_finish(&mut self, input_wires: [Wire; 3]) -> [Wire; 3] {
+        self.row_count += 1;
+
+        let node = self.graph.add_node(GateType::PoseidonEnd(input_wires));
         for wire in input_wires {
             self.graph.add_edge(wire.node_idx, node, wire);
         }
@@ -215,7 +244,9 @@ impl<P: PastaConfig> CircuitSpec<P> {
     }
 
     pub fn output_gate(&mut self, input: Wire) {
-        let node = self.graph.add_node(GateType::Output);
+        let out_id = self.output_wire_count;
+        self.output_wire_count += 1;
+        let node = self.graph.add_node(GateType::Output(out_id));
         self.graph.add_edge(input.node_idx, node, input);
     }
 }

@@ -1,17 +1,20 @@
 { pkgs, self, rust-overlay }:
 let
-  rustVersion = "1.88.0";
-  rustFmtVersion = "2024-12-01";
+  rustNightlyVersion = "2025-06-01";
   rust-bin = (rust-overlay.lib.mkRustBin {} pkgs);
-  rustToolchain = rust-bin.stable.${rustVersion}.default.override {
+  rustToolchain = rust-bin.nightly.${rustNightlyVersion}.default.override {
     extensions = [ "rust-analyzer" "rust-src" ];
   };
+  # rustVersion = "1.88.0";
+  # rustToolchain = rust-bin.stable.${rustVersion}.default.override {
+  #   extensions = [ "rust-analyzer" "rust-src" ];
+  # };
 in {
   devShells = {
     default = pkgs.mkShell {
       RUST_BACKTRACE = "1";
       buildInputs = [
-        rust-bin.nightly."${rustFmtVersion}".rustfmt
+        rust-bin.nightly."${rustNightlyVersion}".rustfmt
         rustToolchain
         (pkgs.writeShellScriptBin "check-all" ''
           check-fmt &&

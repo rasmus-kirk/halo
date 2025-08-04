@@ -1,9 +1,9 @@
-use halo_group::{ark_ff::Field, ark_ff::Zero, PastaConfig, Scalar};
+use halo_group::{ark_ff::Field, ark_ff::Zero, PastaConfig};
 
-const SPONGE_CAPACITY: usize = 1;
-const SPONGE_RATE: usize = 2;
-const PERM_ROUNDS_FULL: usize = 55;
-const STATE_SIZE: usize = SPONGE_CAPACITY + SPONGE_RATE;
+pub const SPONGE_CAPACITY: usize = 1;
+pub const SPONGE_RATE: usize = 2;
+pub const PERM_ROUNDS_FULL: usize = 55;
+pub const STATE_SIZE: usize = SPONGE_CAPACITY + SPONGE_RATE;
 
 // -------------------- Helpers -------------------- //
 
@@ -32,7 +32,7 @@ fn apply_mds_matrix<P: PastaConfig>(
     ret
 }
 
-fn full_round<P: PastaConfig>(state: &mut [P::BaseField; STATE_SIZE], r: usize) {
+pub fn full_round<P: PastaConfig>(state: &mut [P::BaseField; STATE_SIZE], r: usize) {
     for state_i in state.iter_mut() {
         *state_i = sbox(*state_i);
     }
@@ -42,8 +42,14 @@ fn full_round<P: PastaConfig>(state: &mut [P::BaseField; STATE_SIZE], r: usize) 
     }
 }
 
+pub fn poseidon_block_cipher<P: PastaConfig>(state: &mut [P::BaseField; STATE_SIZE]) {
+    for r in 0..PERM_ROUNDS_FULL {
+        full_round::<P>(state, r);
+    }
+}
+
 #[derive(Clone, Debug)]
-pub enum SpongeState {
+pub(crate) enum SpongeState {
     Absorbed(usize),
     Squeezed(usize),
 }
@@ -55,20 +61,18 @@ pub struct PoseidonSponge<P: PastaConfig> {
 }
 
 impl<P: PastaConfig> PoseidonSponge<P> {
-    fn poseidon_block_cipher(&mut self) {
-        for r in 0..PERM_ROUNDS_FULL {
-            full_round::<P>(&mut self.state, r);
-        }
+    pub fn poseidon_block_cipher(&mut self) {
+        poseidon_block_cipher::<P>(&mut self.state);
     }
 
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             state: [P::BaseField::zero(); STATE_SIZE],
             sponge_state: SpongeState::Absorbed(0),
         }
     }
 
-    pub(crate) fn absorb(&mut self, x: &[P::BaseField]) {
+    pub fn absorb(&mut self, x: &[P::BaseField]) {
         for x in x.iter() {
             match self.sponge_state {
                 SpongeState::Absorbed(n) if n < SPONGE_RATE => {
@@ -89,7 +93,7 @@ impl<P: PastaConfig> PoseidonSponge<P> {
         }
     }
 
-    pub(crate) fn squeeze(&mut self) -> P::BaseField {
+    pub fn squeeze(&mut self) -> P::BaseField {
         match self.sponge_state {
             SpongeState::Squeezed(n) if n < SPONGE_RATE => {
                 self.sponge_state = SpongeState::Squeezed(n + 1);
@@ -104,7 +108,7 @@ impl<P: PastaConfig> PoseidonSponge<P> {
         }
     }
 
-    pub(crate) fn reset(&mut self) {
+    pub fn reset(&mut self) {
         self.state = [P::BaseField::zero(); STATE_SIZE];
         self.sponge_state = SpongeState::Absorbed(0);
     }

@@ -84,7 +84,12 @@ impl<P: PastaConfig> TraceBuilder<P> {
         let now = Instant::now();
 
         let spec = self.spec.clone();
-        let n = spec.row_count.next_power_of_two();
+        println!("{spec:?}, {:?}, {}", spec.is_empty(), spec.wire_count);
+
+        let n = match spec.is_empty() {
+            true => 4,
+            false => spec.row_count.next_power_of_two(),
+        };
 
         ensure!(
             self.witnesses.len() == spec.witness_wire_count,
@@ -101,7 +106,7 @@ impl<P: PastaConfig> TraceBuilder<P> {
 
         let O = P::ScalarField::zero();
         let I = P::ScalarField::one();
-        let mut output = None;
+        let mut outputs = vec![O; spec.output_wire_count];
         let mut ws: [_; WITNESS_POLYS] = array::from_fn(|_| vec![O; n]);
         let mut rs: [_; WITNESS_POLYS] = array::from_fn(|_| vec![O; n]);
         let mut qs: [_; SELECTOR_POLYS] = array::from_fn(|_| vec![O; n]);
@@ -122,42 +127,43 @@ impl<P: PastaConfig> TraceBuilder<P> {
                     wire_value_map[out_wire.id] = *v;
                 }
                 GateType::PublicInput => {
+                    let outputs = spec.get_gate_outputs(node_idx);
                     let slots = self.get_witness_slot_ids();
-                    let (out_wire, _) = spec.get_gate_outputs(node_idx)[0];
                     let v = self
                         .public_inputs
-                        .get(&out_wire)
+                        .get(&outputs[0].0)
                         .context("Wire unassigned!")?;
 
                     let row = slots[0].row_0_indexed();
                     node_map.insert(node_idx, slots);
-
                     public_inputs.push(-(*v));
-                    wire_value_map[out_wire.id] = *v;
-                    wire_slot_map[out_wire.id].push(slots[0]);
+
+                    for (wire_out, _) in outputs {
+                        wire_value_map[wire_out.id] = *v;
+                        wire_slot_map[wire_out.id].push(slots[0]);
+                    }
                     ws.multi_assign(row, [*v, O, O, O, O, O, O, O, O, O, O, O, O, O, O]);
                     //                   [l, r, o, m, c, p]
                     qs.multi_assign(row, [I, O, O, O, O, O]);
                 }
                 GateType::Constant(v) => {
-                    let (out_wire, _) = spec.get_gate_outputs(node_idx)[0];
+                    let outputs = spec.get_gate_outputs(node_idx);
 
                     let slots = self.get_slot_ids();
                     let row = slots[0].row_0_indexed();
                     node_map.insert(node_idx, slots);
 
-                    wire_value_map[out_wire.id] = v;
-                    wire_slot_map[out_wire.id].push(slots[0]);
+                    for (wire_out, _) in outputs {
+                        wire_value_map[wire_out.id] = v;
+                        wire_slot_map[wire_out.id].push(slots[0]);
+                    }
                     ws.multi_assign(row, [v, O, O, O, O, O, O, O, O, O, O, O, O, O, O]);
                     //                   [l, r, o, m,  c, p]
                     qs.multi_assign(row, [I, O, O, O, -v, O]);
                 }
-                GateType::Output => {
+                GateType::Output(n) => {
                     let [(in_wire, _)] = spec.get_gate_inputs(node_idx);
-                    match output {
-                        None => output = Some(wire_value_map[in_wire.id]),
-                        Some(_) => bail!("Multiple output gates found in circuit!"),
-                    }
+                    outputs[n] = wire_value_map[in_wire.id];
                 }
                 GateType::AssertEq => {
                     let [(l_wire, l_edge_idx), (r_wire, r_edge_idx)] =
@@ -170,7 +176,7 @@ impl<P: PastaConfig> TraceBuilder<P> {
                 }
                 GateType::Add => {
                     let [(l_wire, _), (r_wire, _)] = spec.get_gate_inputs(node_idx);
-                    let (out_wire, _) = spec.get_gate_outputs(node_idx)[0];
+                    let outputs = spec.get_gate_outputs(node_idx);
 
                     let slots = self.get_slot_ids();
                     let row = slots[0].row_0_indexed();
@@ -180,7 +186,10 @@ impl<P: PastaConfig> TraceBuilder<P> {
                     let a = wire_value_map[l_wire.id];
                     let b = wire_value_map[r_wire.id];
                     let c = a + b;
-                    wire_value_map[out_wire.id] = c;
+                    for (wire_out, _) in outputs {
+                        wire_value_map[wire_out.id] = c;
+                        wire_slot_map[wire_out.id].push(slots[2]);
+                    }
 
                     // ----- Gate Constraints ----- //
                     ws.multi_assign(row, [a, b, c, O, O, O, O, O, O, O, O, O, O, O, O]);
@@ -191,11 +200,10 @@ impl<P: PastaConfig> TraceBuilder<P> {
                     // ----- Copy Constraints ----- //
                     wire_slot_map[l_wire.id].push(slots[0]);
                     wire_slot_map[r_wire.id].push(slots[1]);
-                    wire_slot_map[out_wire.id].push(slots[2]);
                 }
                 GateType::Multiply => {
                     let [(l_wire, _), (r_wire, _)] = spec.get_gate_inputs(node_idx);
-                    let (out_wire, _) = spec.get_gate_outputs(node_idx)[0];
+                    let outputs = spec.get_gate_outputs(node_idx);
 
                     let slots = self.get_slot_ids();
                     let row = slots[0].row_0_indexed();
@@ -204,7 +212,10 @@ impl<P: PastaConfig> TraceBuilder<P> {
                     let a = wire_value_map[l_wire.id];
                     let b = wire_value_map[r_wire.id];
                     let c = a * b;
-                    wire_value_map[out_wire.id] = c;
+                    for (wire_out, _) in outputs {
+                        wire_value_map[wire_out.id] = c;
+                        wire_slot_map[wire_out.id].push(slots[2]);
+                    }
 
                     // ----- Gate Constraints ----- //
                     ws.multi_assign(row, [a, b, c, O, O, O, O, O, O, O, O, O, O, O, O]);
@@ -215,32 +226,82 @@ impl<P: PastaConfig> TraceBuilder<P> {
                     // ----- Copy Constraints ----- //
                     wire_slot_map[l_wire.id].push(slots[0]);
                     wire_slot_map[r_wire.id].push(slots[1]);
-                    wire_slot_map[out_wire.id].push(slots[2]);
                 }
-                GateType::Poseidon(r) => {
-                    let [(wire_s0, _), (wire_s1, _), (wire_s2, _)] = spec.get_gate_inputs(node_idx);
+                GateType::Poseidon(in_wires, r) => {
+                    let [wire_s0, wire_s1, wire_s2] = in_wires;
+                    let outputs = spec.get_gate_outputs(node_idx);
 
                     let slots = self.get_slot_ids();
                     let row = slots[0].row_0_indexed();
                     node_map.insert(node_idx, slots);
 
-                    let m = P::SCALAR_POSEIDON_MDS;
                     let w00 = wire_value_map[wire_s0.id];
                     let w01 = wire_value_map[wire_s1.id];
                     let w02 = wire_value_map[wire_s2.id];
 
-                    let (w03, w04, w05) = poseidon_round::<P>(m, r[0], r[1], r[2], w00, w01, w02);
-                    let (w06, w07, w08) = poseidon_round::<P>(m, r[3], r[4], r[5], w03, w04, w05);
-                    let (w09, w10, w11) = poseidon_round::<P>(m, r[6], r[7], r[8], w06, w07, w08);
-                    let (w12, w13, w14) = poseidon_round::<P>(m, r[9], r[10], r[11], w09, w10, w11);
+                    let (w03, w04, w05) = poseidon_round::<P>(r[0], r[1], r[2], w00, w01, w02);
+                    let (w06, w07, w08) = poseidon_round::<P>(r[3], r[4], r[5], w03, w04, w05);
+                    let (w09, w10, w11) = poseidon_round::<P>(r[6], r[7], r[8], w06, w07, w08);
+                    let (w12, w13, w14) = poseidon_round::<P>(r[9], r[10], r[11], w09, w10, w11);
+                    let (v0, v1, v2) = poseidon_round::<P>(r[12], r[13], r[14], w12, w13, w14);
+
+                    println!("x: {}, {}, {}", w00, w01, w02);
+                    println!("y: {}, {}, {}", v0, v1, v2);
+                    println!("z: {:?}, {:?}, {:?}", wire_s0, wire_s1, wire_s2);
+
+                    for (wire_out, _) in outputs {
+                        match wire_out.output_id {
+                            0 => wire_value_map[wire_out.id] = v0,
+                            1 => wire_value_map[wire_out.id] = v1,
+                            2 => wire_value_map[wire_out.id] = v2,
+                            _ => unreachable!(),
+                        }
+                    }
 
                     // ----- Gate Constraints ----- //
-                    ws.multi_assign(row, [
-                        w00, w01, w02, w03, w04, w05, w06, w07, w08, w09, w10, w11, w12, w13, w14,
-                    ]);
+                    ws.multi_assign(
+                        row,
+                        [w00, w01, w02, w03, w04, w05, w06, w07, w08, w09, w10, w11, w12, w13, w14],
+                    );
                     //                   [l, r, o, m, c, p]
                     qs.multi_assign(row, [O, O, O, O, O, I]);
                     rs.multi_assign(row, r);
+
+                    // ----- Copy Constraints ----- //
+                    wire_slot_map[wire_s0.id].push(slots[0]);
+                    wire_slot_map[wire_s1.id].push(slots[1]);
+                    wire_slot_map[wire_s2.id].push(slots[2]);
+                }
+                GateType::PoseidonEnd(in_wires) => {
+                    let [wire_s0, wire_s1, wire_s2] = in_wires;
+                    let outputs = spec.get_gate_outputs(node_idx);
+
+                    let slots = self.get_slot_ids();
+                    let row = slots[0].row_0_indexed();
+                    node_map.insert(node_idx, slots);
+
+                    let w0 = wire_value_map[wire_s0.id];
+                    let w1 = wire_value_map[wire_s1.id];
+                    let w2 = wire_value_map[wire_s2.id];
+
+                    // println!("x: {}, {}, {}", w00, w01, w02);
+                    // println!("y: {}, {}, {}", v0, v1, v2);
+                    // println!("z: {:?}, {:?}, {:?}", wire_s0, wire_s1, wire_s2);
+
+                    for (wire_out, _) in outputs {
+                        match wire_out.output_id {
+                            0 => wire_value_map[wire_out.id] = w0,
+                            1 => wire_value_map[wire_out.id] = w1,
+                            2 => wire_value_map[wire_out.id] = w2,
+                            _ => unreachable!(),
+                        }
+                    }
+
+                    // ----- Gate Constraints ----- //
+                    ws.multi_assign(row, [w0, w1, w2, O, O, O, O, O, O, O, O, O, O, O, O]);
+                    //                   [l, r, o, m, c, p]
+                    qs.multi_assign(row, [O, O, O, O, O, O]);
+                    rs.multi_assign(row, [O, O, O, O, O, O, O, O, O, O, O, O, O, O, O]);
 
                     // ----- Copy Constraints ----- //
                     wire_slot_map[wire_s0.id].push(slots[0]);
@@ -252,8 +313,9 @@ impl<P: PastaConfig> TraceBuilder<P> {
 
         debug!("trace_builder_time: {:?}", now.elapsed().as_secs_f32());
 
-        let out = output.context("No output gate found in circuit!")?;
-        Ok(Trace::new(wire_slot_map, public_inputs, ws, qs, out, n))
+        let trace = Trace::new(wire_slot_map, public_inputs, ws, rs, qs, outputs, n);
+        println!("trace: {:?}", trace);
+        Ok(trace)
     }
 }
 
@@ -267,7 +329,6 @@ fn sbox<F: Field>(mut x: F) -> F {
 }
 
 fn poseidon_round<P: PastaConfig>(
-    M: [[Scalar<P>; 3]; 3],
     r0: Scalar<P>,
     r1: Scalar<P>,
     r2: Scalar<P>,
@@ -275,6 +336,7 @@ fn poseidon_round<P: PastaConfig>(
     w1: Scalar<P>,
     w2: Scalar<P>,
 ) -> (Scalar<P>, Scalar<P>, Scalar<P>) {
+    let M = P::SCALAR_POSEIDON_MDS;
     (
         r0 + (M[0][0] * sbox(w0) + M[0][1] * sbox(w1) + M[0][2] * sbox(w2)),
         r1 + (M[1][0] * sbox(w0) + M[1][1] * sbox(w1) + M[1][2] * sbox(w2)),

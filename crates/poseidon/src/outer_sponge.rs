@@ -4,7 +4,7 @@ use halo_group::{
         CurveGroup,
     },
     ark_ff::{BigInt, BigInteger, One, PrimeField, Zero},
-    PastaConfig, Scalar,
+    PastaConfig,
 };
 
 use crate::inner_sponge::PoseidonSponge;
