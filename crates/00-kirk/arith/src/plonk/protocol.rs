@@ -1,11 +1,15 @@
 #![allow(non_snake_case)]
-use std::{array, time::Instant};
+use std::{
+    array,
+    ops::{Add, AddAssign, Mul, MulAssign, Sub},
+    time::Instant,
+};
 
 use anyhow::{Result, ensure};
 use halo_accumulation::pcdl::{self, EvalProof, commit, open};
 use halo_group::{
     Domain, Evals, PastaConfig, Point, Poly, Scalar,
-    ark_ff::Field,
+    ark_ff::{AdditiveGroup, Field},
     ark_poly::{DenseUVPolynomial, EvaluationDomain, Polynomial, univariate::DensePolynomial},
     ark_std::{One, Zero, rand::Rng},
 };
@@ -14,7 +18,7 @@ use log::debug;
 
 use crate::{
     circuit::Trace,
-    utils::{HaloPoly, QUOTIENT_POLYS, SELECTOR_POLYS, WITNESS_POLYS, fmt_scalar},
+    utils::{QUOTIENT_POLYS, SELECTOR_POLYS, WITNESS_POLYS, fmt_scalar},
 };
 
 #[derive(Clone)]
@@ -284,7 +288,6 @@ impl<P: PastaConfig> PlonkProof<P> {
         for i in 0..trace.rows {
             let zero_index = i;
             let one_index = (i + 1) % trace.rows;
-            println!("{zero_index}, {one_index}, {}", trace.rows);
             if one_index == 1 {
                 z[zero_index] = P::ScalarField::one();
             } else {
@@ -319,12 +322,14 @@ impl<P: PastaConfig> PlonkProof<P> {
         let w = trace.w_polys.clone();
         let r = trace.r_polys.clone();
         let poseidon = poly_poseidon::<P>(P::SCALAR_POSEIDON_MDS, &r, &w, &w_omegas);
+        let affine_add = affine_add_constraints_poly::<P>(&w);
         let f_gc: Poly<P> = &trace.w_polys[0] * &trace.q_polys[0]
             + &trace.q_polys[1] * &trace.w_polys[1]
             + &trace.q_polys[2] * &trace.w_polys[2]
             + &trace.q_polys[3] * &trace.w_polys[0] * &trace.w_polys[1]
             + &trace.q_polys[4]
             + &trace.q_polys[5] * &poseidon
+            + &trace.q_polys[6] * &affine_add
             + &trace.public_inputs_poly;
 
         let l1 = lagrange_basis_poly::<P>(1, trace.domain);
@@ -415,21 +420,21 @@ impl<P: PastaConfig> PlonkProof<P> {
 
         //     let ch = P::scalar_from_u64(rng.next_u64());
         //     let w = [
-        //         trace.w_polys[0].evaluate(&ch),
-        //         trace.w_polys[1].evaluate(&ch),
-        //         trace.w_polys[2].evaluate(&ch),
-        //         trace.w_polys[3].evaluate(&ch),
-        //         trace.w_polys[4].evaluate(&ch),
-        //         trace.w_polys[5].evaluate(&ch),
-        //         trace.w_polys[6].evaluate(&ch),
-        //         trace.w_polys[7].evaluate(&ch),
-        //         trace.w_polys[8].evaluate(&ch),
-        //         trace.w_polys[9].evaluate(&ch),
-        //         trace.w_polys[10].evaluate(&ch),
-        //         trace.w_polys[11].evaluate(&ch),
-        //         trace.w_polys[12].evaluate(&ch),
-        //         trace.w_polys[13].evaluate(&ch),
-        //         trace.w_polys[14].evaluate(&ch),
+        //         trace.w_polys[0].evaluate(&omega_i),
+        //         trace.w_polys[1].evaluate(&omega_i),
+        //         trace.w_polys[2].evaluate(&omega_i),
+        //         trace.w_polys[3].evaluate(&omega_i),
+        //         trace.w_polys[4].evaluate(&omega_i),
+        //         trace.w_polys[5].evaluate(&omega_i),
+        //         trace.w_polys[6].evaluate(&omega_i),
+        //         trace.w_polys[7].evaluate(&omega_i),
+        //         trace.w_polys[8].evaluate(&omega_i),
+        //         trace.w_polys[9].evaluate(&omega_i),
+        //         trace.w_polys[10].evaluate(&omega_i),
+        //         trace.w_polys[11].evaluate(&omega_i),
+        //         trace.w_polys[12].evaluate(&omega_i),
+        //         trace.w_polys[13].evaluate(&omega_i),
+        //         trace.w_polys[14].evaluate(&omega_i),
         //     ];
         //     let nw = [
         //         trace.w_polys[0].evaluate(&(omega * ch)),
@@ -473,9 +478,9 @@ impl<P: PastaConfig> PlonkProof<P> {
         //     println!("wn1: {} = {}", wn1, wn1_prime);
         //     println!("wn2: {} = {}", wn2, wn2_prime);
         //     println!(
-        //         "pos: {} = {}",
-        //         poseidon.evaluate(&ch),
-        //         scalar_poseidon::<P>(&r, &w, &nw)
+        //         "affine: {} = {}",
+        //         affine_add.evaluate(&omega_i),
+        //         affine_add_constraints_scalar::<P>(w)
         //     );
 
         //     assert_eq!(Scalar::<P>::zero(), f_gc.evaluate(&omega_i));
@@ -569,12 +574,14 @@ impl<P: PastaConfig> PlonkProof<P> {
 
         let pi_eval = public_input_eval::<P>(&trace.public_inputs, trace.domain, &xi);
         let poseidon_eval = scalar_poseidon::<P>(&pi.vs.rs, &pi.vs.ws, &pi.vs.w_omegas);
+        let affine_add_eval = affine_add_constraints_scalar::<P>(pi.vs.ws);
         let f_gc_eval = pi.vs.ws[0] * pi.vs.qs[0]
             + pi.vs.ws[1] * pi.vs.qs[1]
             + pi.vs.ws[2] * pi.vs.qs[2]
             + pi.vs.ws[0] * pi.vs.ws[1] * pi.vs.qs[3]
             + pi.vs.qs[4]
             + pi.vs.qs[5] * poseidon_eval
+            + pi.vs.qs[6] * affine_add_eval
             + pi_eval;
 
         let omega = trace.omega;
@@ -651,12 +658,14 @@ impl<P: PastaConfig> PlonkProof<P> {
 
         // F_GC(𝔷) = A(𝔷)Qₗ(𝔷) + B(𝔷)Qᵣ(𝔷) + C(𝔷)Qₒ(𝔷) + A(𝔷)B(𝔷)Qₘ(𝔷) + Q꜀(𝔷) + PI(𝔷)
         let poseidon_terms = scalar_poseidon::<P>(&pi.vs.rs, &pi.vs.ws, &pi.vs.w_omegas);
+        let affine_add_terms = affine_add_constraints_scalar::<P>(pi.vs.ws.clone());
         let f_gc = pi.vs.ws[0] * pi.vs.qs[0]
             + pi.vs.ws[1] * pi.vs.qs[1]
             + pi.vs.ws[2] * pi.vs.qs[2]
             + pi.vs.ws[0] * pi.vs.ws[1] * pi.vs.qs[3]
             + pi.vs.qs[4]
             + pi.vs.qs[5] * poseidon_terms
+            + pi.vs.qs[6] * affine_add_terms
             + public_input_eval::<P>(&trace.public_inputs, trace.domain, &xi);
 
         let omega = trace.omega;
@@ -774,7 +783,7 @@ fn public_input_eval<P: PastaConfig>(
 fn deg0<P: PastaConfig>(x: Scalar<P>) -> Poly<P> {
     Poly::<P>::from_coefficients_vec(vec![x])
 }
-
+// Broken
 fn poly_pow<P: PastaConfig>(poly: &Poly<P>, exponent: usize) -> Poly<P> {
     if poly.is_zero() {
         Poly::<P>::zero()
@@ -816,10 +825,10 @@ fn poly_poseidon<P: PastaConfig>(
     let round_4 = round(
         &w[9], &w[10], &w[11], &w[12], &w[13], &w[14], &r[9], &r[10], &r[11],
     );
-    // let round_5 = round(
-    //     &w[12], &w[13], &w[14], &nw[0], &nw[1], &nw[2], &r[12], &r[13], &r[14],
-    // );
-    round_1 + round_2 + round_3 + round_4 //+ round_5
+    let round_5 = round(
+        &w[12], &w[13], &w[14], &nw[0], &nw[1], &nw[2], &r[12], &r[13], &r[14],
+    );
+    round_1 + round_2 + round_3 + round_4 + round_5
 }
 
 fn scalar_poseidon<P: PastaConfig>(
@@ -847,8 +856,135 @@ fn scalar_poseidon<P: PastaConfig>(
     let round_4 = round(
         &w[9], &w[10], &w[11], &w[12], &w[13], &w[14], &r[9], &r[10], &r[11],
     );
-    // let round_5 = round(
-    //     &w[12], &w[13], &w[14], &nw[0], &nw[1], &nw[2], &r[12], &r[13], &r[14],
-    // );
-    round_1 + round_2 + round_3 + round_4 // + round_5
+    let round_5 = round(
+        &w[12], &w[13], &w[14], &nw[0], &nw[1], &nw[2], &r[12], &r[13], &r[14],
+    );
+    round_1 + round_2 + round_3 + round_4 + round_5
+}
+
+#[allow(uncommon_codepoints)]
+fn affine_add_constraints_poly<P: PastaConfig>(w: &[Poly<P>; WITNESS_POLYS]) -> Poly<P> {
+    let one = deg0::<P>(Scalar::<P>::one());
+    let [xp, yp, xq, yq, xr, yr, α, β, γ, δ, λ, _, _, _, _] = w;
+
+    let mut terms: [Poly<P>; 12] = array::from_fn(|_| Poly::<P>::zero());
+
+    // (xq - xp) · ((xq - xp) · λ - (yq - yp))
+    let xq一xp = xq - xp;
+    let yq一yp = yq - yp;
+    terms[0] = (&xq一xp) * (&xq一xp * λ - yq一yp);
+
+    // (1 - (xq - xp) · α) · (2yp · λ - 3xp²)
+    let yp·2 = yp + yp;
+    let xp·xp = xp * xp;
+    let 〡xp·xp〡·3 = &xp·xp + &xp·xp + xp·xp;
+    terms[1] = (&one - (xq一xp) * α) * (yp·2 * λ - 〡xp·xp〡·3);
+
+    // xp · xq · (xq - xp) · (λ² - xp - xq - xr)
+    let xp·xq = xp * xq;
+    let xp·xq·〡xq一xp〡 = &xp·xq * (xq - xp);
+    let λ·λ = λ * λ;
+    let λ·λ一xp一xq一xr = λ·λ - xp - xq - xr;
+    terms[2] = &xp·xq·〡xq一xp〡 * &λ·λ一xp一xq一xr;
+
+    // xp · xq · (xq - xp) · (λ · (xp - xr) - yp - yr)
+    let λ·〡xp一xr〡一yp一yr = λ * (xp - xr) - yp - yr;
+    terms[3] = xp·xq·〡xq一xp〡 * &λ·〡xp一xr〡一yp一yr;
+
+    // xp · xq · (yq + yp) · (λ² - xp - xq - xr)
+    let xp·xq·〡yq〸yp〡 = xp·xq * (yq + yp);
+    terms[4] = &xp·xq·〡yq〸yp〡 * λ·λ一xp一xq一xr;
+
+    // xq · (yq + yp) · (λ · (xp - xr) - yp - yr)
+    terms[5] = xp·xq·〡yq〸yp〡 * λ·〡xp一xr〡一yp一yr;
+
+    // (1 - xp · β) · (xr - xq)
+    let l一xp·β = &one - xp * β;
+    terms[6] = &l一xp·β * (xr - xq);
+
+    // (1 - xp · β) · (yr - yq)
+    terms[7] = l一xp·β * (yr - yq);
+
+    // (1 - xq · γ) · (xr - xp)
+    let l一xq·γ = &one - xq * γ;
+    terms[8] = &l一xq·γ * (xr - xp);
+
+    // (1 - xq · γ) · (yr - yp)
+    terms[9] = l一xq·γ * (yr - yp);
+
+    // (1 - (xq - xp) · α - (yq + yp) · δ) · xr
+    let l一〡xq一xp〡·α一〡yq〸yp〡·δ = one - (xq - xp) * α - (yq + yp) * δ;
+    terms[10] = (&l一〡xq一xp〡·α一〡yq〸yp〡·δ) * xr;
+
+    // (1 - (xq · xp) · α - (yq + yp) · δ) · yr
+    terms[11] = (l一〡xq一xp〡·α一〡yq〸yp〡·δ) * yr;
+
+    let mut result = Poly::<P>::zero();
+    for term in terms {
+        result += &term
+    }
+    result
+}
+
+#[allow(uncommon_codepoints)]
+fn affine_add_constraints_scalar<P: PastaConfig>(w: [Scalar<P>; WITNESS_POLYS]) -> Scalar<P> {
+    let one = Scalar::<P>::one();
+    let [xp, yp, xq, yq, xr, yr, α, β, γ, δ, λ, _, _, _, _] = w;
+
+    let mut terms: [Scalar<P>; 12] = array::from_fn(|_| Scalar::<P>::zero());
+    // (xq - xp) · ((xq - xp) · λ - (yq - yp))
+    let xq一xp = xq - xp;
+    let yq一yp = yq - yp;
+    terms[0] = (xq一xp) * (xq一xp * λ - yq一yp);
+
+    // (1 - (xq - xp) · α) · (2yp · λ - 3xp²)
+    let yp·2 = yp + yp;
+    let xp·xp = xp * xp;
+    let 〡xp·xp〡·3 = xp·xp + xp·xp + xp·xp;
+    terms[1] = (one - (xq一xp) * α) * (yp·2 * λ - 〡xp·xp〡·3);
+
+    // xp · xq · (xq - xp) · (λ² - xp - xq - xr)
+    let xp·xq = xp * xq;
+    let xp·xq·〡xq一xp〡 = xp·xq * (xq - xp);
+    let λ·λ = λ * λ;
+    let λ·λ一xp一xq一xr = λ·λ - xp - xq - xr;
+    terms[2] = xp·xq·〡xq一xp〡 * λ·λ一xp一xq一xr;
+
+    // xp · xq · (xq - xp) · (λ · (xp - xr) - yp - yr)
+    let λ·〡xp一xr〡一yp一yr = λ * (xp - xr) - yp - yr;
+    terms[3] = xp·xq·〡xq一xp〡 * λ·〡xp一xr〡一yp一yr;
+
+    // xp · xq · (yq + yp) · (λ² - xp - xq - xr)
+    let xp·xq·〡yq〸yp〡 = xp·xq * (yq + yp);
+    terms[4] = xp·xq·〡yq〸yp〡 * λ·λ一xp一xq一xr;
+
+    // xq · (yq + yp) · (λ · (xp - xr) - yp - yr)
+    terms[5] = xp·xq·〡yq〸yp〡 * λ·〡xp一xr〡一yp一yr;
+
+    // (1 - xp · β) · (xr - xq)
+    let l一xp·β = one - xp * β;
+    terms[6] = l一xp·β * (xr - xq);
+
+    // (1 - xp · β) · (yr - yq)
+    terms[7] = l一xp·β * (yr - yq);
+
+    // (1 - xq · γ) · (xr - xp)
+    let l一xq·γ = one - xq * γ;
+    terms[8] = l一xq·γ * (xr - xp);
+
+    // (1 - xq · γ) · (yr - yp)
+    terms[9] = l一xq·γ * (yr - yp);
+
+    // (1 - (xq - xp) · α - (yq + yp) · δ) · xr
+    let l一〡xq一xp〡·α一〡yq〸yp〡·δ = one - (xq - xp) * α - (yq + yp) * δ;
+    terms[10] = (l一〡xq一xp〡·α一〡yq〸yp〡·δ) * xr;
+
+    // (1 - (xq · xp) · α - (yq + yp) · δ) · yr
+    terms[11] = (l一〡xq一xp〡·α一〡yq〸yp〡·δ) * yr;
+
+    let mut result = Scalar::<P>::zero();
+    for term in terms {
+        result += term
+    }
+    result
 }

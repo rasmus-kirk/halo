@@ -352,7 +352,7 @@ mod tests {
         let mut seen = false;
         for node_idx in topo_order {
             match circuit.graph[node_idx] {
-                GateType::Poseidon(_, _) => {
+                GateType::Poseidon(..) => {
                     if !seen {
                         seen = true;
                     } else {

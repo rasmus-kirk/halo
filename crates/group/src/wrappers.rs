@@ -6,6 +6,7 @@ use crate::{
     group::{Affine, BaseField, Scalar},
     poseidon_consts::{FP_MDS, FP_ROUND_CONSTANTS, FQ_MDS, FQ_ROUND_CONSTANTS},
     pp::PublicParams,
+    Fp, Fq,
 };
 use ark_ec::{
     short_weierstrass::{Projective, SWCurveConfig},
@@ -28,6 +29,9 @@ where
     Self::ScalarField: Clone,
     Self: Clone,
 {
+    type OtherCurve: PastaConfig;
+    type SF: PrimeField;
+    type BF: PrimeField;
     fn get_loaded_public_params() -> &'static OnceLock<PublicParams<Self>>;
     fn get_g_data() -> [&'static [u8]; 64];
     fn get_sh_data() -> &'static [u8];
@@ -42,6 +46,8 @@ where
     fn basefield_from_u64(x: u64) -> BaseField<Self>;
     fn scalar_from_u64(x: u64) -> Scalar<Self>;
 
+    const SFID: usize;
+    const BFID: usize;
     const SCALAR_POSEIDON_MDS: [[Scalar<Self>; 3]; 3];
     const BASE_POSEIDON_MDS: [[Self::BaseField; 3]; 3];
     const SCALAR_POSEIDON_ROUND_CONSTANTS: [[Self::ScalarField; 3]; 55];
@@ -51,7 +57,10 @@ where
     const CURVE_NAME: &'static str;
 }
 
-impl PastaConfig for ark_pallas::PallasConfig {
+impl PastaConfig for PallasConfig {
+    type OtherCurve = VestaConfig;
+    type SF = <VestaConfig as CurveConfig>::ScalarField;
+    type BF = <VestaConfig as CurveConfig>::BaseField;
     fn wrap_projective(p: Projective<Self>) -> WrappedPoint {
         p.into()
     }
@@ -92,6 +101,8 @@ impl PastaConfig for ark_pallas::PallasConfig {
         Scalar::<PallasConfig>::from_bigint(BigInt::from(x)).unwrap()
     }
 
+    const SFID: usize = 0;
+    const BFID: usize = 1;
     const SCALAR_POSEIDON_MDS: [[<PallasConfig as CurveConfig>::ScalarField; 3]; 3] = FP_MDS;
     const BASE_POSEIDON_MDS: [[<PallasConfig as CurveConfig>::BaseField; 3]; 3] = FQ_MDS;
     const SCALAR_POSEIDON_ROUND_CONSTANTS: [[<PallasConfig as CurveConfig>::ScalarField; 3]; 55] =
@@ -103,7 +114,10 @@ impl PastaConfig for ark_pallas::PallasConfig {
     const CURVE_NAME: &'static str = "Pallas";
 }
 
-impl PastaConfig for ark_vesta::VestaConfig {
+impl PastaConfig for VestaConfig {
+    type OtherCurve = PallasConfig;
+    type SF = <PallasConfig as CurveConfig>::ScalarField;
+    type BF = <PallasConfig as CurveConfig>::BaseField;
     fn wrap_projective(p: Projective<Self>) -> WrappedPoint {
         p.into()
     }
@@ -144,6 +158,8 @@ impl PastaConfig for ark_vesta::VestaConfig {
         Scalar::<VestaConfig>::from_bigint(BigInt::from(x)).unwrap()
     }
 
+    const SFID: usize = 1;
+    const BFID: usize = 0;
     const SCALAR_POSEIDON_MDS: [[<VestaConfig as CurveConfig>::ScalarField; 3]; 3] = FQ_MDS;
     const BASE_POSEIDON_MDS: [[<VestaConfig as CurveConfig>::BaseField; 3]; 3] = FP_MDS;
     const SCALAR_POSEIDON_ROUND_CONSTANTS: [[<VestaConfig as CurveConfig>::ScalarField; 3]; 55] =

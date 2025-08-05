@@ -35,6 +35,7 @@ enum RandGate {
     Output,
     AssertEq,
     // Poseidon,
+    CurveAdd,
     Constant,
     Add,
     Multiply,
@@ -48,13 +49,14 @@ impl RandGate {
             RandGate::Constant => (0, 1),
             RandGate::Output => (1, 0),
             RandGate::AssertEq => (2, 0),
+            RandGate::CurveAdd => (4, 2),
             RandGate::Add => (2, 1),
             RandGate::Multiply => (2, 1),
         }
     }
 
     fn rand<R: Rng>(rng: &mut R) -> Self {
-        let x = rng.gen_range(0..2);
+        let x = rng.gen_range(0..=2);
         match x {
             // 0 => RandGate::Witness,
             // 1 => RandGate::PublicInput,
@@ -65,6 +67,7 @@ impl RandGate {
             // 0 => RandGate::AssertEq,
             0 => RandGate::Add,
             1 => RandGate::Multiply,
+            2 => RandGate::CurveAdd,
             _ => unreachable!(),
         }
     }
@@ -84,24 +87,20 @@ impl RandGate {
 }
 impl fmt::Display for RandGate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            RandGate::Witness => write!(f, "Witness"),
-            RandGate::PublicInput => write!(f, "PublicInput"),
-            RandGate::Output => write!(f, "Output"),
-            RandGate::AssertEq => write!(f, "AssertEq"),
-            RandGate::Constant => write!(f, "Constant"),
-            RandGate::Add => write!(f, "Add"),
-            RandGate::Multiply => write!(f, "Multiply"),
-        }
+        write!(f, "{self:?}")
     }
 }
 
-fn push_gate(open_wires: &mut HashMap<NodeIndex, Vec<Wire>>, node_idx: &NodeIndex, wire: Wire) {
+fn push_gate(
+    open_wires: &mut HashMap<NodeIndex, Vec<Wire>>,
+    node_idx: &NodeIndex,
+    wires: Vec<Wire>,
+) {
     match open_wires.get_mut(&node_idx) {
         None => {
-            let _ = open_wires.insert(*node_idx, vec![wire]);
+            let _ = open_wires.insert(*node_idx, wires);
         }
-        Some(vec) => vec.push(wire),
+        Some(vec) => vec.extend_from_slice(&wires),
     }
 }
 
@@ -157,17 +156,17 @@ fn rand<P: PastaConfig>(wire_count: usize) -> Result<Trace<P>> {
             RandGate::Witness => {
                 let out_wire = circuit_spec.witness_gate();
                 witness_wires.push(out_wire);
-                push_gate(&mut open_wires, &node_idx, out_wire)
+                push_gate(&mut open_wires, &node_idx, vec![out_wire])
             }
             RandGate::PublicInput => {
                 let out_wire = circuit_spec.public_input_gate();
                 public_input_wires.push(out_wire);
-                push_gate(&mut open_wires, &node_idx, out_wire)
+                push_gate(&mut open_wires, &node_idx, vec![out_wire])
             }
             RandGate::Constant => {
                 let c = P::scalar_from_u64(rng.gen_range(0..=10));
                 let out_wire = circuit_spec.constant_gate(c);
-                push_gate(&mut open_wires, &node_idx, out_wire)
+                push_gate(&mut open_wires, &node_idx, vec![out_wire])
             }
             RandGate::Output => {
                 let in_nodes = get_incoming_nodes(&graph, node_idx);
@@ -188,7 +187,18 @@ fn rand<P: PastaConfig>(wire_count: usize) -> Result<Trace<P>> {
                 let left = open_wires.get_mut(&in_nodes[0]).unwrap().pop().unwrap();
                 let right = open_wires.get_mut(&in_nodes[1]).unwrap().pop().unwrap();
                 let out_wire = circuit_spec.add_gate(left, right);
-                push_gate(&mut open_wires, &node_idx, out_wire)
+                push_gate(&mut open_wires, &node_idx, vec![out_wire])
+            }
+            RandGate::CurveAdd => {
+                let in_nodes = get_incoming_nodes(&graph, node_idx);
+                assert_eq!(in_nodes.len(), 4);
+
+                let px = open_wires.get_mut(&in_nodes[0]).unwrap().pop().unwrap();
+                let py = open_wires.get_mut(&in_nodes[1]).unwrap().pop().unwrap();
+                let qx = open_wires.get_mut(&in_nodes[2]).unwrap().pop().unwrap();
+                let qy = open_wires.get_mut(&in_nodes[3]).unwrap().pop().unwrap();
+                let (rx, ry) = circuit_spec.add_points((px, py), (qx, qy));
+                push_gate(&mut open_wires, &node_idx, vec![rx, ry])
             }
             RandGate::Multiply => {
                 let in_nodes = get_incoming_nodes(&graph, node_idx);
@@ -196,7 +206,7 @@ fn rand<P: PastaConfig>(wire_count: usize) -> Result<Trace<P>> {
                 let left = open_wires.get_mut(&in_nodes[0]).unwrap().pop().unwrap();
                 let right = open_wires.get_mut(&in_nodes[1]).unwrap().pop().unwrap();
                 let out_wire = circuit_spec.mul_gate(left, right);
-                push_gate(&mut open_wires, &node_idx, out_wire)
+                push_gate(&mut open_wires, &node_idx, vec![out_wire])
             }
         }
     }

@@ -5,10 +5,10 @@ mod poseidon_consts;
 mod pp;
 mod wrappers;
 
+pub type Fq = ark_pallas::Fq;
+pub type Fp = ark_pallas::Fr;
 pub use ark_ec;
 pub use ark_ff;
-pub use ark_pallas::Fq;
-pub use ark_pallas::Fr as Fp;
 pub use ark_pallas::PallasConfig;
 pub use ark_poly;
 pub use ark_std;

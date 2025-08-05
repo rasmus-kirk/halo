@@ -43,23 +43,23 @@ This leads to the following constraints:
       \end{cases} \\
       \l &= \begin{cases} 
         \frac{y_q - y_p}{x_q - x_p}, & \text{if } x_q \neq x_p \\
-        \frac{3x_p^2}, & \text{if } x_q = x_p \land y_p \neq 0 \\
-        \frac{3x_p^2}, & \text{otherwise}
+        \frac{3x_p^2}{2 y_p} & \text{if } x_q = x_p \land y_p \neq 0 \\
+        0 & \text{otherwise}
       \end{cases} \\
     \end{aligned}
     $$
-  - $q_{add} \cdot (x_q - x_p) \cdot ((x_q - x_p) \cdot \l - (y_q - y_p)) = 0$
-  - $q_{add} \cdot (1 - (x_q - x_p) \cdot \a) \cdot (2y_p \cdot \l - 3x_p^2) = 0$
-  - $q_{add} \cdot x_p \cdot x_q \cdot (x_q - x_r) \cdot (\l^2 - x_p - x_q - x_r) = 0$
-  - $q_{add} \cdot x_p \cdot x_q \cdot (x_q - x_r) \cdot (\l \cdot (x_p - x_r) - y_p - y_r) = 0$
-  - $q_{add} \cdot x_q \cdot (y_q + y_r) \cdot (\l^2 - x_p - x_q - x_r) = 0$
-  - $q_{add} \cdot x_q \cdot (y_q + y_r) \cdot (\l \cdot (x_p - x_r) - y_p - y_r) = 0$
-  - $q_{add} \cdot (1 - x_q \cdot \b) \cdot (x_r - x_q) = 0$
-  - $q_{add} \cdot (1 - x_q \cdot \b) \cdot (y_r - y_q) = 0$
-  - $q_{add} \cdot (1 - x_q \cdot \g) \cdot (x_r - x_p) = 0$
-  - $q_{add} \cdot (1 - x_q \cdot \g) \cdot (y_r - y_p) = 0$
-  - $q_{add} \cdot (1 - x_q \cdot x_p) \cdot \a \cdot (y_q + y_p) \cdot \d \cdot x_r = 0$
-  - $q_{add} \cdot (1 - x_q \cdot x_p) \cdot \a \cdot (y_q + y_p) \cdot \d \cdot y_r = 0$
+  - $term_1 = (x_q - x_p) \cdot ((x_q - x_p) \cdot \l - (y_q - y_p)) = 0$
+  - $term_2 = (1 - (x_q - x_p) \cdot \a) \cdot (2y_p \cdot \l - 3x_p^2) = 0$
+  - $term_3 = x_p \cdot x_q \cdot (x_q - x_r) \cdot (\l^2 - x_p - x_q - x_r) = 0$
+  - $term_4 = x_p \cdot x_q \cdot (x_q - x_r) \cdot (\l \cdot (x_p - x_r) - y_p - y_r) = 0$
+  - $term_5 = x_q \cdot (y_q + y_r) \cdot (\l^2 - x_p - x_q - x_r) = 0$
+  - $term_6 = x_q \cdot (y_q + y_r) \cdot (\l \cdot (x_p - x_r) - y_p - y_r) = 0$
+  - $term_7 = (1 - x_q \cdot \b) \cdot (x_r - x_q) = 0$
+  - $term_8 = (1 - x_q \cdot \b) \cdot (y_r - y_q) = 0$
+  - $term_9 = (1 - x_q \cdot \g) \cdot (x_r - x_p) = 0$
+  - $term_{10} = (1 - x_q \cdot \g) \cdot (y_r - y_p) = 0$
+  - $term_{11} = (1 - x_q \cdot x_p) \cdot \a \cdot (y_q + y_p) \cdot \d \cdot x_r = 0$
+  - $term_{12} = (1 - x_q \cdot x_p) \cdot \a \cdot (y_q + y_p) \cdot \d \cdot y_r = 0$
 - $P = -Q$ (home baked):
   - $q_{point-neg} \cdot (x_p - x_q) = 0$
   - $q_{point-neg} \cdot (y_p + y_q) = 0$

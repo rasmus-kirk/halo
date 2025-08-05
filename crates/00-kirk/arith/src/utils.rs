@@ -1,6 +1,8 @@
 use std::array;
 
+use halo_group::ark_ff::PrimeField;
 use halo_group::ark_poly::EvaluationDomain;
+use halo_group::{Fp, Fq};
 use halo_group::{
     PastaConfig, Poly, Scalar,
     ark_ff::{BigInt, BigInteger, Field},
@@ -16,31 +18,7 @@ pub const QUOTIENT_POLYS: usize = 15;
 /// How many witness polynomials in plonk
 pub const WITNESS_POLYS: usize = 15;
 /// How many selector polynomials in plonk
-pub const SELECTOR_POLYS: usize = 6;
-
-pub trait HaloPoly<P: PastaConfig> {
-    type Config = P;
-
-    fn pow(&self, exponent: usize) -> Self;
-}
-impl<P: PastaConfig> HaloPoly<P> for Poly<P> {
-    type Config = P;
-
-    fn pow(&self, exponent: usize) -> Poly<P> {
-        if self.is_zero() {
-            Poly::<P>::zero()
-        } else {
-            let domain = GeneralEvaluationDomain::new(exponent * self.coeffs.len() - 1)
-                .expect("field is not smooth enough to construct domain");
-            let mut evals = self.evaluate_over_domain_by_ref(domain);
-            let evals_clone = evals.clone();
-            for _ in 0..exponent {
-                evals *= &evals_clone;
-            }
-            evals.interpolate()
-        }
-    }
-}
+pub const SELECTOR_POLYS: usize = 7;
 
 pub trait MultiAssign<T> {
     fn multi_assign<const N: usize>(&mut self, row: usize, values: [T; N]);

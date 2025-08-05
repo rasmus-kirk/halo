@@ -1,174 +1,25 @@
 use anyhow::Result;
-use halo_poseidon::{SPONGE_RATE, STATE_SIZE};
-use std::{
-    cell::RefCell,
-    ops::{Add, AddAssign, Mul},
-};
+use std::cell::RefCell;
 
 use halo_group::{
-    PallasConfig, Scalar, VestaConfig,
-    ark_std::One,
-    ark_std::Zero,
-    ark_std::rand::{RngCore, thread_rng},
+    Affine, PallasConfig, Scalar, VestaConfig,
+    ark_std::{One, Zero},
 };
-// use halo_poseidon::{SPONGE_RATE, STATE_SIZE};
 
-use crate::circuit::{CircuitSpec, Trace, TraceBuilder, Wire};
+use crate::{
+    circuit::{CircuitSpec, Trace, TraceBuilder},
+    frontend::{
+        curve::CurvePoint,
+        field::{Fp, Fq},
+    },
+};
 
-// Thread-local Frontend instance
+pub mod curve;
+pub mod field;
+pub mod poseidon;
+
 thread_local! {
     static FRONTEND: RefCell<Frontend> = RefCell::new(Frontend::new());
-}
-
-#[derive(Clone, Copy, Debug)]
-struct Fp {
-    wire: Wire,
-}
-
-impl Fp {
-    // Create a new wire using the thread-local frontend
-    fn witness() -> Self {
-        FRONTEND.with(|frontend| {
-            let mut frontend = frontend.borrow_mut();
-            let wire = frontend.fp_circuit.witness_gate();
-            Fp { wire }
-        })
-    }
-
-    fn constant(c: Scalar<PallasConfig>) -> Self {
-        FRONTEND.with(|frontend| {
-            let mut frontend = frontend.borrow_mut();
-            let wire = frontend.fp_circuit.constant_gate(c);
-            Fp { wire }
-        })
-    }
-
-    fn zero() -> Self {
-        Self::constant(Scalar::<PallasConfig>::zero())
-    }
-
-    fn one() -> Self {
-        Self::constant(Scalar::<PallasConfig>::one())
-    }
-
-    fn from_wire(wire: Wire) -> Self {
-        Fp { wire }
-    }
-
-    fn output(self) {
-        FRONTEND.with(|frontend| {
-            let mut frontend = frontend.borrow_mut();
-            frontend.fp_circuit.output_gate(self.wire);
-            println!("{:?}", frontend.fp_circuit);
-        })
-    }
-}
-
-impl Mul for Fp {
-    type Output = Fp;
-
-    fn mul(self, other: Fp) -> Self::Output {
-        FRONTEND.with(|frontend| {
-            let mut frontend = frontend.borrow_mut();
-            let wire = frontend.fp_circuit.mul_gate(self.wire, other.wire);
-            Fp { wire }
-        })
-    }
-}
-
-impl Add for Fp {
-    type Output = Fp;
-
-    fn add(self, other: Fp) -> Self::Output {
-        FRONTEND.with(|frontend| {
-            let mut frontend = frontend.borrow_mut();
-            let wire = frontend.fp_circuit.add_gate(self.wire, other.wire);
-            Fp { wire }
-        })
-    }
-}
-
-impl AddAssign for Fp {
-    fn add_assign(&mut self, rhs: Self) {
-        FRONTEND.with(|frontend| {
-            let mut frontend = frontend.borrow_mut();
-            let wire = frontend.fp_circuit.add_gate(self.wire, rhs.wire);
-            *self = Fp { wire }
-        })
-    }
-}
-
-#[derive(Clone, Debug)]
-enum SpongeState {
-    Absorbed(usize),
-    Squeezed(usize),
-}
-
-#[derive(Clone, Debug)]
-struct InnerSponge {
-    state: [Fp; STATE_SIZE],
-    sponge_state: SpongeState,
-}
-impl InnerSponge {
-    fn poseidon_block_cipher(state: &mut [Fp; STATE_SIZE]) {
-        FRONTEND.with(|frontend| {
-            let mut frontend = frontend.borrow_mut();
-            let mut wire_state = state.map(|x| x.wire);
-            for i in 0..11 {
-                wire_state = frontend.fp_circuit.poseidon_gate(i, wire_state);
-            }
-            wire_state = frontend.fp_circuit.poseidon_gate_finish(wire_state);
-            *state = wire_state.map(Fp::from_wire)
-        })
-    }
-
-    pub(crate) fn new() -> Self {
-        Self {
-            state: [Fp::zero(); STATE_SIZE],
-            sponge_state: SpongeState::Absorbed(0),
-        }
-    }
-
-    pub(crate) fn absorb(&mut self, x: &[Fp]) {
-        for x in x.iter() {
-            match self.sponge_state {
-                SpongeState::Absorbed(n) if n < SPONGE_RATE => {
-                    self.sponge_state = SpongeState::Absorbed(n + 1);
-                    self.state[n] += *x;
-                }
-                SpongeState::Absorbed(SPONGE_RATE) => {
-                    Self::poseidon_block_cipher(&mut self.state);
-                    self.sponge_state = SpongeState::Absorbed(1);
-                    self.state[0] += *x;
-                }
-                SpongeState::Squeezed(_n) => {
-                    self.sponge_state = SpongeState::Absorbed(1);
-                    self.state[0] += *x;
-                }
-                _ => panic!("Impossible case found"),
-            }
-        }
-    }
-
-    pub(crate) fn squeeze(&mut self) -> Fp {
-        match self.sponge_state {
-            SpongeState::Squeezed(n) if n < SPONGE_RATE => {
-                self.sponge_state = SpongeState::Squeezed(n + 1);
-                self.state[n]
-            }
-            SpongeState::Squeezed(SPONGE_RATE) | SpongeState::Absorbed(_) => {
-                Self::poseidon_block_cipher(&mut self.state);
-                self.sponge_state = SpongeState::Squeezed(1);
-                self.state[0]
-            }
-            _ => panic!("Impossible case found"),
-        }
-    }
-
-    pub(crate) fn reset(&mut self) {
-        self.state = [Fp::zero(); STATE_SIZE];
-        self.sponge_state = SpongeState::Absorbed(0);
-    }
 }
 
 #[derive(Clone)]
@@ -186,12 +37,12 @@ impl Frontend {
     }
 }
 
-struct Call {
+pub struct Call {
     fp_trace_builder: TraceBuilder<PallasConfig>,
     fq_trace_builder: TraceBuilder<VestaConfig>,
 }
 impl Call {
-    fn new() -> Self {
+    pub fn new() -> Self {
         FRONTEND.with(|frontend| {
             let frontend = frontend.borrow();
             let fp_trace_builder = TraceBuilder::new(frontend.fp_circuit.clone());
@@ -202,13 +53,22 @@ impl Call {
             }
         })
     }
-    fn fp_witness(&mut self, fp: Fp, scalar: Scalar<PallasConfig>) -> Result<()> {
+    pub fn fp_witness(&mut self, fp: Fp, scalar: Scalar<PallasConfig>) -> Result<()> {
         self.fp_trace_builder.witness(fp.wire, scalar)
     }
-    fn fp_public_input(&mut self, fp: Fp, scalar: Scalar<PallasConfig>) -> Result<()> {
+    pub fn fq_witness(&mut self, fq: Fq, scalar: Scalar<VestaConfig>) -> Result<()> {
+        self.fq_trace_builder.witness(fq.wire, scalar)
+    }
+    pub fn curve_witness(&mut self, p: CurvePoint, affine: Affine<PallasConfig>) -> Result<()> {
+        assert!(affine.is_on_curve());
+        self.fq_trace_builder.witness(p.x.wire, affine.x)?;
+        self.fq_trace_builder.witness(p.y.wire, affine.y)?;
+        Ok(())
+    }
+    pub fn fp_public_input(&mut self, fp: Fp, scalar: Scalar<PallasConfig>) -> Result<()> {
         self.fp_trace_builder.public_input(fp.wire, scalar)
     }
-    fn trace(self) -> Result<(Trace<PallasConfig>, Trace<VestaConfig>)> {
+    pub fn trace(self) -> Result<(Trace<PallasConfig>, Trace<VestaConfig>)> {
         Ok((
             self.fp_trace_builder.trace()?,
             self.fq_trace_builder.trace()?,
@@ -223,15 +83,12 @@ mod tests {
     use anyhow::Result;
     use halo_group::{
         PallasConfig, PastaConfig, Scalar, VestaConfig,
-        ark_std::{
-            rand::{Rng, RngCore},
-            test_rng,
-        },
+        ark_std::{rand::Rng, test_rng},
     };
     use halo_poseidon::STATE_SIZE;
 
     use crate::{
-        frontend::{Call, FRONTEND, Fp, InnerSponge},
+        frontend::{Call, FRONTEND, field::Fp, poseidon::inner_sponge::InnerSponge},
         plonk::PlonkProof,
     };
 
