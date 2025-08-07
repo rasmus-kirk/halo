@@ -83,7 +83,7 @@ v \text{?} \avec{y}' & \otherwise
 v_{\abst{f}}\left[\abst{y}\right] &= \maybe{
   v[\avec{y} \mapsto \vec{y}]
 }{\begin{array}{rl}
-  \abst{f} &\ni (g, \abst{y}) \\
+  \abst{f} &\ni \gpair{g}{\abst{y}} \\
   \avec{y} &= \out(\abst{f},g) \\
   \vec{y} &= \eval_g(v[\gin(g)]) \\
 \end{array}}
@@ -96,7 +96,7 @@ f \stackrel{\to}{\circ} \Downarrow^{\abst{f}}_R(t,v, \avec{y}) &= \begin{cases}
 f(t,v,()) & \avec{y} = () \\
 & \avec{y} = \abst{y} \cat \_ \\
 \underset{R}{\curvearrowleft} (t, v, \avec{y}) & v(\abst{y}) \neq \bot \\
-& (g, \abst{y}) \in \abst{f} \\
+& \gpair{g}{\abst{y}} \in \abst{f} \\
 (t, v, \avec{x} \cat \avec{y}) 
 & \avec{x} = v \text{?} \gin(g) \neq () \\
 \underset{R}{\curvearrowleft} \circ f(t, v_{\abst{f}}[\abst{y}], \avec{y}) 
@@ -114,7 +114,7 @@ $$
 &
 \begin{array}{rl}
 s &: \Wire^m \to W[\tin{}] \to \RState \\
-s^{\avec{Y}}_{\vec{x}} &= (\bot[(0..|\vec{x}|) \mapsto \vec{x}], \avec{Y} \cat \set{\abst{x} \middle\vert (g, \bot) \in \abst{f} \land \abst{x} \in \gin(g) \setminus \avec{Y}})
+s^{\avec{Y}}_{\vec{x}} &= (\bot[(0..|\vec{x}|) \mapsto \vec{x}], \avec{Y} \cat \set{\abst{x} \middle\vert \gpair{g}{\bot} \in \abst{f} \land \abst{x} \in \gin(g) \setminus \avec{Y}})
 \end{array}
 &
 \begin{array}{rl}
@@ -126,19 +126,16 @@ $$
 
 ### Gate Constraints
 
-$\Downarrow_G$ computes the trace table $C$ by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since $\Downarrow_R$ does not call the continuation (including $\Downarrow_G$), on resolved wires. Moreover, duplicates of base gates are tracked in the set of gates in $\text{GState}$. When the wire id stack $\avec{y}$ is empty, $\underset{G}{\curvearrowright}$ will push assert gates and input gates $\vec{g}^{\abst{f}}$ to the stack. The pre-constraints of the gates are then resolved with vmap. Thus, tabulating the trace table.
+$\Downarrow_G$ computes the trace table $C$ by enqueing $\vec{g}$ the gadget (and its base recursively if any) with an output of the top of the $\vec{y}$ stack. The same gadget will not appear twice since $\Downarrow_R$ does not call the continuation on resolved wires and base duplicates are avoided by tracking added gadgets in $\Omega$. The pre-constraints of the gadgets are then resolved with vmap. Thus, tabulating the trace table.
 
-\begin{tabularx}{\textwidth}{@{} Y Y Y Y Y @{}}
+\begin{tabularx}{\textwidth}{@{} r Y Y Y Y Y @{}}
 \toprule
-Basic & Relative  & Asserts  & PublicInput  & \plonkup Table  \\
- & $b_g>0$ & $m_g=0$ & $\ty(g)=\text{PI}_t$ & $\ty(g)=\text{Tbl}_t$
+kind & Basic & Relative  & Asserts  & PublicInput  & \plonkup Table  \\
+& & $b_g>0$ & $m_g=0$ & $\ty(g)=\text{PI}^t_i$ & $\ty(g)=\text{Tbl}^t_j$
 \\\hline 
-append &
-append with base &
-appends at end &
-prepends at end &
-as column at end
-\\\hline \\
+phase & $\phi=0$ & $\phi=0$ & $\phi=1$ & $\phi=2$ & $\phi=3$
+\\\hline\\
+join &
 \begin{tikzpicture}[
   baseline={(current bounding box.center)}
 ]
@@ -190,55 +187,78 @@ $$
 \begin{array}{rl}
 A \cat B &= A \sqcup_{\lambda \_,\vec{a}, \vec{b}. \vec{a} \cat \vec{b}} B \\
 \TraceTable &= \IndexMap(X, \lambda t,\_. W(t)^k) \\
-\text{GState}^{k,k'} &= \TraceTable \times \Ggt^{k'} \times \Bb \times \RState^k \\
-\vec{g}^{\abst{f}} &= \left[g \middle\vert (g, \abst{y}) \in \abst{f} \land (\abst{y} = \bot \lor \exists i,t. \abst{y} = \Input^t_i) \right] \\
+\text{GState}^{k,k'} &= \TraceTable \times \pset{\Ggt} \times \Ggt^{k'} \\
+&\times \Nb \times \RState^k \\
+\vec{G}^{\abst{f}} &: \Ggt^j \times \Ggt^k \times \Ggt^l \\
+\vec{G}^{\abst{f}} &= \left(\begin{array}{l}
+  \left[g \middle\vert \gpair{g}{\abst{y}} \in \abst{f} \land
+  \begin{array}{l}
+    \exists i,t. \ty(g) = \Input^t_i \\
+    \lor \abst{y} = \bot \land \ty(g) \neq \text{PI}^{\_}_\_
+  \end{array}\right]\\
+  \left[g \middle\vert \gpair{g}{\_} \in \abst{f} \land \exists i,t. \ty(g) = \text{PI}^t_i\right] \\
+  \left[g \middle\vert \gpair{g}{\_} \in \abst{f} \land \exists j,t. \ty(g) = \text{Tbl}^t_j\right]
+\end{array}\right) \\
 \\
-\Downarrow &: \VMap \to F(\text{Pre}(t,s)^k \to W(t)^k) \\
-\Downarrow_v(\_,\vec{r}) &= \text{reduce}[\vec{r}]\\
-\text{reduce}(r) &= \begin{cases}
-f(x,v[\avec{w}]) & r = (x, \avec{w}, f) \\
-? & \otherwise
+\Downarrow &: \AbsCirc \to \VMap \to F(\Cell(t,s)^k \to W(t)^k) \\
+\Downarrow^{\abst{f}}_v(\_,\vec{r}) &= (\lambda (x, \avec{w}, f).f(x,v[\text{wires}^{\abst{f}}_g(\avec{w})]))[\vec{r}] \\
+\\
+\Downarrow &: \AbsCirc \to \Ggt \to \Ggt^k \\
+\Downarrow^{\abst{f}}(g) &= \begin{cases}
+\Downarrow^{\abst{f}}(g') \cat g & g' = \base^{\abst{f}}_g \neq \bot \\
+(g)
 \end{cases} \\
 \\
-\underset{G}{\curvearrowleft} &: T \times \text{GState}^{k'',k} \to T \times \text{GState}^{k'',k'} \\
-\underset{G}{\curvearrowleft} &= \lift(\curvearrowleft : \Ggt^k \to \Ggt^{k'})
+\underset{G}{\curvearrowright} &: T \times \text{GState}^{k'',k} \to T \times \text{GState}^{k'',k'} \\
+\underset{G}{\curvearrowright} &= \lift(\curvearrowright : \Ggt^k \to \Ggt^{k'})
 \end{array} &
 \begin{array}{rl}
 - \stackrel{\to}{\circ} \Downarrow^{-}_G &: (T \times \text{GState} \to T \times \text{GState}) \to \AbsCirc \\
 &\to T \times \text{GState} \to T \times \text{GState} \\
-f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \underset{G}{\curvearrowleft} \circ f \circ^\uparrow \lambda (C, \vec{g}, b, v). \\
+f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \lambda (C, \Omega, \vec{g}, \phi, v). \\
 &\begin{cases}
-& \vec{g} = g \cat \_ \\
-& check\ not\ in\ set\ (no\ continue) \\
-& this\ is\ where\ cases\ split \\
-(C',\vec{g},b,v)
-& C' = C \cat \Downarrow_v[\ctrn_g] \\
-(C, (), b, v)
+& \vec{g} = \_ \cat g \\
+\underset{G}{\curvearrowright} (C, \Omega, \vec{g}, \phi, v)
+& g \in \Omega \\
+& f' = \underset{G}{\curvearrowright} \circ f \circ^\uparrow \land \Omega' = \Omega \cup \set{g} \\
+f' (C',\Omega', \vec{g},\phi,v) 
+& \phi \leq 1 \Rightarrow C' = C \cat \Downarrow^{\abst{f}}_v[\ctrn_g] \\
+f' (C',\Omega', \vec{g},\phi,v) 
+& \phi \leq 2 \Rightarrow C' = \Downarrow^{\abst{f}}_v[\ctrn_g] \cat C \\
+\underset{G}{\curvearrowright} (C',\Omega', \vec{g},\phi,v) & \phi = 3 \land C' = C \cat \Downarrow^{\abst{f}}_v[\ctrn_g] \\
+f' (C, \Omega, (), \phi, v)
 & \otherwise
 \end{cases} \\
-&\circ^\uparrow \lambda(\vec{g}, b, v, \avec{y}). \\
+&\circ^\uparrow \lambda(\vec{g}, \phi, v, \avec{y}). \\
 &\begin{cases}
-& b = \bot \\
-(\vec{g}^{\abst{f}}, \top, v, ())
-& |\avec{y}| = |\vec{g}| = 0 \\
-& \avec{y} = \abst{y} \cat \_ \\
-(g \cat \vec{g}, \bot, v, \avec{y})
-& (g,\abst{y}) \in \abst{f} \\
-(\vec{g}, \top, v, ())
+& \phi = 0 \land \avec{y} = \abst{y} \cat \_ \\
+(\vec{g}\cat \Downarrow(g), 0, v, \avec{y})
+& \gpair{g}{\abst{y}} \in \abst{f} \\
+(\vec{G}^{\abst{f}}_{\phi +1}, \phi + 1, v, ())
+& \phi < 3 \land |\avec{y}| = |\vec{g}| = 0 \\
+((), 4, v, ()) & \phi = 3 \land |\avec{y}| = |\vec{g}| = 0 \\
+(\vec{g}, \phi, v, ())
 & \otherwise
 \end{cases}
 \end{array}
 \end{array}
 $$
 $$
+\begin{array}{ccc}
 \begin{array}{rl}
+\curvearrowright &: X^k \to X^{k'} \\
+\curvearrowright (\vec{x}) &= \begin{cases}
+() & \vec{x} = () \\
+\vec{x}' & \vec{x} = \vec{x}' \cat \_ \\
+\end{cases}
+\end{array} &
 \begin{array}{rl}
 \dagger_G &: \text{GState} \to \Bb \\
-\dagger_G &= \lambda(\_, \vec{g}, b, \_). |\vec{g}| = 0 \land b = \top
+\dagger_G &= \lambda(\_, \vec{g}, b, \_). |\vec{g}| = 0 \land b = 4
 \end{array} &
 \begin{array}{rl}
 \iota_G &: \text{RState} \to \text{GState} \\
-\iota_G(s) &= (\lambda \_.\bot[s \mapsto ()], (), \bot, s)
+\iota_G(s) &= (\lambda \_.\bot[s \mapsto ()], \emptyset, (), 0, s)
 \end{array}
 \end{array}
 $$

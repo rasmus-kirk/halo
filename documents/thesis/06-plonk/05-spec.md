@@ -108,27 +108,25 @@ The *pre-constraints* $\ctrn_g$ of the operation $g$ is an index map of a vector
 [^sel-notation]: Although the selection is notated $\avec{w}$, it is a vector of naturals indexing the wire types. Trace can use this to recover the wires from $\abst{f}$.
 
 $$
-\begin{array}{cc}
 \begin{array}{c}
-\begin{array}{ccc}
+\begin{array}{cccc}
 g: \Ops &
 \ctrn_g: \PreTable_g &
-\PreTable_g = \IndexMap(X, F(\Cell_g(t,s)^k))
+\PreTable_g = \IndexMap(X, F(\Cell_g(t,s)^k)) &
+\AWire_g = [n_g+m_g+1]\setminus \cdots
 \end{array} \\
 \begin{array}{ccccc}
 \Cell_g = F(X(t,s) \times (\avec{w}: \AWire_g^k) \times R_g(\avec{w}_p,t,s)) &
 R_g(\avec{w}) = F(X(t,s) \to W[\vec{t}^{g,\avec{w}}] \to W(t))
-\end{array} \\
-\begin{array}{cc}
-\AWire_g = [n_g+m_g+1]\setminus \cdots &
-\vec{t}^{g,\avec{w}} = (\lambda i. (\tin{g} \cat \tout{g})_i)[\avec{w}]
-\end{array}
-\end{array} &
+\end{array} \\ \\
+\begin{array}{ccc}
+\vec{t}^{g,\avec{w}} = (\lambda i. (\tin{g} \cat \tout{g})_i)[\avec{w}] &
+\text{wires}^{\abst{f}}_g(\avec{w}) = (\lambda i. (\gin(g) \cat \out(\abst{f}, g))_i)[\avec{w}] &
 \begin{array}{rl}
-\text{wnat} &: \Cell_g \to \Nb \\
-\text{wnat} &= \lambda (\_, \avec{w}, \_). \\
-&\maybe{i}{\avec{w} = (i)}
+\text{wnat}&: \Cell_g \to \Nb \\
+\text{wnat}&= \lambda (\_, \avec{w}, \_). \maybe{i}{\avec{w} = (i)}
 \end{array}
+\end{array} 
 \end{array}
 $$
 
@@ -244,13 +242,14 @@ b_g &: \set{x : \Nb \middle\vert x \leq n_g} \\
 \Rel_g &: \pset{\Column}
 \end{array} &
 \begin{array}{rl}
-\base &: \AbsCirc \to \Wire^k \to \Ggt \\
+\base &: \AbsCirc \to \Ggt \to \Ggt \\
+\base^{\abst{f}}_g &= \base(\abst{f}, \gin(g)[n_g-b_g+1..n_g+1]) \\
 \base(\abst{f}, \avec{w}) &= \maybe{g}{
 \begin{array}{l}
-  \exists i. (g,\abst{w}_i) \in \abst{f} \\
+  \exists i. \gpair{g}{\abst{w}_i} \in \abst{f} \\
   \bigwedge(\lambda \abst{w}. \abst{w} \in \gin(g) \cup \out(\abst{f},g))[\avec{w}] \\
   \bigwedge(\lambda \abst{w}. \text{pos}(\abst{f}, g, \abst{w}) \neq \emptyset)[\avec{w}]
-\end{array}} \\
+\end{array}} 
 \end{array}
 \end{array}
 $$
@@ -329,6 +328,9 @@ $$
 A *specification*[^spec-benefit] defines the config of the protocol. This includes marking columns as private or enabling it for copy constraints. In the previous section on arithmetize, we omitted $s:\Spec$ in $\AState$ leaving $W, \WireType, \Ops$ implicit for $W_s, \WireType_s, \Ops_s$. We will keep the spec instance $s$ implicit beyond this section as well. We conclude with tabulating all objects according to their abstraction levels.
 
 [^spec-benefit]: With spec as a data structure, it is dynamic and can be extended whilst arithmetizing.
+
+
+TODO padding is done in $\ctrn_g$, they are declared in spec as an indexmap $D^t_x(c)$ is the default value for column c. for query column, x is the pair default and challenge. everyone else is zero with no x.
 
 
 $$
