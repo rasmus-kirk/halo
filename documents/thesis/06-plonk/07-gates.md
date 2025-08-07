@@ -1,5 +1,7 @@
 
-**Concrete Spec Definition**
+### Defined Operations
+
+TODO maybe move to appendix
 
 TODO: all gates also does booleanity check, i.e. every (single output) gate has a flag to also assert if its bool
 

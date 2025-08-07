@@ -51,6 +51,8 @@ $\vec{x} \cat y$ & $(x_1, x_2, \cdots, x_n, y)$ & Append $y$ to vector $\vec{x}$
 \hline
 $\text{last}(\vec{v})$ & $\maybe{v}{\vec{v} = \_ \cat (v)}$ & last element \\
 \hline
+$\vec{x}[i..j]$ & & subvector from $i$ to $j-1$ \\
+\hline
 $\maybe{x}{\phi(x)}$ & $\begin{cases} x & \phi(x) \\ \bot & \otherwise \end{cases}$ & Maybe: $x$ if $\phi(x)$, else $\bot$ \\
 \hline
 $x ? y$ & $\begin{cases} x & x \neq \bot \\ y & \otherwise \end{cases}$ & $x$ unless it is $\bot$ then $y$ \\

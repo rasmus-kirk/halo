@@ -1,13 +1,13 @@
 
 
-### Trace
+## Trace
 
 The trace computation is defined as follows:
 $$
 (C, \sigma) = \mathrm{trace}(\vec{x},\abst{f},\avec{Y})
 $$
 
-**Monotonic Functions**
+### Monotonic Functions
 
 $\text{trace}$ computes the least fixed point of a composition of monotonic functions; $\Downarrow_R, \Downarrow_G, \Downarrow_C$, using $\text{sup}$. We also call a monotonic function a continuation if it is called by another. We call lift, to extend the argument of a monotonic function. By the Kleene fixpoint theorem, the least fixed point can be computed by iterating the function until saturation, i.e. when the state does not change anymore.
 
@@ -43,16 +43,9 @@ $$
 
 The monotonic functions defined here are specific to the $\Surkal$ protocol, i.e. it can be different for a different \plonk-ish protocol. For each monotonic function, we notate $\dagger$ as a check if the state has saturated. $s$ are the initial states and $\iota$ a constructor of it. 
 
-**Resolve**
+### Resolve
 
-$\Downarrow_R$ computes the values of wires $\avec{Y}$ and inputs to assert gates given the input wire values $\vec{x}$.[^respect]
-
-[^respect]: all assert gates (gates with no output wires) declared in $\abst{f}$ are respected.
-
- 
-It does this by peeking from the stack $\avec{y}$, querying $\text{?}$ for unresolved input wires, otherwise it will evaluate the output wire values and cache it in the value map $v$ with $[\cdot]$. The continuation $f$ and stack pop $\curvearrowleft$ are called after.
-
-TODO relative gates
+$\Downarrow_R$ computes the values of wires $\avec{Y}$ and input wires to assert gates given the input gates wire values $\vec{x}$. It does this by peeking from the stack $\avec{y}$, querying $\text{?}$ for unresolved input wires, otherwise it will evaluate the output wire values and cache it in the value map $v$ with $[\cdot]$. The continuation $f$ and stack pop $\curvearrowleft$ are called after.
 
 $$
 \begin{array}{ccc}
@@ -101,13 +94,13 @@ v_{\abst{f}}\left[\abst{y}\right] &= \maybe{
 &\to T \times \RState \to T \times \RState \\
 f \stackrel{\to}{\circ} \Downarrow^{\abst{f}}_R(t,v, \avec{y}) &= \begin{cases}
 f(t,v,()) & \avec{y} = () \\
- & \avec{y} = \abst{y} \cat \_ \\
+& \avec{y} = \abst{y} \cat \_ \\
 \underset{R}{\curvearrowleft} (t, v, \avec{y}) & v(\abst{y}) \neq \bot \\
- & (g, \abst{y}) \in \abst{f} \\
- & \avec{x} = v \text{?} \gin(g) \\
+& (g, \abst{y}) \in \abst{f} \\
+(t, v, \avec{x} \cat \avec{y}) 
+& \avec{x} = v \text{?} \gin(g) \neq () \\
 \underset{R}{\curvearrowleft} \circ f(t, v_{\abst{f}}[\abst{y}], \avec{y}) 
- & \avec{x} = () \\
-(t, v, \avec{x} \cat \avec{y}) & \otherwise
+& \otherwise
 \end{cases} \\
 \end{array}
 \end{array}
@@ -131,11 +124,66 @@ s_0 &= (\bot, ())
 \end{array}
 $$
 
-**Gate Constraints**
+### Gate Constraints
 
-$\Downarrow_G$ computes the trace table $C$ by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since we do not call the continuation (including $\Downarrow_G$), on resolved wires in $\Downarrow_R$. When the wire id stack $\avec{y}$ is empty, $\underset{G}{\curvearrowright}$ will push assert gates and input gates $\vec{g}^{\abst{f}}$ to the stack. The pre-constraints of the gates are then resolved with vmap. Thus, tabulating the trace table.
+$\Downarrow_G$ computes the trace table $C$ by pushing the gate with an output of the top of the wire id stack via push; $\underset{G}{\curvearrowright}$. The same gate will not appear twice since $\Downarrow_R$ does not call the continuation (including $\Downarrow_G$), on resolved wires. Moreover, duplicates of base gates are tracked in the set of gates in $\text{GState}$. When the wire id stack $\avec{y}$ is empty, $\underset{G}{\curvearrowright}$ will push assert gates and input gates $\vec{g}^{\abst{f}}$ to the stack. The pre-constraints of the gates are then resolved with vmap. Thus, tabulating the trace table.
 
-TODO relative gates: two cases, base gate resolved (clone table), base gate just resolved now (first insert)
+\begin{tabularx}{\textwidth}{@{} Y Y Y Y Y @{}}
+\toprule
+Basic & Relative  & Asserts  & PublicInput  & \plonkup Table  \\
+ & $b_g>0$ & $m_g=0$ & $\ty(g)=\text{PI}_t$ & $\ty(g)=\text{Tbl}_t$
+\\\hline 
+append &
+append with base &
+appends at end &
+prepends at end &
+as column at end
+\\\hline \\
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\node[draw, minimum width=1.5cm,minimum height=0.75cm] (b1) at (0,0) {$\vdots$};
+\node[draw, minimum width=1.5cm, pattern=north east lines, pattern color=gray!50, anchor=north] (b2) at (b1.south) {$g$};
+\node[draw, minimum width=1.5cm, minimum height=0.75cm, anchor=north] (b3) at (b2.south) {$\vdots$};
+\end{tikzpicture}
+&
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\node[draw, minimum width=1.5cm,minimum height=0.75cm] (b1) at (0,0) {$\vdots$};
+\node[draw, minimum width=1.5cm, pattern=north east lines, pattern color=gray!50, anchor=north] (b2) at (b1.south) {$g$};
+\node[draw, minimum width=1.5cm, pattern=north west lines, pattern color=gray!50, anchor=north] (b3) at (b2.south) {$\base_g$};
+\node[draw, minimum width=1.5cm, minimum height=0.75cm, anchor=north] (b4) at (b3.south) {$\vdots$};
+\end{tikzpicture}
+& 
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\node[draw, minimum width=1.5cm,minimum height=0.75cm] (b1) at (0,0) {$\vdots$};
+\node[draw, minimum width=1.5cm, pattern=north east lines, pattern color=gray!50, anchor=north] (b2) at (b1.south) {$g_1$};
+\node[draw, minimum width=1.5cm, pattern=north west lines, pattern color=gray!50, anchor=north] (b3) at (b2.south) {$\vdots$};
+\node[draw, minimum width=1.5cm, pattern=north east lines, pattern color=gray!50, anchor=north] (b4) at (b3.south) {$g_k$};
+\end{tikzpicture}
+&
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\node[draw, minimum width=1.5cm, pattern=north east lines, pattern color=gray!50] (b1) at (0,0) {$g_1$};
+\node[draw, minimum width=1.5cm, pattern=north west lines, pattern color=gray!50, anchor=north] (b2) at (b1.south) {$\vdots$};
+\node[draw, minimum width=1.5cm, pattern=north east lines, pattern color=gray!50, anchor=north] (b3) at (b2.south) {$g_k$};
+\node[draw, minimum width=1.5cm,minimum height=0.75cm, anchor=north] (b4) at (b3.south) {$\vdots$};
+\end{tikzpicture}
+&
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\node[draw, minimum width=1.5cm,minimum height=2.25cm] (b1) at (0,0) {$\vdots$};
+\node[draw, minimum width=0.6cm, minimum height=0.75cm, anchor=north west, pattern=north west lines, pattern color=gray!50] (b2) at (b1.north east) {$g_1$};
+\node[draw, minimum width=0.6cm, minimum height=0.73cm, anchor=north west, pattern=north east lines, pattern color=gray!50] (b3) at (b2.south west) {$\vdots$};
+\node[draw, minimum width=0.6cm, minimum height=0.75cm, anchor=north west, pattern=north west lines, pattern color=gray!50] (b4) at (b3.south west) {$g_k$};
+\end{tikzpicture} \\
+\\\toprule
+\end{tabularx}
 
 $$
 \begin{array}{rl}
@@ -161,6 +209,8 @@ f(x,v[\avec{w}]) & r = (x, \avec{w}, f) \\
 f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \underset{G}{\curvearrowleft} \circ f \circ^\uparrow \lambda (C, \vec{g}, b, v). \\
 &\begin{cases}
 & \vec{g} = g \cat \_ \\
+& check\ not\ in\ set\ (no\ continue) \\
+& this\ is\ where\ cases\ split \\
 (C',\vec{g},b,v)
 & C' = C \cat \Downarrow_v[\ctrn_g] \\
 (C, (), b, v)
@@ -193,7 +243,7 @@ $$
 \end{array}
 $$
 
-**Copy Constraints**
+### Copy Constraints
 
 TODO rephrase the following to new formalism
 
@@ -305,7 +355,7 @@ x[i \mapsto \vec{l}] \sqcup y'
 \end{array}
 $$
 
-**Full $\Surkal$ Trace**
+### Full $\Surkal$ Trace
 
 We conclude the full trace definition as follows:
 
@@ -356,3 +406,7 @@ $$
 We never remove the mappings in $v$ thus the order is preserved for $v$ despite the stack $s$ can grow and shrink. To show $t \sqsubseteq t'$ then is to investigate the remaining monotonic continuations for $\Surkal$.
 
 TODO: cleanup and make full preorder relation definition, i.e. $s \sqsubseteq f(s)$
+
+### Public variant
+
+TODO
