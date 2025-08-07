@@ -1,4 +1,4 @@
-## Arithmetization
+# \Surkal: Arithmetization
 
 We now define the arithmetization pipeline[^notation]:
 
@@ -13,7 +13,7 @@ $$
 [^notation]: refer to the appendix for the definition of notations used in this section.
 
 
-### Build
+## Build
 
 We define the build computation[^user-build] as follows:
 $$
@@ -22,7 +22,7 @@ $$
 
 [^user-build]: Build is done by the user; writing circuits. However we will reason about it as an algorithm.
 
-**Build Primitives**
+### Build Primitives
 
 Build turns a program $f$ into an *abstract circuit* $\abst{f}$, which is a one-to-many-or-none relation between gadgets $g$ and output wire(s) $\abst{y}$ or $\bot$ for none, inducing an acyclic circuit. e.g. $\gpair{\ggt{Add}{a,b}}{\abst{c}} \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$.
 
@@ -137,7 +137,7 @@ e.g.
 \end{tabular}
 \end{center}
 
-**Circuit Building**
+### Circuit Building
 
 We can also notate the abstract circuit $\abst{f}$ with *predicates* $\build{f = \vec{y}}{s}{s'}$, $\build{f = y}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the *state* $s$ to $s'$ where $u_s$ is the current uuid. Abstract circuit compositions are conjunctions of predicates $\bigwedge \build{f}{}{}$. Wires annotated with $*$, i.e. $\build{f = y^*}{}{}$, are the final output and are appended to $\avec{Y}$. They, may be omitted notationally.
 
@@ -349,6 +349,6 @@ $\build{x^2+y=z^*}{}{}$ &
 \node[draw, thick, circle, double, double distance=1pt, anchor=north] at ($(add-out-1)+(0,-0.4)$) {$\abst{z}$};
 \end{tikzpicture}
 \\ \hline
-use & object & proofs & code & readability
+use & object & proofs & implementation & readability
 \\\toprule
 \end{tabularx}

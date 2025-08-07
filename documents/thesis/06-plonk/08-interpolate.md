@@ -1,4 +1,4 @@
-### Interpolate
+## Interpolate
 
 The construction of subterms of $F_{GC}$ is done by $\OpGroup$ via $gc$:
 
@@ -60,6 +60,6 @@ notation ideas
 - $w_\zeta[\mathcal{C}_T] = \PCCommit(\text{fft}(?[T]), \ldots)$ commit thunk
 - $w[t,A,i]$ typed indexing (or maybe we dont need to if we split into two runs of prover and verifier)
 
-**Relation Correctness Example**
+**Interpolate Correctness Example**
 
 TODO
