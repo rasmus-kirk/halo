@@ -81,20 +81,13 @@ mod tests {
     use std::array;
 
     use anyhow::Result;
-    use halo_group::{
-        PallasConfig, PastaConfig, Scalar, VestaConfig,
-        ark_std::{rand::Rng, test_rng},
-    };
+    use halo_group::{Fp, PallasConfig, VestaConfig, ark_ff::UniformRand, ark_std::test_rng};
     use halo_poseidon::STATE_SIZE;
 
     use crate::{
         frontend::{Call, field::WireScalar, poseidon::inner_sponge::InnerSponge},
         plonk::PlonkProof,
     };
-
-    fn random_scalar<R: Rng>(rng: &mut R) -> Scalar<PallasConfig> {
-        PallasConfig::scalar_from_u64(rng.next_u64())
-    }
 
     #[test]
     fn permutation() -> Result<()> {
@@ -110,9 +103,9 @@ mod tests {
 
         let mut call = Call::new();
 
-        let s0_v = random_scalar(rng);
-        let s1_v = random_scalar(rng);
-        let s2_v = random_scalar(rng);
+        let s0_v = Fp::rand(rng);
+        let s1_v = Fp::rand(rng);
+        let s2_v = Fp::rand(rng);
 
         call.witness(s0, s0_v)?;
         call.witness(s1, s1_v)?;
@@ -142,7 +135,7 @@ mod tests {
 
         let mut call = Call::new();
 
-        let values = [random_scalar(rng); 10];
+        let values = [Fp::rand(rng); 10];
         for (w, v) in witnesses.iter().zip(values) {
             call.witness(*w, v)?
         }

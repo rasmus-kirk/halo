@@ -18,10 +18,7 @@ use log::debug;
 
 use crate::{
     circuit::Trace,
-    utils::{
-        COPY_CONSTRAINT_POLYS, QUOTIENT_POLYS, ROUND_COEFF_POLYS, SELECTOR_POLYS, WITNESS_POLYS,
-        fmt_scalar,
-    },
+    utils::{Q_POLYS, R_POLYS, S_POLYS, T_POLYS, W_POLYS, fmt_scalar},
 };
 
 #[derive(Clone)]
@@ -32,10 +29,10 @@ pub struct PlonkProofEvalProofs<P: PastaConfig> {
 
 #[derive(Clone)]
 pub struct PlonkProofEvals<P: PastaConfig> {
-    ws: [Scalar<P>; WITNESS_POLYS],
-    rs: [Scalar<P>; ROUND_COEFF_POLYS],
-    qs: [Scalar<P>; SELECTOR_POLYS],
-    ts: [Scalar<P>; QUOTIENT_POLYS],
+    ws: [Scalar<P>; W_POLYS],
+    rs: [Scalar<P>; R_POLYS],
+    qs: [Scalar<P>; Q_POLYS],
+    ts: [Scalar<P>; T_POLYS],
     z: Scalar<P>,
     z_omega: Scalar<P>,
     w_omegas: [Scalar<P>; 3],
@@ -43,8 +40,8 @@ pub struct PlonkProofEvals<P: PastaConfig> {
 
 #[derive(Clone)]
 pub struct PlonkProofCommitments<P: PastaConfig> {
-    ws: [Point<P>; WITNESS_POLYS],
-    ts: [Point<P>; QUOTIENT_POLYS],
+    ws: [Point<P>; W_POLYS],
+    ts: [Point<P>; T_POLYS],
     z: Point<P>,
     r: Point<P>,
 }
@@ -75,8 +72,7 @@ impl<P: PastaConfig> PlonkProof<P> {
         // -------------------- Round 1 --------------------
         let r1_now = Instant::now();
 
-        let C_ws: [Point<P>; WITNESS_POLYS] =
-            array::from_fn(|i| commit(&trace.w_polys[i], d, None));
+        let C_ws: [Point<P>; W_POLYS] = array::from_fn(|i| commit(&trace.w_polys[i], d, None));
         transcript.absorb_g(&C_ws);
 
         let r1_time = r1_now.elapsed().as_secs_f64();
@@ -96,7 +92,7 @@ impl<P: PastaConfig> PlonkProof<P> {
 
         let mut f_prime = &trace.w_polys[0] + &trace.id_polys[0] * beta + deg0::<P>(gamma);
         let mut g_prime = &trace.w_polys[0] + &trace.sigma_polys[0] * beta + deg0::<P>(gamma);
-        for i in 1..COPY_CONSTRAINT_POLYS {
+        for i in 1..S_POLYS {
             f_prime = &f_prime * (&trace.w_polys[i] + &trace.id_polys[i] * beta + deg0::<P>(gamma));
             g_prime =
                 &g_prime * (&trace.w_polys[i] + &trace.sigma_polys[i] * beta + deg0::<P>(gamma));
@@ -349,7 +345,7 @@ impl<P: PastaConfig> PlonkProof<P> {
         assert_eq!(f.evaluate(&ch), t.evaluate(&ch) * zH.evaluate(&ch));
 
         let ts = t_split::<P>(t.clone(), trace.rows);
-        let C_ts: [Point<P>; QUOTIENT_POLYS] = array::from_fn(|i| commit(&ts[i], d, None));
+        let C_ts: [Point<P>; T_POLYS] = array::from_fn(|i| commit(&ts[i], d, None));
 
         transcript.absorb_g(&C_ts);
 
@@ -414,14 +410,12 @@ impl<P: PastaConfig> PlonkProof<P> {
         let one = Scalar::<P>::one();
         let n = trace.rows;
 
-        let ids: [Scalar<P>; COPY_CONSTRAINT_POLYS] =
-            array::from_fn(|i| trace.id_polys[i].evaluate(&xi));
-        let sigmas: [Scalar<P>; COPY_CONSTRAINT_POLYS] =
-            array::from_fn(|i| trace.sigma_polys[i].evaluate(&xi));
+        let ids: [Scalar<P>; S_POLYS] = array::from_fn(|i| trace.id_polys[i].evaluate(&xi));
+        let sigmas: [Scalar<P>; S_POLYS] = array::from_fn(|i| trace.sigma_polys[i].evaluate(&xi));
 
         let mut f_prime_eval = pi.vs.ws[0] + beta * ids[0] + gamma;
         let mut g_prime_eval = pi.vs.ws[0] + beta * sigmas[0] + gamma;
-        for i in 1..COPY_CONSTRAINT_POLYS {
+        for i in 1..S_POLYS {
             f_prime_eval *= pi.vs.ws[i] + beta * ids[i] + gamma;
             g_prime_eval *= pi.vs.ws[i] + beta * sigmas[i] + gamma;
         }
@@ -500,16 +494,14 @@ impl<P: PastaConfig> PlonkProof<P> {
         transcript.absorb_g(&[pi.Cs.r]);
         let xi = transcript.challenge();
         let xi_omega = xi * trace.omega;
-        let ids: [Scalar<P>; COPY_CONSTRAINT_POLYS] =
-            array::from_fn(|i| trace.id_polys[i].evaluate(&xi));
-        let sigmas: [Scalar<P>; COPY_CONSTRAINT_POLYS] =
-            array::from_fn(|i| trace.sigma_polys[i].evaluate(&xi));
+        let ids: [Scalar<P>; S_POLYS] = array::from_fn(|i| trace.id_polys[i].evaluate(&xi));
+        let sigmas: [Scalar<P>; S_POLYS] = array::from_fn(|i| trace.sigma_polys[i].evaluate(&xi));
 
         // f'(𝔷) = (A(𝔷) + β Sᵢ₁(𝔷) + γ) (B(𝔷) + β Sᵢ₂(𝔷) + γ) (C(𝔷) + β Sᵢ₃(𝔷) + γ)
         // g'(𝔷) = (A(𝔷)) + β S₁(𝔷)) + γ) (B(𝔷)) + β S₂(𝔷)) + γ) (C(𝔷)) + β S₃(𝔷)) + γ)
         let mut f_prime = pi.vs.ws[0] + beta * ids[0] + gamma;
         let mut g_prime = pi.vs.ws[0] + beta * sigmas[0] + gamma;
-        for i in 1..COPY_CONSTRAINT_POLYS {
+        for i in 1..S_POLYS {
             f_prime *= pi.vs.ws[i] + beta * ids[i] + gamma;
             g_prime *= pi.vs.ws[i] + beta * sigmas[i] + gamma;
         }
@@ -558,15 +550,10 @@ impl<P: PastaConfig> PlonkProof<P> {
     }
 }
 
-fn t_split<P: PastaConfig>(mut t: Poly<P>, n: usize) -> [Poly<P>; QUOTIENT_POLYS] {
+fn t_split<P: PastaConfig>(mut t: Poly<P>, n: usize) -> [Poly<P>; T_POLYS] {
     // TODO: Make sure this is necessary
-    assert!(
-        t.degree() < QUOTIENT_POLYS * n,
-        "{} < {}",
-        t.degree(),
-        QUOTIENT_POLYS * n
-    );
-    t.coeffs.resize(QUOTIENT_POLYS * n, Scalar::<P>::zero());
+    assert!(t.degree() < T_POLYS * n, "{} < {}", t.degree(), T_POLYS * n);
+    t.coeffs.resize(T_POLYS * n, Scalar::<P>::zero());
     let mut iter = t
         .coeffs
         .chunks(n as usize)
@@ -575,7 +562,7 @@ fn t_split<P: PastaConfig>(mut t: Poly<P>, n: usize) -> [Poly<P>; QUOTIENT_POLYS
 }
 
 fn t_reconstruct<P: PastaConfig>(
-    ts: [Scalar<P>; QUOTIENT_POLYS],
+    ts: [Scalar<P>; T_POLYS],
     challenge: Scalar<P>,
     n: usize,
 ) -> Scalar<P> {
@@ -663,8 +650,8 @@ fn poly_pow<P: PastaConfig>(poly: &Poly<P>, exponent: usize) -> Poly<P> {
 
 fn poly_poseidon<P: PastaConfig>(
     M: [[Scalar<P>; 3]; 3],
-    r: &[Poly<P>; ROUND_COEFF_POLYS],
-    w: &[Poly<P>; WITNESS_POLYS],
+    r: &[Poly<P>; R_POLYS],
+    w: &[Poly<P>; W_POLYS],
     nw: &[Poly<P>; 3],
 ) -> Poly<P> {
     // let sbox = |w| poly_pow::<P>(w, 7);
@@ -694,8 +681,8 @@ fn poly_poseidon<P: PastaConfig>(
 }
 
 fn scalar_poseidon<P: PastaConfig>(
-    r: &[Scalar<P>; ROUND_COEFF_POLYS],
-    w: &[Scalar<P>; WITNESS_POLYS],
+    r: &[Scalar<P>; R_POLYS],
+    w: &[Scalar<P>; W_POLYS],
     nw: &[Scalar<P>; 3],
 ) -> Scalar<P> {
     let M = P::SCALAR_POSEIDON_MDS;
@@ -725,7 +712,7 @@ fn scalar_poseidon<P: PastaConfig>(
 }
 
 #[allow(uncommon_codepoints)]
-fn affine_add_constraints_poly<P: PastaConfig>(w: &[Poly<P>; WITNESS_POLYS]) -> Poly<P> {
+fn affine_add_constraints_poly<P: PastaConfig>(w: &[Poly<P>; W_POLYS]) -> Poly<P> {
     let one = deg0::<P>(Scalar::<P>::one());
     let [xp, yp, xq, yq, xr, yr, α, β, γ, δ, λ, _, _, _, _, _] = w;
 
@@ -789,7 +776,7 @@ fn affine_add_constraints_poly<P: PastaConfig>(w: &[Poly<P>; WITNESS_POLYS]) -> 
 }
 
 #[allow(uncommon_codepoints)]
-fn affine_add_constraints_scalar<P: PastaConfig>(w: [Scalar<P>; WITNESS_POLYS]) -> Scalar<P> {
+fn affine_add_constraints_scalar<P: PastaConfig>(w: [Scalar<P>; W_POLYS]) -> Scalar<P> {
     let one = Scalar::<P>::one();
     let [xp, yp, xq, yq, xr, yr, α, β, γ, δ, λ, _, _, _, _, _] = w;
 
@@ -853,7 +840,7 @@ fn affine_add_constraints_scalar<P: PastaConfig>(w: [Scalar<P>; WITNESS_POLYS]) 
 
 #[allow(uncommon_codepoints)]
 fn affine_mul_constraints_poly<P: PastaConfig>(
-    w: &[Poly<P>; WITNESS_POLYS],
+    w: &[Poly<P>; W_POLYS],
     nw: &[Poly<P>; 3],
     two_pow_i: &Poly<P>,
 ) -> Poly<P> {
@@ -957,7 +944,7 @@ fn affine_mul_constraints_poly<P: PastaConfig>(
 
 #[allow(uncommon_codepoints)]
 fn affine_mul_constraints_scalar<P: PastaConfig>(
-    w: [Scalar<P>; WITNESS_POLYS],
+    w: [Scalar<P>; W_POLYS],
     nw: [Scalar<P>; 3],
     two_pow_i: Scalar<P>,
 ) -> Scalar<P> {

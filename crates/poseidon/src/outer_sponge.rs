@@ -86,11 +86,11 @@ impl<P: PastaConfig> Sponge<P> {
     pub fn challenge(&mut self) -> P::ScalarField {
         let bits = P::basefield_into_bigint(self.sponge.squeeze()).to_bits_le();
         if P::SCALAR_MODULUS < P::BASE_MODULUS {
-            P::scalar_from_bigint(BigInt::<4>::from_bits_le(&bits)).unwrap()
-        } else {
             let high_bits =
                 P::scalar_from_bigint(BigInt::<4>::from_bits_le(&bits[1..bits.len()])).unwrap();
             high_bits
+        } else {
+            P::scalar_from_bigint(BigInt::<4>::from_bits_le(&bits)).unwrap()
         }
     }
 

@@ -1,4 +1,3 @@
-#![allow(non_snake_case)]
 use anyhow::{Result, ensure};
 use halo_accumulation::pcdl::{self, EvalProof};
 use halo_group::{

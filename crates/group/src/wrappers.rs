@@ -168,7 +168,7 @@ pub struct PastaFE {
     pub fid: Option<PastaFieldId>,
 }
 impl PastaFE {
-    fn new(inner: BigInt<4>, fid: Option<PastaFieldId>) -> Self {
+    pub fn new(inner: BigInt<4>, fid: Option<PastaFieldId>) -> Self {
         Self {
             inner,
             is_neg_one: false,
@@ -248,6 +248,15 @@ impl PastaFE {
             Some(PastaFieldId::Fp) => Some(Fp::from(*self).inverse()?.into()),
             Some(PastaFieldId::Fq) => Some(Fq::from(*self).inverse()?.into()),
             None => panic!("No Field ID found for PastaFE!"),
+        }
+    }
+
+    pub fn inv0(&self) -> Self {
+        assert!(!self.is_neg_one);
+        if self.is_zero() {
+            *self
+        } else {
+            self.inverse().unwrap()
         }
     }
 }

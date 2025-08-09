@@ -1,6 +1,6 @@
 use std::{
     marker::PhantomData,
-    ops::{Add, AddAssign, Mul, Neg},
+    ops::{Add, AddAssign, Mul, MulAssign, Neg},
 };
 
 use halo_group::{
@@ -9,7 +9,10 @@ use halo_group::{
     ark_std::{One, Zero},
 };
 
-use crate::{circuit::Wire, frontend::FRONTEND};
+use crate::{
+    circuit::Wire,
+    frontend::{FRONTEND, primitives::bool::WireBool},
+};
 
 #[derive(Clone, Copy, Debug)]
 pub struct WireScalar<P: PastaConfig> {
@@ -47,6 +50,25 @@ impl<P: PastaConfig> WireScalar<P> {
         })
     }
 
+    // [1, self, self^2, self^3, ...]
+    pub fn geometric_series(&self, n: usize) -> Vec<Self> {
+        let mut result = Vec::with_capacity(n);
+        let mut current = WireScalar::<P>::one();
+        for _ in 0..n {
+            result.push(current);
+            current *= *self;
+        }
+        result
+    }
+
+    pub fn square(&self) -> Self {
+        *self * *self
+    }
+
+    pub fn double(&self) -> Self {
+        *self + *self
+    }
+
     pub fn zero() -> Self {
         FRONTEND.with(|frontend| {
             let frontend = frontend.borrow();
@@ -68,16 +90,31 @@ impl<P: PastaConfig> WireScalar<P> {
         })
     }
 
-    pub(crate) fn message_pass(self) -> (WireScalar<P::OtherCurve>, WireScalar<P::OtherCurve>) {
-        if P::IS_PALLAS {
-            FRONTEND.with(|frontend| {
-                let mut frontend = frontend.borrow_mut();
-                let (h, l) = frontend.circuit.fp_message_pass(self.wire);
-                (WireScalar::new(h), WireScalar::new(l))
-            })
-        } else {
-            panic!("Not Pallas!")
-        }
+    pub fn equals(self, b: Self) -> WireBool<P> {
+        FRONTEND.with(|frontend| {
+            let mut frontend = frontend.borrow_mut();
+            WireBool::new(frontend.circuit.eq_gate(self.wire, b.wire))
+        })
+    }
+
+    pub(crate) fn fp_message_pass(self) -> (WireScalar<P::OtherCurve>, WireScalar<P::OtherCurve>) {
+        assert!(self.wire.fid == PastaFieldId::Fp);
+        assert!(P::IS_PALLAS);
+        FRONTEND.with(|frontend| {
+            let mut frontend = frontend.borrow_mut();
+            let (h, l) = frontend.circuit.fp_message_pass(self.wire);
+            (WireScalar::new(h), WireScalar::new(l))
+        })
+    }
+
+    pub(crate) fn fq_message_pass(self) -> WireScalar<P::OtherCurve> {
+        assert!(self.wire.fid == PastaFieldId::Fq);
+        assert!(!P::IS_PALLAS);
+        FRONTEND.with(|frontend| {
+            let mut frontend = frontend.borrow_mut();
+            let v = frontend.circuit.fq_message_pass(self.wire);
+            WireScalar::new(v)
+        })
     }
 
     pub fn from_wire(wire: Wire) -> Self {
@@ -101,7 +138,7 @@ impl<P: PastaConfig> Mul for WireScalar<P> {
     fn mul(self, other: WireScalar<P>) -> Self::Output {
         FRONTEND.with(|frontend| {
             let mut frontend = frontend.borrow_mut();
-            WireScalar::new(frontend.circuit.mul(self.wire, other.wire))
+            WireScalar::new(frontend.circuit.mul_gate(self.wire, other.wire))
         })
     }
 }
@@ -112,17 +149,20 @@ impl<P: PastaConfig> Add for WireScalar<P> {
     fn add(self, other: WireScalar<P>) -> Self::Output {
         FRONTEND.with(|frontend| {
             let mut frontend = frontend.borrow_mut();
-            WireScalar::new(frontend.circuit.add(self.wire, other.wire))
+            WireScalar::new(frontend.circuit.add_gate(self.wire, other.wire))
         })
     }
 }
 
 impl<P: PastaConfig> AddAssign for WireScalar<P> {
     fn add_assign(&mut self, rhs: Self) {
-        FRONTEND.with(|frontend| {
-            let mut frontend = frontend.borrow_mut();
-            *self = WireScalar::new(frontend.circuit.add(self.wire, rhs.wire))
-        })
+        *self = *self + rhs;
+    }
+}
+
+impl<P: PastaConfig> MulAssign for WireScalar<P> {
+    fn mul_assign(&mut self, rhs: Self) {
+        *self = *self * rhs;
     }
 }
 
@@ -142,7 +182,7 @@ mod tests {
     use anyhow::Result;
     use halo_group::{
         Fp, Fq, PallasConfig, PastaConfig, PastaFE, Scalar, VestaConfig,
-        ark_ff::{BigInt, Field, PrimeField},
+        ark_ff::{BigInt, BigInteger, Field, PrimeField},
         ark_std::{
             rand::{Rng, RngCore},
             test_rng,
@@ -292,6 +332,74 @@ mod tests {
         println!("{:?}", x_fq);
         println!("{:?}", x_fp_pfe);
         assert_eq!(x_fq, x_fp_pfe.into());
+
+        Ok(())
+    }
+
+    #[test]
+    fn message_pass_fq() -> Result<()> {
+        let rng = &mut test_rng();
+        let x_u64 = 9u64;
+        let x_fp = Fp::from(x_u64);
+        let x_fq = Fq::from(x_u64);
+
+        let x = WireScalar::<VestaConfig>::witness();
+        let y = (x * x).fq_message_pass();
+        y.output();
+
+        let mut call = Call::new();
+
+        call.witness(x, x_fq)?;
+
+        let (fp_trace, fq_trace) = call.trace()?;
+        let y_out = fp_trace.outputs[0];
+
+        println!("{:?}", fp_trace);
+        println!("{:?}", fq_trace);
+        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
+
+        println!("{:?}", x_u64);
+        println!("{:?}", x_fp);
+        println!("{:?}", x_fq);
+        assert_eq!(y_out, x_fp * x_fp);
+
+        Ok(())
+    }
+
+    #[test]
+    fn message_pass_fp() -> Result<()> {
+        let rng = &mut test_rng();
+        let x_u64 = 7u64;
+        let x_fp = Fp::from(x_u64);
+        let x_fq = Fq::from(x_u64);
+
+        let x = WireScalar::<PallasConfig>::witness();
+        let (h, l) = x.fp_message_pass();
+        h.output();
+        l.output();
+
+        let mut call = Call::new();
+
+        call.witness(x, x_fp)?;
+
+        let (_, fq_trace) = call.trace()?;
+        let h_out = fq_trace.outputs[0];
+        let l_out = fq_trace.outputs[1];
+
+        println!("{:?}", fq_trace);
+        PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
+
+        let x_bits: Vec<u64> = x_fp
+            .into_bigint()
+            .to_bits_le()
+            .into_iter()
+            .map(|x| if x { 1 } else { 0 })
+            .collect();
+        let mut y_bits = h_out.into_bigint().to_bits_le();
+        y_bits.insert(0, *l_out.into_bigint().to_bits_le().first().unwrap());
+        y_bits.pop();
+        let y_bits: Vec<u64> = y_bits.into_iter().map(|x| if x { 1 } else { 0 }).collect();
+        assert_eq!(y_bits, x_bits);
 
         Ok(())
     }

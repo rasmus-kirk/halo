@@ -102,6 +102,7 @@ dependencies = [
  "halo-accumulation",
  "halo-group",
  "halo-poseidon",
+ "halo-schnorr",
  "itertools 0.14.0",
  "log",
  "num-bigint",

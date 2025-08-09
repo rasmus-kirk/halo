@@ -3,11 +3,11 @@ use std::{
     str::FromStr,
 };
 
-use halo_group::{Affine, Fq, PallasConfig, PastaConfig, PastaFieldId, ark_ff::BigInt};
+use halo_group::{Affine, Fp, Fq, PallasConfig, PastaConfig, PastaFieldId, ark_ff::BigInt};
 
 use crate::{
     circuit::Wire,
-    frontend::{FRONTEND, field::WireScalar},
+    frontend::{FRONTEND, field::WireScalar, primitives::bool::WireBool},
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -36,6 +36,12 @@ impl<P: PastaConfig> WireAffine<P> {
     pub fn assert_eq(self, other: Self) {
         self.x.assert_eq(other.x);
         self.y.assert_eq(other.y);
+    }
+
+    pub fn equals(self, other: Self) -> WireBool<P::OtherCurve> {
+        let x_eq = self.x.equals(other.x);
+        let y_eq = self.y.equals(other.y);
+        x_eq & y_eq
     }
 
     pub fn constant(point: Affine<PallasConfig>) -> Self {
@@ -71,11 +77,11 @@ impl<P: PastaConfig> WireAffine<P> {
                 let y_wire = frontend.circuit.constant(y.into());
                 Self::new(x_wire, y_wire)
             } else {
-                let x = Fq::from_str(
+                let x = Fp::from_str(
                     "28948022309329048855892746252171976963363056481941647379679742748393362948096",
                 )
                 .unwrap();
-                let y = Fq::from(2u64);
+                let y = Fp::from(2u64);
                 let x_wire = frontend.circuit.constant(x.into());
                 let y_wire = frontend.circuit.constant(y.into());
                 Self::new(x_wire, y_wire)
@@ -142,6 +148,7 @@ impl<P: PastaConfig> Neg for WireAffine<P> {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use halo_group::PastaFieldId;
     use halo_group::ark_ec::AffineRepr;
     use halo_group::ark_ff::Zero;
     use halo_group::{
@@ -181,6 +188,43 @@ mod tests {
 
         let expected_output = (p_v + q_v).into_affine();
         assert_eq!((rx, ry), (expected_output.x, expected_output.y));
+
+        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
+        PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn generator() -> Result<()> {
+        let rng = &mut test_rng();
+
+        let p_v = Affine::<PallasConfig>::generator();
+        let q_v = Affine::<VestaConfig>::generator();
+
+        let p = WireAffine::<PallasConfig>::generator();
+        let q = WireAffine::<VestaConfig>::generator();
+        assert_eq!(p.x.wire.fid, PastaFieldId::Fq);
+        assert_eq!(p.y.wire.fid, PastaFieldId::Fq);
+        assert_eq!(q.x.wire.fid, PastaFieldId::Fp);
+        assert_eq!(q.y.wire.fid, PastaFieldId::Fp);
+        p.output();
+        q.output();
+
+        let call = Call::<PallasConfig>::new();
+
+        let (fp_trace, fq_trace) = call.trace()?;
+
+        println!("{:?}", fp_trace.outputs);
+        println!("{:?}", fq_trace.outputs);
+
+        let px = fq_trace.outputs[0];
+        let py = fq_trace.outputs[1];
+        let qx = fp_trace.outputs[0];
+        let qy = fp_trace.outputs[1];
+
+        assert_eq!((px, py), (p_v.x, p_v.y));
+        assert_eq!((qx, qy), (q_v.x, q_v.y));
 
         PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
         PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
@@ -335,8 +379,10 @@ mod tests {
         println!("s_v: {:?}", s_v);
 
         let p = WireAffine::<PallasConfig>::constant(p_v);
+        let s_expected = WireAffine::<PallasConfig>::constant(s_v);
         let x = WireScalar::constant(x_v);
         let s = p * x;
+        s.assert_eq(s_expected);
         s.output();
 
         let call = Call::<PallasConfig>::new();

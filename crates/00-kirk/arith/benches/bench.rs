@@ -25,7 +25,8 @@ criterion_group! {
     name = protocol;
     config = Criterion::default().sample_size(SAMPLE_SIZE).measurement_time(Duration::from_secs(SECONDS));
     targets =
-        prover_verifier_scalar_mul,
+        // prover_verifier_scalar_mul,
+        prover_verifier_pcdl,
 }
 
 criterion_main!(misc, protocol);

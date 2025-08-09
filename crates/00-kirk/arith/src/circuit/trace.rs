@@ -14,22 +14,18 @@ use log::debug;
 
 use crate::{
     circuit::SlotId,
-    utils::{COPY_CONSTRAINT_POLYS, ROUND_COEFF_POLYS, SELECTOR_POLYS, WITNESS_POLYS},
+    utils::{Q_POLYS, R_POLYS, S_POLYS, W_POLYS},
 };
 
 pub(crate) fn build_sigma<P: PastaConfig>(
     eqs: Vec<Vec<SlotId>>,
     domain: Domain<P>,
-) -> (
-    Vec<SlotId>,
-    [Evals<P>; COPY_CONSTRAINT_POLYS],
-    [Evals<P>; COPY_CONSTRAINT_POLYS],
-) {
+) -> (Vec<SlotId>, [Evals<P>; S_POLYS], [Evals<P>; S_POLYS]) {
     let rows = domain.size();
     assert!(rows.is_power_of_two());
 
     // 2. Initialize identity permutation
-    let id = (0..(rows * COPY_CONSTRAINT_POLYS))
+    let id = (0..(rows * S_POLYS))
         .map(|i| SlotId::from_usize(i, rows))
         .collect::<Vec<_>>();
 
@@ -47,9 +43,8 @@ pub(crate) fn build_sigma<P: PastaConfig>(
         }
     }
 
-    let mut id_vecs: [Vec<_>; COPY_CONSTRAINT_POLYS] = array::from_fn(|_| Vec::with_capacity(rows));
-    let mut sigma_vecs: [Vec<_>; COPY_CONSTRAINT_POLYS] =
-        array::from_fn(|_| Vec::with_capacity(rows));
+    let mut id_vecs: [Vec<_>; S_POLYS] = array::from_fn(|_| Vec::with_capacity(rows));
+    let mut sigma_vecs: [Vec<_>; S_POLYS] = array::from_fn(|_| Vec::with_capacity(rows));
     for (i, (id_chunk, sigma_chunk)) in id.chunks(rows).zip(sigma.chunks(rows)).enumerate() {
         for (id, sigma) in id_chunk.iter().zip(sigma_chunk) {
             id_vecs[i].push(id.to_scalar::<P>(rows));
@@ -74,26 +69,26 @@ pub struct Trace<P: PastaConfig> {
     pub(crate) public_inputs: Vec<Scalar<P>>,
     pub(crate) public_inputs_poly: Poly<P>,
     pub(crate) public_inputs_evals: Evals<P>,
-    pub(crate) C_qs: [Point<P>; SELECTOR_POLYS],
-    pub(crate) id_evals: [Evals<P>; COPY_CONSTRAINT_POLYS],
-    pub(crate) id_polys: [Poly<P>; COPY_CONSTRAINT_POLYS],
-    pub(crate) q_evals: [Evals<P>; SELECTOR_POLYS],
-    pub(crate) q_polys: [Poly<P>; SELECTOR_POLYS],
-    pub(crate) sigma_evals: [Evals<P>; COPY_CONSTRAINT_POLYS],
-    pub(crate) sigma_polys: [Poly<P>; COPY_CONSTRAINT_POLYS],
-    pub(crate) w_evals: [Evals<P>; WITNESS_POLYS],
-    pub(crate) w_polys: [Poly<P>; WITNESS_POLYS],
-    pub(crate) r_evals: [Evals<P>; ROUND_COEFF_POLYS],
-    pub(crate) r_polys: [Poly<P>; ROUND_COEFF_POLYS],
+    pub(crate) C_qs: [Point<P>; Q_POLYS],
+    pub(crate) id_evals: [Evals<P>; S_POLYS],
+    pub(crate) id_polys: [Poly<P>; S_POLYS],
+    pub(crate) q_evals: [Evals<P>; Q_POLYS],
+    pub(crate) q_polys: [Poly<P>; Q_POLYS],
+    pub(crate) sigma_evals: [Evals<P>; S_POLYS],
+    pub(crate) sigma_polys: [Poly<P>; S_POLYS],
+    pub(crate) w_evals: [Evals<P>; W_POLYS],
+    pub(crate) w_polys: [Poly<P>; W_POLYS],
+    pub(crate) r_evals: [Evals<P>; R_POLYS],
+    pub(crate) r_polys: [Poly<P>; R_POLYS],
 }
 
 impl<P: PastaConfig> Trace<P> {
     pub fn new(
         copy_constraints: Vec<Vec<SlotId>>,
         public_inputs: Vec<Scalar<P>>,
-        ws: [Vec<Scalar<P>>; WITNESS_POLYS],
-        rs: [Vec<Scalar<P>>; ROUND_COEFF_POLYS],
-        qs: [Vec<Scalar<P>>; SELECTOR_POLYS],
+        ws: [Vec<Scalar<P>>; W_POLYS],
+        rs: [Vec<Scalar<P>>; R_POLYS],
+        qs: [Vec<Scalar<P>>; Q_POLYS],
         outputs: Vec<P::ScalarField>,
         n: usize,
     ) -> Self {
@@ -113,15 +108,12 @@ impl<P: PastaConfig> Trace<P> {
         let r_evals = rs.map(|vec| Evals::<P>::from_vec_and_domain(vec, domain));
         let q_evals = qs.map(|vec| Evals::<P>::from_vec_and_domain(vec, domain));
 
-        let id_polys: [Poly<P>; COPY_CONSTRAINT_POLYS] =
-            array::from_fn(|i| id_evals[i].interpolate_by_ref());
-        let sigma_polys: [Poly<P>; COPY_CONSTRAINT_POLYS] =
+        let id_polys: [Poly<P>; S_POLYS] = array::from_fn(|i| id_evals[i].interpolate_by_ref());
+        let sigma_polys: [Poly<P>; S_POLYS] =
             array::from_fn(|i| sigma_evals[i].interpolate_by_ref());
-        let w_polys: [Poly<P>; WITNESS_POLYS] = array::from_fn(|i| w_evals[i].interpolate_by_ref());
-        let r_polys: [Poly<P>; ROUND_COEFF_POLYS] =
-            array::from_fn(|i| r_evals[i].interpolate_by_ref());
-        let q_polys: [Poly<P>; SELECTOR_POLYS] =
-            array::from_fn(|i| q_evals[i].interpolate_by_ref());
+        let w_polys: [Poly<P>; W_POLYS] = array::from_fn(|i| w_evals[i].interpolate_by_ref());
+        let r_polys: [Poly<P>; R_POLYS] = array::from_fn(|i| r_evals[i].interpolate_by_ref());
+        let q_polys: [Poly<P>; Q_POLYS] = array::from_fn(|i| q_evals[i].interpolate_by_ref());
         let public_inputs_poly = public_inputs_evals.interpolate_by_ref();
         let C_qs = array::from_fn(|i| pcdl::commit(&q_polys[i], d, None));
 
@@ -198,10 +190,10 @@ mod tests {
         let x3 = circuit.fp_witness();
         let x5 = circuit.fp_witness();
         let c11 = circuit.constant(scalar(11).into());
-        let a5 = circuit.add(x2, x3);
-        let mul25 = circuit.mul(a5, x5);
-        let mul175 = circuit.mul(x7, mul25);
-        let add186 = circuit.add(c11, mul175);
+        let a5 = circuit.add_gate(x2, x3);
+        let mul25 = circuit.mul_gate(a5, x5);
+        let mul175 = circuit.mul_gate(x7, mul25);
+        let add186 = circuit.add_gate(c11, mul175);
         circuit.output_gate(add186);
 
         // Evaluate with inputs x1=2.0, x2=3.0, x3=4.0
@@ -233,10 +225,10 @@ mod tests {
         let c3 = circuit.constant(scalar(3).into());
         let c5 = circuit.constant(scalar(5).into());
         let c47 = circuit.constant(scalar(47).into());
-        let mul4 = circuit.mul(x2, x2);
-        let mul35 = circuit.mul(x7, c5);
-        let mul12 = circuit.mul(c3, mul4);
-        let add47 = circuit.add(mul12, mul35);
+        let mul4 = circuit.mul_gate(x2, x2);
+        let mul35 = circuit.mul_gate(x7, c5);
+        let mul12 = circuit.mul_gate(c3, mul4);
+        let add47 = circuit.add_gate(mul12, mul35);
         circuit.assert_eq_gate(add47, c47);
         circuit.output_gate(add47);
 
@@ -274,16 +266,16 @@ mod tests {
 
         let xa11 = circuit.fp_witness();
         let xa12 = circuit.fp_witness();
-        let a1 = circuit.add(xa11, xa12);
+        let a1 = circuit.add_gate(xa11, xa12);
         let xa21 = circuit.fp_witness();
-        let a2 = circuit.add(a1, xa21);
+        let a2 = circuit.add_gate(a1, xa21);
         let xa31 = circuit.fp_witness();
-        let a3 = circuit.add(a2, xa31);
+        let a3 = circuit.add_gate(a2, xa31);
 
-        let m1 = circuit.mul(p0, p6);
-        let m2 = circuit.mul(m1, p7);
-        let m3 = circuit.mul(m2, p8);
-        let m4 = circuit.mul(m3, a3);
+        let m1 = circuit.mul_gate(p0, p6);
+        let m2 = circuit.mul_gate(m1, p7);
+        let m3 = circuit.mul_gate(m2, p8);
+        let m4 = circuit.mul_gate(m3, a3);
         circuit.output_gate(m4);
 
         let topo_order = toposort(&circuit.graph, None).unwrap();

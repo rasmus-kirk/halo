@@ -9,6 +9,7 @@ petgraph = "0.8.2"
 halo-group = { path = "../../group" }
 halo-accumulation = { path = "../../accumulation" }
 halo-poseidon = { path = "../../poseidon" }
+halo-schnorr = { path = "../../schnorr" }
 union-find = "0.4.3"
 derivative = "2.2.0"
 log = "0.4.27"

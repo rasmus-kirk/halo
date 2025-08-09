@@ -16,18 +16,22 @@ use rand::thread_rng;
 // Schnorr signature struct: (R, s)
 #[derive(Clone, Debug)]
 pub struct SchnorrSignature {
-    r: Affine<PallasConfig>, // Commitment point R = k * G
-    s: Fp,                   // s = k + e * x
+    pub r: Affine<PallasConfig>, // Commitment point R = k * G
+    pub s: Fp,                   // s = k + e * x
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct SecretKey(Fp);
 
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub struct PublicKey(Affine<PallasConfig>);
+pub struct PublicKey(pub Affine<PallasConfig>);
 
 // Hash function for Fiat-Shamir transform: H(P || R || m)
-fn hash_message(public_key: Affine<PallasConfig>, r: Affine<PallasConfig>, message: &[Fq]) -> Fp {
+pub fn hash_message(
+    public_key: Affine<PallasConfig>,
+    r: Affine<PallasConfig>,
+    message: &[Fq],
+) -> Fp {
     let mut sponge = Sponge::new(Protocols::SIGNATURE);
 
     // Hash P || R || m

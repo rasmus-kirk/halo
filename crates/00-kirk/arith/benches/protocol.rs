@@ -7,9 +7,15 @@ use std::{
 use anyhow::Result;
 use arith::{
     circuit::{CircuitSpec, Trace, TraceBuilder, Wire},
-    frontend::{Call, Frontend, curve::WireAffine, field::WireScalar},
+    frontend::{
+        Call, Frontend,
+        curve::WireAffine,
+        field::WireScalar,
+        pcdl::{WireEvalProof, WireInstance, WirePublicParams},
+    },
     plonk::PlonkProof,
 };
+use halo_accumulation::pcdl::Instance;
 use log::debug;
 use petgraph::{
     Direction::Incoming,
@@ -20,8 +26,8 @@ use petgraph::{
 
 use criterion::Criterion;
 use halo_group::{
-    Affine, PallasConfig, PastaConfig, Scalar, VestaConfig,
-    ark_ec::AffineRepr,
+    Affine, PallasConfig, PastaConfig, PublicParams, Scalar, VestaConfig,
+    ark_ec::{AffineRepr, CurveGroup},
     ark_std::{
         rand::{Rng, RngCore, thread_rng},
         test_rng,
@@ -277,13 +283,19 @@ pub fn prover_verifier_scalar_mul(c: &mut Criterion) {
     env_logger::init();
     let group = c.benchmark_group("prover_verifier");
     let rng = &mut test_rng();
-    println!("|‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|");
-    println!("| n      | rows     | Circuit (s)  | Trace (s)    | Prover (s)   | Verifier (s) |");
-    println!("|========|==========|==============|==============|==============|==============|");
+    println!(
+        "|‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|"
+    );
+    println!(
+        "| n      | fp_rows  | fq_rows  | Circuit (s)  | Trace (s)    | Prover (s)   | Verifier (s) |"
+    );
+    println!(
+        "|========|==========|==========|==============|==============|==============|==============|"
+    );
     for size in MIN..MAX + 1 {
         let n = 2usize.pow(size as u32) - 3 * size - 2;
         let start_time = Instant::now();
-        let x = Fq::constant(WireScalar::<VestaConfig>::rand(rng));
+        let x = WireScalar::<PallasConfig>::constant(Scalar::<PallasConfig>::rand(rng));
         let p = WireAffine::constant(Affine::rand(rng));
         for _ in 0..n {
             let _ = p * x;
@@ -291,7 +303,7 @@ pub fn prover_verifier_scalar_mul(c: &mut Criterion) {
         let random_circ_time = start_time.elapsed().as_secs_f32();
 
         let start_time = Instant::now();
-        let (fp_trace, fq_trace) = Call::new().trace().unwrap();
+        let (fp_trace, fq_trace) = Call::<PallasConfig>::new().trace().unwrap();
         let trace_time = start_time.elapsed().as_secs_f32();
 
         let fp_trace_clone = fp_trace.clone();
@@ -312,6 +324,101 @@ pub fn prover_verifier_scalar_mul(c: &mut Criterion) {
         println!(
             "| {:>6} | {:>8} | {:>12.8} | {:>12.8} | {:>12.8} | {:>12.8} |",
             n, rows, random_circ_time, trace_time, prover_time, verifier_time
+        );
+    }
+    println!("|____|______________|______________|______________|");
+
+    group.finish();
+}
+
+pub fn prover_verifier_pcdl(c: &mut Criterion) {
+    env_logger::init();
+    let group = c.benchmark_group("prover_verifier");
+    let rng = &mut test_rng();
+    println!(
+        "|‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|"
+    );
+    println!(
+        "| n      | fp-rows  | fq-rows  | Circuit (s)  | Trace (s)    | Prover (s)   | Verifier (s) |"
+    );
+    println!(
+        "|========|==========|==========|==============|==============|==============|==============|"
+    );
+    for size in MIN..MAX + 1 {
+        let start_time = Instant::now();
+
+        let lg_n = size;
+        let n = 2usize.pow(lg_n as u32);
+        let d = n - 1;
+
+        let H_v = PublicParams::get_pp().H.into_affine();
+        let (C_v, _, z_v, v_v, pi_v) =
+            Instance::<PallasConfig>::rand_without_hiding(rng, n).into_tuple();
+        let (Ls_v, Rs_v, U_v, c_v, _, _) = pi_v.into_tuple();
+
+        let Ls: Vec<WireAffine<PallasConfig>> =
+            Ls_v.iter().map(|_| WireAffine::witness()).collect();
+        let Rs: Vec<WireAffine<PallasConfig>> =
+            Rs_v.iter().map(|_| WireAffine::witness()).collect();
+        let U = WireAffine::<PallasConfig>::witness();
+        let c = WireScalar::<PallasConfig>::witness();
+        let C = WireAffine::<PallasConfig>::witness();
+        let z = WireScalar::<PallasConfig>::witness();
+        let v = WireScalar::<PallasConfig>::witness();
+
+        let pp = WirePublicParams {
+            lg_n,
+            H: WireAffine::<PallasConfig>::constant(H_v),
+            d,
+        };
+        let pi = WireEvalProof {
+            Ls: Ls.clone(),
+            Rs: Rs.clone(),
+            U,
+            c,
+        };
+        let instance = WireInstance { C, z, v, pi };
+
+        instance.succinct_check(pp);
+
+        let mut call = Call::new();
+
+        for i in 0..Ls.len() {
+            call.witness_affine(Ls[i], Ls_v[i].into_affine()).unwrap();
+            call.witness_affine(Rs[i], Rs_v[i].into_affine()).unwrap();
+        }
+        call.witness_affine(U, U_v.into_affine()).unwrap();
+        call.witness_affine(C, C_v.into_affine()).unwrap();
+        call.witness(z, z_v).unwrap();
+        call.witness(v, v_v).unwrap();
+        call.witness(c, c_v).unwrap();
+
+        let circ_time = start_time.elapsed().as_secs_f32();
+
+        let start_time = Instant::now();
+        let (fp_trace, fq_trace) = call.trace().unwrap();
+        let trace_time = start_time.elapsed().as_secs_f32();
+
+        let fp_rows = fp_trace.rows;
+        let fq_rows = fq_trace.rows;
+
+        let fp_trace_clone = fp_trace.clone();
+        let fq_trace_clone = fq_trace.clone();
+        let start_time = Instant::now();
+        let pi_fp = PlonkProof::naive_prover(rng, fp_trace_clone);
+        let pi_fq = PlonkProof::naive_prover(rng, fq_trace_clone);
+        let prover_time = start_time.elapsed().as_secs_f32();
+
+        let start_time = Instant::now();
+        pi_fp.verify(fp_trace).unwrap();
+        pi_fq.verify(fq_trace).unwrap();
+        let verifier_time = start_time.elapsed().as_secs_f32();
+
+        Frontend::reset();
+
+        println!(
+            "| {:>6} | {:>8} | {:>8} | {:>12.8} | {:>12.8} | {:>12.8} | {:>12.8} |",
+            n, fp_rows, fq_rows, circ_time, trace_time, prover_time, verifier_time
         );
     }
     println!("|____|______________|______________|______________|");

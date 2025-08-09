@@ -15,7 +15,7 @@ use petgraph::{
     graph::{DiGraph, NodeIndex},
 };
 
-use crate::utils::{ROUND_COEFF_POLYS, WITNESS_POLYS};
+use crate::utils::{R_POLYS, W_POLYS};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SlotId {
@@ -99,6 +99,7 @@ pub(crate) enum GateType {
     Output([Wire; 1], (), usize),
     ScalarMul([Wire; 4], [Wire; 2]),
     FpMessagePass([Wire; 1], [Wire; 2]),
+    FqMessagePass([Wire; 1], [Wire; 1]),
     Invert([Wire; 2], [Wire; 1]),
     Negate([Wire; 2], [Wire; 1]),
     AssertEq([Wire; 2], ()),
@@ -106,8 +107,11 @@ pub(crate) enum GateType {
     Multiply([Wire; 2], [Wire; 1]),
     // Base Field
     PoseidonEnd([Wire; 3], [Wire; 3]),
-    Poseidon([Wire; 3], [Wire; 3], [PastaFE; ROUND_COEFF_POLYS]),
+    Poseidon([Wire; 3], [Wire; 3], [PastaFE; R_POLYS]),
     AffineAdd([Wire; 4], [Wire; 2]),
+    // Booleans
+    WitnessBool((), [Wire; 1]),
+    Eq([Wire; 2], [Wire; 1]),
 }
 impl fmt::Display for GateType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -239,7 +243,7 @@ impl CircuitSpec {
         out_wires[0]
     }
 
-    pub fn add(&mut self, left: Wire, right: Wire) -> Wire {
+    pub fn add_gate(&mut self, left: Wire, right: Wire) -> Wire {
         let fid = left.fid;
         self.row_count[fid as usize] += 1;
 
@@ -257,7 +261,7 @@ impl CircuitSpec {
         out_wires[0]
     }
 
-    pub fn mul(&mut self, left: Wire, right: Wire) -> Wire {
+    pub fn mul_gate(&mut self, left: Wire, right: Wire) -> Wire {
         let fid = left.fid;
         self.row_count[fid as usize] += 1;
 
@@ -280,7 +284,7 @@ impl CircuitSpec {
 
         let out_wires = self.new_wires(in_wires[0].fid);
 
-        let round_constants: [PastaFE; ROUND_COEFF_POLYS] =
+        let round_constants: [PastaFE; R_POLYS] =
             array::from_fn(|i| fid.poseidon_round_constants()[5 * round + i / 3][i % 3]);
         let gate_type = GateType::Poseidon(in_wires, out_wires, round_constants);
         let node = self.graph.add_node(gate_type);
@@ -388,6 +392,8 @@ impl CircuitSpec {
 
         let gate_type = GateType::ScalarMul([scalar.0, scalar.1, point.0, point.1], out_wires);
         let node = self.graph.add_node(gate_type);
+        self.graph.add_edge(scalar.0.node_idx, node, scalar.0);
+        self.graph.add_edge(scalar.1.node_idx, node, scalar.1);
         self.graph.add_edge(point.0.node_idx, node, point.0);
         self.graph.add_edge(point.1.node_idx, node, point.1);
 
@@ -419,6 +425,54 @@ impl CircuitSpec {
         assert_eq!(out_wires[1].fid, PastaFieldId::Fq);
 
         (out_wires[0], out_wires[1])
+    }
+
+    pub fn fq_message_pass(&mut self, input: Wire) -> Wire {
+        assert_eq!(input.fid, PastaFieldId::Fq);
+        let fid = input.fid.inv();
+        self.message_pass_wire_count[fid as usize] += 1;
+        self.row_count[fid as usize] += 1;
+
+        let out_wires = self.new_wires(fid);
+
+        let gate_type = GateType::FqMessagePass([input], out_wires);
+        let node = self.graph.add_node(gate_type);
+        self.graph.add_edge(input.node_idx, node, input);
+
+        assert_eq!(out_wires[0].node_idx, node);
+        assert_eq!(out_wires[0].fid, PastaFieldId::Fp);
+
+        out_wires[0]
+    }
+
+    pub fn eq_gate(&mut self, a: Wire, b: Wire) -> Wire {
+        let fid = a.fid;
+        self.row_count[fid as usize] += 1;
+
+        let out_wires = self.new_wires(fid);
+
+        let gate_type = GateType::Eq([a, b], out_wires);
+        let node = self.graph.add_node(gate_type);
+        self.graph.add_edge(a.node_idx, node, a);
+        self.graph.add_edge(b.node_idx, node, b);
+
+        assert_eq!(out_wires[0].node_idx, node);
+        assert_eq!(b.fid, fid);
+
+        out_wires[0]
+    }
+
+    pub fn witness_bool(&mut self, fid: PastaFieldId) -> Wire {
+        self.witness_wire_count[fid as usize] += 1;
+        self.row_count[fid as usize] += 1;
+
+        let out_wires = self.new_wires(fid);
+
+        let node = self.graph.add_node(GateType::WitnessBool((), out_wires));
+
+        assert_eq!(out_wires[0].node_idx, node);
+
+        out_wires[0]
     }
 
     pub fn output_gate(&mut self, input: Wire) {

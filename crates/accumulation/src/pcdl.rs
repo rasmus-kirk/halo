@@ -61,6 +61,15 @@ impl<P: PastaConfig> Instance<P> {
         Self::open(rng, p, d, z, w.as_ref())
     }
 
+    pub fn rand_without_hiding<R: Rng>(rng: &mut R, n: usize) -> Self {
+        assert!(n.is_power_of_two(), "n ({n}) is not a power of two");
+        let d = n - 1;
+        let p: Poly<P> = DenseUVPolynomial::<Scalar<P>>::rand(d, rng);
+        let z = &Scalar::<P>::rand(rng);
+        assert!(p.degree() == n - 1);
+        Self::open(rng, p, d, z, None)
+    }
+
     pub fn check(&self) -> Result<()> {
         check(&self.C, self.d, &self.z, &self.v, self.pi.clone())
     }
@@ -120,6 +129,20 @@ pub struct EvalProof<P: PastaConfig> {
     pub(crate) C_bar: Option<Point<P>>,
     pub(crate) w_prime: Option<Scalar<P>>,
 }
+impl<P: PastaConfig> EvalProof<P> {
+    pub fn into_tuple(
+        self,
+    ) -> (
+        Vec<Point<P>>,
+        Vec<Point<P>>,
+        Point<P>,
+        Scalar<P>,
+        Option<Point<P>>,
+        Option<Scalar<P>>,
+    ) {
+        (self.Ls, self.Rs, self.U, self.c, self.C_bar, self.w_prime)
+    }
+}
 
 /// Special struct to denote the polynomial h(X). The struct is needed in order to evaluate h(X) in sub-linear time
 #[derive(Clone, CanonicalSerialize)]
@@ -158,7 +181,7 @@ impl<P: PastaConfig> HPoly<P> {
         h
     }
 
-    pub(crate) fn eval(&self, z: &Scalar<P>) -> Scalar<P> {
+    pub fn eval(&self, z: &Scalar<P>) -> Scalar<P> {
         let lg_n = self.xis.len() - 1;
         let one = Scalar::<P>::one();
 

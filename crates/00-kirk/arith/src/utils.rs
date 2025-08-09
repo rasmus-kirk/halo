@@ -14,15 +14,15 @@ use crate::circuit::Trace;
 
 /// The maximum degree of the polynomial f(X) where t(X) = f(X) / z_H(X) is F_MAX_DEGREE_MULTIPLIER * row_count.
 /// This depends on the largest degree term in f(x) which is set by how many degree n polynomials are multiplied.
-pub const QUOTIENT_POLYS: usize = 16;
+pub const T_POLYS: usize = 16;
 /// How many witness polynomials in plonk
-pub const WITNESS_POLYS: usize = 16;
+pub const W_POLYS: usize = 16;
 /// How many round coefficient polynomials in plonk
-pub const ROUND_COEFF_POLYS: usize = 15;
+pub const R_POLYS: usize = 15;
 /// How many selector polynomials in plonk
-pub const SELECTOR_POLYS: usize = 8;
+pub const Q_POLYS: usize = 9;
 /// How many copy constraint polynomials in plonk
-pub const COPY_CONSTRAINT_POLYS: usize = 8;
+pub const S_POLYS: usize = 8;
 
 pub trait MultiAssign<T> {
     fn multi_assign<const N: usize>(&mut self, row: usize, values: [T; N]);
@@ -73,14 +73,13 @@ pub fn fmt_scalar<P: PastaConfig>(x: Scalar<P>) -> String {
 
 impl<P: PastaConfig> std::fmt::Debug for Trace<P> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let mut id_polys: [_; COPY_CONSTRAINT_POLYS] =
-            array::from_fn(|_| vec![Scalar::<P>::zero(); self.rows]);
-        let mut sigma_polys: [_; COPY_CONSTRAINT_POLYS] =
+        let mut id_polys: [_; S_POLYS] = array::from_fn(|_| vec![Scalar::<P>::zero(); self.rows]);
+        let mut sigma_polys: [_; S_POLYS] =
             array::from_fn(|_| vec![Scalar::<P>::zero(); self.rows]);
 
         for i in 0..self.rows {
             let i = i + 1;
-            for j in 0..COPY_CONSTRAINT_POLYS {
+            for j in 0..S_POLYS {
                 id_polys[j][i - 1] = self.id_polys[j].evaluate(&self.omega.pow([i as u64]));
                 sigma_polys[j][i - 1] = self.sigma_polys[j].evaluate(&self.omega.pow([i as u64]));
             }
@@ -122,6 +121,28 @@ impl<P: PastaConfig> std::fmt::Debug for Trace<P> {
         for i in 0..self.rows {
             let i = i + 1;
             let omega_i = &self.omega.pow([i as u64]);
+
+            let mut x = 99;
+            for j in 0..self.q_polys.len() {
+                if self.q_polys[j].evaluate(&omega_i) == Scalar::<P>::ONE {
+                    x = j
+                }
+            }
+            //                    [l, r, o, m, c, p, +, *, =]
+            let string = match x {
+                0 => "_",
+                1 => "_",
+                2 => "_",
+                3 => "_",
+                4 => "C",
+                5 => "P",
+                6 => "+",
+                7 => "*",
+                8 => "=",
+                99 => "0",
+                _ => "_",
+            };
+
             write!(f, "| {:>i_width$} ||", i)?;
             for j in 0..self.w_polys.len() {
                 let eval = self.w_polys[j].evaluate(&omega_i);
@@ -129,6 +150,7 @@ impl<P: PastaConfig> std::fmt::Debug for Trace<P> {
             }
             let pi_i = self.public_inputs_poly.evaluate(&omega_i);
             write!(f, "{:>width$} |", fmt_scalar::<P>(pi_i))?;
+            write!(f, "{:>width$} |", string)?;
             write!(f, "\n")?;
         }
 
@@ -172,25 +194,25 @@ impl<P: PastaConfig> std::fmt::Debug for Trace<P> {
         //     write!(f, "\n")?;
         // }
 
-        write!(f, "\n|  i ||")?;
-        for i in 0..self.r_polys.len() {
-            write!(f, " r{:>2} |", i)?;
-        }
-        write!(f, "\n|----||")?;
-        for _ in 0..self.r_polys.len() {
-            write!(f, "-----|")?;
-        }
-        write!(f, "\n")?;
-        for i in 0..self.rows {
-            let i = i + 1;
-            let omega_i = &self.omega.pow([i as u64]);
-            write!(f, "| {:>i_width$} ||", i)?;
-            for j in 0..self.r_polys.len() {
-                let eval = self.r_polys[j].evaluate(&omega_i);
-                write!(f, "{:>width$} |", fmt_scalar::<P>(eval))?;
-            }
-            write!(f, "\n")?;
-        }
+        // write!(f, "\n|  i ||")?;
+        // for i in 0..self.r_polys.len() {
+        //     write!(f, " r{:>2} |", i)?;
+        // }
+        // write!(f, "\n|----||")?;
+        // for _ in 0..self.r_polys.len() {
+        //     write!(f, "-----|")?;
+        // }
+        // write!(f, "\n")?;
+        // for i in 0..self.rows {
+        //     let i = i + 1;
+        //     let omega_i = &self.omega.pow([i as u64]);
+        //     write!(f, "| {:>i_width$} ||", i)?;
+        //     for j in 0..self.r_polys.len() {
+        //         let eval = self.r_polys[j].evaluate(&omega_i);
+        //         write!(f, "{:>width$} |", fmt_scalar::<P>(eval))?;
+        //     }
+        //     write!(f, "\n")?;
+        // }
 
         Ok(())
     }
