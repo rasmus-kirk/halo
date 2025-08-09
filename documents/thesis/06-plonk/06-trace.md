@@ -193,7 +193,7 @@ A \cat B &= A \sqcup_{\lambda \_,\vec{a}, \vec{b}. \vec{a} \cat \vec{b}} B \\
   \left[g \middle\vert \gpair{g}{\abst{y}} \in \abst{f} \land
   \begin{array}{l}
     \exists i,t. \ty(g) = \Input^t_i \\
-    \lor \abst{y} = \bot \land \ty(g) \neq \text{PI}^{\_}_\_
+    \lor \abst{y} = \bot \land \ty(g) \notin \cdots
   \end{array}\right]\\
   \left[g \middle\vert \gpair{g}{\_} \in \abst{f} \land \exists i,t. \ty(g) = \text{PI}^t_i\right] \\
   \left[g \middle\vert \gpair{g}{\_} \in \abst{f} \land \exists j,t. \ty(g) = \text{Tbl}^t_j\right]
@@ -206,24 +206,18 @@ A \cat B &= A \sqcup_{\lambda \_,\vec{a}, \vec{b}. \vec{a} \cat \vec{b}} B \\
 \Downarrow^{\abst{f}}(g) &= \begin{cases}
 \Downarrow^{\abst{f}}(g') \cat g & g' = \base^{\abst{f}}_g \neq \bot \\
 (g)
-\end{cases} \\
-\\
-\underset{G}{\curvearrowright} &: T \times \text{GState}^{k'',k} \to T \times \text{GState}^{k'',k'} \\
-\underset{G}{\curvearrowright} &= \lift(\curvearrowright : \Ggt^k \to \Ggt^{k'})
+\end{cases}
 \end{array} &
 \begin{array}{rl}
 - \stackrel{\to}{\circ} \Downarrow^{-}_G &: (T \times \text{GState} \to T \times \text{GState}) \to \AbsCirc \\
 &\to T \times \text{GState} \to T \times \text{GState} \\
-f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \lambda (C, \Omega, \vec{g}, \phi, v). \\
+f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \underset{G}{\curvearrowright} \circ f \circ^\uparrow \lambda (C, \Omega, \vec{g}, \phi, v). \\
 &\begin{cases}
-& \vec{g} = \_ \cat g \\
-& f' = \underset{G}{\curvearrowright} \circ f \circ^\uparrow \land \Omega' = \Omega \cup \set{g} \\
-f' (C',\Omega', \vec{g},\phi,v) 
+& \vec{g} = \_ \cat g \land \Omega' = \Omega \cup \set{g} \\
 & \phi \leq 1 \Rightarrow C' = C \cat \Downarrow^{\abst{f}}_v[\ctrn_g] \\
-f' (C',\Omega', \vec{g},\phi,v) 
-& \phi \leq 2 \Rightarrow C' = \Downarrow^{\abst{f}}_v[\ctrn_g] \cat C \\
-\underset{G}{\curvearrowright} (C',\Omega', \vec{g},\phi,v) & \phi = 3 \land C' = C \cat \Downarrow^{\abst{f}}_v[\ctrn'_g] \\
-f' (C, \Omega, (), \phi, v)
+& \phi = 2 \Rightarrow C' = \Downarrow^{\abst{f}}_v[\ctrn_g] \cat C \\
+(C',\Omega', \vec{g},\phi,v) & \phi = 3 \Rightarrow C' = C \cat \Downarrow^{\abst{f}}_v[\ctrn'_g] \\
+(C, \Omega, (), \phi, v)
 & \otherwise
 \end{cases} \\
 &\circ^\uparrow \lambda(\vec{g}, \phi, v, \avec{y}). \\
@@ -243,7 +237,7 @@ $$
 $$
 \begin{array}{ccc}
 \begin{array}{rl}
-\curvearrowright &: X^k \to X^{k'} \\
+\underset{G}{\curvearrowright} &= \lift(\curvearrowright : \Ggt^k \to \Ggt^{k'})\\
 \curvearrowright (\vec{x}) &= \begin{cases}
 () & \vec{x} = () \\
 \vec{x}' & \vec{x} = \vec{x}' \cat \_ \\
@@ -262,7 +256,7 @@ $$
 
 ### Copy Constraints
 
-$\Downarrow_C$ From $\ctrn_g$, we populate the *loop*; a vector modelling an equivalence class of *coordinates*; copy constraint column and row number, modulo wire, for every $g$ in the queue. After computing the loop of the full circuit, we compute the position permutation $\vec{\sigma}$.
+$\Downarrow_C$ From $\ctrn_g$, we populate the *loop*; a vector modelling an equivalence class of *coordinates*; copy constraint column and row number, modulo wire, for every $g$ in the queue. After computing the loop of the full circuit, we compute the position permutation $\sigma$.
 
 $$
 \begin{array}{rl}

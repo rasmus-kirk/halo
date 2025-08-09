@@ -14,11 +14,11 @@ $$
 }\\
 \\
 \text{cosets} &: (\omega: \Fb_q) \to \Fb_q^{|\omega| \times |CC|}\\
-\text{cosets}(\omega) &= \maybe{H}{
+\text{cosets}(\omega) &= \maybe{\vec{H}}{
 \begin{array}{l}
-  H_1 = \langle \omega \rangle \\
-  k_{i>1} \in \Fb_q \setminus \bigcup\limits_{j<i} H_j \cup \{1\} \\
-  H_i>1 = k_i \langle \omega^i \rangle \\
+  \vec{H}_1 = \langle \omega \rangle \\
+  k_{i>1} \in \Fb_q \setminus \bigcup\limits_{j<i} \vec{H}_j \cup \{1\} \\
+  \vec{H}_{i>1} = k_i \langle \omega^i \rangle \\
 \end{array}
 }\\
 \\
