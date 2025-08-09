@@ -33,10 +33,7 @@ $$
   \textbf{sup:} iterative fixpoint theorem
 }
 \begin{algorithmic}[1]
-  \State $(s,s') := (\bot, s_0)$
-  \State \textbf{do:}
-    \State \algind $(s,s') := (s',f(s'))$
-    \State \textbf{while} $\neg\text{eq}(s,s')$
+  \State \textbf{do:} $(s,s') := (s',f(s'))$ \textbf{while} $\neg\text{eq}(s,s')$
   \State \textbf{return} $s$
   \end{algorithmic}
 \end{algorithm}
@@ -126,11 +123,13 @@ $$
 
 ### Gate Constraints
 
-$\Downarrow_G$ computes the trace table $C$ by enqueing $\vec{g}$ the gadget (and its base recursively if any) with an output of the top of the $\vec{y}$ stack. The same gadget will not appear twice since $\Downarrow_R$ does not call the continuation on resolved wires and base duplicates are avoided by tracking added gadgets in $\Omega$. The pre-constraints of the gadgets are then resolved with vmap. Thus, tabulating the trace table.
+$\Downarrow_G$ computes the trace table $C$ by enqueing $\vec{g}$ the gadget (and its base recursively if any) with an output of the top of the $\vec{y}$ stack. The same gadget will not appear twice since $\Downarrow_R$ does not call the continuation on resolved wires and base duplicates are avoided by tracking added gadgets in $\Omega$. The pre-constraints of the gadgets are then resolved with vmap. Thus, tabulating the trace table.[^no-pad]
+
+[^no-pad]: Note for $\phi=3$ that $\ctrn'_g$ without padding is used, this is how it can be appended as a column.
 
 \begin{tabularx}{\textwidth}{@{} r Y Y Y Y Y @{}}
 \toprule
-kind & Basic & Relative  & Asserts  & PublicInput  & \plonkup Table  \\
+kind & Basic & Relative  & Asserts  & PublicInput & \plonkup Table \\
 & & $b_g>0$ & $m_g=0$ & $\ty(g)=\text{PI}^t_i$ & $\ty(g)=\text{Tbl}^t_j$
 \\\hline 
 phase & $\phi=0$ & $\phi=0$ & $\phi=1$ & $\phi=2$ & $\phi=3$
@@ -225,7 +224,7 @@ f' (C',\Omega', \vec{g},\phi,v)
 & \phi \leq 1 \Rightarrow C' = C \cat \Downarrow^{\abst{f}}_v[\ctrn_g] \\
 f' (C',\Omega', \vec{g},\phi,v) 
 & \phi \leq 2 \Rightarrow C' = \Downarrow^{\abst{f}}_v[\ctrn_g] \cat C \\
-\underset{G}{\curvearrowright} (C',\Omega', \vec{g},\phi,v) & \phi = 3 \land C' = C \cat \Downarrow^{\abst{f}}_v[\ctrn_g] \\
+\underset{G}{\curvearrowright} (C',\Omega', \vec{g},\phi,v) & \phi = 3 \land C' = C \cat \Downarrow^{\abst{f}}_v[\ctrn'_g] \\
 f' (C, \Omega, (), \phi, v)
 & \otherwise
 \end{cases} \\
@@ -265,112 +264,71 @@ $$
 
 ### Copy Constraints
 
-TODO rephrase the following to new formalism
-
-$\Downarrow_C$ computes coordinate loops; equivalence class of slot positions of $C$ modulo wire, by peeking $\vec{g}$ and joining $c$ with the coordinate loop of the gate using $\sqcup$.
-
-After computing the coordinate loop of the full circuit, we mark a flag $\Bb$ that starts computing the coordinate map $m$ from coordinate to its neighbour in $c$ which then is used to compute the permutation $\vec{\sigma}$ of the slots in $C$.
+$\Downarrow_C$ From $\ctrn_g$, we populate the *loop*; a vector modelling an equivalence class of *coordinates*; copy constraint column and row number, modulo wire, for every $g$ in the queue. After computing the loop of the full circuit, we compute the position permutation $\vec{\sigma}$.
 
 $$
 \begin{array}{rl}
+\begin{array}{rl}
+\text{Coord} &= \text{CC} \times \Nb \\
 \text{CLoop} &= (\abst{w}: \Wire) \pto \text{Coord}^k \\
-\text{CMap} &= \text{Coord} \pto \text{Coord} \\
+\text{CMap} &= \text{Coord} \to \text{Coord} \\
+\text{CState} &= (\text{CMap} + \text{CLoop}) \times \text{GState}^{k,k'} \\
+\\
+\sqcup &: \text{CLoop} \to \text{CLoop} \to \text{CLoop} \\
+L_1 \sqcup L_2 &= \begin{cases}
+& \exists \abst{w}. L_2(\abst{w}) \neq \bot \\
+& l = L_1(\abst{w})?() \cat L_2(\abst{w}) \\
+L & L = L_1[\abst{w} \mapsto l] \sqcup L_2[\abst{w} \mapsto \bot] \\
+L_1 & \otherwise
+\end{cases} \\
 \\
 \text{perm} &: \text{CLoop} \to \text{CMap} \\
-\text{perm}(l) &= \begin{cases}
-\bot[x \mapsto x] & l = \bot \\
-& \exists \abst{w}. \vec{s} = l(\abst{w}) \\
-& \sigma = \text{perm}(l[\abst{w} \mapsto \bot]) \\
+\text{perm}(L) &= \lambda x. \begin{cases}
+y & y = \text{perm}'(L)(x) \neq \bot \\
+x & \otherwise
+\end{cases} \\
+\text{perm}'(L) &= \begin{cases}
+\bot & l = \bot \\
+& \exists \abst{w}. \vec{s} = L(\abst{w}) \\
+& \sigma = \text{perm}'(L[\abst{w} \mapsto \bot]) \\
 \sigma[\vec{s} \mapsto \vec{s}'] & s'_1 = s_{|\vec{s}|} \land s'_{i>1} = s_{i-1}
-\end{cases} \\
-\\
-\text{loop} &: \Nb \to \Ggt \to \text{CLoop} \\
-\text{loop}(o,g) &= \text{loopN}(o,\ctrn_g, \gin(g) \cat \out(\abst{f},g))[n_g+m_g+1]\\
-\\
-\sqcup &: \text{CLoop} \to \text{CLoop} \to \text{CLoop} \\
-f \sqcup g &= \begin{cases}
-\bot & \not\exists \abst{w}. f(\abst{w}) \neq \bot \lor g(\abst{w}) \neq \bot \\
-& h = f[\abst{w} \mapsto \bot] \sqcup g[\abst{w} \mapsto \bot] \\
-h[\abst{w} \mapsto f(\abst{w}) \cat g(\abst{w})] & f(\abst{w}) \neq \bot \land g(\abst{w}) \neq \bot \\
-h[\abst{w} \mapsto f(\abst{w})] & f(\abst{w}) \neq \bot \\
-h[\abst{w} \mapsto g(\abst{w})] & \land g(\abst{w}) \neq \bot \\
 \end{cases}
-\end{array}
-$$
-
-TODO diagram, ctrn, to loop, to perm like in excalidraw
-
-TODO compute a CMap per wire type
-
-1. start with loop bot
-2. for each gate call it on ctrn
-3. get i from TraceTable in gate constraints
-4. At end of trace sup, map it with perm and into TypedIndexMap of perm columns.
-
-$$
+\end{array} &
+\begin{array}{c}
 \begin{array}{rl}
-\begin{array}{rl}
-\text{Coord} &= \text{Slot} \times \Nb \\
-\text{CLoop} &= (\abst{y} : \Nb) \pto \text{Coord}^{k_{\abst{y}}} \\
-\text{CMap} &= \text{Coord} \pto \text{Coord} \\
-\text{loop} &: \text{Row} \to \Ops \to \text{CLoop} \\
-\\
-\text{CState}^{k,k'} &= \Nb \times \text{Coord}^{|\text{Slot}| \times k} \times \text{CMap} \times \\
-&\Bb \times \text{CLoop} \times \text{GState}^{k'}\\
-\\
-\sqcup &: \text{CLoop} \to \text{CLoop} \to \text{CLoop} \\
-x \sqcup y &= \begin{cases}
-x & y = \bot \\
-& \exists i. y(i) = \vec{l} \\
-& y' = y[i \mapsto \bot] \\
-x[i \mapsto x(i) \cat \vec{l}] \sqcup y'
-& x(i) \neq \bot \\
-x[i \mapsto \vec{l}] \sqcup y'
-& \otherwise
+\Downarrow &: \text{CLoop} \to \PreTable_g \to \Wire^{n_g +m_g} \to \Nb \to \text{CLoop} \\
+\Downarrow_{L_\bot} &= \lambda((t, s, x, \vec{c}), \avec{w}, i). \\
+&\begin{cases}
+L_\bot & \vec{c} = () \\
+& \vec{c} = c \cat \vec{c}' \land j = \text{cw}(c) \\
+& L = \text{loop}(t,s,x,\vec{c}',\avec{w},i+1) \\
+L[\abst{w}_j \mapsto \vec{s}]
+& \vec{s} = L(\abst{w}_j)?() \cat (s,i) \land s \in \text{CC} \\
+L & \otherwise
 \end{cases} \\
 \\
+\Downarrow_C &: \AbsCirc \to \text{CState} \to \text{CState} \\
+\Downarrow_C^{\abst{f}} &= \lambda (r, C, \Omega, \vec{g}). \\
+&\begin{cases}
+& r = \inr(L) \\
+& \vec{g} = \vec{g}' \cat g \\
+& \avec{w} = \gin(g) \cat \out(\abst{f},g) \\
+(L', C, \Omega, \vec{g})  
+& L' = \Downarrow_L(t,s,\ctrn^t_g(s),\avec{w}, |C^t(s)|) \\
+(\sigma, C, \Omega, ()) & \sigma = \text{perm}(L) \\
+(r,C,\Omega, ()) & \otherwise
+\end{cases}
+\end{array} \\
+\begin{array}{cc}
+\begin{array}{rl}
 \dagger_C &: \text{CState} \to \Bb \\
-\dagger_C &= \lambda (N, \_, \_, b, c, \_). \\
-&N = 0 \land b = \top \land c = \bot \\
-\\
-\iota_C &: \text{GState} \to \text{CState} \\
-\iota_C(s) &= (0, (), \bot, \bot, \bot, s)
-\end{array}
-&
+\dagger_C &= \lambda (r, \_). r = \inl(\_)
+\end{array} &
 \begin{array}{rl}
-\Downarrow_C &: \text{CState} \to \text{CState} \\
-\Downarrow_C &= \lambda (N, \vec{\sigma}, m). \\
-&\begin{cases}
-(0, \vec{\sigma}, m) & N = 0 \\
-& f = \lambda s.m(s, N) \\
-(N-1, \sigma \cat \vec{\sigma},m)
-& \sigma = f[(\text{Slot}..)]
-\end{cases} \\
-& \circ^\uparrow \lambda(N, \vec{\sigma}, m, b,c, C). \\
-&\begin{cases}
-& b \land c = \bot \\
-(|C| / |\text{Term}|, (), m, \top, \bot, C)
-& N = 0 \land  \vec{\sigma} = () \\
-(N, \vec{\sigma}, m, b, c, C)
-& \otherwise
-\end{cases} \\
-& \circ^\uparrow \lambda(m, b, c). \\
-&\begin{cases}
-& b \land \exists \abst{y}. c(\abst{y}) \neq \bot \\
-& c' = c[\abst{y} \mapsto \bot] \\
-& \vec{l} = l \cat \vec{l}' = c(\abst{y}) \\
-(m', \top, c')
-& m' = m[\vec{l} \mapsto \vec{l}' \cat l] \\
-(m, b, c) & \otherwise
-\end{cases} \\
-& \circ^\uparrow \lambda (b, c,C,\vec{g}). \\
-&\begin{cases}
-& \neg b \land \vec{g} = g \cat \_ \\
-& r = |C|/|\text{Term}| \\
-(\bot, c \sqcup l, C, \vec{g})
-& l = \text{loop}(r, \ty(g)) \\
-(\top, c, C, \vec{g}) & \otherwise
-\end{cases} \\
+\iota_C &: \text{GState} \to \text{CState} \\
+\iota_C(s) &= (\inr(\bot), s)
+\end{array}
+\end{array}
 \end{array}
 \end{array}
 $$
@@ -380,10 +338,14 @@ $$
 We conclude the full trace definition as follows:
 
 $$
-\begin{array}{cc}
+\begin{array}{ccc}
+\begin{array}{l}
+\text{TraceResult} \\
+= \text{CMap} \times \TraceTable
+\end{array}&
 \begin{array}{rl}
 \text{res} &: \text{CState} \to \text{TraceResult} \\
-\text{res} &= \lambda (\_, \vec{\sigma}, \_, \_, \_, C, \_, \_, \_, \_). (\vec{\sigma}, C) \\
+\text{res} &= \lambda (\sigma, C, \_). (\sigma, C) \\
 \end{array}
 &
 \begin{array}{rl}
@@ -396,7 +358,7 @@ $$
 \begin{array}{ccc}
 \begin{array}{rl}
 \Downarrow &: \AbsCirc \to \text{CState} \to \text{CState} \\
-\Downarrow^{\abst{f}} &= \Downarrow_C \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} \stackrel{\to}{\circ} \Downarrow_R^{\abst{f}} \\
+\Downarrow^{\abst{f}} &= \Downarrow^{\abst{f}}_C \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} \stackrel{\to}{\circ} \Downarrow_R^{\abst{f}} \\
 \end{array}
 &
 \begin{array}{rl}
@@ -405,28 +367,16 @@ $$
 \end{array}
 &
 \begin{array}{rl}
-\text{trace} &: \AbsCirc \to \Nb^m \to \Fb^n_q \to \text{TraceResult} \\
-\text{trace}(\abst{f}, \avec{Y}, \vec{x})
-&= \text{res} \circ \text{sup}(\Downarrow^{\abst{f}},\text{eq},\iota(s_0),\iota(s^{\avec{Y}}_{\vec{x}}))
+\text{trace} &: W[\tin{}] \to \AbsCirc \to \Wire^m \to \text{TraceResult} \\
+\text{trace} &= \lambda(\vec{x}, \abst{f}, \avec{Y}). \text{res} \circ \text{sup}(\Downarrow^{\abst{f}},\text{eq},\iota(s_0),\iota(s^{\avec{Y}}_{\vec{x}}))
 \end{array}
 \end{array}
 $$
-
-**Monotonicity Proof**
-
-We can show that the function is monotonic by defining the order on the state, and showing that the function preserves the order. The order is defined as follows:
-
-$$
-(t,v,b,\vec{s}) \sqsubseteq (t',v',b',\vec{s'}) \iff
-\begin{aligned}
-  &t \not\sqsubseteq t' \Rightarrow \text{dom}(v) \not\subseteq \text{dom}(v') \Rightarrow |s| < |s'|
-\end{aligned}
-$$
-
-We never remove the mappings in $v$ thus the order is preserved for $v$ despite the stack $s$ can grow and shrink. To show $t \sqsubseteq t'$ then is to investigate the remaining monotonic continuations for $\Surkal$.
-
-TODO: cleanup and make full preorder relation definition, i.e. $s \sqsubseteq f(s)$
 
 ### Public variant
+
+The public variant for arithmetization only differs in trace. In $\Downarrow_R$, we do not have $\avec{x}: W[\tin{}]$ for input gates, but public input gates which is used to construct its column in the trace table. Thus, the vmap values are bools, that marks the wires having been resolved. This will lead to the same wire stack as the original $\Downarrow_R$, consequently trace table layout. $\Downarrow_G$ then will omit columns $c \in \text{priv}$ in $\ctrn_g$. Thus the cells that remain do not need the values to reduce, i.e. all the cells are constants. $\Downarrow_C$ remains the same. Resulting in a trace that differs by its $C$ not having private columns.
+
+**Trace Correctness Example**
 
 TODO
