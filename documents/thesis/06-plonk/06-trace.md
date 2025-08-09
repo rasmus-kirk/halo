@@ -217,8 +217,6 @@ A \cat B &= A \sqcup_{\lambda \_,\vec{a}, \vec{b}. \vec{a} \cat \vec{b}} B \\
 f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \lambda (C, \Omega, \vec{g}, \phi, v). \\
 &\begin{cases}
 & \vec{g} = \_ \cat g \\
-\underset{G}{\curvearrowright} (C, \Omega, \vec{g}, \phi, v)
-& g \in \Omega \\
 & f' = \underset{G}{\curvearrowright} \circ f \circ^\uparrow \land \Omega' = \Omega \cup \set{g} \\
 f' (C',\Omega', \vec{g},\phi,v) 
 & \phi \leq 1 \Rightarrow C' = C \cat \Downarrow^{\abst{f}}_v[\ctrn_g] \\
@@ -231,12 +229,12 @@ f' (C, \Omega, (), \phi, v)
 &\circ^\uparrow \lambda(\vec{g}, \phi, v, \avec{y}). \\
 &\begin{cases}
 & \phi = 0 \land \avec{y} = \abst{y} \cat \_ \\
-(\vec{g}\cat \Downarrow(g), 0, v, \avec{y})
-& \gpair{g}{\abst{y}} \in \abst{f} \\
+(\Downarrow^{\abst{f}}(g) \cat \vec{g}, 0, v, \avec{y})
+& \gpair{g}{\abst{y}} \in \abst{f} \land g \notin \Omega \\
 (\vec{G}^{\abst{f}}_{\phi +1}, \phi + 1, v, ())
 & \phi < 3 \land |\avec{y}| = |\vec{g}| = 0 \\
 ((), 4, v, ()) & \phi = 3 \land |\avec{y}| = |\vec{g}| = 0 \\
-(\vec{g}, \phi, v, ())
+(\vec{g}, \phi, v, \avec{y})
 & \otherwise
 \end{cases}
 \end{array}
@@ -375,7 +373,7 @@ $$
 
 ### Public variant
 
-The public variant for arithmetization only differs in trace. In $\Downarrow_R$, we do not have $\avec{x}: W[\tin{}]$ for input gates, but public input gates which is used to construct its column in the trace table. Thus, the vmap values are bools, that marks the wires having been resolved. This will lead to the same wire stack as the original $\Downarrow_R$, consequently trace table layout. $\Downarrow_G$ then will omit columns $c \in \text{priv}$ in $\ctrn_g$. Thus the cells that remain do not need the values to reduce, i.e. all the cells are constants. $\Downarrow_C$ remains the same. Resulting in a trace that differs by its $C$ not having private columns.
+The public variant for arithmetization only differs in trace. In $\Downarrow_R$, we do not have $\avec{x}: W[\tin{}]$ for input gates, but public input gates which is used to construct its column in the trace table. Thus, the vmap values are bools, that marks the wires having been resolved. This will lead to the same wire stack as the original $\Downarrow_R$, consequently trace table layout. $\Downarrow_G$ then will omit columns $c \in \text{priv}$ in $\ctrn_g$. Thus the cells that remain do not need the values to reduce, i.e. all the cells are constants. $\Downarrow_C$ remains the same. Resulting in a trace that differs by its trace table not having private columns.
 
 **Trace Correctness Example**
 
