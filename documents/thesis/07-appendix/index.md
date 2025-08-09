@@ -1,6 +1,31 @@
 
 \appendix
 
+
+### Defined Operations
+
+TODO maybe move to appendix
+
+TODO: bool check in all gates?
+
+| $g: \Ggt$                | $\text{eval}(g, \vec{x})$     | remarks                 |
+|:-------------------------:|:-----------------------------:|:------------------------|
+| Input$_i()$               | $(x_i)$                       | from trace              |
+| Const$_{s,p}()$           | $(s)$                         |                         |
+| Add$(x,y)$                | $(x+y)$                       |                         |
+| Mul$(x,y)$                | $(x \times y)$                |                         |
+| Inv$(x)$                  | $(x^{-1})$                    |                         |
+| Pow7$(x)$                 | $(x^7)$                       |                         |
+| If$(b,x,y)$               | $(b ? x : y)$                 |                         |
+| Lookup$_T(x,y)$           | $\maybe{(z)}{(x,y,z) \in T}$  |                         |
+| PtAdd$(x_P,y_P,x_Q,y_Q)$  | $(x_R, y_R)$                  | Arkworks point add      |
+| Poseidon$(a,b,c)$         | $(a',b',c')$                  | Mina poseidon 5 rounds  |
+| Public$(x)$               | $()$                          |                         |
+| Bit$(b)$                  | $()$                          |                         |
+| IsAdd$(x,y,z)$            | $()$                          |                         |
+| IsMul$(x,y,z)$            | $()$                          |                         |
+| IsLookup$_T(x,y,z)$       | $()$                          |                         |
+
 # Notation
 
 \begin{longtable*}{@{} c l @{}}
@@ -32,8 +57,8 @@ $\bot$ & The empty partial function \\
 $f[x \mapsto y]$ & The partial function that maps $x$ to $y$ \\
 \hline
 $T + U$ & The disjoint union / sum type of $T$ and $U$ \\
-$\text{inl}(t)$ & The left injection of $t$ into the disjoint union \\
-$\text{inr}(u)$ & The right injection of $u$ into the disjoint union \\
+$\inl(t)$ & The left injection of $t$ into the disjoint union \\
+$\inr(u)$ & The right injection of $u$ into the disjoint union \\
  & The injection constructor can be omitted if the context is clear \\
 \hline
 \end{longtable*}
@@ -63,6 +88,8 @@ $\vec{x} \cat \vec{y}$ & $\begin{cases} \vec{y} & \vec{x} = () \\ \vec{x}' \cat 
 $X \cat \vec{x}$ &  & Concatenate set $X$ (any order) to vector $\vec{x}$ \\
 \hline
 $f[\vec{x}]$ & $(f(x_1), f(x_2), \ldots, f(x_n))$ & Map function $f$ over vector $\vec{x}$ \\
+\hline
+$\text{repl}(n,x)$ & $(\lambda\_. x)[(1..n+1)]$ & create a vector with $n$ elements of $x$ \\
 \hline
 $\vec{x} \setminus X$ &  & Remove all elements in set $X$ from vector $\vec{x}$ \\
 \hline

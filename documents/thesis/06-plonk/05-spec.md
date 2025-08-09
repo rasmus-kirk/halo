@@ -57,7 +57,7 @@ An *index map*[^index-map-notation] maps wire types and columns to thunks of $Y$
 [^free-F]: If $t,s$ appears free in $F$, then it is bound to the indices. i.e. $F(T(t,s)) = (t: \WireType) \to (s: \Column) \to T(t,s)$.
 
 
-[^index-map-notation]: Let $C:\IndexMap(X,Y)$, then $C^q(A)$ is short for $C(q,A,())$ and $C^q_\xi(f)$ is short for $C(q,f,\xi :W(q))$ if $X(q,f) = W(q)$
+[^index-map-notation]: Let $C:\IndexMap(X,Y)$, then $C^q(A)$ is short for $C(q,A,())$ and $C^q_\zeta(f)$ is short for $C(q,f,\zeta :W(q))$ if $X(q,f) = W(q)$
 
 $$
 \begin{array}{ccc}
@@ -103,7 +103,7 @@ $$
 
 ### Pre-Constraints
 
-The *pre-constraints* $\ctrn_g$ of the operation $g$ is an index map of a vector of *cells*. Note that the vectors across different wire types $t$ need not be the same length. Cells are defined in terms of a *reducer* type $R$ that computes a value for a wire type $W(t)$ given the thunk argument $X(t,s)$ and vector of concrete wire values selected from the input and output wires of the gadget[^sel-notation]. Cells have the forms tabulated below.
+The *pre-constraints* $\ctrn_g$ of the operation $g$ is an index map of a vector of *cells*. Note that the vectors across different wire types $t$ need not be the same length, but within are length $k(t)$. Cells are defined in terms of a *reducer* type $R$ that computes a value for a wire type $W(t)$ given the thunk argument $X(t,s)$ and vector of concrete wire values selected from the input and output wires of the gadget[^sel-notation]. Columns irrelevant can be omitted and can be padded with default values from $D$. Cells have the forms tabulated below.
 
 [^sel-notation]: Although the selection is notated $\avec{w}$, it is a vector of naturals indexing the wire types. Trace can use this to recover the wires from $\abst{f}$.
 
@@ -111,22 +111,30 @@ $$
 \begin{array}{c}
 \begin{array}{cccc}
 g: \Ops &
-\ctrn_g: \PreTable_g &
-\PreTable_g = \IndexMap(X, F(\Cell_g(t,s)^k)) &
+\ctrn'_g: \PreTable_g &
+\PreTable_g = \IndexMap(X, F(\Cell_g(t,s)^{k(t)})) &
 \AWire_g = [n_g+m_g+1]\setminus \cdots
-\end{array} \\
-\begin{array}{ccccc}
-\Cell_g = F(X(t,s) \times (\avec{w}: \AWire_g^k) \times R_g(\avec{w}_p,t,s)) &
-R_g(\avec{w}) = F(X(t,s) \to W[\vec{t}^{g,\avec{w}}] \to W(t))
-\end{array} \\ \\
-\begin{array}{ccc}
-\vec{t}^{g,\avec{w}} = (\lambda i. (\tin{g} \cat \tout{g})_i)[\avec{w}] &
-\text{wires}^{\abst{f}}_g(\avec{w}) = (\lambda i. (\gin(g) \cat \out(\abst{f}, g))_i)[\avec{w}] &
-\begin{array}{rl}
-\text{wnat}&: \Cell_g \to \Nb \\
-\text{wnat}&= \lambda (\_, \avec{w}, \_). \maybe{i}{\avec{w} = (i)}
-\end{array}
 \end{array} 
+\end{array}
+$$
+$$
+\begin{array}{cc}
+\begin{array}{rl}
+R_g(\avec{w}) &= F(X(t,s) \to W[\vec{t}^{g,\avec{w}}] \to W(t)) \\
+\Cell_g &= F(X(t,s) \times (\avec{w}: \AWire_g^k) \times R_g(\avec{w}_p,t,s)) \\
+\vec{t}^{g,\avec{w}} &= (\lambda i. (\tin{g} \cat \tout{g})_i)[\avec{w}] \\
+\text{wires}^{\abst{f}}_g(\avec{w}) &= (\lambda i. (\gin(g) \cat \out(\abst{f}, g))_i)[\avec{w}] \\
+\text{cw}&: \Cell_g \to \Nb \\
+\text{cw}&= \lambda (\_, \avec{w}, \_). \maybe{i}{\avec{w} = (i)}
+\end{array} &
+\begin{array}{rl}
+R_{\text{default}} &= F(X(t,s) \to W_s(t)) \\
+\Cell_{\text{default}} &= F(X(t,s) \times \Unit \times R_{\text{default}}) \\
+\text{Default} &= \IndexMap(X, \Cell_{\text{default}}) \\
+D &: \text{Default} \\
+D_k &= (\lambda t,\_, d. \text{repl}(d,k(t)))[D] \\
+\ctrn_g &= D_k \sqcup_{\lambda \_, d,c.c} \ctrn_g'
+\end{array}
 \end{array}
 $$
 
@@ -134,9 +142,7 @@ cell | notation | $X$ | $\AWire_g^k$ | $R_g$
 -|-|-|-|-
 constant | $c$ | $()$ | $()$ | $\lambda (). c$
 wire | $\abst{w}$ | $()$ | $(\abst{w})$ | $\lambda (),w. w$
-$\plookup$ cells[^plookupdefn] | $\pcell$ | $\cdots$ | $\cdots$ | $\cdots$
-
-[^plookupdefn]: Defining and motivating $\plookup$ cells is deferred to when we define the lookup gadgets
+$\plookup \ \text{Tbl}_j$ | $\pcell$ | $(\zeta)$ | $\avec{w}$ | $\lambda d,\zeta, \vec{w}. \pcell(\zeta, \vec{w}, j)$
 
 **Pre-Constraint Example**
 
@@ -196,36 +202,6 @@ F_{GC}^{\plonkm}(@_2 \circ T^p) = -e + d \times c
 \end{tabular}
 \end{center}
 
-### Loop
-
-From $\ctrn_g$, we can also populate the *loop*; a vector modelling an equivalence class of positions modulo wire. This is used in copy constraints where $\text{CC}$ are columns that will be copy constrained.
-$$
-\begin{array}{ccc}
-\text{Coord} = \text{CC} \times \Nb &
-\text{CLoopN} = (\abst{w}: \Nb) \pto \text{Coord}^k
-\end{array}
-$$
-$$
-\begin{array}{rl}
-\begin{array}{rl}
-\text{coords} &: (\Nb \to \text{Coord}^m) \to \text{CC} \\
-&\to \Nb \to \Cell_g \to \Nb \to \text{Coord}^k \\
-\text{coords} &= \lambda (l,s,i,c,w). \\
-&l(w) \cat \left(\maybe{((s,i))}{\text{wnat}(c) = w}\right)?()
-\end{array} &
-\begin{array}{rl}
-\text{loopN} &: \Nb \to \PreTable_g \to \Wire^{n_g +m_g} \to \Nb \to \text{CLoopN} \\
-\text{loopN} &= \lambda(o, (t, s, x, \vec{c}), \avec{w}, i). \\
-&\begin{cases}
-\bot & \vec{c} = () \lor x \neq () \\
-& \vec{c} = c \cat \vec{c}' \land l = \text{loopN}(o,t,s,x,\vec{c}',\avec{w},i+1) \\
-l[\avec{w} \mapsto \vec{s}]
-& \vec{s} = \text{coord}(\lambda j. l(\abst{w}_j) ? (),s,i+o,c)[n_g+m_g+1] \\
-\end{cases}
-\end{array}
-\end{array}
-$$
-
 ### Relative Wires
 
 An operation is called *relative* if it has $b_g > 0$. The last $b_g$ input wires are *relative wires* which are wires from another gadget called the *base gadget*. Thus, they are excluded in $\ctrn_g$ via $\AWire_g$. A base gadget's constraints will appear immediately after its relative gadget[^dupe]. $\Rel_g$ declares the columns that, the relative gadget can reference from its base gadget. Thus, constructing a relative gadget checks that the relative wires must exist in the first row of the base gadget's constraints in the declared positions in $\Rel_g$.
@@ -260,7 +236,7 @@ $$
 \text{pos}(\abst{f}, g,\abst{w}) &= \maybe{s \in \Rel_g}{
 \begin{array}{l}
 \avec{v} = \gin(g) \cat \out(\abst{f},g) \\
-\abst{v}_{\text{wnat}\circ @_1 \circ \ctrn_g^{\ty(\abst{w})}(s)} = \abst{w}
+\abst{v}_{\text{cw}\circ @_1 \circ \ctrn_g^{\ty(\abst{w})}(s)} = \abst{w}
 \end{array}}
 \end{array} &
 \begin{array}{rl}
@@ -325,18 +301,15 @@ $$
 
 ### Spec
 
-A *specification*[^spec-benefit] defines the config of the protocol. This includes marking columns as private or enabling it for copy constraints. In the previous section on arithmetize, we omitted $s:\Spec$ in $\AState$ leaving $W, \WireType, \Ops$ implicit for $W_s, \WireType_s, \Ops_s$. We will keep the spec instance $s$ implicit beyond this section as well. We conclude with tabulating all objects according to their abstraction levels.
+A *specification*[^spec-benefit] defines the config of the protocol. This includes marking columns as private or enabling it for copy constraints. Here is also where default values for columns are defined, used when constructing the trace table. In the previous section on arithmetize, we omitted $s:\Spec$ in $\AState$ leaving $W, \WireType, \Ops$ implicit for $W_s, \WireType_s, \Ops_s$. We will keep the spec instance $s$ implicit beyond this section as well. We conclude with tabulating all objects according to their abstraction levels.
 
 [^spec-benefit]: With spec as a data structure, it is dynamic and can be extended whilst arithmetizing.
 
-
-TODO padding is done in $\ctrn_g$, they are declared in spec as an indexmap $D^t_x(c)$ is the default value for column c. for query column, x is the pair default and challenge. everyone else is zero with no x.
-
-
 $$
-\begin{array}{ccccc}
+\begin{array}{cccccc}
 s : \Spec &
 X_s: F(\Uni) &
+D_s: \text{Default} &
 \WireType_s: \Uni &
 W_s: \WireType_s \to \Uni &
 \Ops_s : \pset{\Ops}
