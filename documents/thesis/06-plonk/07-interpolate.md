@@ -37,8 +37,7 @@ TODO
 - x: take public columns
 - R: compute $\sigma$ per row per CC column
 - w: take private columns
-- w: detect $f$ exists (private, plookup)
-  - compute $h_1, h_2$ for plookup
+- w: compute $h_1, h_2$ for plookup
 - map $C$ with fft
 - map with commits pair?
   - look at code

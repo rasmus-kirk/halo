@@ -142,7 +142,7 @@ cell | notation | $X$ | $\AWire_g^k$ | $R_g$
 -|-|-|-|-
 constant | $c$ | $()$ | $()$ | $\lambda (). c$
 wire | $\abst{w}$ | $()$ | $(\abst{w})$ | $\lambda (),w. w$
-$\plookup \ \text{Tbl}_j$ | $\pcell$ | $(d, \zeta)$ | $\avec{w}$ | $\lambda d,\zeta, \vec{w}. \pcell(\zeta, \vec{w}, j)$
+$\plookup \ \text{Tbl}_j$ | $\pcell(\avec{w})$ | $(d, \zeta)$ | $\avec{w}$ | $\lambda d,\zeta, \vec{w}. \pcell(\zeta, \vec{w}, j)$
 $\plookup$ default | $\bot$ | $(d, \zeta)$ | $()$ | $\lambda d, \zeta. d$
 
 **Pre-Constraint Example**
