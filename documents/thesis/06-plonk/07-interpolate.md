@@ -1,64 +1,47 @@
 ## Interpolate
 
-The construction of subterms of $F_{GC}$ is done by $\OpGroup$ via $gc$:
-
 $$
 \begin{array}{rl}
-\OpGroup &= \Ops^k \times (gc: X^l \to X^{|\Slot| + |\Selector|} \to X)
-\end{array}
-$$
-
-$$
-\begin{array}{rl}
-\text{Term} &= \text{Slot} + \text{Selector} + \set{J} \\
-\text{Lookup} &= \set{T, F, H_1, H_2} \\
-\text{PolyType} &= \text{Slot} + \text{Selector} + \text{Lookup} \\
-\\
 \text{pow2} &: \Nb \to \Nb \\
 \text{pow2}(n) &= 2^{\lceil \log_2 (n) \rceil} \\
 \\
-\text{unity} &: \Nb \to \Fb_q \\
-\text{unity}(n) &= \maybe{\omega}{
+\text{unity}_{\Fb_q} &: \to \Nb \to \Fb_q \\
+\text{unity}_{\Fb_q}(n) &= \maybe{\omega}{
 \begin{array}{rl}
   \omega &\in \Fb_q \setminus 1 \\
-  \omega^n &= 1
+  \omega^n &= 1 \Leftrightarrow |\omega| = n
 \end{array}
 }\\
 \\
-\text{relation} &: \text{TraceResult} \to R \\
-\text{relation}(\vec{\sigma}, \vec{C}) &= \begin{cases}
+\text{cosets} &: (\omega: \Fb_q) \to \Fb_q^{|\omega| \times |CC|}\\
+\text{cosets}(\omega) &= \maybe{H}{
+\begin{array}{l}
+  H_1 = \langle \omega \rangle \\
+  k_{i>1} \in \Fb_q \setminus \bigcup\limits_{j<i} H_j \cup \{1\} \\
+  H_i>1 = k_i \langle \omega^i \rangle \\
+\end{array}
+}\\
+\\
+\text{interpolate} &: \text{TraceResult} \to \text{Pub} \times \text{Circuit} \times \Option(\text{Priv}) \\
+\text{interpolate}(\sigma, C) &= \begin{cases}
 a
-& N = \text{pow2}(\max(|\vec{t}|, |\vec{C}|) + \text{blind})\\
-& \omega = \text{unity}(N) \\
+& N_t = \text{pow2} \circ \max\limits_{s \in \Column} |C^t(s)|\\
+& \vec{H^t} = \text{cosets} \circ \text{unity}_{W(t)}(N_t) \\
 \end{cases}
 \end{array}
 $$
 
 TODO 
 
-- compute $k : (t: \text{WireType}) \to \text{Slot} \to W(t)$; $k^q_s : \Fb_q$
-- lookup thunk
-  - up to $N$ minus blind rows
-  - table vector $\vec{t}$
-  - query vector $\vec{f}$ using $\vec{C}$ in $A,B,C,j$
-  - grand product $\vec{h_1}, \vec{h_2}$
-- expand $\vec{C}$
-- expand $\vec{\sigma}$
-- fft + cache
-- commits
+- pad $C$ to equal row length per type
+- x: take public columns
+- R: compute $\sigma$ per row per CC column
+- w: take private columns
+- w: detect $f$ exists (private, plookup)
+  - compute $h_1, h_2$ for plookup
+- map $C$ with fft
+- map with commits pair?
   - look at code
-
-notation ideas
-
-- $w[A,i] = \vec{C}[A,i]$ cache
-- $R[Q_l,i] = \vec{C}[Q_l,i]$ cache
-- $R[Q_l] = \text{fft}(\vec{C}[Q_l])$ poly
-- $x[A] = \bot$ does not exist
-- $w_\zeta[T,i] = ?[T,i]$ thunk cache
-- $w_\zeta[T] = \text{fft}(?[T])$ thunk poly
-- $w[\mathcal{C}_A] = \PCCommit(\text{fft}(\vec{C}[A]), \ldots)$ commit
-- $w_\zeta[\mathcal{C}_T] = \PCCommit(\text{fft}(?[T]), \ldots)$ commit thunk
-- $w[t,A,i]$ typed indexing (or maybe we dont need to if we split into two runs of prover and verifier)
 
 **Interpolate Correctness Example**
 
