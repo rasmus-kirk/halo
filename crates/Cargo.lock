@@ -104,6 +104,7 @@ dependencies = [
  "halo-poseidon",
  "itertools 0.14.0",
  "log",
+ "num-bigint",
  "petgraph",
  "rayon",
  "union-find",

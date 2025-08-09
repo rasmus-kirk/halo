@@ -7,6 +7,7 @@ use std::{
 use anyhow::Result;
 use arith::{
     circuit::{CircuitSpec, Trace, TraceBuilder, Wire},
+    frontend::{Call, Frontend, curve::WireAffine, field::WireScalar},
     plonk::PlonkProof,
 };
 use log::debug;
@@ -19,12 +20,15 @@ use petgraph::{
 
 use criterion::Criterion;
 use halo_group::{
-    PallasConfig, PastaConfig,
-    ark_std::rand::{Rng, RngCore, thread_rng},
-    ark_std::test_rng,
+    Affine, PallasConfig, PastaConfig, Scalar, VestaConfig,
+    ark_ec::AffineRepr,
+    ark_std::{
+        rand::{Rng, RngCore, thread_rng},
+        test_rng,
+    },
 };
 
-const MIN: usize = 3;
+const MIN: usize = 5;
 const MAX: usize = 20;
 // const WARMUP: Duration = Duration::from_millis(1000);
 
@@ -111,155 +115,203 @@ fn get_incoming_nodes(graph: &DiGraph<RandGate, &str>, node_idx: NodeIndex) -> V
         .collect()
 }
 
-fn rand<P: PastaConfig>(wire_count: usize) -> Result<Trace<P>> {
-    assert!(wire_count.is_power_of_two());
+// fn rand<P: PastaConfig>(wire_count: usize) -> Result<Trace<P>> {
+//     assert!(wire_count.is_power_of_two());
 
-    let now = Instant::now();
+//     let now = Instant::now();
 
-    let mut total_wires = 0;
-    let rng = &mut thread_rng();
-    let mut graph: DiGraph<RandGate, &str> = DiGraph::new();
+//     let mut total_wires = 0;
+//     let rng = &mut thread_rng();
+//     let mut graph: DiGraph<RandGate, &str> = DiGraph::new();
 
-    let output_node = graph.add_node(RandGate::Output);
-    let mut open_gates = VecDeque::from([output_node]);
+//     let output_node = graph.add_node(RandGate::Output);
+//     let mut open_gates = VecDeque::from([output_node]);
 
-    while total_wires + open_gates.len() <= wire_count {
-        let gate = RandGate::rand_with_constraints(rng, open_gates.len());
-        let (inputs, outputs) = gate.input_outputs();
-        let new_node = graph.add_node(gate);
+//     while total_wires + open_gates.len() <= wire_count {
+//         let gate = RandGate::rand_with_constraints(rng, open_gates.len());
+//         let (inputs, outputs) = gate.input_outputs();
+//         let new_node = graph.add_node(gate);
 
-        for _ in 0..outputs {
-            total_wires += 1;
-            let open_node = open_gates.pop_back().unwrap();
-            graph.add_edge(new_node, open_node, "");
-        }
-        for _ in 0..inputs {
-            open_gates.push_front(new_node);
-        }
-    }
-    for _ in 0..open_gates.len() {
-        let open_node = open_gates.pop_back().unwrap();
-        let witness_node = graph.add_node(RandGate::Witness);
-        graph.add_edge(witness_node, open_node, "");
-    }
-    assert!(open_gates.len() == 0);
+//         for _ in 0..outputs {
+//             total_wires += 1;
+//             let open_node = open_gates.pop_back().unwrap();
+//             graph.add_edge(new_node, open_node, "");
+//         }
+//         for _ in 0..inputs {
+//             open_gates.push_front(new_node);
+//         }
+//     }
+//     for _ in 0..open_gates.len() {
+//         let open_node = open_gates.pop_back().unwrap();
+//         let witness_node = graph.add_node(RandGate::Witness);
+//         graph.add_edge(witness_node, open_node, "");
+//     }
+//     assert!(open_gates.len() == 0);
 
-    let topo_order = toposort(&graph, None).unwrap();
-    let mut circuit_spec = CircuitSpec::<P>::new();
+//     let topo_order = toposort(&graph, None).unwrap();
+//     let mut circuit_spec = CircuitSpec::<P>::new();
 
-    let mut open_wires = HashMap::<NodeIndex, Vec<Wire>>::new();
-    let mut witness_wires = Vec::new();
-    let mut public_input_wires = Vec::new();
-    for node_idx in topo_order {
-        let gate = graph.node_weight(node_idx).unwrap();
-        match gate {
-            RandGate::Witness => {
-                let out_wire = circuit_spec.witness_gate();
-                witness_wires.push(out_wire);
-                push_gate(&mut open_wires, &node_idx, vec![out_wire])
-            }
-            RandGate::PublicInput => {
-                let out_wire = circuit_spec.public_input_gate();
-                public_input_wires.push(out_wire);
-                push_gate(&mut open_wires, &node_idx, vec![out_wire])
-            }
-            RandGate::Constant => {
-                let c = P::scalar_from_u64(rng.gen_range(0..=10));
-                let out_wire = circuit_spec.constant_gate(c);
-                push_gate(&mut open_wires, &node_idx, vec![out_wire])
-            }
-            RandGate::Output => {
-                let in_nodes = get_incoming_nodes(&graph, node_idx);
-                assert_eq!(in_nodes.len(), 1);
-                let in_wire = open_wires.get_mut(&in_nodes[0]).unwrap().pop().unwrap();
-                circuit_spec.output_gate(in_wire);
-            }
-            RandGate::AssertEq => {
-                let in_nodes = get_incoming_nodes(&graph, node_idx);
-                assert_eq!(in_nodes.len(), 2);
-                let left = open_wires.get_mut(&in_nodes[0]).unwrap().pop().unwrap();
-                let right = open_wires.get_mut(&in_nodes[1]).unwrap().pop().unwrap();
-                circuit_spec.assert_eq_gate(left, right);
-            }
-            RandGate::Add => {
-                let in_nodes = get_incoming_nodes(&graph, node_idx);
-                assert_eq!(in_nodes.len(), 2);
-                let left = open_wires.get_mut(&in_nodes[0]).unwrap().pop().unwrap();
-                let right = open_wires.get_mut(&in_nodes[1]).unwrap().pop().unwrap();
-                let out_wire = circuit_spec.add_gate(left, right);
-                push_gate(&mut open_wires, &node_idx, vec![out_wire])
-            }
-            RandGate::CurveAdd => {
-                let in_nodes = get_incoming_nodes(&graph, node_idx);
-                assert_eq!(in_nodes.len(), 4);
+//     let mut open_wires = HashMap::<NodeIndex, Vec<Wire>>::new();
+//     let mut witness_wires = Vec::new();
+//     let mut public_input_wires = Vec::new();
+//     for node_idx in topo_order {
+//         let gate = graph.node_weight(node_idx).unwrap();
+//         match gate {
+//             RandGate::Witness => {
+//                 let out_wire = circuit_spec.witness_gate();
+//                 witness_wires.push(out_wire);
+//                 push_gate(&mut open_wires, &node_idx, vec![out_wire])
+//             }
+//             RandGate::PublicInput => {
+//                 let out_wire = circuit_spec.public_input_gate();
+//                 public_input_wires.push(out_wire);
+//                 push_gate(&mut open_wires, &node_idx, vec![out_wire])
+//             }
+//             RandGate::Constant => {
+//                 let c = P::scalar_from_u64(rng.gen_range(0..=10));
+//                 let out_wire = circuit_spec.constant_gate(c);
+//                 push_gate(&mut open_wires, &node_idx, vec![out_wire])
+//             }
+//             RandGate::Output => {
+//                 let in_nodes = get_incoming_nodes(&graph, node_idx);
+//                 assert_eq!(in_nodes.len(), 1);
+//                 let in_wire = open_wires.get_mut(&in_nodes[0]).unwrap().pop().unwrap();
+//                 circuit_spec.output_gate(in_wire);
+//             }
+//             RandGate::AssertEq => {
+//                 let in_nodes = get_incoming_nodes(&graph, node_idx);
+//                 assert_eq!(in_nodes.len(), 2);
+//                 let left = open_wires.get_mut(&in_nodes[0]).unwrap().pop().unwrap();
+//                 let right = open_wires.get_mut(&in_nodes[1]).unwrap().pop().unwrap();
+//                 circuit_spec.assert_eq_gate(left, right);
+//             }
+//             RandGate::Add => {
+//                 let in_nodes = get_incoming_nodes(&graph, node_idx);
+//                 assert_eq!(in_nodes.len(), 2);
+//                 let left = open_wires.get_mut(&in_nodes[0]).unwrap().pop().unwrap();
+//                 let right = open_wires.get_mut(&in_nodes[1]).unwrap().pop().unwrap();
+//                 let out_wire = circuit_spec.add(left, right);
+//                 push_gate(&mut open_wires, &node_idx, vec![out_wire])
+//             }
+//             RandGate::CurveAdd => {
+//                 let in_nodes = get_incoming_nodes(&graph, node_idx);
+//                 assert_eq!(in_nodes.len(), 4);
 
-                let px = open_wires.get_mut(&in_nodes[0]).unwrap().pop().unwrap();
-                let py = open_wires.get_mut(&in_nodes[1]).unwrap().pop().unwrap();
-                let qx = open_wires.get_mut(&in_nodes[2]).unwrap().pop().unwrap();
-                let qy = open_wires.get_mut(&in_nodes[3]).unwrap().pop().unwrap();
-                let (rx, ry) = circuit_spec.add_points((px, py), (qx, qy));
-                push_gate(&mut open_wires, &node_idx, vec![rx, ry])
-            }
-            RandGate::Multiply => {
-                let in_nodes = get_incoming_nodes(&graph, node_idx);
-                assert_eq!(in_nodes.len(), 2);
-                let left = open_wires.get_mut(&in_nodes[0]).unwrap().pop().unwrap();
-                let right = open_wires.get_mut(&in_nodes[1]).unwrap().pop().unwrap();
-                let out_wire = circuit_spec.mul_gate(left, right);
-                push_gate(&mut open_wires, &node_idx, vec![out_wire])
-            }
-        }
-    }
+//                 let px = open_wires.get_mut(&in_nodes[0]).unwrap().pop().unwrap();
+//                 let py = open_wires.get_mut(&in_nodes[1]).unwrap().pop().unwrap();
+//                 let qx = open_wires.get_mut(&in_nodes[2]).unwrap().pop().unwrap();
+//                 let qy = open_wires.get_mut(&in_nodes[3]).unwrap().pop().unwrap();
+//                 let (rx, ry) = circuit_spec.add_points((px, py), (qx, qy));
+//                 push_gate(&mut open_wires, &node_idx, vec![rx, ry])
+//             }
+//             RandGate::Multiply => {
+//                 let in_nodes = get_incoming_nodes(&graph, node_idx);
+//                 assert_eq!(in_nodes.len(), 2);
+//                 let left = open_wires.get_mut(&in_nodes[0]).unwrap().pop().unwrap();
+//                 let right = open_wires.get_mut(&in_nodes[1]).unwrap().pop().unwrap();
+//                 let out_wire = circuit_spec.mul(left, right);
+//                 push_gate(&mut open_wires, &node_idx, vec![out_wire])
+//             }
+//         }
+//     }
 
-    let mut trace_builder = TraceBuilder::new(circuit_spec);
-    for wire in public_input_wires {
-        let public_input = P::scalar_from_u64(rng.gen_range(0..=10));
-        trace_builder.public_input(wire, public_input)?
-    }
-    for wire in witness_wires {
-        let witness = P::scalar_from_u64(rng.gen_range(0..=10));
-        trace_builder.witness(wire, witness)?
-    }
+//     let mut trace_builder = TraceBuilder::new(circuit_spec);
+//     for wire in public_input_wires {
+//         let public_input = P::scalar_from_u64(rng.gen_range(0..=10));
+//         trace_builder.public_input(wire, public_input)?
+//     }
+//     for wire in witness_wires {
+//         let witness = P::scalar_from_u64(rng.gen_range(0..=10));
+//         trace_builder.witness(wire, witness)?
+//     }
 
-    debug!("rand_time = {}", now.elapsed().as_secs_f32());
+//     debug!("rand_time = {}", now.elapsed().as_secs_f32());
 
-    let trace = trace_builder.trace()?;
-    Ok(trace)
-}
+//     let trace = trace_builder.trace()?;
+//     Ok(trace)
+// }
 
-pub fn prover_verifier(c: &mut Criterion) {
+// pub fn prover_verifier(c: &mut Criterion) {
+//     env_logger::init();
+//     let group = c.benchmark_group("prover_verifier");
+//     let rng = &mut test_rng();
+
+//     println!("|‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|");
+//     println!("| n  | Trace (s)    | NaiveP (s)   | Prover (s)   | Verifier (s) |");
+//     println!("|====|==============|==============|==============|==============|");
+//     for size in MIN..MAX + 1 {
+//         let n = 2usize.pow(size as u32);
+
+//         let start_time = Instant::now();
+//         let trace = rand(n).unwrap();
+//         let random_circ_time = start_time.elapsed().as_secs_f32();
+
+//         let trace_clone = trace.clone();
+//         let start_time = Instant::now();
+//         let pi = PlonkProof::<PallasConfig>::naive_prover(rng, trace_clone);
+//         let naive_prover_time = start_time.elapsed().as_secs_f32();
+//         pi.verify(trace.clone()).unwrap();
+
+//         let trace_clone = trace.clone();
+//         let start_time = Instant::now();
+//         let pi = PlonkProof::<PallasConfig>::prove(rng, trace_clone);
+//         let prover_time = start_time.elapsed().as_secs_f32();
+
+//         let start_time = Instant::now();
+//         pi.verify(trace.clone()).unwrap();
+//         let verifier_time = start_time.elapsed().as_secs_f32();
+
+//         println!(
+//             "| {:02} | {:>12.8} | {:>12.8} | {:>12.8} | {:>12.8} |",
+//             size, random_circ_time, naive_prover_time, prover_time, verifier_time
+//         );
+//     }
+//     println!("|____|______________|______________|______________|");
+
+//     group.finish();
+// }
+
+pub fn prover_verifier_scalar_mul(c: &mut Criterion) {
+    use halo_group::ark_ff::UniformRand;
+
     env_logger::init();
     let group = c.benchmark_group("prover_verifier");
     let rng = &mut test_rng();
-
-    println!("|‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|");
-    println!("| n  | Trace (s)    | NaiveP (s)   | Prover (s)   | Verifier (s) |");
-    println!("|====|==============|==============|==============|==============|");
+    println!("|‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|");
+    println!("| n      | rows     | Circuit (s)  | Trace (s)    | Prover (s)   | Verifier (s) |");
+    println!("|========|==========|==============|==============|==============|==============|");
     for size in MIN..MAX + 1 {
-        let n = 2usize.pow(size as u32);
-
+        let n = 2usize.pow(size as u32) - 3 * size - 2;
         let start_time = Instant::now();
-        let trace = rand(n).unwrap();
+        let x = Fq::constant(WireScalar::<VestaConfig>::rand(rng));
+        let p = WireAffine::constant(Affine::rand(rng));
+        for _ in 0..n {
+            let _ = p * x;
+        }
         let random_circ_time = start_time.elapsed().as_secs_f32();
 
-        let trace_clone = trace.clone();
         let start_time = Instant::now();
-        let pi = PlonkProof::<PallasConfig>::naive_prover(rng, trace_clone);
-        let naive_prover_time = start_time.elapsed().as_secs_f32();
-        pi.verify(trace.clone()).unwrap();
+        let (fp_trace, fq_trace) = Call::new().trace().unwrap();
+        let trace_time = start_time.elapsed().as_secs_f32();
 
-        let trace_clone = trace.clone();
+        let fp_trace_clone = fp_trace.clone();
+        let fq_trace_clone = fq_trace.clone();
         let start_time = Instant::now();
-        let pi = PlonkProof::<PallasConfig>::prove(rng, trace_clone);
+        let fp_pi = PlonkProof::naive_prover(rng, fp_trace_clone);
+        let fq_pi = PlonkProof::naive_prover(rng, fq_trace_clone);
         let prover_time = start_time.elapsed().as_secs_f32();
 
+        let rows = fq_trace.rows;
         let start_time = Instant::now();
-        pi.verify(trace.clone()).unwrap();
+        fp_pi.verify(fp_trace).unwrap();
+        fq_pi.verify(fq_trace).unwrap();
         let verifier_time = start_time.elapsed().as_secs_f32();
 
+        Frontend::reset();
+
         println!(
-            "| {:02} | {:>12.8} | {:>12.8} | {:>12.8} | {:>12.8} |",
-            size, random_circ_time, naive_prover_time, prover_time, verifier_time
+            "| {:>6} | {:>8} | {:>12.8} | {:>12.8} | {:>12.8} | {:>12.8} |",
+            n, rows, random_circ_time, trace_time, prover_time, verifier_time
         );
     }
     println!("|____|______________|______________|______________|");

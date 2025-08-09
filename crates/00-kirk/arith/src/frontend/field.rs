@@ -1,208 +1,138 @@
-use std::ops::{Add, AddAssign, Mul, Neg};
+use std::{
+    marker::PhantomData,
+    ops::{Add, AddAssign, Mul, Neg},
+};
 
 use halo_group::{
-    PallasConfig, Scalar, VestaConfig,
+    PallasConfig, PastaConfig, PastaFE, PastaFieldId, Scalar, VestaConfig,
+    ark_ec::CurveConfig,
     ark_std::{One, Zero},
 };
 
 use crate::{circuit::Wire, frontend::FRONTEND};
 
 #[derive(Clone, Copy, Debug)]
-pub struct Fp {
+pub struct WireScalar<P: PastaConfig> {
     pub(crate) wire: Wire,
+    _p: PhantomData<P>,
 }
 
-impl Fp {
+impl<P: PastaConfig> WireScalar<P> {
     pub(crate) fn new(wire: Wire) -> Self {
-        Self { wire }
+        Self {
+            wire,
+            _p: PhantomData::default(),
+        }
     }
 
     // Create a new wire using the thread-local frontend
     pub fn witness() -> Self {
         FRONTEND.with(|frontend| {
             let mut frontend = frontend.borrow_mut();
-            Fp::new(frontend.fp_circuit.witness_gate())
+            Self::new(frontend.circuit.witness(P::SFID))
         })
     }
 
-    pub fn constant(c: Scalar<PallasConfig>) -> Self {
+    pub fn constant(c: Scalar<P>) -> Self {
         FRONTEND.with(|frontend| {
             let mut frontend = frontend.borrow_mut();
-            Fp::new(frontend.fp_circuit.constant_gate(c))
+            WireScalar::new(frontend.circuit.constant(PastaFE::from_scalar::<P>(c)))
         })
     }
 
     pub fn inv(&self) -> Self {
         FRONTEND.with(|frontend| {
             let mut frontend = frontend.borrow_mut();
-            Fp::new(frontend.fp_circuit.inv_gate(self.wire))
+            WireScalar::new(frontend.circuit.inv(self.wire))
         })
     }
 
     pub fn zero() -> Self {
         FRONTEND.with(|frontend| {
             let frontend = frontend.borrow();
-            Fp::new(frontend.fq_circuit.zero)
+            WireScalar::new(frontend.circuit.zero[P::SFID as usize])
         })
     }
 
     pub fn one() -> Self {
         FRONTEND.with(|frontend| {
             let frontend = frontend.borrow();
-            Fp::new(frontend.fq_circuit.one)
+            WireScalar::new(frontend.circuit.one[P::SFID as usize])
         })
     }
 
+    pub fn assert_eq(&self, other: Self) {
+        FRONTEND.with(|frontend| {
+            let mut frontend = frontend.borrow_mut();
+            frontend.circuit.assert_eq_gate(self.wire, other.wire);
+        })
+    }
+
+    pub(crate) fn message_pass(self) -> (WireScalar<P::OtherCurve>, WireScalar<P::OtherCurve>) {
+        if P::IS_PALLAS {
+            FRONTEND.with(|frontend| {
+                let mut frontend = frontend.borrow_mut();
+                let (h, l) = frontend.circuit.fp_message_pass(self.wire);
+                (WireScalar::new(h), WireScalar::new(l))
+            })
+        } else {
+            panic!("Not Pallas!")
+        }
+    }
+
     pub fn from_wire(wire: Wire) -> Self {
-        Fp { wire }
+        WireScalar {
+            wire,
+            _p: PhantomData::default(),
+        }
     }
 
     pub fn output(self) {
         FRONTEND.with(|frontend| {
             let mut frontend = frontend.borrow_mut();
-            frontend.fp_circuit.output_gate(self.wire)
+            frontend.circuit.output_gate(self.wire)
         })
     }
 }
 
-impl Mul for Fp {
-    type Output = Fp;
+impl<P: PastaConfig> Mul for WireScalar<P> {
+    type Output = WireScalar<P>;
 
-    fn mul(self, other: Fp) -> Self::Output {
+    fn mul(self, other: WireScalar<P>) -> Self::Output {
         FRONTEND.with(|frontend| {
             let mut frontend = frontend.borrow_mut();
-            Fp::new(frontend.fp_circuit.mul_gate(self.wire, other.wire))
+            WireScalar::new(frontend.circuit.mul(self.wire, other.wire))
         })
     }
 }
 
-impl Add for Fp {
-    type Output = Fp;
+impl<P: PastaConfig> Add for WireScalar<P> {
+    type Output = WireScalar<P>;
 
-    fn add(self, other: Fp) -> Self::Output {
+    fn add(self, other: WireScalar<P>) -> Self::Output {
         FRONTEND.with(|frontend| {
             let mut frontend = frontend.borrow_mut();
-            Fp::new(frontend.fp_circuit.add_gate(self.wire, other.wire))
+            WireScalar::new(frontend.circuit.add(self.wire, other.wire))
         })
     }
 }
 
-impl AddAssign for Fp {
+impl<P: PastaConfig> AddAssign for WireScalar<P> {
     fn add_assign(&mut self, rhs: Self) {
         FRONTEND.with(|frontend| {
             let mut frontend = frontend.borrow_mut();
-            *self = Fp::new(frontend.fp_circuit.add_gate(self.wire, rhs.wire))
+            *self = WireScalar::new(frontend.circuit.add(self.wire, rhs.wire))
         })
     }
 }
 
-impl Neg for Fp {
-    type Output = Fp;
+impl<P: PastaConfig> Neg for WireScalar<P> {
+    type Output = WireScalar<P>;
 
-    fn neg(self) -> Fp {
+    fn neg(self) -> WireScalar<P> {
         FRONTEND.with(|frontend| {
             let mut frontend = frontend.borrow_mut();
-            Fp::new(frontend.fp_circuit.neg_gate(self.wire))
-        })
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct Fq {
-    pub(crate) wire: Wire,
-}
-
-impl Fq {
-    pub(crate) fn new(wire: Wire) -> Self {
-        Self { wire }
-    }
-
-    // Create a new wire using the thread-local frontend
-    pub fn witness() -> Self {
-        FRONTEND.with(|frontend| {
-            let mut frontend = frontend.borrow_mut();
-            Fq::new(frontend.fq_circuit.witness_gate())
-        })
-    }
-
-    pub fn constant(c: Scalar<VestaConfig>) -> Self {
-        FRONTEND.with(|frontend| {
-            let mut frontend = frontend.borrow_mut();
-            Fq::new(frontend.fq_circuit.constant_gate(c))
-        })
-    }
-
-    pub fn inv(&self) -> Self {
-        FRONTEND.with(|frontend| {
-            let mut frontend = frontend.borrow_mut();
-            Fq::new(frontend.fq_circuit.inv_gate(self.wire))
-        })
-    }
-
-    pub fn zero() -> Self {
-        FRONTEND.with(|frontend| {
-            let frontend = frontend.borrow();
-            Fq::new(frontend.fq_circuit.zero)
-        })
-    }
-
-    pub fn one() -> Self {
-        FRONTEND.with(|frontend| {
-            let frontend = frontend.borrow();
-            Fq::new(frontend.fq_circuit.one)
-        })
-    }
-
-    pub fn from_wire(wire: Wire) -> Self {
-        Fq { wire }
-    }
-
-    pub fn output(self) {
-        FRONTEND.with(|frontend| {
-            let mut frontend = frontend.borrow_mut();
-            frontend.fq_circuit.output_gate(self.wire)
-        })
-    }
-}
-
-impl Mul for Fq {
-    type Output = Fq;
-
-    fn mul(self, other: Fq) -> Self::Output {
-        FRONTEND.with(|frontend| {
-            let mut frontend = frontend.borrow_mut();
-            Fq::new(frontend.fq_circuit.mul_gate(self.wire, other.wire))
-        })
-    }
-}
-
-impl Add for Fq {
-    type Output = Fq;
-
-    fn add(self, other: Fq) -> Self::Output {
-        FRONTEND.with(|frontend| {
-            let mut frontend = frontend.borrow_mut();
-            Fq::new(frontend.fq_circuit.add_gate(self.wire, other.wire))
-        })
-    }
-}
-
-impl AddAssign for Fq {
-    fn add_assign(&mut self, rhs: Self) {
-        FRONTEND.with(|frontend| {
-            let mut frontend = frontend.borrow_mut();
-            *self = Fq::new(frontend.fq_circuit.add_gate(self.wire, rhs.wire))
-        })
-    }
-}
-
-impl Neg for Fq {
-    type Output = Fq;
-
-    fn neg(self) -> Fq {
-        FRONTEND.with(|frontend| {
-            let mut frontend = frontend.borrow_mut();
-            Fq::new(frontend.fq_circuit.neg_gate(self.wire))
+            WireScalar::new(frontend.circuit.neg_gate(self.wire))
         })
     }
 }
@@ -211,16 +141,16 @@ impl Neg for Fq {
 mod tests {
     use anyhow::Result;
     use halo_group::{
-        PallasConfig, PastaConfig, Scalar, VestaConfig,
-        ark_ff::Field,
-        ark_std::{rand::Rng, test_rng},
+        Fp, Fq, PallasConfig, PastaConfig, PastaFE, Scalar, VestaConfig,
+        ark_ff::{BigInt, Field, PrimeField},
+        ark_std::{
+            rand::{Rng, RngCore},
+            test_rng,
+        },
     };
 
     use crate::{
-        frontend::{
-            Call, FRONTEND,
-            field::{Fp, Fq},
-        },
+        frontend::{Call, FRONTEND, field::WireScalar},
         plonk::PlonkProof,
     };
 
@@ -238,22 +168,22 @@ mod tests {
         let x_v = random_fp_scalar(rng);
         let y_v = random_fp_scalar(rng);
         let z_v = random_fp_scalar(rng);
-        let x = Fp::witness();
-        let y = Fp::witness();
-        let z = Fp::constant(z_v);
+        let x = WireScalar::<PallasConfig>::witness();
+        let y = WireScalar::<PallasConfig>::witness();
+        let z = WireScalar::<PallasConfig>::constant(z_v);
         let c = x * y;
         let d = c + z;
         d.output();
 
         FRONTEND.with(|frontend| {
             let frontend = frontend.borrow_mut();
-            println!("{:?}", frontend.fp_circuit);
+            println!("{:?}", frontend.circuit);
         });
 
         let mut call = Call::new();
 
-        call.fp_witness(x, x_v)?;
-        call.fp_witness(y, y_v)?;
+        call.witness(x, x_v)?;
+        call.witness(y, y_v)?;
 
         let (fp_trace, fq_trace) = call.trace()?;
 
@@ -274,9 +204,9 @@ mod tests {
         let x_v = random_fp_scalar(rng);
         let y_v = random_fp_scalar(rng);
         let z_v = random_fp_scalar(rng);
-        let x = Fp::witness();
-        let y = Fp::witness();
-        let z = Fp::witness();
+        let x = WireScalar::<PallasConfig>::witness();
+        let y = WireScalar::<PallasConfig>::witness();
+        let z = WireScalar::<PallasConfig>::witness();
         let x_inv = x.inv();
         let y_neg = -y;
         let _ = z.inv();
@@ -285,14 +215,14 @@ mod tests {
 
         FRONTEND.with(|frontend| {
             let frontend = frontend.borrow_mut();
-            println!("{:?}", frontend.fp_circuit);
+            println!("{:?}", frontend.circuit);
         });
 
         let mut call = Call::new();
 
-        call.fp_witness(x, x_v)?;
-        call.fp_witness(y, y_v)?;
-        call.fp_witness(z, z_v)?;
+        call.witness(x, x_v)?;
+        call.witness(y, y_v)?;
+        call.witness(z, z_v)?;
 
         let (fp_trace, fq_trace) = call.trace()?;
 
@@ -308,25 +238,29 @@ mod tests {
     #[test]
     fn fq_add_mul() -> Result<()> {
         let rng = &mut test_rng();
-        let x_v = random_fq_scalar(rng);
-        let y_v = random_fq_scalar(rng);
-        let z_v = random_fq_scalar(rng);
-        let x = Fq::witness();
-        let y = Fq::witness();
-        let z = Fq::constant(z_v);
+        let x_v = Fq::from(3u64);
+        let y_v = Fq::from(5u64);
+        let z_v = Fq::from(7u64);
+        println!("{x_v}");
+        // let x_v = random_fq_scalar(rng);
+        // let y_v = random_fq_scalar(rng);
+        // let z_v = random_fq_scalar(rng);
+        let x = WireScalar::<VestaConfig>::witness();
+        let y = WireScalar::<VestaConfig>::witness();
+        let z = WireScalar::constant(z_v);
         let c = x * y;
         let d = c + z;
         d.output();
 
         FRONTEND.with(|frontend| {
             let frontend = frontend.borrow_mut();
-            println!("{:?}", frontend.fp_circuit);
+            println!("{:?}", frontend.circuit);
         });
 
         let mut call = Call::new();
 
-        call.fq_witness(x, x_v)?;
-        call.fq_witness(y, y_v)?;
+        call.witness(x, x_v)?;
+        call.witness(y, y_v)?;
 
         let (fp_trace, fq_trace) = call.trace()?;
         println!("----- FP TRACE -----");
@@ -342,6 +276,22 @@ mod tests {
 
         PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
         PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn pasta_field_inversion() -> Result<()> {
+        let rng = &mut test_rng();
+        let x_u64 = rng.next_u64();
+        let x_fp = Fp::from(x_u64);
+        let x_fq = Fq::from(x_u64);
+        let x_fp_pfe = PastaFE::from(x_fp);
+        println!("{:?}", x_u64);
+        println!("{:?}", x_fp);
+        println!("{:?}", x_fq);
+        println!("{:?}", x_fp_pfe);
+        assert_eq!(x_fq, x_fp_pfe.into());
 
         Ok(())
     }

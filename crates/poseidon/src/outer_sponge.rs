@@ -17,6 +17,7 @@ pub enum Protocols {
     PCDL = 0,
     ASDL = 1,
     PLONK = 2,
+    SIGNATURE = 3,
 }
 
 impl<P: PastaConfig> Sponge<P> {
@@ -82,33 +83,18 @@ impl<P: PastaConfig> Sponge<P> {
         });
     }
 
-    // fn digest(mut self) -> P::ScalarField {
-    //     let x: <P::BaseField as PrimeField>::BigInt = self.squeeze_field().into_bigint();
-    //     // Returns zero for values that are too large.
-    //     // This means that there is a bias for the value zero (in one of the curve).
-    //     // An attacker could try to target that seed, in order to predict the challenges u and v produced by the Fr-Sponge.
-    //     // This would allow the attacker to mess with the result of the aggregated evaluation proof.
-    //     // Previously the attacker's odds were 1/q, now it's (q-p)/q.
-    //     // Since log2(q-p) ~ 86 and log2(q) ~ 254 the odds of a successful attack are negligible.
-    //     P::ScalarField::from_bigint(x.into()).unwrap_or_else(P::ScalarField::zero)
-    // }
-
     pub fn challenge(&mut self) -> P::ScalarField {
-        let x = P::basefield_into_bigint(self.sponge.squeeze());
-        // Returns zero for values that are too large.
-        // This means that there is a bias for the value zero (in one of the curve).
-        // An attacker could try to target that seed, in order to predict the challenges u and v produced by the Fr-Sponge.
-        // This would allow the attacker to mess with the result of the aggregated evaluation proof.
-        // Previously the attacker's odds were 1/q, now it's (q-p)/q.
-        // Since log2(q-p) ~ 86 and log2(q) ~ 254 the odds of a successful attack are negligible.
-        P::scalar_from_bigint(x).unwrap_or_else(P::ScalarField::zero)
+        let bits = P::basefield_into_bigint(self.sponge.squeeze()).to_bits_le();
+        if P::SCALAR_MODULUS < P::BASE_MODULUS {
+            P::scalar_from_bigint(BigInt::<4>::from_bits_le(&bits)).unwrap()
+        } else {
+            let high_bits =
+                P::scalar_from_bigint(BigInt::<4>::from_bits_le(&bits[1..bits.len()])).unwrap();
+            high_bits
+        }
     }
 
     pub fn reset(&mut self) {
         self.sponge.reset()
     }
-
-    // fn challenge_fq(&mut self) -> P::BaseField {
-    //     self.squeeze()
-    // }
 }

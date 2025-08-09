@@ -17,6 +17,23 @@ mod poseidon_consts;
 pub mod pp;
 pub mod wrappers;
 
+pub type Fq = ark_pallas::Fq;
+pub type Fp = ark_pallas::Fr;
+pub use ark_ec;
+pub use ark_ff;
+pub use ark_pallas::PallasConfig;
+pub use ark_poly;
+pub use ark_std;
+pub use ark_vesta::VestaConfig;
+pub use group::*;
+pub use pp::PublicParams;
+pub use wrappers::PastaAffine;
+pub use wrappers::PastaConfig;
+pub use wrappers::PastaFE;
+pub use wrappers::PastaFieldId;
+pub use wrappers::PastaScalar;
+pub use wrappers::WrappedPoint;
+
 // -------------------- Public Parameter Generation --------------------
 
 mod gen_pp {

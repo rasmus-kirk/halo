@@ -1,22 +1,25 @@
-use std::ops::{Add, AddAssign, Mul, Neg};
+use std::{
+    ops::{Add, AddAssign, Mul, Neg},
+    str::FromStr,
+};
 
-use halo_group::{Affine, PallasConfig, Point, ark_ff::UniformRand};
+use halo_group::{Affine, Fq, PallasConfig, PastaConfig, PastaFieldId, ark_ff::BigInt};
 
 use crate::{
     circuit::Wire,
-    frontend::{FRONTEND, field::Fq},
+    frontend::{FRONTEND, field::WireScalar},
 };
 
 #[derive(Clone, Copy, Debug)]
-pub struct CurvePoint {
-    pub(crate) x: Fq,
-    pub(crate) y: Fq,
+pub struct WireAffine<P: PastaConfig> {
+    pub(crate) x: WireScalar<P::OtherCurve>,
+    pub(crate) y: WireScalar<P::OtherCurve>,
 }
-impl CurvePoint {
+impl<P: PastaConfig> WireAffine<P> {
     pub(crate) fn new(x: Wire, y: Wire) -> Self {
         Self {
-            x: Fq::new(x),
-            y: Fq::new(y),
+            x: WireScalar::<P::OtherCurve>::new(x),
+            y: WireScalar::<P::OtherCurve>::new(y),
         }
     }
 
@@ -24,18 +27,23 @@ impl CurvePoint {
     pub fn witness() -> Self {
         FRONTEND.with(|frontend| {
             let mut frontend = frontend.borrow_mut();
-            let x_wire = frontend.fq_circuit.witness_gate();
-            let y_wire = frontend.fq_circuit.witness_gate();
+            let x_wire = frontend.circuit.witness(P::BFID);
+            let y_wire = frontend.circuit.witness(P::BFID);
             Self::new(x_wire, y_wire)
         })
+    }
+
+    pub fn assert_eq(self, other: Self) {
+        self.x.assert_eq(other.x);
+        self.y.assert_eq(other.y);
     }
 
     pub fn constant(point: Affine<PallasConfig>) -> Self {
         assert!(point.is_on_curve());
         FRONTEND.with(|frontend| {
             let mut frontend = frontend.borrow_mut();
-            let x_wire = frontend.fq_circuit.constant_gate(point.x);
-            let y_wire = frontend.fq_circuit.constant_gate(point.y);
+            let x_wire = frontend.circuit.constant(P::into_pastafe(point.x));
+            let y_wire = frontend.circuit.constant(P::into_pastafe(point.y));
             Self::new(x_wire, y_wire)
         })
     }
@@ -43,48 +51,90 @@ impl CurvePoint {
     pub fn identity() -> Self {
         FRONTEND.with(|frontend| {
             let frontend = frontend.borrow();
-            let x_wire = frontend.fq_circuit.zero;
-            let y_wire = frontend.fq_circuit.zero;
+            let x_wire = frontend.circuit.zero[P::BFID as usize];
+            let y_wire = frontend.circuit.zero[P::BFID as usize];
             Self::new(x_wire, y_wire)
+        })
+    }
+
+    pub fn generator() -> Self {
+        FRONTEND.with(|frontend| {
+            let mut frontend = frontend.borrow_mut();
+
+            if P::IS_PALLAS {
+                let x = Fq::from_str(
+                    "28948022309329048855892746252171976963363056481941560715954676764349967630336",
+                )
+                .unwrap();
+                let y = Fq::from(2u64);
+                let x_wire = frontend.circuit.constant(x.into());
+                let y_wire = frontend.circuit.constant(y.into());
+                Self::new(x_wire, y_wire)
+            } else {
+                let x = Fq::from_str(
+                    "28948022309329048855892746252171976963363056481941647379679742748393362948096",
+                )
+                .unwrap();
+                let y = Fq::from(2u64);
+                let x_wire = frontend.circuit.constant(x.into());
+                let y_wire = frontend.circuit.constant(y.into());
+                Self::new(x_wire, y_wire)
+            }
         })
     }
 
     pub fn output(self) {
         FRONTEND.with(|frontend| {
             let mut frontend = frontend.borrow_mut();
-            frontend.fq_circuit.output_gate(self.x.wire);
-            frontend.fq_circuit.output_gate(self.y.wire);
+            frontend.circuit.output_gate(self.x.wire);
+            frontend.circuit.output_gate(self.y.wire);
         })
     }
 }
 
-impl Add for CurvePoint {
-    type Output = CurvePoint;
+impl<P: PastaConfig> Add for WireAffine<P> {
+    type Output = WireAffine<P>;
 
-    fn add(self, other: CurvePoint) -> Self::Output {
+    fn add(self, other: WireAffine<P>) -> Self::Output {
         FRONTEND.with(|frontend| {
             let mut frontend = frontend.borrow_mut();
             let (x_wire, y_wire) = frontend
-                .fq_circuit
+                .circuit
                 .add_points((self.x.wire, self.y.wire), (other.x.wire, other.y.wire));
-            CurvePoint::new(x_wire, y_wire)
+            WireAffine::new(x_wire, y_wire)
         })
     }
 }
 
-impl AddAssign for CurvePoint {
+impl<P: PastaConfig> Mul<WireScalar<P>> for WireAffine<P> {
+    type Output = WireAffine<P>;
+
+    fn mul(self, other: WireScalar<P>) -> Self::Output {
+        FRONTEND.with(|frontend| {
+            let mut frontend = frontend.borrow_mut();
+
+            let (h, l) = frontend.circuit.fp_message_pass(other.wire);
+            let (xs_wire, ys_wire) = frontend
+                .circuit
+                .scalar_mul((h, l), (self.x.wire, self.y.wire));
+            WireAffine::new(xs_wire, ys_wire)
+        })
+    }
+}
+
+impl<P: PastaConfig> AddAssign for WireAffine<P> {
     fn add_assign(&mut self, rhs: Self) {
         *self = self.clone() + rhs
     }
 }
 
-impl Neg for CurvePoint {
+impl<P: PastaConfig> Neg for WireAffine<P> {
     type Output = Self;
     fn neg(self) -> Self::Output {
         FRONTEND.with(|frontend| {
             let mut frontend = frontend.borrow_mut();
-            let y_neg = frontend.fq_circuit.neg_gate(self.y.wire);
-            CurvePoint::new(self.x.wire, y_neg)
+            let y_neg = frontend.circuit.neg_gate(self.y.wire);
+            WireAffine::new(self.x.wire, y_neg)
         })
     }
 }
@@ -92,15 +142,18 @@ impl Neg for CurvePoint {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use halo_group::ark_ec::AffineRepr;
+    use halo_group::ark_ff::Zero;
     use halo_group::{
-        Affine, PallasConfig,
-        ark_ec::CurveGroup,
-        ark_ff::UniformRand,
+        Affine, Fp, Fq, PallasConfig, PastaAffine, PastaConfig, Point, Scalar, VestaConfig,
+        ark_ec::{AdditiveGroup, CurveGroup},
+        ark_ff::{BigInteger, Field, PrimeField, UniformRand},
         ark_std::{rand::Rng, test_rng},
     };
 
+    use crate::frontend::field::WireScalar;
     use crate::{
-        frontend::{Call, curve::CurvePoint},
+        frontend::{Call, curve::WireAffine},
         plonk::PlonkProof,
     };
 
@@ -115,12 +168,12 @@ mod tests {
         let p_v = random_point(rng);
         let q_v = random_point(rng);
 
-        let p = CurvePoint::constant(p_v);
-        let q = CurvePoint::constant(q_v);
+        let p = WireAffine::<PallasConfig>::constant(p_v);
+        let q = WireAffine::<PallasConfig>::constant(q_v);
         let r = p.clone() + q.clone();
         r.output();
 
-        let call = Call::new();
+        let call = Call::<PallasConfig>::new();
 
         let (fp_trace, fq_trace) = call.trace()?;
         let rx = fq_trace.outputs[0];
@@ -141,16 +194,25 @@ mod tests {
 
         let p_v = random_point(rng);
 
-        let p = CurvePoint::constant(p_v);
-        let q = CurvePoint::identity();
+        let p = WireAffine::<PallasConfig>::constant(p_v);
+        let q = WireAffine::<PallasConfig>::identity();
         let r = p + q;
         r.output();
 
-        let call = Call::new();
+        let p_v_2 = PastaAffine::from(p_v);
+        println!("{p_v:?}, {p_v_2:?}");
+
+        let call = Call::<PallasConfig>::new();
 
         let (fp_trace, fq_trace) = call.trace()?;
         let rx = fq_trace.outputs[0];
         let ry = fq_trace.outputs[1];
+
+        println!("----- FP TRACE -----");
+        println!("{:?}", fp_trace);
+
+        println!("----- FQ TRACE -----");
+        println!("{:?}", fq_trace);
 
         assert_eq!((rx, ry), (p_v.x, p_v.y));
 
@@ -166,12 +228,12 @@ mod tests {
 
         let q_v = random_point(rng);
 
-        let p = CurvePoint::identity();
-        let q = CurvePoint::constant(q_v);
+        let p = WireAffine::<PallasConfig>::identity();
+        let q = WireAffine::<PallasConfig>::constant(q_v);
         let r = p + q;
         r.output();
 
-        let call = Call::new();
+        let call = Call::<PallasConfig>::new();
 
         let (fp_trace, fq_trace) = call.trace()?;
         let rx = fq_trace.outputs[0];
@@ -191,11 +253,11 @@ mod tests {
 
         let p_v = random_point(rng);
 
-        let p = CurvePoint::constant(p_v);
+        let p = WireAffine::<PallasConfig>::constant(p_v);
         let r = p.clone() + p.clone();
         r.output();
 
-        let call = Call::new();
+        let call = Call::<PallasConfig>::new();
 
         let (fp_trace, fq_trace) = call.trace()?;
         let rx = fq_trace.outputs[0];
@@ -215,12 +277,12 @@ mod tests {
     fn add_identity_identity() -> Result<()> {
         let rng = &mut test_rng();
 
-        let p = CurvePoint::identity();
-        let q = CurvePoint::identity();
+        let p = WireAffine::<PallasConfig>::identity();
+        let q = WireAffine::<PallasConfig>::identity();
         let r = p + q;
         r.output();
 
-        let call = Call::new();
+        let call = Call::<PallasConfig>::new();
 
         let (fp_trace, fq_trace) = call.trace()?;
         let rx = fq_trace.outputs[0];
@@ -241,12 +303,12 @@ mod tests {
 
         let p_v = random_point(rng);
 
-        let p = CurvePoint::constant(p_v);
+        let p = WireAffine::<PallasConfig>::constant(p_v);
         let q = -p;
         let r = p + q;
         r.output();
 
-        let call = Call::new();
+        let call = Call::<PallasConfig>::new();
 
         let (fp_trace, fq_trace) = call.trace()?;
         let rx = fq_trace.outputs[0];
@@ -259,5 +321,154 @@ mod tests {
         PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
 
         Ok(())
+    }
+
+    #[test]
+    fn mul() -> Result<()> {
+        let rng = &mut test_rng();
+
+        let p_v = random_point(rng);
+        // let x_v = Fq::rand(rng);
+        let x_v = Fp::from(1048575u64);
+        // let x_v_fp = Fp::from_bigint(x_v.into_bigint()).unwrap();
+        let s_v = scalar_multiply_2(&x_v, p_v);
+        println!("s_v: {:?}", s_v);
+
+        let p = WireAffine::<PallasConfig>::constant(p_v);
+        let x = WireScalar::constant(x_v);
+        let s = p * x;
+        s.output();
+
+        let call = Call::<PallasConfig>::new();
+
+        let (fp_trace, fq_trace) = call.trace()?;
+        let x_out: Fq = fq_trace.outputs[0];
+        let y_out: Fq = fq_trace.outputs[1];
+        println!("outs: {:?}", fq_trace.outputs);
+
+        assert_eq!(x_out, s_v.x);
+        assert_eq!(y_out, s_v.y);
+
+        println!("{:?}", fp_trace);
+        println!("{:?}", fq_trace);
+
+        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
+        PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
+
+        Ok(())
+    }
+
+    fn scalar_multiply_2<P: PastaConfig>(x: &Scalar<P>, g: Affine<P>) -> Affine<P> {
+        let mut acc: Point<P> = Affine::<P>::identity().into();
+        let bits: Vec<bool> = (*x)
+            .into_bigint()
+            .to_bits_le()
+            .iter()
+            .rev()
+            .copied()
+            .collect();
+        let is = (0..bits.len()).rev();
+        for (bit, i) in bits.into_iter().zip(is) {
+            // println!("i: {i} {bit}");
+            let q = acc + acc;
+            let r = q + g;
+            let s = if bit { r } else { q };
+            if i < 8 {
+                println!("i: {i} {bit}");
+                println!("acc_i: {acc}");
+                println!("q: {q}");
+                println!("r: {r}\n");
+            }
+            acc = s;
+        }
+        println!("acc: {acc}");
+        println!("Done \n");
+        acc.into_affine()
+    }
+
+    #[test]
+    fn affine_scalar_params() {
+        let rng = &mut test_rng();
+        let p = (Point::<VestaConfig>::rand(rng)).into_affine();
+        // let p = Affine::<VestaConfig>::identity();
+        let xp = p.x;
+        let yp = p.y;
+        let b_k = rng.gen_bool(0.5);
+
+        let inv0 = |x: Fp| {
+            if x.is_zero() { Fp::ZERO } else { Fp::ONE / x }
+        };
+
+        let lambda = if !yp.is_zero() {
+            (Fp::from(3) * xp.square()) / (Fp::from(2) * yp)
+        } else {
+            Fp::ZERO
+        };
+
+        let xq = lambda.square() - (Fp::from(2) * xp);
+        let yq = lambda * (xp - xq) - yp;
+
+        let q = (p + p).into_affine();
+        let xq_expected = q.x;
+        let yq_expected = q.y;
+
+        assert_eq!(xq, xq_expected);
+        assert_eq!(yq, yq_expected);
+
+        let beta = inv0(xp);
+        assert_eq!((Fp::ONE - xp * beta) * xq, Fp::zero());
+        assert_eq!((Fp::ONE - xp * beta) * yq, Fp::zero());
+        assert_eq!(
+            Fp::from(2) * yp * lambda - Fp::from(3) * xp.square(),
+            Fp::ZERO
+        );
+        assert_eq!(lambda.square() - (Fp::from(2) * xp) - xq, Fp::ZERO);
+        assert_eq!(lambda * (xp - xq) - yp - yq, Fp::ZERO);
+
+        let r = (p + q).into_affine();
+        let xr = r.x;
+        let yr = r.y;
+
+        // let xr_calculated = ((yp - yq) / (xp - xq)).square() - xq - xp;
+        // let yr_calculated = ((yp - yq) / (xp - xq)) * (xq - xr) - yq;
+        // assert_eq!(xr, xr_calculated);
+        // assert_eq!(yr, yr_calculated);
+
+        let beta = inv0(xp);
+        assert_eq!((Fp::ONE - xp * beta) * xr, Fp::zero());
+        assert_eq!((Fp::ONE - xp * beta) * yr, Fp::zero());
+        let c1 = (xr + xq + xp) * (xp - xq).square() - (yp - yq).square();
+        let c2 = (yr + yq) * (xp - xq) - (yp - yq) * (xq - xr);
+        assert_eq!(c1, Fp::ZERO);
+        assert_eq!(c2, Fp::ZERO);
+
+        let g = if b_k { r } else { q };
+
+        let xg = g.x;
+        let yg = g.y;
+
+        let b = if b_k { Fp::ONE } else { Fp::ZERO };
+        assert_eq!(xg - (b * xr + (Fp::ONE - b) * xq), Fp::ZERO);
+        assert_eq!(yg - (b * yr + (Fp::ONE - b) * yq), Fp::ZERO);
+    }
+
+    #[test]
+    fn affine_scalar_multiply_rust() {
+        let rng = &mut test_rng();
+
+        let g = Affine::<PallasConfig>::rand(rng);
+        let x = Scalar::<PallasConfig>::rand(rng);
+        let xg = scalar_multiply_2(&x, g);
+        let expected_xg = g * x;
+        assert_eq!(xg, expected_xg);
+    }
+
+    #[test]
+    fn field_five_is_not_square() {
+        let five = Fq::from(5u64);
+        assert!(five.sqrt().is_none(), "5 should not be a square in Fq");
+
+        let five = Fp::from(5u64);
+        assert!(five.sqrt().is_none(), "5 should not be a square in Fq");
     }
 }
