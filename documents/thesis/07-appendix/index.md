@@ -2,11 +2,17 @@
 \appendix
 
 
-### Defined Operations
+# \Surkal: Base spec defined operations
 
-TODO maybe move to appendix
+TODO: ask which needs bool check
 
-TODO: bool check in all gates?
+TODO PI gadget
+
+TODO plonkup gadgets:
+
+- higher order: multi lookup, tbl
+- concrete: multi unary lookup, range check tbl
+
 
 | $g: \Ggt$                | $\text{eval}(g, \vec{x})$     | remarks                 |
 |:-------------------------:|:-----------------------------:|:------------------------|
@@ -110,7 +116,7 @@ $\Unit \times T = T \times \Unit = T$ & $((), t) = (t, ()) = t$ & Product has un
 \hline
 $X \to Y \to Z = (X \to Y) \to Z = X \to (Y \to Z)$ & $f(x,y)=f(\lambda x.y)=f(x)(y)$ & Associative function type \\
 \hline
-$X \to Y \to Z = (X \times Y) \to Z$ & $f(x,y)=f(x)(y)=f((x, y))$ & Currying \\
+$X \to Y \to Z = (X \times Y) \to Z$ & $f(x,y)=f((x, y))$ & Currying \\
 \hline
 $\Unit \to X = X$ & $f(()) = x \leftrightarrow f = x$ & Function has unit \\
 \hline
@@ -144,6 +150,6 @@ c & \phi_2 \lor \phi_4 \\
 \end{array}
 $$
 
-**abstract preprocess objects** - $\abst{x}$ is an abstract of a thing, e.g. $\abst{f}$ is an abstract circuit, $\abst{y}$ is an abstract value / wire
+**abstract arithmetizer objects** - $\abst{x}$ is an abstract of a thing, e.g. $\abst{f}$ is an abstract circuit, $\abst{y}$ is an abstract value / wire
 
 

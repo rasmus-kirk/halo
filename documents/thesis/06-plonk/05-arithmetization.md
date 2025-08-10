@@ -144,35 +144,38 @@ We can also notate the abstract circuit $\abst{f}$ with *predicates* $\build{f =
 $$
 \begin{array}{cc}
 \begin{array}{c}
-\begin{array}{rl}
+\begin{array}{cccc}
 s: \AState &
-u_s: \Nb \\
+u_s: \Nb &
 \abst{f}_s: \AbsCirc &
 \avec{Y}_s: \Wire^k
 \end{array} \\
 \begin{array}{rl}
-\new(u,\abst{f},\avec{Y}) &= \maybe{s}{\begin{array}{rl}
+\state(u,\abst{f},\avec{Y}) = \astate{u}{\abst{f}}{\avec{Y}}
+&= \maybe{s}{\begin{array}{rl}
 u_{s} &= u \\
 \abst{f}_{s} &= \abst{f} \\
 \avec{Y}_{s} &= \avec{Y}
 \end{array}} \\
-s \cat \abst{y} &= \new(u_s, \abst{f}_s, \abst{y} \cat \avec{Y}_s)
+s \sqcup s' &= \astate{u_s + u_{s'}}{\abst{f}_s \cup \abst{f}_{s'}}{\avec{Y}_s \cat \avec{Y}_{s'}} \\
+s \cat \abst{y} &= s \sqcup \astate{0}{\emptyset}{\abst{y}}
 \end{array}
 \end{array}
 &
 \begin{array}{rl}
-\build{-}{-}{-} &: (W[\tin{}] \to W[\tout{}]) \to \AState \to \AState \to \Bb \\
+\build{-}{-}{-} &: (W[\tin{}] \to W[\tout{}]) \\
+&\to \AState \to \AState \to \Bb \\
 \build{g = \vec{y}}{s}{s'}
 &= \left(\text{get}(s,g) = (s', \avec{y})\right) \\
 \build{f=y^*}{s}{s' \cat \abst{y}}
 &= \build{f=y}{s}{s'} \\
 \build{f}{s_1}{s_{k+1}}
-&= \bigwedge\limits_{i \in [k]} \build{f_i}{s_i}{s_{i+1}}
+&= \bigwedge\limits_{i \in (1..k+1)} \build{f_i}{s_i}{s_{i+1}}
 \end{array}
 \end{array}
 $$
 
-Operations have a *canonical program* that it corresponds to, e.g $\build{x + y=z}{s}{s'} = \left(\text{get}(s,\ggt{Add}{x,y}) = (s', \abst{z})\right)$, thus a program can be arithmetized iff it can be decomposed into these canonical programs. These inserts yield new wires. However, if $g \equiv h$ where $\gpair{h}{\_} \in \abst{f}_s$, then $\avec{y}= \out(\abst{f},h)$ in $\build{g=\vec{y}}{s}{s}$ leaving the state unchanged.[^egglog-eq] 
+Operations have a *canonical program* that it corresponds to, e.g $\build{x + y=z}{s}{s'} = \left(\text{get}(s,\ggt{Add}{x,y}) = (s', \abst{z})\right)$, thus a program can be arithmetized iff it can be decomposed into these canonical programs. These get calls yield new wires. However, if $g \equiv h$ where $\gpair{h}{\_} \in \abst{f}_s$, then $\avec{y}= \out(\abst{f},h)$ in $\build{g=\vec{y}}{s}{s}$ leaving the state unchanged.[^egglog-eq] 
 
 [^egglog-eq]: Determining equivalence between gadgets is a sophisticated problem, a candidate is to use equality saturation such as @egglog, however we implement simpler ad hoc solutions that doesnt cover the full equivalence structure. We leave this definition open.
 
@@ -186,41 +189,31 @@ $$
 \begin{array}{cc}
 \begin{array}{rl}
 \new &: \Nb \to \Ggt \to \Wire^{m_g} \\
-\new(u,g) &= \text{wire}[(u..u+m_g) \odot \tout{g}]
-\end{array} &
-\begin{array}{rl}
+\new(u,g) &= \text{wire}[(u..u+m_g) \odot \tout{g}] \\
+\\
 \entries  &: \Nb \to \Ggt \to \AbsCirc \\
 \entries(u,g) &= \begin{cases}
 \set{\gpair{g}{\abst{y}} \middle\vert \abst{y} \in \new(u,g)}
 & m_g > 0 \\
 \set{\gpair{g}{\bot}} & \otherwise
-\end{cases}
-\end{array} \\ \\
-\begin{array}{rl}
-\aput &: \Ggt \to \AState \to \AState \\
-\aput(g, s) &= \new\left(\begin{array}{c}
-u_s + m_g \\
-\abst{f}_s \cup \entries(u_s, g) \\
-\avec{Y}_s
-\end{array}\right)
+\end{cases} \\
+\\
+\text{init} &: \WireType^k \to \AState \\
+\text{init}(\vec{t}) &= \left(
+  \opcirc\limits_{i \in [k+1]} \aput(\Input^{t_{i}}_{i-1})
+\right) \astate{0}{\emptyset}{()}
 \end{array} &
 \begin{array}{rl}
+\aput &: \Ggt \to \AState \to \AState \\
+\aput(g, s) &= s \sqcup \astate{m_g}{\entries(u_s,g)}{\emptyset} \\
+\\
 \aget &: \AState \to (g: \Ggt) \to \AState \times \Wire^{m_g} \\
 \aget(s, g)
 &= \begin{cases}
   (s, \out(\abst{f}_s,h)) & h \in \Ggt^{\abst{f}_s}_g \\
   (\aput(g, s), \new(u_s,g)) & \otherwise
-\end{cases}
-\end{array}
-\end{array}
-$$
-$$
-\begin{array}{rl}
-\begin{array}{rl}
-\text{init} &: \WireType^k \to \AState \\
-\text{init}(\vec{t}) &= \opcirc\limits_{i \in [k+1]} \aput(\Input^{t_{i}}_{i-1}) (0, \emptyset, ()) \\
-\end{array} &
-\begin{array}{rl}
+\end{cases} \\
+\\
 \text{build} &: (W[\tin{}] \to W[\tout{}]) \to \AbsCirc \times \Wire^k \\
 \text{build}(f) &= \maybe{(\abst{f}_s, \avec{Y}_s)}{
   \build{f}{\text{init}(\tin{})}{s}
@@ -228,6 +221,7 @@ $$
 \end{array}
 \end{array}
 $$
+
 
 **Build Correctness Example**
 
@@ -256,7 +250,7 @@ $= \maybe{\left(\abst{f}_{s''}, (\abst{z})\right)}{\begin{array}{rl}
 \end{array}}
 $ \\
 $= \maybe{\left(\abst{f}_{s''}, (\abst{z})\right)}{\begin{array}{rl}
-  (u_s+1, \abst{f} \cup \set{\begin{array}{rl}\ggt{Mul}{x,x} & \wire{u_s}{q}\end{array}}, (), (\wire{u_s}{q})) &= (u_{s'}, \abst{f}_{s'}, (), (\abst{t})) \\
+  (u_s+1, \abst{f}_s \cup \set{\begin{array}{rl}\ggt{Mul}{x,x} & \wire{u_s}{q}\end{array}}, (), (\wire{u_s}{q})) &= (u_{s'}, \abst{f}_{s'}, (), (\abst{t})) \\
   \text{get}(u_{s'}, \abst{f}_{s'}, (), \ggt{Add}{t,y}) &= (u_{s''}, \abst{f}_{s''}, (\abst{z}), (\abst{z}))
 \end{array}}
 $ \\
@@ -264,7 +258,7 @@ $= \maybe{\left(\abst{f}_{s''}, (\abst{z})\right)}{
   \text{get}(u_s+1, \abst{f}_s \cup \set{\begin{array}{rl}\ggt{Mul}{x,x} & \wire{u_s}{q}\end{array}}, (), \ggtw{Add}{\wire{u_s}{q},\abst{y}}) = (u_{s''}, \abst{f}_{s''}, (\abst{z}), (\abst{z}))
 }
 $ \\
-$= \maybe{\left(\abst{f}_{s''}, (\abst{z})\right)}{\left(u_s+2, \abst{f} \cup \set{\begin{array}{rl}
+$= \maybe{\left(\abst{f}_{s''}, (\abst{z})\right)}{\left(u_s+2, \abst{f}_s \cup \set{\begin{array}{rl}
     \ggt{Mul}{x,x} & \wire{u_s}{q} \\
     \ggtw{Add}{\wire{u_s}{q},\abst{y}} & \wire{u_s+1}{q}
   \end{array}}, (\wire{u_s+1}{q}), (\wire{u_s+1}{q})\right) = (u_{s''}, \abst{f}_{s''}, (\abst{z}), (\abst{z}))}
@@ -274,16 +268,16 @@ $= \left(\abst{f}_s \cup \set{\begin{array}{rl}
     \ggtw{Add}{\wire{u_s}{q},\abst{y}} & \wire{u_s+1}{q}
   \end{array}}, (\wire{u_s+1}{q})\right)
 $ \\
-where $(u_s,\abst{f}_s,()) = \text{init}(\tin{})$
+where $\astate{u_s}{\abst{f}_s}{()} = \text{init}(\tin{})$
 \\ 
-$= \opcirc\limits_{i \in [3]}\aput(\Input^{t^{in}_{i}}_{i-1})(0,\emptyset,())
-= \text{put}(\Input^q_1) \circ \text{put}(\Input^q_0)(0, \emptyset,())
-= \text{put}(\Input^q_1)(1, \set{\begin{array}{rl} \Input^q_0 & \wire{0}{q} \end{array}}, ())$
+$= \opcirc\limits_{i \in (1..3)}\aput(\Input^{t^{in}_{i}}_{i-1}) \astate{0}{\emptyset}{()}
+= \text{put}(\Input^q_1) \circ \text{put}(\Input^q_0)\astate{0}{\emptyset}{()}
+= \text{put}(\Input^q_1)\astate{1}{\set{\begin{array}{rl} \Input^q_0 & \wire{0}{q} \end{array}}}{()}$
 \\
-$= \left(2, \set{\begin{array}{rl}
+$= \astate{2}{\set{\begin{array}{rl}
   \Input^q_0 & \wire{0}{q} \\
   \Input^q_1 & \wire{1}{q}
-\end{array}}, ()\right)$
+\end{array}}}{()}$
 \\
 $\therefore \ (\abst{f}, \avec{Y}) = \left(\set{\begin{array}{rl}
   \Input^q_0 & \wire{0}{q} \\
