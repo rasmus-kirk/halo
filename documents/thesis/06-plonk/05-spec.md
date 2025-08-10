@@ -4,51 +4,55 @@ Before defining trace, we need to define the rest of the abstractions.
 
 ### Equations
 
-The *gate constraint polynomial* $F_{GC}$ is defined as an *abstract equation*; a well formed formula of a grammar. *Columns* are mapped to either scalars $\Fb_p$, polynomials $\Fb_p[X]$, curve points[^curve-mul] $E[\Fb]$ or wires $\abst{w}$. Evaluation is tree traversal with combinators for each equational operation. Every operation $g$ declares a $\term_g$ of $F_{GC}$ it contributes.
+The *gate constraint polynomial* $F_{GC}$ is defined as an *abstract equation*; a well formed formula of a grammar. *Columns* are mapped to either scalars $\Fb_p$, polynomials $\Fb_p[X]$, curve points[^curve-mul] $E[\Fb]$ or wire and state $(\abst{w},s)$. Evaluation is tree traversal with combinators for each equational operation. Every operation $g$ declares a $\term_g$ of $F_{GC}$ it contributes.
 
 [^curve-mul]: Curve point multiplication does not exist. Thus some $\Eqn$ aren't defined for curve points.
 
-
-\vspace{1em}
 \begin{center}
-\begin{tabularx}{\textwidth}{X X X}
+\begin{multicols}{3}
 \begin{grammar}
-<Eqn> ::= \lit{-} \synt{Eqn2}
-\alt \lit{(} \synt{Eqn2} \lit{)}
+<Eqn> ::= \lit{-} \synt{Eqn1}
+\alt \synt{Scalar} \lit{×} \synt{Eqn1}
+\alt \lit{(} \synt{Eqn1} \lit{)}
 \alt \synt{Column}
-\end{grammar} &
-\begin{grammar}
-<Eqn1> ::= \synt{Eqn} \synt{Eqn1'}
-\alt \synt{Scalar} \lit{×} \synt{Eqn2}
 
-<Eqn1'> ::= \lit{×} \synt{Eqn} \synt{Eqn1'}
-\alt $\epsilon$
-\end{grammar} &
-\begin{grammar}
-<Eqn2> ::= \synt{Eqn1} \synt{Eqn2'}
+<Eqn1> ::= \synt{Eqn2} \synt{Eqn1'}
 
-<Eqn2'> ::= \lit{+} \synt{Eqn1} \synt{Eqn2'}
-\alt \lit{-} \synt{Eqn1} \synt{Eqn2'}
-\alt $\epsilon$
+<Eqn2> ::= \synt{Eqn} \synt{Eqn2'}
 \end{grammar}
-\end{tabularx}
-\end{center}
-$$
-\begin{array}{cc}
+
+\columnbreak
+
+\begin{math}
 \begin{array}{rl}
-\text{foldEqn}_i &: (T \to T) \to (T \to T \to T) \to (T \to T \to T) \to (\Fb \to T \to T) \\
-&\to \Eqn \to (\Column \pto T) \to T
-\end{array} &
-e(C) = \text{foldEqn}(-,+,\times,\times_\Fb,e,C)
+g &:\Ops \\
+\Column_g &: \pset{\Column}\\
+\term_{g} &: \Eqn
 \end{array}
-$$
-$$
-\begin{array}{ccc}
-g:\Ops &
-\Column_g: \pset{\Column} &
-\term_{g}: \Eqn
+\end{math}
+
+\begin{grammar}
+<Eqn1'> ::= \lit{+} \synt{Eqn1}
+\alt \lit{-} \synt{Eqn1} | $\epsilon$
+
+<Eqn2'> ::= \lit{×} \synt{Eqn2} | $\epsilon$
+\end{grammar}
+
+\columnbreak
+
+\begin{math}
+\begin{array}{rl}
+\text{foldEqn}_i &: (-: T \to T) \\
+&\to (+: T \to T \to T) \\
+&\to (\times: T \to T \to T) \\
+&\to (\times_\Fb: \Fb \to T \to T) \\
+&\to \Eqn \to (\Column \pto T) \\
+&\to T \\
+e(C) &= \text{foldEqn}(\cdots,e,C)
 \end{array}
-$$
+\end{math}
+\end{multicols}
+\end{center}
 
 ### Index Map
 
