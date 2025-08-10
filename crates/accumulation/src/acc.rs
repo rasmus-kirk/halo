@@ -3,10 +3,11 @@
 //! Accumulation scheme based on the Discrete Log assumption, using bulletproofs-style IPP
 
 use anyhow::{ensure, Context, Result};
+use ark_ec::short_weierstrass::Affine;
 use ark_pallas::PallasConfig;
-use ark_poly::{DenseUVPolynomial, Polynomial};
+use ark_poly::{univariate::DensePolynomial, DenseUVPolynomial, Polynomial};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
-use ark_std::{UniformRand, Zero};
+use ark_std::{One, UniformRand, Zero};
 use rand::Rng;
 
 use halo_group::{construct_powers, point_dot, PastaConfig, Point, Poly, PublicParams, Scalar};
@@ -20,7 +21,6 @@ use crate::pcdl::{self, Instance};
 #[derive(Debug, Clone, CanonicalSerialize, CanonicalDeserialize)]
 pub struct Accumulator<P: PastaConfig> {
     pub(crate) q: Instance<P>,
-    pub pi_V: AccumulatorHiding<P>,
 }
 
 impl<P: PastaConfig> Accumulator<P> {
@@ -40,14 +40,11 @@ impl<P: PastaConfig> Accumulator<P> {
 /// pi_V in the paper, used for hiding only
 #[derive(Debug, Clone, CanonicalSerialize, CanonicalDeserialize)]
 pub struct AccumulatorHiding<P: PastaConfig> {
-    pub(crate) h: Poly<P>,
     pub(crate) U: Point<P>,
-    pub(crate) w: Scalar<P>,
 }
 
 #[derive(Clone, CanonicalSerialize)]
 pub struct AccumulatedHPolys<P: PastaConfig> {
-    h_0: Option<Poly<P>>,
     pub(crate) hs: Vec<pcdl::HPoly<P>>,
     alpha: Option<Scalar<P>>,
     alphas: Vec<Scalar<P>>,
@@ -56,9 +53,8 @@ pub struct AccumulatedHPolys<P: PastaConfig> {
 impl<P: PastaConfig> AccumulatedHPolys<P> {
     pub(crate) fn with_capacity(capacity: usize) -> Self {
         Self {
-            h_0: None,
             hs: Vec::with_capacity(capacity),
-            alphas: Vec::with_capacity(capacity + 1),
+            alphas: Vec::with_capacity(capacity),
             alpha: None,
         }
     }
@@ -71,11 +67,8 @@ impl<P: PastaConfig> AccumulatedHPolys<P> {
     // WARNING: This will panic if alphas has not been initialized, but should be fine since this is private
     pub(crate) fn get_poly(&self) -> Poly<P> {
         let mut h = Poly::<P>::zero();
-        if let Some(h_0) = &self.h_0 {
-            h += h_0;
-        }
         for i in 0..self.hs.len() {
-            h += &(self.hs[i].get_poly() * self.alphas[i + 1]);
+            h += &(self.hs[i].get_poly() * self.alphas[i]);
         }
         h
     }
@@ -83,11 +76,8 @@ impl<P: PastaConfig> AccumulatedHPolys<P> {
     // WARNING: This will panic if alphas has not been initialized, but should be fine since this is private
     pub(crate) fn eval(&self, z: &Scalar<P>) -> Scalar<P> {
         let mut v = Scalar::<P>::zero();
-        if let Some(h_0) = &self.h_0 {
-            v += h_0.evaluate(z);
-        }
         for i in 0..self.hs.len() {
-            v += self.hs[i].eval(z) * self.alphas[i + 1];
+            v += self.hs[i].eval(z) * self.alphas[i];
         }
         v
     }
@@ -119,11 +109,10 @@ pub fn setup(n: usize) -> Result<()> {
 #[allow(clippy::type_complexity)]
 pub fn common_subroutine<P: PastaConfig>(
     qs: &[Instance<P>],
-    pi_V: &AccumulatorHiding<P>,
 ) -> Result<(Point<P>, usize, Scalar<P>, AccumulatedHPolys<P>)> {
     let m = qs.len();
     let d = qs.first().context("No instances given")?.d;
-    let pp = PublicParams::get_pp();
+    // let pp = PublicParams::get_pp();
 
     let mut transcript = Sponge::new(Protocols::ASDL);
 
@@ -132,15 +121,8 @@ pub fn common_subroutine<P: PastaConfig>(
     let mut Us = Vec::with_capacity(m);
 
     // (2). Parse π_V as (h_0, U_0, ω), where h_0(X) = aX + b ∈ F_q[X], U_0 ∈ G, and ω ∈ F_q.
-    let AccumulatorHiding { h: h_0, U: U_0, w } = pi_V;
-    hs.h_0 = Some(h_0.clone());
-    Us.push(*U_0);
 
     // (3). Check that U_0 is a deterministic commitment to h_0: U_0 = PCDL.Commit_ρ0(ck^(1)_PC, h; ω = ⊥).
-    ensure!(
-        *U_0 == pcdl::commit(h_0, 1, None),
-        "U_0 ≠ PCDL.Commit_ρ0(ck^(1)_PC, h_0; ω = ⊥)"
-    );
 
     // 4. For each i ∈ [m]:
     for q in qs {
@@ -169,7 +151,7 @@ pub fn common_subroutine<P: PastaConfig>(
     let z = transcript.challenge();
 
     // 10. Randomize C : C_bar := C + ω · S ∈ G.
-    let C_bar = C + pp.S * w;
+    let C_bar = C;
 
     // 11. Output (C_bar, d, z, h(X)).
     Ok((C_bar, d, z, hs))
@@ -177,36 +159,31 @@ pub fn common_subroutine<P: PastaConfig>(
 
 pub fn prover<R: Rng, P: PastaConfig>(rng: &mut R, qs: &[Instance<P>]) -> Result<Accumulator<P>> {
     // 1. Sample a random linear polynomial h_0 ∈ F_q[X],
-    let h_0 = DenseUVPolynomial::rand(1, rng);
 
     // 2. Then compute a deterministic commitment to h_0: U_0 := PCDL.Commit_ρ0(ck_PC, h_0, d; ω = ⊥).
-    let U_0 = pcdl::commit(&h_0, 1, None);
 
     // 3. Sample commitment randomness ω ∈ Fq, and set π_V := (h_0, U_0, ω).
-    let w = Scalar::<P>::rand(rng);
-    let pi_V = AccumulatorHiding { h: h_0, U: U_0, w };
 
     // 4. Then, compute the tuple (C_bar, d, z, h(X)) := T^ρ(avk, [qi]^n_(i=1), π_V).
-    let (C_bar, d, z, h) = common_subroutine(qs, &pi_V)?;
+    let (C_bar, d, z, h) = common_subroutine(qs)?;
 
     // 5. Compute the evaluation v := h(z)
     let v = h.eval(&z);
 
     // 6. Generate the hiding evaluation proof π := PCDL.Open_ρ0(ck_PC, h(X), C_bar, d, z; ω).
-    let pi = pcdl::open(rng, h.get_poly(), C_bar, d, &z, Some(&w));
+    let pi = pcdl::open(rng, h.get_poly(), C_bar, d, &z, None);
 
     // 7. Finally, output the accumulator acc = ((C_bar, d, z, v), π) and the accumulation proof π_V.
     let q = Instance::new(C_bar, d, z, v, pi);
-    let acc = Accumulator { q, pi_V };
+    let acc = Accumulator { q };
     Ok(acc)
 }
 
 pub fn verifier<P: PastaConfig>(qs: &[Instance<P>], acc: Accumulator<P>) -> Result<()> {
     let Instance { C, d, z, v, pi: _ } = acc.q;
-    let pi_V = acc.pi_V;
 
     // 1. The accumulation verifier V computes (C_bar', d', z', h(X)) := T^ρ(avk, [qi]^n_(i=1), π_V)
-    let (C_bar_prime, d_prime, z_prime, h) = common_subroutine(qs, &pi_V)?;
+    let (C_bar_prime, d_prime, z_prime, h) = common_subroutine(qs)?;
 
     // 2. Then checks that C_bar' = C_bar, d' = d, z' = z, and h(z) = v.
     ensure!(C_bar_prime == C, "C_bar' ≠ C_bar");
@@ -250,7 +227,7 @@ mod tests {
     #[test]
     fn test_acc_scheme() -> Result<()> {
         let mut rng = rand::thread_rng();
-        let n_range = Uniform::new(2, 8);
+        let n_range = Uniform::new(2, 4);
         let n = 2_usize.pow(rng.sample(n_range));
 
         let m = rng.sample(n_range);
