@@ -1,7 +1,7 @@
 use halo_group::PastaConfig;
 use halo_poseidon::{SPONGE_RATE, STATE_SIZE};
 
-use crate::frontend::{FRONTEND, field::WireScalar};
+use crate::frontend::{FRONTEND, primitives::WireScalar};
 
 #[derive(Clone, Debug)]
 enum SpongeState {
@@ -85,7 +85,7 @@ mod tests {
     use halo_poseidon::STATE_SIZE;
 
     use crate::{
-        frontend::{Call, field::WireScalar, poseidon::inner_sponge::InnerSponge},
+        frontend::{Call, poseidon::inner_sponge::InnerSponge, primitives::WireScalar},
         plonk::PlonkProof,
     };
 
@@ -111,15 +111,17 @@ mod tests {
         call.witness(s1, s1_v)?;
         call.witness(s2, s2_v)?;
 
-        let (fp_trace, fq_trace) = call.trace()?;
+        let (fp_trace, fq_trace) = call.trace(None)?;
 
         let outputs: [_; STATE_SIZE] = array::from_fn(|i| fp_trace.outputs[i]);
         let mut expected_state = [s0_v, s1_v, s2_v];
         halo_poseidon::inner_sponge::poseidon_block_cipher::<VestaConfig>(&mut expected_state);
         assert_eq!(outputs, expected_state);
 
-        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
-        PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
 
         Ok(())
     }
@@ -139,7 +141,7 @@ mod tests {
         for (w, v) in witnesses.iter().zip(values) {
             call.witness(*w, v)?
         }
-        let (fp_trace, fq_trace) = call.trace()?;
+        let (fp_trace, fq_trace) = call.trace(None)?;
         let output = fp_trace.outputs[0];
 
         let mut sponge = halo_poseidon::inner_sponge::PoseidonSponge::<VestaConfig>::new();
@@ -147,8 +149,10 @@ mod tests {
         let expected_output = sponge.squeeze();
         assert_eq!(output, expected_output);
 
-        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
-        PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
 
         Ok(())
     }

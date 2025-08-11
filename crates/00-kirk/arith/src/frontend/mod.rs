@@ -1,26 +1,17 @@
 use anyhow::Result;
+use halo_accumulation::acc::Accumulator;
 use std::{cell::RefCell, marker::PhantomData};
 
-use halo_group::{
-    Affine, PallasConfig, PastaConfig, PastaFE, Scalar, VestaConfig,
-    ark_ec::CurveConfig,
-    ark_std::{One, Zero},
-};
+use halo_group::{Affine, PallasConfig, PastaConfig, PastaFE, Scalar, VestaConfig};
 
 use crate::{
     circuit::{CircuitSpec, Trace, TraceBuilder},
-    frontend::{
-        // curve::CurvePoint,
-        curve::WireAffine,
-        field::WireScalar,
-        primitives::bool::WireBool,
-    },
+    frontend::primitives::{WireAffine, WireBool, WireScalar},
 };
 
 pub mod asdl;
-pub mod curve;
-pub mod field;
 pub mod pcdl;
+pub mod plonk;
 pub mod poseidon;
 pub mod primitives;
 pub mod signature;
@@ -48,26 +39,22 @@ impl Frontend {
     }
 }
 
-pub struct Call<P: PastaConfig> {
+pub struct Call {
     trace_builder: TraceBuilder,
-    _p: PhantomData<P>,
 }
-impl<P: PastaConfig> Call<P> {
+impl Call {
     pub fn new() -> Self {
         FRONTEND.with(|frontend| {
             let frontend = frontend.borrow();
             let trace_builder = TraceBuilder::new(frontend.circuit.clone());
-            Call {
-                trace_builder,
-                _p: PhantomData,
-            }
+            Call { trace_builder }
         })
     }
-    pub fn witness(&mut self, fp: WireScalar<P>, scalar: Scalar<P>) -> Result<()> {
+    pub fn witness<P: PastaConfig>(&mut self, fp: WireScalar<P>, scalar: Scalar<P>) -> Result<()> {
         self.trace_builder
             .witness(fp.wire, PastaFE::from_scalar::<P>(scalar))
     }
-    pub fn witness_scalar_bool(&mut self, fp: WireBool<P>, b: bool) -> Result<()> {
+    pub fn witness_scalar_bool<P: PastaConfig>(&mut self, fp: WireBool<P>, b: bool) -> Result<()> {
         let fe = if b {
             PastaFE::one(Some(P::SFID))
         } else {
@@ -75,7 +62,11 @@ impl<P: PastaConfig> Call<P> {
         };
         self.trace_builder.witness(fp.wire, fe)
     }
-    pub fn witness_base_bool(&mut self, fp: WireBool<P::OtherCurve>, b: bool) -> Result<()> {
+    pub fn witness_base_bool<P: PastaConfig>(
+        &mut self,
+        fp: WireBool<P::OtherCurve>,
+        b: bool,
+    ) -> Result<()> {
         let fe = if b {
             PastaFE::one(Some(P::BFID))
         } else {
@@ -83,7 +74,11 @@ impl<P: PastaConfig> Call<P> {
         };
         self.trace_builder.witness(fp.wire, fe)
     }
-    pub fn witness_affine(&mut self, p: WireAffine<P>, affine: Affine<P>) -> Result<()> {
+    pub fn witness_affine<P: PastaConfig>(
+        &mut self,
+        p: WireAffine<P>,
+        affine: Affine<P>,
+    ) -> Result<()> {
         assert!(affine.is_on_curve());
         self.trace_builder
             .witness(p.x.wire, PastaFE::from_basefield::<P>(affine.x))?;
@@ -91,11 +86,18 @@ impl<P: PastaConfig> Call<P> {
             .witness(p.y.wire, PastaFE::from_basefield::<P>(affine.y))?;
         Ok(())
     }
-    pub fn public_input(&mut self, fp: WireScalar<P>, scalar: Scalar<P>) -> Result<()> {
+    pub fn public_input<P: PastaConfig>(
+        &mut self,
+        fp: WireScalar<P>,
+        scalar: Scalar<P>,
+    ) -> Result<()> {
         self.trace_builder
             .public_input(fp.wire, PastaFE::from_scalar::<P>(scalar))
     }
-    pub fn trace(self) -> Result<(Trace<PallasConfig>, Trace<VestaConfig>)> {
-        Ok(self.trace_builder.trace()?)
+    pub fn trace(
+        self,
+        accs_prev: Option<(Accumulator<PallasConfig>, Accumulator<VestaConfig>)>,
+    ) -> Result<(Trace<PallasConfig>, Trace<VestaConfig>)> {
+        Ok(self.trace_builder.trace(accs_prev)?)
     }
 }

@@ -1,12 +1,11 @@
 use std::{
     marker::PhantomData,
-    ops::{Add, AddAssign, Mul, MulAssign, Neg},
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
 
 use halo_group::{
-    PallasConfig, PastaConfig, PastaFE, PastaFieldId, Scalar, VestaConfig,
-    ark_ec::CurveConfig,
-    ark_std::{One, Zero},
+    PastaConfig, PastaFE, PastaFieldId, Scalar,
+    ark_ff::{One, Zero},
 };
 
 use crate::{
@@ -33,6 +32,13 @@ impl<P: PastaConfig> WireScalar<P> {
         FRONTEND.with(|frontend| {
             let mut frontend = frontend.borrow_mut();
             Self::new(frontend.circuit.witness(P::SFID))
+        })
+    }
+
+    pub fn public_input() -> Self {
+        FRONTEND.with(|frontend| {
+            let mut frontend = frontend.borrow_mut();
+            Self::new(frontend.circuit.public_input(P::SFID))
         })
     }
 
@@ -130,15 +136,33 @@ impl<P: PastaConfig> WireScalar<P> {
             frontend.circuit.output_gate(self.wire)
         })
     }
-}
 
-impl<P: PastaConfig> Mul for WireScalar<P> {
-    type Output = WireScalar<P>;
-
-    fn mul(self, other: WireScalar<P>) -> Self::Output {
+    pub fn print(self, label: &'static str) {
         FRONTEND.with(|frontend| {
             let mut frontend = frontend.borrow_mut();
-            WireScalar::new(frontend.circuit.mul_gate(self.wire, other.wire))
+            frontend.circuit.print(self.wire, label, "")
+        })
+    }
+}
+
+impl<P: PastaConfig> Zero for WireScalar<P> {
+    fn zero() -> Self {
+        FRONTEND.with(|frontend| {
+            let frontend = frontend.borrow();
+            WireScalar::new(frontend.circuit.zero[P::SFID as usize])
+        })
+    }
+
+    fn is_zero(&self) -> bool {
+        self.wire == Self::zero().wire
+    }
+}
+
+impl<P: PastaConfig> One for WireScalar<P> {
+    fn one() -> Self {
+        FRONTEND.with(|frontend| {
+            let frontend = frontend.borrow();
+            WireScalar::new(frontend.circuit.one[P::SFID as usize])
         })
     }
 }
@@ -160,9 +184,48 @@ impl<P: PastaConfig> AddAssign for WireScalar<P> {
     }
 }
 
+impl<P: PastaConfig> Sub for WireScalar<P> {
+    type Output = WireScalar<P>;
+
+    fn sub(self, other: WireScalar<P>) -> Self::Output {
+        self + (-other)
+    }
+}
+
+impl<P: PastaConfig> SubAssign for WireScalar<P> {
+    fn sub_assign(&mut self, rhs: Self) {
+        *self = *self - rhs;
+    }
+}
+
+impl<P: PastaConfig> Mul for WireScalar<P> {
+    type Output = WireScalar<P>;
+
+    fn mul(self, other: WireScalar<P>) -> Self::Output {
+        FRONTEND.with(|frontend| {
+            let mut frontend = frontend.borrow_mut();
+            WireScalar::new(frontend.circuit.mul_gate(self.wire, other.wire))
+        })
+    }
+}
+
 impl<P: PastaConfig> MulAssign for WireScalar<P> {
     fn mul_assign(&mut self, rhs: Self) {
         *self = *self * rhs;
+    }
+}
+
+impl<P: PastaConfig> Div for WireScalar<P> {
+    type Output = WireScalar<P>;
+
+    fn div(self, other: WireScalar<P>) -> Self::Output {
+        self * other.inv()
+    }
+}
+
+impl<P: PastaConfig> DivAssign for WireScalar<P> {
+    fn div_assign(&mut self, rhs: Self) {
+        *self = *self / rhs;
     }
 }
 
@@ -190,7 +253,7 @@ mod tests {
     };
 
     use crate::{
-        frontend::{Call, FRONTEND, field::WireScalar},
+        frontend::{Call, FRONTEND, primitives::WireScalar},
         plonk::PlonkProof,
     };
 
@@ -225,15 +288,17 @@ mod tests {
         call.witness(x, x_v)?;
         call.witness(y, y_v)?;
 
-        let (fp_trace, fq_trace) = call.trace()?;
+        let (fp_trace, fq_trace) = call.trace(None)?;
 
         let output = fp_trace.outputs[0];
         let expected_output = x_v * y_v + z_v;
         assert_eq!(fp_trace.outputs.len(), 1);
         assert_eq!(output, expected_output);
 
-        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
-        PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
 
         Ok(())
     }
@@ -264,13 +329,15 @@ mod tests {
         call.witness(y, y_v)?;
         call.witness(z, z_v)?;
 
-        let (fp_trace, fq_trace) = call.trace()?;
+        let (fp_trace, fq_trace) = call.trace(None)?;
 
         assert_eq!(fp_trace.outputs.len(), 2);
         assert_eq!(fp_trace.outputs, [x_v.inverse().unwrap(), -y_v]);
 
-        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
-        PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
 
         Ok(())
     }
@@ -302,7 +369,7 @@ mod tests {
         call.witness(x, x_v)?;
         call.witness(y, y_v)?;
 
-        let (fp_trace, fq_trace) = call.trace()?;
+        let (fp_trace, fq_trace) = call.trace(None)?;
         println!("----- FP TRACE -----");
         println!("{:?}", fp_trace);
 
@@ -314,8 +381,10 @@ mod tests {
         assert_eq!(fq_trace.outputs.len(), 1);
         assert_eq!(output, expected_output);
 
-        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
-        PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
 
         Ok(())
     }
@@ -351,12 +420,15 @@ mod tests {
 
         call.witness(x, x_fq)?;
 
-        let (fp_trace, fq_trace) = call.trace()?;
+        let (fp_trace, fq_trace) = call.trace(None)?;
         let y_out = fp_trace.outputs[0];
 
         println!("{:?}", fp_trace);
         println!("{:?}", fq_trace);
-        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
 
         println!("{:?}", x_u64);
         println!("{:?}", x_fp);
@@ -382,12 +454,15 @@ mod tests {
 
         call.witness(x, x_fp)?;
 
-        let (_, fq_trace) = call.trace()?;
+        let (fp_trace, fq_trace) = call.trace(None)?;
         let h_out = fq_trace.outputs[0];
         let l_out = fq_trace.outputs[1];
 
         println!("{:?}", fq_trace);
-        PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
 
         let x_bits: Vec<u64> = x_fp
             .into_bigint()

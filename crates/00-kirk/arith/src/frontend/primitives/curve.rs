@@ -3,11 +3,14 @@ use std::{
     str::FromStr,
 };
 
-use halo_group::{Affine, Fp, Fq, PallasConfig, PastaConfig, PastaFieldId, ark_ff::BigInt};
+use halo_group::{Affine, Fp, Fq, PastaConfig, PastaFE};
 
 use crate::{
     circuit::Wire,
-    frontend::{FRONTEND, field::WireScalar, primitives::bool::WireBool},
+    frontend::{
+        FRONTEND,
+        primitives::{WireBool, WireScalar},
+    },
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -44,13 +47,35 @@ impl<P: PastaConfig> WireAffine<P> {
         x_eq & y_eq
     }
 
-    pub fn constant(point: Affine<PallasConfig>) -> Self {
+    pub fn constant(point: Affine<P>) -> Self {
         assert!(point.is_on_curve());
         FRONTEND.with(|frontend| {
             let mut frontend = frontend.borrow_mut();
-            let x_wire = frontend.circuit.constant(P::into_pastafe(point.x));
-            let y_wire = frontend.circuit.constant(P::into_pastafe(point.y));
-            Self::new(x_wire, y_wire)
+            if P::IS_PALLAS {
+                let x_fe = PastaFE::new(
+                    P::basefield_into_bigint(point.x),
+                    Some(halo_group::PastaFieldId::Fq),
+                );
+                let y_fe = PastaFE::new(
+                    P::basefield_into_bigint(point.y),
+                    Some(halo_group::PastaFieldId::Fq),
+                );
+                let x_wire = frontend.circuit.constant(x_fe);
+                let y_wire = frontend.circuit.constant(y_fe);
+                Self::new(x_wire, y_wire)
+            } else {
+                let x_fe = PastaFE::new(
+                    P::basefield_into_bigint(point.x),
+                    Some(halo_group::PastaFieldId::Fp),
+                );
+                let y_fe = PastaFE::new(
+                    P::basefield_into_bigint(point.y),
+                    Some(halo_group::PastaFieldId::Fp),
+                );
+                let x_wire = frontend.circuit.constant(x_fe);
+                let y_wire = frontend.circuit.constant(y_fe);
+                Self::new(x_wire, y_wire)
+            }
         })
     }
 
@@ -96,6 +121,14 @@ impl<P: PastaConfig> WireAffine<P> {
             frontend.circuit.output_gate(self.y.wire);
         })
     }
+
+    pub fn print(self, label: &'static str) {
+        FRONTEND.with(|frontend| {
+            let mut frontend = frontend.borrow_mut();
+            frontend.circuit.print(self.x.wire, label, " (x)");
+            frontend.circuit.print(self.y.wire, label, " (y)");
+        })
+    }
 }
 
 impl<P: PastaConfig> Add for WireAffine<P> {
@@ -119,11 +152,19 @@ impl<P: PastaConfig> Mul<WireScalar<P>> for WireAffine<P> {
         FRONTEND.with(|frontend| {
             let mut frontend = frontend.borrow_mut();
 
-            let (h, l) = frontend.circuit.fp_message_pass(other.wire);
-            let (xs_wire, ys_wire) = frontend
-                .circuit
-                .scalar_mul((h, l), (self.x.wire, self.y.wire));
-            WireAffine::new(xs_wire, ys_wire)
+            if P::IS_PALLAS {
+                let (h, l) = frontend.circuit.fp_message_pass(other.wire);
+                let (xs_wire, ys_wire) = frontend
+                    .circuit
+                    .scalar_mul_pallas((h, l), (self.x.wire, self.y.wire));
+                WireAffine::new(xs_wire, ys_wire)
+            } else {
+                let v = frontend.circuit.fq_message_pass(other.wire);
+                let (xs_wire, ys_wire) = frontend
+                    .circuit
+                    .scalar_mul_vesta(v, (self.x.wire, self.y.wire));
+                WireAffine::new(xs_wire, ys_wire)
+            }
         })
     }
 }
@@ -147,10 +188,12 @@ impl<P: PastaConfig> Neg for WireAffine<P> {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use anyhow::Result;
     use halo_group::PastaFieldId;
     use halo_group::ark_ec::AffineRepr;
-    use halo_group::ark_ff::Zero;
+    use halo_group::ark_ff::{BigInt, Zero};
     use halo_group::{
         Affine, Fp, Fq, PallasConfig, PastaAffine, PastaConfig, Point, Scalar, VestaConfig,
         ark_ec::{AdditiveGroup, CurveGroup},
@@ -158,9 +201,11 @@ mod tests {
         ark_std::{rand::Rng, test_rng},
     };
 
-    use crate::frontend::field::WireScalar;
     use crate::{
-        frontend::{Call, curve::WireAffine},
+        frontend::{
+            Call,
+            primitives::{WireAffine, WireScalar},
+        },
         plonk::PlonkProof,
     };
 
@@ -180,17 +225,19 @@ mod tests {
         let r = p.clone() + q.clone();
         r.output();
 
-        let call = Call::<PallasConfig>::new();
+        let call = Call::new();
 
-        let (fp_trace, fq_trace) = call.trace()?;
+        let (fp_trace, fq_trace) = call.trace(None)?;
         let rx = fq_trace.outputs[0];
         let ry = fq_trace.outputs[1];
 
         let expected_output = (p_v + q_v).into_affine();
         assert_eq!((rx, ry), (expected_output.x, expected_output.y));
 
-        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
-        PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
 
         Ok(())
     }
@@ -211,9 +258,9 @@ mod tests {
         p.output();
         q.output();
 
-        let call = Call::<PallasConfig>::new();
+        let call = Call::new();
 
-        let (fp_trace, fq_trace) = call.trace()?;
+        let (fp_trace, fq_trace) = call.trace(None)?;
 
         println!("{:?}", fp_trace.outputs);
         println!("{:?}", fq_trace.outputs);
@@ -226,8 +273,10 @@ mod tests {
         assert_eq!((px, py), (p_v.x, p_v.y));
         assert_eq!((qx, qy), (q_v.x, q_v.y));
 
-        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
-        PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
 
         Ok(())
     }
@@ -246,9 +295,9 @@ mod tests {
         let p_v_2 = PastaAffine::from(p_v);
         println!("{p_v:?}, {p_v_2:?}");
 
-        let call = Call::<PallasConfig>::new();
+        let call = Call::new();
 
-        let (fp_trace, fq_trace) = call.trace()?;
+        let (fp_trace, fq_trace) = call.trace(None)?;
         let rx = fq_trace.outputs[0];
         let ry = fq_trace.outputs[1];
 
@@ -260,8 +309,10 @@ mod tests {
 
         assert_eq!((rx, ry), (p_v.x, p_v.y));
 
-        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
-        PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
 
         Ok(())
     }
@@ -277,16 +328,18 @@ mod tests {
         let r = p + q;
         r.output();
 
-        let call = Call::<PallasConfig>::new();
+        let call = Call::new();
 
-        let (fp_trace, fq_trace) = call.trace()?;
+        let (fp_trace, fq_trace) = call.trace(None)?;
         let rx = fq_trace.outputs[0];
         let ry = fq_trace.outputs[1];
 
         assert_eq!((rx, ry), (q_v.x, q_v.y));
 
-        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
-        PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
 
         Ok(())
     }
@@ -301,9 +354,9 @@ mod tests {
         let r = p.clone() + p.clone();
         r.output();
 
-        let call = Call::<PallasConfig>::new();
+        let call = Call::new();
 
-        let (fp_trace, fq_trace) = call.trace()?;
+        let (fp_trace, fq_trace) = call.trace(None)?;
         let rx = fq_trace.outputs[0];
         let ry = fq_trace.outputs[1];
 
@@ -311,8 +364,10 @@ mod tests {
         assert_eq!((rx, ry), (expected_point.x, expected_point.y));
 
         println!("trace: {:?}", fp_trace);
-        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
-        PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
 
         Ok(())
     }
@@ -326,17 +381,19 @@ mod tests {
         let r = p + q;
         r.output();
 
-        let call = Call::<PallasConfig>::new();
+        let call = Call::new();
 
-        let (fp_trace, fq_trace) = call.trace()?;
+        let (fp_trace, fq_trace) = call.trace(None)?;
         let rx = fq_trace.outputs[0];
         let ry = fq_trace.outputs[1];
 
         let expected_output = Affine::<PallasConfig>::identity();
         assert_eq!((rx, ry), (expected_output.x, expected_output.y));
 
-        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
-        PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
 
         Ok(())
     }
@@ -352,17 +409,19 @@ mod tests {
         let r = p + q;
         r.output();
 
-        let call = Call::<PallasConfig>::new();
+        let call = Call::new();
 
-        let (fp_trace, fq_trace) = call.trace()?;
+        let (fp_trace, fq_trace) = call.trace(None)?;
         let rx = fq_trace.outputs[0];
         let ry = fq_trace.outputs[1];
 
         let expected_output = Affine::<PallasConfig>::identity();
         assert_eq!((rx, ry), (expected_output.x, expected_output.y));
 
-        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
-        PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
 
         Ok(())
     }
@@ -385,9 +444,9 @@ mod tests {
         s.assert_eq(s_expected);
         s.output();
 
-        let call = Call::<PallasConfig>::new();
+        let call = Call::new();
 
-        let (fp_trace, fq_trace) = call.trace()?;
+        let (fp_trace, fq_trace) = call.trace(None)?;
         let x_out: Fq = fq_trace.outputs[0];
         let y_out: Fq = fq_trace.outputs[1];
         println!("outs: {:?}", fq_trace.outputs);
@@ -398,8 +457,99 @@ mod tests {
         println!("{:?}", fp_trace);
         println!("{:?}", fq_trace);
 
-        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
-        PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn mul_2() -> Result<()> {
+        let rng = &mut test_rng();
+
+        let x_v = Fp::from_str(
+            "6867074246676488306851463630808536728354415714211655136906833663722499829998",
+        )
+        .unwrap();
+        let p_x = Fq::from_str(
+            "16752387948686341610547730880506948762988022158064797870253267427491271468441",
+        )
+        .unwrap();
+        let p_y = Fq::from_str(
+            "24103962019005494757060435852850040604014379072860896298542399601100599714602",
+        )
+        .unwrap();
+        let p_v = Affine::new(p_x, p_y);
+
+        // let x_v_fp = Fp::from_bigint(x_v.into_bigint()).unwrap();
+        let s_v = scalar_multiply_2(&x_v, p_v);
+        println!("s_v: {:?}", s_v);
+
+        let p = WireAffine::<PallasConfig>::constant(p_v);
+        let s_expected = WireAffine::<PallasConfig>::constant(s_v);
+        let x = WireScalar::constant(x_v);
+        let s = p * x;
+        s.assert_eq(s_expected);
+        s.output();
+
+        let call = Call::new();
+
+        let (fp_trace, fq_trace) = call.trace(None)?;
+        let x_out: Fq = fq_trace.outputs[0];
+        let y_out: Fq = fq_trace.outputs[1];
+        println!("outs: {:?}", fq_trace.outputs);
+
+        assert_eq!(x_out, s_v.x);
+        assert_eq!(y_out, s_v.y);
+
+        println!("{:?}", fp_trace);
+        println!("{:?}", fq_trace);
+
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn mul_fq() -> Result<()> {
+        let rng = &mut test_rng();
+
+        let p_v = Affine::<VestaConfig>::rand(rng);
+        // let x_v = Fq::rand(rng);
+        let x_v = Fq::rand(rng);
+        // let x_v_fp = Fp::from_bigint(x_v.into_bigint()).unwrap();
+        let s_v = scalar_multiply_2(&x_v, p_v);
+        println!("s_v: {:?}", s_v);
+
+        let p = WireAffine::<VestaConfig>::constant(p_v);
+        let s_expected = WireAffine::<VestaConfig>::constant(s_v);
+        let x = WireScalar::constant(x_v);
+        let s = p * x;
+        s.assert_eq(s_expected);
+        s.output();
+
+        let call = Call::new();
+
+        let (fp_trace, fq_trace) = call.trace(None)?;
+        let x_out: Fp = fp_trace.outputs[0];
+        let y_out: Fp = fp_trace.outputs[1];
+        println!("outs: {:?}", fq_trace.outputs);
+
+        assert_eq!(x_out, s_v.x);
+        assert_eq!(y_out, s_v.y);
+
+        println!("{:?}", fp_trace);
+        println!("{:?}", fq_trace);
+
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
 
         Ok(())
     }

@@ -1,12 +1,9 @@
 use std::array;
 
-use halo_group::ark_ff::PrimeField;
-use halo_group::ark_poly::EvaluationDomain;
-use halo_group::{Fp, Fq};
 use halo_group::{
-    PastaConfig, Poly, Scalar,
+    PastaConfig, Scalar,
     ark_ff::{BigInt, BigInteger, Field},
-    ark_poly::{GeneralEvaluationDomain, Polynomial},
+    ark_poly::Polynomial,
     ark_std::Zero,
 };
 
@@ -113,6 +110,7 @@ impl<P: PastaConfig> std::fmt::Debug for Trace<P> {
             write!(f, " w{:>2} |", i)?;
         }
         write!(f, " pi  |")?;
+        write!(f, " GT  |")?;
         write!(f, "\n|----||")?;
         for _ in 0..self.w_polys.len() + 1 {
             write!(f, "-----|")?;
@@ -174,25 +172,32 @@ impl<P: PastaConfig> std::fmt::Debug for Trace<P> {
         //     write!(f, "\n")?;
         // }
 
-        // write!(f, "\n|  i ||")?;
-        // for i in 0..self.sigma_polys.len() {
-        //     write!(f, " o{:>2} |", i)?;
-        // }
-        // write!(f, "\n|----||")?;
-        // for _ in 0..self.sigma_polys.len() {
-        //     write!(f, "-----|")?;
-        // }
-        // write!(f, "\n")?;
-        // for i in 0..self.rows {
-        //     let i = i + 1;
-        //     let omega_i = &self.omega.pow([i as u64]);
-        //     write!(f, "| {:>i_width$} ||", i)?;
-        //     for j in 0..self.sigma_polys.len() {
-        //         let eval = self.sigma_polys[j].evaluate(&omega_i);
-        //         write!(f, "{:>width$} |", fmt_scalar::<P>(eval))?;
-        //     }
-        //     write!(f, "\n")?;
-        // }
+        write!(f, "\n|  i ||")?;
+        for i in 0..self.id_polys.len() {
+            write!(f, " i{:02} |", i)?;
+        }
+        for i in 0..self.sigma_polys.len() {
+            write!(f, " o{:02} |", i)?;
+        }
+        write!(f, "\n|----||")?;
+        for _ in 0..self.sigma_polys.len() * 2 {
+            write!(f, "-----|")?;
+        }
+        write!(f, "\n")?;
+        for i in 0..self.rows {
+            let i = i + 1;
+            let omega_i = &self.omega.pow([i as u64]);
+            write!(f, "| {:>i_width$} ||", i)?;
+            for j in 0..self.id_polys.len() {
+                let eval = self.id_polys[j].evaluate(&omega_i);
+                write!(f, "{:>width$} |", fmt_scalar::<P>(eval))?;
+            }
+            for j in 0..self.sigma_polys.len() {
+                let eval = self.sigma_polys[j].evaluate(&omega_i);
+                write!(f, "{:>width$} |", fmt_scalar::<P>(eval))?;
+            }
+            write!(f, "\n")?;
+        }
 
         // write!(f, "\n|  i ||")?;
         // for i in 0..self.r_polys.len() {

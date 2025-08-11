@@ -1,7 +1,10 @@
 use halo_group::PastaConfig;
 use halo_poseidon::Protocols;
 
-use crate::frontend::{curve::WireAffine, field::WireScalar, poseidon::inner_sponge::InnerSponge};
+use crate::frontend::{
+    poseidon::inner_sponge::InnerSponge,
+    primitives::{WireAffine, WireScalar},
+};
 
 pub struct OuterSponge<P: PastaConfig> {
     sponge: InnerSponge<P::OtherCurve>,
@@ -34,7 +37,8 @@ impl<P: PastaConfig> OuterSponge<P> {
     pub fn absorb_fp(&mut self, x: &[WireScalar<P>]) {
         x.iter().for_each(|x| {
             if P::SCALAR_MODULUS < P::BASE_MODULUS {
-                todo!();
+                let v = x.fq_message_pass();
+                self.sponge.absorb(&[v]);
             } else {
                 let (h, l) = x.fp_message_pass();
                 self.sponge.absorb(&[h]);
@@ -70,7 +74,9 @@ mod tests {
 
     use crate::{
         frontend::{
-            Call, curve::WireAffine, field::WireScalar, poseidon::outer_sponge::OuterSponge,
+            Call,
+            poseidon::outer_sponge::OuterSponge,
+            primitives::{WireAffine, WireScalar},
         },
         plonk::PlonkProof,
     };
@@ -91,7 +97,7 @@ mod tests {
         for (w, v) in witnesses.iter().zip(values) {
             call.witness(*w, v)?
         }
-        let (fp_trace, fq_trace) = call.trace()?;
+        let (fp_trace, fq_trace) = call.trace(None)?;
         let output = fp_trace.outputs[0];
 
         let mut sponge = halo_poseidon::Sponge::<PallasConfig>::new(Protocols::PCDL);
@@ -99,8 +105,10 @@ mod tests {
         let expected_output = sponge.challenge();
         assert_eq!(output, expected_output);
 
-        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
-        PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
 
         Ok(())
     }
@@ -121,7 +129,7 @@ mod tests {
         for (w, v) in witnesses.iter().zip(values) {
             call.witness(*w, v)?
         }
-        let (fp_trace, fq_trace) = call.trace()?;
+        let (fp_trace, fq_trace) = call.trace(None)?;
         let output = fp_trace.outputs[0];
 
         let mut sponge = halo_poseidon::Sponge::<PallasConfig>::new(Protocols::PCDL);
@@ -129,8 +137,10 @@ mod tests {
         let expected_output = sponge.challenge();
         assert_eq!(output, expected_output);
 
-        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
-        PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
 
         Ok(())
     }
@@ -151,7 +161,7 @@ mod tests {
         for (w, v) in witnesses.iter().zip(values) {
             call.witness_affine(*w, v)?
         }
-        let (fp_trace, fq_trace) = call.trace()?;
+        let (fp_trace, fq_trace) = call.trace(None)?;
         let output = fp_trace.outputs[0];
 
         let mut sponge = halo_poseidon::Sponge::<PallasConfig>::new(Protocols::PCDL);
@@ -159,8 +169,10 @@ mod tests {
         let expected_output = sponge.challenge();
         assert_eq!(output, expected_output);
 
-        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
-        PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
 
         Ok(())
     }

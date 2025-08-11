@@ -1,21 +1,60 @@
 #![allow(non_snake_case)]
 
-use std::{array, time::Instant};
+use std::array;
 
 use anyhow::Result;
-use halo_accumulation::pcdl;
+use halo_accumulation::{
+    acc::Accumulator,
+    pcdl::{self, commit},
+};
 use halo_group::{
     Domain, Evals, PastaConfig, Point, Poly, Scalar,
     ark_ff::Field,
     ark_poly::{EvaluationDomain, Polynomial},
     ark_std::Zero,
 };
-use log::debug;
 
 use crate::{
     circuit::SlotId,
     utils::{Q_POLYS, R_POLYS, S_POLYS, W_POLYS},
 };
+
+#[derive(Clone)]
+pub struct PlonkPublicInputCommitments<P: PastaConfig> {
+    pub qs: [Point<P>; Q_POLYS],
+    pub rs: [Point<P>; R_POLYS],
+    pub ids: [Point<P>; S_POLYS],
+    pub sigmas: [Point<P>; S_POLYS],
+}
+
+#[derive(Clone)]
+pub struct PlonkPublicInputs<P: PastaConfig> {
+    pub rows: usize,
+    pub omega: Scalar<P>,
+    pub public_inputs: Vec<Scalar<P>>,
+    pub Cs: PlonkPublicInputCommitments<P>,
+    pub acc_prev: Accumulator<P>,
+}
+
+#[derive(Clone)]
+pub struct PlonkWitnessPolys<P: PastaConfig> {
+    pub ws: [Poly<P>; W_POLYS],
+    pub qs: [Poly<P>; Q_POLYS],
+    pub rs: [Poly<P>; R_POLYS],
+    pub ids: [Poly<P>; S_POLYS],
+    pub sigmas: [Poly<P>; S_POLYS],
+    pub public_input: Poly<P>,
+}
+
+#[derive(Clone)]
+pub struct PlonkWitness<P: PastaConfig> {
+    pub rows: usize,
+    pub domain: Domain<P>,
+    pub omega: Scalar<P>,
+    pub polys: PlonkWitnessPolys<P>,
+    pub w_evals: [Evals<P>; W_POLYS],
+    pub acc_prev: Accumulator<P>,
+}
 
 pub(crate) fn build_sigma<P: PastaConfig>(
     eqs: Vec<Vec<SlotId>>,
@@ -64,22 +103,26 @@ pub struct Trace<P: PastaConfig> {
     pub rows: usize,
     pub(crate) omega: Scalar<P>,
     pub(crate) domain: Domain<P>,
-    pub(crate) outputs: Vec<Scalar<P>>,
+    pub outputs: Vec<Scalar<P>>,
     pub(crate) sigma: Vec<SlotId>,
     pub(crate) public_inputs: Vec<Scalar<P>>,
     pub(crate) public_inputs_poly: Poly<P>,
-    pub(crate) public_inputs_evals: Evals<P>,
+    // pub(crate) public_inputs_evals: Evals<P>,
     pub(crate) C_qs: [Point<P>; Q_POLYS],
-    pub(crate) id_evals: [Evals<P>; S_POLYS],
+    pub(crate) C_rs: [Point<P>; R_POLYS],
+    pub(crate) C_ids: [Point<P>; S_POLYS],
+    pub(crate) C_sigmas: [Point<P>; S_POLYS],
+    // pub(crate) id_evals: [Evals<P>; S_POLYS],
     pub(crate) id_polys: [Poly<P>; S_POLYS],
-    pub(crate) q_evals: [Evals<P>; Q_POLYS],
+    // pub(crate) q_evals: [Evals<P>; Q_POLYS],
     pub(crate) q_polys: [Poly<P>; Q_POLYS],
-    pub(crate) sigma_evals: [Evals<P>; S_POLYS],
+    // pub(crate) sigma_evals: [Evals<P>; S_POLYS],
     pub(crate) sigma_polys: [Poly<P>; S_POLYS],
     pub(crate) w_evals: [Evals<P>; W_POLYS],
     pub(crate) w_polys: [Poly<P>; W_POLYS],
-    pub(crate) r_evals: [Evals<P>; R_POLYS],
+    // pub(crate) r_evals: [Evals<P>; R_POLYS],
     pub(crate) r_polys: [Poly<P>; R_POLYS],
+    pub(crate) acc_prev: Accumulator<P>,
 }
 
 impl<P: PastaConfig> Trace<P> {
@@ -91,14 +134,13 @@ impl<P: PastaConfig> Trace<P> {
         qs: [Vec<Scalar<P>>; Q_POLYS],
         outputs: Vec<P::ScalarField>,
         n: usize,
+        acc_prev: Accumulator<P>,
     ) -> Self {
-        let now = Instant::now();
-
         let d = n - 1;
         let domain = Domain::<P>::new(n).unwrap();
         let omega = domain.element(1);
 
-        let (sigma, id_evals, sigma_evals) = build_sigma(copy_constraints, domain);
+        let (sigma, id_evals, sigma_evals) = build_sigma::<P>(copy_constraints, domain);
 
         let mut public_inputs_clone = public_inputs.clone();
         public_inputs_clone.resize(n, Scalar::<P>::zero());
@@ -115,9 +157,11 @@ impl<P: PastaConfig> Trace<P> {
         let r_polys: [Poly<P>; R_POLYS] = array::from_fn(|i| r_evals[i].interpolate_by_ref());
         let q_polys: [Poly<P>; Q_POLYS] = array::from_fn(|i| q_evals[i].interpolate_by_ref());
         let public_inputs_poly = public_inputs_evals.interpolate_by_ref();
-        let C_qs = array::from_fn(|i| pcdl::commit(&q_polys[i], d, None));
 
-        debug!("trace_time: {:?}", now.elapsed().as_secs_f32());
+        let C_qs: [Point<P>; Q_POLYS] = array::from_fn(|i| pcdl::commit(&q_polys[i], d, None));
+        let C_rs: [Point<P>; R_POLYS] = array::from_fn(|i| pcdl::commit(&r_polys[i], d, None));
+        let C_ids: [Point<P>; S_POLYS] = array::from_fn(|i| commit(&id_polys[i], d, None));
+        let C_sigmas: [Point<P>; S_POLYS] = array::from_fn(|i| commit(&sigma_polys[i], d, None));
 
         Self {
             rows: n,
@@ -126,26 +170,77 @@ impl<P: PastaConfig> Trace<P> {
             sigma,
             public_inputs,
             public_inputs_poly,
-            public_inputs_evals,
+            sigma_polys,
+            id_polys,
+            w_polys,
+            r_polys,
+            q_polys,
+            w_evals,
+            outputs,
+            C_qs,
+            C_rs,
+            C_ids,
+            C_sigmas,
+            acc_prev,
+        }
+    }
+
+    pub fn consume(self) -> (PlonkPublicInputs<P>, PlonkWitness<P>) {
+        let Self {
+            rows,
+            domain,
+            omega,
+            sigma: _,
+            public_inputs,
+            public_inputs_poly,
             C_qs,
             sigma_polys,
             id_polys,
             w_polys,
             r_polys,
             q_polys,
-            sigma_evals,
-            id_evals,
             w_evals,
-            r_evals,
-            q_evals,
-            outputs,
-        }
-    }
+            outputs: _,
+            C_rs,
+            C_ids,
+            C_sigmas,
+            acc_prev,
+        } = self;
 
-    pub fn consume(self) {}
+        let Cs = PlonkPublicInputCommitments {
+            qs: C_qs,
+            rs: C_rs,
+            ids: C_ids,
+            sigmas: C_sigmas,
+        };
 
-    pub fn s(self) -> Result<()> {
-        Ok(())
+        let plonk_public_inputs = PlonkPublicInputs {
+            rows,
+            omega,
+            public_inputs,
+            Cs,
+            acc_prev: acc_prev.clone(),
+        };
+
+        let polys = PlonkWitnessPolys {
+            ws: w_polys,
+            qs: q_polys,
+            rs: r_polys,
+            ids: id_polys,
+            sigmas: sigma_polys,
+            public_input: public_inputs_poly,
+        };
+
+        let plonk_witness = PlonkWitness {
+            rows,
+            omega,
+            domain,
+            w_evals,
+            polys,
+            acc_prev,
+        };
+
+        (plonk_public_inputs, plonk_witness)
     }
 
     pub fn test_copy_constraints(&self) {
@@ -202,7 +297,7 @@ mod tests {
         trace_builder.witness(x3, scalar(3).into())?;
         trace_builder.witness(x5, scalar(5).into())?;
         trace_builder.public_input(x7, scalar(7).into())?;
-        let (fp_trace, _) = trace_builder.trace()?;
+        let (fp_trace, fq_trace) = trace_builder.trace(None)?;
 
         println!("{:?}", fp_trace);
 
@@ -211,7 +306,10 @@ mod tests {
         assert_eq!(vec![scalar(186)], fp_trace.outputs);
 
         let rng = &mut thread_rng();
-        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
 
         Ok(())
     }
@@ -238,7 +336,7 @@ mod tests {
         let mut trace_builder = TraceBuilder::new(circuit);
         trace_builder.witness(x2, scalar(2).into())?;
         trace_builder.witness(x7, scalar(7).into())?;
-        let (fp_trace, _) = trace_builder.trace()?;
+        let (fp_trace, fq_trace) = trace_builder.trace(None)?;
 
         println!("{:?}", fp_trace);
 
@@ -247,7 +345,74 @@ mod tests {
         assert_eq!(vec![scalar(47)], fp_trace.outputs);
 
         let rng = &mut thread_rng();
-        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_circuit_eval_assert_eq() -> Result<()> {
+        // Create circuit: (x1 + x2) * x3
+        let mut circuit = CircuitSpec::new();
+        let x = circuit.fp_witness();
+        let y = circuit.fp_witness();
+        circuit.assert_eq_gate(x, y);
+
+        println!("{:?}", circuit);
+
+        // Evaluate with inputs x1=2.0, x2=3.0, x3=4.0
+        let mut trace_builder = TraceBuilder::new(circuit);
+        trace_builder.witness(x, scalar(3).into())?;
+        trace_builder.witness(y, scalar(3).into())?;
+        let (fp_trace, fq_trace) = trace_builder.trace(None)?;
+
+        println!("{:?}", fp_trace);
+
+        fp_trace.test_copy_constraints();
+
+        let rng = &mut thread_rng();
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_circuit_eval_assert_neq() -> Result<()> {
+        // Create circuit: (x1 + x2) * x3
+        let mut circuit = CircuitSpec::new();
+        let x = circuit.fp_witness();
+        let xx = circuit.mul_gate(x, x);
+        let y = circuit.fp_witness();
+        circuit.assert_eq_gate(xx, y);
+
+        println!("{:?}", circuit);
+
+        // Evaluate with inputs x1=2.0, x2=3.0, x3=4.0
+        let mut trace_builder = TraceBuilder::new(circuit);
+        trace_builder.witness(x, scalar(3).into())?;
+        trace_builder.witness(y, scalar(5).into())?;
+        let (fp_trace, fq_trace) = trace_builder.trace(None)?;
+
+        println!("{:?}", fp_trace);
+
+        // fp_trace.test_copy_constraints();
+
+        let rng = &mut thread_rng();
+
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        assert!(
+            PlonkProof::naive_prover(rng, plonk_witness)
+                .verify(plonk_public_input)
+                .is_err()
+        );
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
 
         Ok(())
     }
@@ -305,9 +470,12 @@ mod tests {
         trace_builder.witness(xa21, scalar(rng.gen_range(1..10)).into())?;
         trace_builder.witness(xa31, scalar(rng.gen_range(1..10)).into())?;
 
-        let (fp_trace, _) = trace_builder.trace()?;
+        let (fp_trace, fq_trace) = trace_builder.trace(None)?;
         println!("{fp_trace:?}");
-        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
 
         Ok(())
     }

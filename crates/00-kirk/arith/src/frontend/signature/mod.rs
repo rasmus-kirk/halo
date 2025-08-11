@@ -2,8 +2,8 @@ use halo_group::PastaConfig;
 use halo_poseidon::Protocols;
 
 use crate::frontend::{
-    curve::WireAffine, field::WireScalar, poseidon::outer_sponge::OuterSponge,
-    primitives::bool::WireBool,
+    poseidon::outer_sponge::OuterSponge,
+    primitives::{WireAffine, WireScalar},
 };
 
 // Schnorr signature struct: (R, s)
@@ -32,18 +32,14 @@ impl<P: PastaConfig> SchnorrSignature<P> {
         sponge.challenge()
     }
 
-    pub fn verify(
-        &self,
-        pk: WireAffine<P>,
-        message: &[WireScalar<P::OtherCurve>],
-    ) -> WireBool<P::OtherCurve> {
+    pub fn verify(&self, pk: WireAffine<P>, message: &[WireScalar<P::OtherCurve>]) {
         // e = H(P || R || m)
         let e = Self::hash_message(pk, self.r, message);
 
         // s * G =? R + e * P
         let lhs = WireAffine::generator() * self.s;
         let rhs = self.r + pk * e;
-        lhs.equals(rhs)
+        lhs.assert_eq(rhs)
     }
 }
 
@@ -52,18 +48,22 @@ mod tests {
     use anyhow::Result;
     use halo_group::{
         Fq, PallasConfig, VestaConfig,
-        ark_ff::{Field, UniformRand},
+        ark_ff::UniformRand,
         ark_std::{rand::Rng, test_rng},
     };
     use halo_schnorr::generate_keypair;
 
     use crate::{
-        frontend::{Call, curve::WireAffine, field::WireScalar, signature::SchnorrSignature},
+        frontend::{
+            Call,
+            primitives::{WireAffine, WireScalar},
+            signature::SchnorrSignature,
+        },
         plonk::PlonkProof,
     };
 
     #[test]
-    fn signature() -> Result<()> {
+    fn test_signature() -> Result<()> {
         let rng = &mut test_rng();
 
         let (sk_v, pk_v) = generate_keypair();
@@ -84,20 +84,19 @@ mod tests {
         let s = WireScalar::<PallasConfig>::witness();
 
         let signature = SchnorrSignature::new(r, s);
-        signature.verify(pk, &message).output();
+        signature.verify(pk, &message);
 
-        let mut call = Call::<PallasConfig>::new();
+        let mut call = Call::new();
 
         call.witness_affine(r, signature_v.r)?;
         call.witness(s, signature_v.s)?;
 
-        let (fp_trace, fq_trace) = call.trace()?;
+        let (fp_trace, fq_trace) = call.trace(None)?;
 
-        assert_eq!(fq_trace.outputs[0], Fq::ONE);
-
-        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
-        PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
-
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
         Ok(())
     }
 }

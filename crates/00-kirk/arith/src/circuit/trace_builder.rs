@@ -1,6 +1,7 @@
 use std::{array, collections::HashMap, time::Instant};
 
 use anyhow::{Context, Result, anyhow, bail, ensure};
+use halo_accumulation::acc::Accumulator;
 use halo_group::{
     Fp, Fq, PallasConfig, PastaAffine, PastaFE, PastaFieldId, VestaConfig,
     ark_ff::{BigInt, BigInteger, PrimeField},
@@ -85,6 +86,7 @@ impl TraceBuilder {
 
     pub fn public_input(&mut self, wire: Wire, x: PastaFE) -> Result<()> {
         let fid = wire.fid;
+        println!("{fid}: adding {wire:?}");
         assert_eq!(fid, x.fid.unwrap());
         match self.spec.graph.node_weight(wire.node_idx) {
             Some(GateType::PublicInput(..)) => (),
@@ -95,26 +97,41 @@ impl TraceBuilder {
         if already_assigned {
             bail!("Wire already assigned! ({wire:?}, {x:?})")
         };
+
+        // let v = self.public_inputs[fid as usize].get(&wire).unwrap();
+        // println!("{fid}: got wire value {v:?} from {wire:?}");
+        println!("{:?}", self.public_inputs[fid as usize]);
+
         Ok(())
     }
 
-    pub fn trace(mut self) -> Result<(Trace<PallasConfig>, Trace<VestaConfig>)> {
+    pub fn trace(
+        mut self,
+        accs_prev: Option<(Accumulator<PallasConfig>, Accumulator<VestaConfig>)>,
+    ) -> Result<(Trace<PallasConfig>, Trace<VestaConfig>)> {
         let now = Instant::now();
         let spec = self.spec.clone();
+
+        println!("FQS = {:?}", self.public_inputs[1 as usize]);
 
         let row_counts: [usize; 2] =
             array::from_fn(|i| spec.row_count[i].next_power_of_two().max(4));
 
         for i in 0..1 {
+            let fid = if i == 0 {
+                PastaFieldId::Fp
+            } else {
+                PastaFieldId::Fq
+            };
             ensure!(
                 self.witnesses[i].len() == spec.witness_wire_count[i],
-                "Expected {} witnesses, got {}",
+                "{fid} Expected {} witnesses, got {}",
                 spec.witness_wire_count[i],
                 self.witnesses[i].len()
             );
             ensure!(
                 self.public_inputs[i].len() == spec.public_input_wire_count[i],
-                "Expected {} witnesses, got {}",
+                "{fid} Expected {} public inputs, got {}",
                 spec.public_input_wire_count[i],
                 self.public_inputs[i].len()
             );
@@ -175,9 +192,10 @@ impl TraceBuilder {
                     node_map.insert(node_idx, slots);
 
                     // ----- Values ----- //
+                    println!("{:?}", self.public_inputs);
                     let v = *self.public_inputs[fid as usize]
                         .get(&out_wire)
-                        .context("Wire unassigned!")?;
+                        .context(format!("{fid}: Wire unassigned ({out_wire:?})!"))?;
                     public_inputs[fid as usize].push(-v);
                     wire_vals[fid as usize][out_wire.id] = v;
 
@@ -196,13 +214,12 @@ impl TraceBuilder {
                 }
                 GateType::Constant((), [out_wire], c) => {
                     let fid = out_wire.fid;
-                    let slots = self.get_slot_ids(fid);
-                    node_map.insert(node_idx, slots);
 
                     // ----- Values ----- //
                     wire_vals[fid as usize][out_wire.id] = c;
 
                     // ----- Gate Constraints ----- //
+                    let slots = self.get_slot_ids(fid);
                     let row = slots[0].row_0_indexed();
                     let (ws, qs) = (&mut ws[fid as usize], &mut qs[fid as usize]);
                     //                    [l, r,  o, m, c, p, +, *, =]
@@ -219,16 +236,25 @@ impl TraceBuilder {
                     let fid_idx = in_wire.fid as usize;
                     out_wires[fid_idx][n] = wire_vals[fid_idx][in_wire.id];
                 }
+                GateType::Print([in_wire], (), (label_1, label_2)) => {
+                    let fid_idx = in_wire.fid as usize;
+                    println!("{label_1}{label_2}: {:?}", wire_vals[fid_idx][in_wire.id]);
+                }
                 GateType::AssertEq([left_wire, right_wire], ()) => {
+                    let fid = left_wire.fid;
                     let fid_idx = left_wire.fid as usize;
 
                     // ----- Copy Constraints ----- //
-                    let left_slot = wire_output_slots[fid_idx][left_wire.id]
-                        .expect("No output slot for left wire!");
-                    let right_slot = wire_output_slots[fid_idx][right_wire.id]
-                        .expect("No output slot for right wire!");
-                    copy_constraints[fid_idx][left_wire.id].push(right_slot);
-                    copy_constraints[fid_idx][right_wire.id].push(left_slot);
+                    let slots = self.get_slot_ids(fid);
+                    let l = wire_vals[fid as usize][left_wire.id];
+                    let r = wire_vals[fid as usize][right_wire.id];
+                    let q: [_; Q_POLYS] = [I, NI, O, O, O, O, O, O, O];
+                    let w: [_; W_POLYS] = [l, r, O, O, O, O, O, O, O, O, O, O, O, O, O, O];
+                    qs[fid_idx].multi_assign(slots[0].row_0_indexed(), q);
+                    ws[fid_idx].multi_assign(slots[0].row_0_indexed(), w);
+
+                    copy_constraints[fid_idx][left_wire.id].push(slots[0]);
+                    copy_constraints[fid_idx][right_wire.id].push(slots[1]);
                 }
                 GateType::Add([left_wire, right_wire], [out_wire]) => {
                     let fid = left_wire.fid;
@@ -536,7 +562,7 @@ impl TraceBuilder {
 
                     wire_vals[fid_idx_inv][out_wires[0].id] = v_fq;
                 }
-                GateType::ScalarMul(in_wires, out_wires) => {
+                GateType::ScalarMulPallas(in_wires, out_wires) => {
                     let fid = in_wires[0].fid;
                     let fid_idx = fid as usize;
 
@@ -547,8 +573,12 @@ impl TraceBuilder {
                     let yg = wire_vals[fid_idx][in_wires[3].id];
                     let g = PastaAffine::new(xg, yg);
 
-                    let bits: Vec<bool> =
-                        h.into_bigint().to_bits_le().iter().rev().copied().collect();
+                    // 2 most significant bits are always zero, so remove them
+                    let mut bits_lsb_to_msb = h.into_bigint().to_bits_le();
+                    assert!(!bits_lsb_to_msb.pop().unwrap());
+                    assert!(!bits_lsb_to_msb.pop().unwrap());
+                    let bits: Vec<bool> = bits_lsb_to_msb.into_iter().rev().collect();
+
                     let mut point_acc = PastaAffine::identity(Some(fid));
                     let mut bit_acc = PastaFE::zero(Some(fid));
 
@@ -641,6 +671,80 @@ impl TraceBuilder {
                     // wire_slots[fid as usize][out_wires[0].id].push(slots[0]);
                     // wire_slots[fid as usize][out_wires[1].id].push(slots[1]);
                 }
+                GateType::ScalarMulVesta(in_wires, out_wires) => {
+                    let fid = in_wires[0].fid;
+                    let fid_idx = fid as usize;
+
+                    // ----- Values ----- //
+                    let v = wire_vals[fid_idx][in_wires[0].id];
+                    let xg = wire_vals[fid_idx][in_wires[1].id];
+                    let yg = wire_vals[fid_idx][in_wires[2].id];
+                    let g = PastaAffine::new(xg, yg);
+
+                    // most significant bits is always zero, so remove it
+                    let mut bits_lsb_to_msb = v.into_bigint().to_bits_le();
+                    assert!(!bits_lsb_to_msb.pop().unwrap());
+                    let bits: Vec<bool> = bits_lsb_to_msb.into_iter().rev().collect();
+
+                    let mut point_acc = PastaAffine::identity(Some(fid));
+                    let mut bit_acc = PastaFE::zero(Some(fid));
+
+                    let is = (0..bits.len()).rev();
+                    for (bit, i) in bits.into_iter().zip(is) {
+                        let slots = self.get_slot_ids(fid);
+
+                        let pow_2i = PastaFE::from_u64(2u64, Some(fid)).pow(i);
+                        let b = PastaFE::from_bool(bit, Some(fid));
+                        let p = point_acc;
+
+                        let [βq, λq] = affine_double_params(p);
+                        let q = p + p;
+
+                        let [αr, _, γr, δr, λr] = affine_add_params(q, g);
+                        let r = q + g;
+                        let a = bit_acc;
+
+                        point_acc = if bit { r } else { q };
+                        bit_acc = bit_acc + b * pow_2i;
+
+                        // ----- Gate Constraints ----- //
+                        let row = slots[0].row_0_indexed();
+                        let w: [_; W_POLYS] =
+                            [p.x, p.y, a, g.x, g.y, b, q.x, q.y, r.x, r.y, βq, λq, αr, γr, δr, λr];
+                        //                    [l, r, o, m, c, p, +, *, =]
+                        let q: [_; Q_POLYS] = [O, O, O, O, O, O, O, I, O];
+                        let r: [_; R_POLYS] = [pow_2i, O, O, O, O, O, O, O, O, O, O, O, O, O, O];
+                        ws[fid_idx].multi_assign(row, w);
+                        qs[fid_idx].multi_assign(row, q);
+                        rs[fid_idx].multi_assign(row, r);
+                    }
+
+                    // ----- Zero Row Gate Constraints ----- //
+                    let slots = self.get_slot_ids(fid);
+                    let row = slots[0].row_0_indexed();
+                    //                    [l, r, o, m, c, p, +, *, =]
+                    let q: [_; Q_POLYS] = [O, O, O, O, O, O, O, O, O];
+                    let w: [_; W_POLYS] =
+                        [point_acc.x, point_acc.y, bit_acc, O, O, O, O, O, O, O, O, O, O, O, O, O];
+                    ws[fid_idx].multi_assign(row, w);
+                    qs[fid_idx].multi_assign(row, q);
+
+                    node_map.insert(node_idx, slots);
+
+                    for wire in out_wires {
+                        match wire.output_id {
+                            0 => wire_vals[fid_idx][wire.id] = point_acc.x,
+                            1 => wire_vals[fid_idx][wire.id] = point_acc.y,
+                            _ => unreachable!(),
+                        }
+                    }
+
+                    // ----- Copy Constraints ----- //
+                    wire_output_slots[fid as usize][out_wires[0].id] = Some(slots[0]);
+                    wire_output_slots[fid as usize][out_wires[1].id] = Some(slots[1]);
+                    // wire_slots[fid as usize][out_wires[0].id].push(slots[0]);
+                    // wire_slots[fid as usize][out_wires[1].id].push(slots[1]);
+                }
                 GateType::WitnessBool(_, [out_wire]) => {
                     let fid = out_wire.fid;
                     let slots = self.get_slot_ids(fid);
@@ -708,6 +812,10 @@ impl TraceBuilder {
         let [fp_copy_constraints, fq_copy_constraints] = copy_constraints;
         let [fp_out_wires, fq_out_wires] = out_wires;
         let [fp_rows, fq_rows] = row_counts;
+        let (fp_acc_prev, fq_acc_prev) = match accs_prev {
+            None => (Accumulator::zero(fp_rows, 2), Accumulator::zero(fq_rows, 2)),
+            Some((fp, fq)) => (fp, fq),
+        };
 
         let fp_public_inputs: Vec<Fp> = fp_public_inputs.into_iter().map(Fp::from).collect();
         let fp_ws = fp_ws.map(|x| x.into_iter().map(Fp::from).collect());
@@ -722,6 +830,7 @@ impl TraceBuilder {
             fp_qs,
             fp_out_wires,
             fp_rows,
+            fp_acc_prev,
         );
 
         let fq_public_inputs: Vec<Fq> = fq_public_inputs.into_iter().map(Fq::from).collect();
@@ -737,6 +846,7 @@ impl TraceBuilder {
             fq_qs,
             fq_out_wires,
             fq_rows,
+            fq_acc_prev,
         );
 
         Ok((fp_trace, fq_trace))

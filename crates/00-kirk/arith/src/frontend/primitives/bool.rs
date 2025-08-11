@@ -7,7 +7,10 @@ use halo_group::PastaConfig;
 
 use crate::{
     circuit::Wire,
-    frontend::{FRONTEND, curve::WireAffine, field::WireScalar},
+    frontend::{
+        FRONTEND,
+        primitives::{WireAffine, WireScalar},
+    },
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -136,7 +139,10 @@ mod tests {
     };
 
     use crate::{
-        frontend::{Call, FRONTEND, field::WireScalar, primitives::bool::WireBool},
+        frontend::{
+            Call, FRONTEND,
+            primitives::{WireBool, WireScalar},
+        },
         plonk::PlonkProof,
     };
 
@@ -162,7 +168,7 @@ mod tests {
         call.witness_scalar_bool(x, x_v)?;
         call.witness_scalar_bool(y, y_v)?;
 
-        let (fp_trace, fq_trace) = call.trace()?;
+        let (fp_trace, fq_trace) = call.trace(None)?;
 
         let c_out = fp_trace.outputs[0];
         let d_out = fp_trace.outputs[1];
@@ -172,8 +178,10 @@ mod tests {
         assert_eq!(c_out, expected_c_out.into());
         assert_eq!(d_out, expected_d_out.into());
 
-        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
-        PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
 
         Ok(())
     }
@@ -198,15 +206,17 @@ mod tests {
         call.witness(x, x_v)?;
         call.witness(y, y_v)?;
 
-        let (fp_trace, fq_trace) = call.trace()?;
+        let (fp_trace, fq_trace) = call.trace(None)?;
         println!("{:?}", fp_trace);
 
         let neq_out = fp_trace.outputs[0];
         let expected_neq_out = Fp::ZERO;
         assert_eq!(neq_out, expected_neq_out.into());
 
-        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
-        PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
 
         Ok(())
     }
@@ -231,7 +241,7 @@ mod tests {
         call.witness(x, x_v)?;
         call.witness(y, y_v)?;
 
-        let (fp_trace, fq_trace) = call.trace()?;
+        let (fp_trace, fq_trace) = call.trace(None)?;
         println!("{:?}", fp_trace);
 
         let eq_out = fp_trace.outputs[0];
@@ -239,8 +249,10 @@ mod tests {
         assert_eq!(fp_trace.outputs.len(), 1);
         assert_eq!(eq_out, expected_eq_out);
 
-        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
-        PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
 
         Ok(())
     }
@@ -268,7 +280,7 @@ mod tests {
         call.witness(x, x_v)?;
         call.witness(y, y_v)?;
 
-        let (fp_trace, fq_trace) = call.trace()?;
+        let (fp_trace, fq_trace) = call.trace(None)?;
         println!("{:?}", fp_trace);
 
         let c_out = fp_trace.outputs[0];
@@ -276,8 +288,10 @@ mod tests {
         assert_eq!(fp_trace.outputs.len(), 1);
         assert_eq!(c_out, expected_c_out);
 
-        PlonkProof::naive_prover(rng, fp_trace.clone()).verify(fp_trace)?;
-        PlonkProof::naive_prover(rng, fq_trace.clone()).verify(fq_trace)?;
+        let (plonk_public_input, plonk_witness) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (plonk_public_input, plonk_witness) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
 
         Ok(())
     }

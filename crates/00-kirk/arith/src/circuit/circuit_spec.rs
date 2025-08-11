@@ -97,7 +97,9 @@ pub(crate) enum GateType {
     PublicInput((), [Wire; 1]),
     Constant((), [Wire; 1], PastaFE),
     Output([Wire; 1], (), usize),
-    ScalarMul([Wire; 4], [Wire; 2]),
+    Print([Wire; 1], (), (&'static str, &'static str)),
+    ScalarMulPallas([Wire; 4], [Wire; 2]),
+    ScalarMulVesta([Wire; 3], [Wire; 2]),
     FpMessagePass([Wire; 1], [Wire; 2]),
     FqMessagePass([Wire; 1], [Wire; 1]),
     Invert([Wire; 2], [Wire; 1]),
@@ -382,15 +384,15 @@ impl CircuitSpec {
         assert_eq!(left.fid, right.fid);
     }
 
-    pub fn scalar_mul(&mut self, scalar: (Wire, Wire), point: (Wire, Wire)) -> (Wire, Wire) {
+    pub fn scalar_mul_pallas(&mut self, scalar: (Wire, Wire), point: (Wire, Wire)) -> (Wire, Wire) {
         let fid = point.0.fid;
-        // TODO: ceil(lg_p) = 255, so this should be 255 + 1
         // 255 rows needed for scalar 1 zero row at the end
-        self.row_count[fid as usize] += 256 + 1;
+        self.row_count[fid as usize] += 255 + 1;
 
         let out_wires = self.new_wires(fid);
 
-        let gate_type = GateType::ScalarMul([scalar.0, scalar.1, point.0, point.1], out_wires);
+        let gate_type =
+            GateType::ScalarMulPallas([scalar.0, scalar.1, point.0, point.1], out_wires);
         let node = self.graph.add_node(gate_type);
         self.graph.add_edge(scalar.0.node_idx, node, scalar.0);
         self.graph.add_edge(scalar.1.node_idx, node, scalar.1);
@@ -399,6 +401,28 @@ impl CircuitSpec {
 
         assert_eq!(fid, scalar.0.fid);
         assert_eq!(fid, scalar.1.fid);
+        assert_eq!(fid, point.0.fid);
+        assert_eq!(fid, point.1.fid);
+        assert_eq!(out_wires[0].node_idx, node);
+        assert_eq!(out_wires[1].node_idx, node);
+
+        (out_wires[0], out_wires[1])
+    }
+
+    pub fn scalar_mul_vesta(&mut self, scalar: Wire, point: (Wire, Wire)) -> (Wire, Wire) {
+        let fid = point.0.fid;
+        // 255 rows needed for scalar 1 zero row at the end
+        self.row_count[fid as usize] += 255 + 1;
+
+        let out_wires = self.new_wires(fid);
+
+        let gate_type = GateType::ScalarMulVesta([scalar, point.0, point.1], out_wires);
+        let node = self.graph.add_node(gate_type);
+        self.graph.add_edge(scalar.node_idx, node, scalar);
+        self.graph.add_edge(point.0.node_idx, node, point.0);
+        self.graph.add_edge(point.1.node_idx, node, point.1);
+
+        assert_eq!(fid, scalar.fid);
         assert_eq!(fid, point.0.fid);
         assert_eq!(fid, point.1.fid);
         assert_eq!(out_wires[0].node_idx, node);
@@ -481,6 +505,13 @@ impl CircuitSpec {
         self.output_wire_count[fid as usize] += 1;
 
         let node = self.graph.add_node(GateType::Output([input], (), out_id));
+        self.graph.add_edge(input.node_idx, node, input);
+    }
+
+    pub fn print(&mut self, input: Wire, label_1: &'static str, label_2: &'static str) {
+        let node = self
+            .graph
+            .add_node(GateType::Print([input], (), (label_1, label_2)));
         self.graph.add_edge(input.node_idx, node, input);
     }
 }

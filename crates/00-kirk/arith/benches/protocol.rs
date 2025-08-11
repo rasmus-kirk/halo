@@ -9,9 +9,9 @@ use arith::{
     circuit::{CircuitSpec, Trace, TraceBuilder, Wire},
     frontend::{
         Call, Frontend,
-        curve::WireAffine,
-        field::WireScalar,
         pcdl::{WireEvalProof, WireInstance, WirePublicParams},
+        primitives::WireAffine,
+        primitives::WireScalar,
     },
     plonk::PlonkProof,
 };
@@ -356,6 +356,10 @@ pub fn prover_verifier_pcdl(c: &mut Criterion) {
             Instance::<PallasConfig>::rand_without_hiding(rng, n).into_tuple();
         let (Ls_v, Rs_v, U_v, c_v, _, _) = pi_v.into_tuple();
 
+        let pre_time = start_time.elapsed().as_secs_f32();
+        println!("pre_time: {} s", pre_time);
+
+        let start_time = Instant::now();
         let Ls: Vec<WireAffine<PallasConfig>> =
             Ls_v.iter().map(|_| WireAffine::witness()).collect();
         let Rs: Vec<WireAffine<PallasConfig>> =
@@ -380,6 +384,9 @@ pub fn prover_verifier_pcdl(c: &mut Criterion) {
         let instance = WireInstance { C, z, v, pi };
 
         instance.succinct_check(pp);
+
+        let pre_call_time = start_time.elapsed().as_secs_f32();
+        println!("pre_call_time: {} s", pre_call_time);
 
         let mut call = Call::new();
 
