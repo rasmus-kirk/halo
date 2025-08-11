@@ -367,7 +367,15 @@ $$
 
 ### Public variant
 
-The public variant for arithmetization only differs in trace. In $\Downarrow_R$, we do not have $\avec{x}: W[\tin{}]$ for input gates, but public input gates which is used to construct its column in the trace table. Thus, the vmap values are bools, that marks the wires having been resolved. This will lead to the same wire stack as the original $\Downarrow_R$, consequently trace table layout. $\Downarrow_G$ then will omit columns $c \in \text{priv}$ in $\ctrn_g$. Thus the cells that remain do not need the values to reduce, i.e. all the cells are constants. $\Downarrow_C$ remains the same. Resulting in a trace that differs by its trace table not having private columns.
+The public variant for arithmetization only differs in trace. In $\Downarrow_R$, the $\avec{x}: W[\tin{}]$ for input gates is instead for public input gates. The vmap values are bools, that marks the wires having been resolved. This will lead to the same wire stack as the original $\Downarrow_R$, consequently trace table layout. $\Downarrow_G$ then will omit columns $c \in \text{priv}$ in $\ctrn_g$. Thus the cells that remain do not need the values to reduce, i.e. all the cells are constants. $\Downarrow_C$ remains the same. Resulting in a trace that differs by its trace table not having private columns.
+
+$$
+\begin{array}{rl}
+(R,x,w) 
+&= \SurkalArithmetize_{\text{public}}(f,\vec{x}') \\ 
+&= \mathrm{interpolate} \circ \mathrm{trace}_{\text{public}}(\vec{x}') \circ \mathrm{build}(f)
+\end{array}
+$$
 
 **Trace Correctness Example**
 
