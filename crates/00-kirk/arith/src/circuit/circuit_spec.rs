@@ -102,6 +102,8 @@ pub(crate) enum GateType {
     ScalarMulVesta([Wire; 3], [Wire; 2]),
     FpMessagePass([Wire; 1], [Wire; 2]),
     FqMessagePass([Wire; 1], [Wire; 1]),
+    FpBoolMessagePass([Wire; 1], [Wire; 1]),
+    FqBoolMessagePass([Wire; 1], [Wire; 1]),
     Invert([Wire; 2], [Wire; 1]),
     Negate([Wire; 2], [Wire; 1]),
     AssertEq([Wire; 2], ()),
@@ -436,6 +438,7 @@ impl CircuitSpec {
         let fid = input.fid.inv();
         self.message_pass_wire_count[fid as usize] += 2;
         self.row_count[fid as usize] += 2;
+        self.row_count[fid as usize] += 17;
 
         let out_wires = self.new_wires(fid);
 
@@ -460,6 +463,42 @@ impl CircuitSpec {
         let out_wires = self.new_wires(fid);
 
         let gate_type = GateType::FqMessagePass([input], out_wires);
+        let node = self.graph.add_node(gate_type);
+        self.graph.add_edge(input.node_idx, node, input);
+
+        assert_eq!(out_wires[0].node_idx, node);
+        assert_eq!(out_wires[0].fid, PastaFieldId::Fp);
+
+        out_wires[0]
+    }
+
+    pub fn fp_bool_message_pass(&mut self, input: Wire) -> Wire {
+        assert_eq!(input.fid, PastaFieldId::Fp);
+        let fid = input.fid.inv();
+        self.message_pass_wire_count[fid as usize] += 1;
+        self.row_count[fid as usize] += 1;
+
+        let out_wires = self.new_wires(fid);
+
+        let gate_type = GateType::FpBoolMessagePass([input], out_wires);
+        let node = self.graph.add_node(gate_type);
+        self.graph.add_edge(input.node_idx, node, input);
+
+        assert_eq!(out_wires[0].node_idx, node);
+        assert_eq!(out_wires[0].fid, PastaFieldId::Fq);
+
+        out_wires[0]
+    }
+
+    pub fn fq_bool_message_pass(&mut self, input: Wire) -> Wire {
+        assert_eq!(input.fid, PastaFieldId::Fq);
+        let fid = input.fid.inv();
+        self.message_pass_wire_count[fid as usize] += 1;
+        self.row_count[fid as usize] += 1;
+
+        let out_wires = self.new_wires(fid);
+
+        let gate_type = GateType::FqBoolMessagePass([input], out_wires);
         let node = self.graph.add_node(gate_type);
         self.graph.add_edge(input.node_idx, node, input);
 

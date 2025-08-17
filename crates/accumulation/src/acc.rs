@@ -8,7 +8,8 @@ use ark_pallas::PallasConfig;
 use ark_poly::{univariate::DensePolynomial, DenseUVPolynomial, Polynomial};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::{One, UniformRand, Zero};
-use rand::Rng;
+use educe::Educe;
+use rand::{thread_rng, Rng};
 
 use halo_group::{construct_powers, point_dot, PastaConfig, Point, Poly, PublicParams, Scalar};
 use halo_poseidon::{Protocols, Sponge};
@@ -18,14 +19,31 @@ use crate::pcdl::{self, Instance};
 // -------------------- Accumulation Data Structures --------------------
 
 /// acc in the paper
-#[derive(Debug, Clone, CanonicalSerialize, CanonicalDeserialize)]
+#[derive(Educe, CanonicalSerialize, CanonicalDeserialize)]
+#[educe(Debug, Clone, PartialEq, Eq)]
 pub struct Accumulator<P: PastaConfig> {
-    pub(crate) q: Instance<P>,
+    pub q: Instance<P>,
 }
 
 impl<P: PastaConfig> Accumulator<P> {
     pub fn new<R: Rng>(rng: &mut R, qs: &[Instance<P>]) -> Result<Self> {
         prover(rng, qs)
+    }
+
+    pub const fn from_instance(q: Instance<P>) -> Self {
+        Accumulator { q }
+    }
+
+    pub fn zero(n: usize, k: usize) -> Self {
+        let rng = &mut thread_rng();
+        let qs = vec![Instance::<P>::zero(n); k];
+        prover(rng, &qs).unwrap()
+    }
+
+    pub fn zero_invalid(n: usize) -> Self {
+        Self {
+            q: Instance::zero_invalid(n),
+        }
     }
 
     pub fn verifier(self, qs: &[Instance<P>]) -> Result<()> {
@@ -237,6 +255,55 @@ mod tests {
         }
 
         decider(acc.unwrap())?;
+
+        Ok(())
+    }
+
+    fn accumulate_random_instance_without_hiding<R: Rng>(
+        rng: &mut R,
+        n: usize,
+        acc: Accumulator<PallasConfig>,
+    ) -> Result<Accumulator<PallasConfig>> {
+        let q_1 = Instance::rand_without_hiding(rng, n);
+        let q_2 = Instance::rand_without_hiding(rng, n);
+        q_1.check()?;
+        q_2.check()?;
+        let qs = vec![acc.into(), q_1, q_2];
+
+        let acc = prover(rng, &qs)?;
+        verifier(&qs, acc.clone())?;
+
+        Ok(acc)
+    }
+
+    #[test]
+    fn test_acc_scheme_zero() -> Result<()> {
+        let mut rng = rand::thread_rng();
+        let n_range = Uniform::new(2, 4);
+        let n = 2_usize.pow(rng.sample(n_range));
+
+        let m = rng.sample(n_range);
+        let mut acc = Accumulator::zero(n, 4);
+        for _ in 0..m {
+            acc = accumulate_random_instance_without_hiding(&mut rng, n, acc)?;
+        }
+
+        decider(acc)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_acc_zero() -> Result<()> {
+        let mut rng = rand::thread_rng();
+        let n_range = Uniform::new(2, 4);
+        let n = 2_usize.pow(rng.sample(n_range));
+        let k = rng.sample(Uniform::new(2, 4));
+
+        let qs = vec![Instance::zero(n); k];
+        let acc = Accumulator::<PallasConfig>::zero(n, k);
+        verifier(&qs, acc.clone())?;
+        decider(acc)?;
 
         Ok(())
     }

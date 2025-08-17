@@ -4,14 +4,14 @@ use anyhow::{Context, Result, anyhow, bail, ensure};
 use halo_accumulation::acc::Accumulator;
 use halo_group::{
     Fp, Fq, PallasConfig, PastaAffine, PastaFE, PastaFieldId, VestaConfig,
-    ark_ff::{BigInt, BigInteger, PrimeField},
+    ark_ff::{BigInt, BigInteger, Field, PrimeField},
     ark_std::{One, Zero},
 };
 use log::debug;
 use petgraph::algo::toposort;
 
 use crate::{
-    circuit::{CircuitSpec, GateType, Trace, Wire},
+    circuit::{CircuitSpec, GateType, PlonkCircuit, Trace, Wire},
     utils::{MultiAssign, Q_POLYS, R_POLYS, W_POLYS},
 };
 
@@ -86,7 +86,6 @@ impl TraceBuilder {
 
     pub fn public_input(&mut self, wire: Wire, x: PastaFE) -> Result<()> {
         let fid = wire.fid;
-        println!("{fid}: adding {wire:?}");
         assert_eq!(fid, x.fid.unwrap());
         match self.spec.graph.node_weight(wire.node_idx) {
             Some(GateType::PublicInput(..)) => (),
@@ -98,21 +97,16 @@ impl TraceBuilder {
             bail!("Wire already assigned! ({wire:?}, {x:?})")
         };
 
-        // let v = self.public_inputs[fid as usize].get(&wire).unwrap();
-        // println!("{fid}: got wire value {v:?} from {wire:?}");
-        println!("{:?}", self.public_inputs[fid as usize]);
-
         Ok(())
     }
 
     pub fn trace(
         mut self,
         accs_prev: Option<(Accumulator<PallasConfig>, Accumulator<VestaConfig>)>,
+        static_circuits: Option<(PlonkCircuit<PallasConfig>, PlonkCircuit<VestaConfig>)>,
     ) -> Result<(Trace<PallasConfig>, Trace<VestaConfig>)> {
         let now = Instant::now();
         let spec = self.spec.clone();
-
-        println!("FQS = {:?}", self.public_inputs[1 as usize]);
 
         let row_counts: [usize; 2] =
             array::from_fn(|i| spec.row_count[i].next_power_of_two().max(4));
@@ -192,18 +186,17 @@ impl TraceBuilder {
                     node_map.insert(node_idx, slots);
 
                     // ----- Values ----- //
-                    println!("{:?}", self.public_inputs);
                     let v = *self.public_inputs[fid as usize]
                         .get(&out_wire)
                         .context(format!("{fid}: Wire unassigned ({out_wire:?})!"))?;
-                    public_inputs[fid as usize].push(-v);
+                    public_inputs[fid as usize].push(v);
                     wire_vals[fid as usize][out_wire.id] = v;
 
                     // ----- Gate Constraints ----- //
                     let row = slots[0].row_0_indexed();
                     let (ws, qs) = (&mut ws[fid as usize], &mut qs[fid as usize]);
-                    //                    [l, r, o, m, c, p, +, *, +]
-                    let q: [_; Q_POLYS] = [I, O, O, O, O, O, O, O, O];
+                    //                    [l, r, o, m, c, p, +, *, +, R]
+                    let q: [_; Q_POLYS] = [I, O, O, O, O, O, O, O, O, O];
                     let w: [_; W_POLYS] = [v, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O];
                     qs.multi_assign(row, q);
                     ws.multi_assign(row, w);
@@ -222,8 +215,8 @@ impl TraceBuilder {
                     let slots = self.get_slot_ids(fid);
                     let row = slots[0].row_0_indexed();
                     let (ws, qs) = (&mut ws[fid as usize], &mut qs[fid as usize]);
-                    //                    [l, r,  o, m, c, p, +, *, =]
-                    let q: [_; Q_POLYS] = [I, O, O, O, -c, O, O, O, O];
+                    //                    [l, r,  o, m, c, p, +, *, =, R]
+                    let q: [_; Q_POLYS] = [I, O, O, O, -c, O, O, O, O, O];
                     let w: [_; W_POLYS] = [c, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O];
                     qs.multi_assign(row, q);
                     ws.multi_assign(row, w);
@@ -248,7 +241,7 @@ impl TraceBuilder {
                     let slots = self.get_slot_ids(fid);
                     let l = wire_vals[fid as usize][left_wire.id];
                     let r = wire_vals[fid as usize][right_wire.id];
-                    let q: [_; Q_POLYS] = [I, NI, O, O, O, O, O, O, O];
+                    let q: [_; Q_POLYS] = [I, NI, O, O, O, O, O, O, O, O];
                     let w: [_; W_POLYS] = [l, r, O, O, O, O, O, O, O, O, O, O, O, O, O, O];
                     qs[fid_idx].multi_assign(slots[0].row_0_indexed(), q);
                     ws[fid_idx].multi_assign(slots[0].row_0_indexed(), w);
@@ -271,8 +264,8 @@ impl TraceBuilder {
                     // ----- Gate Constraints ----- //
                     let row = slots[0].row_0_indexed();
                     let (ws, qs) = (&mut ws[fid as usize], &mut qs[fid as usize]);
-                    //                    [l, r,  o, m, c, p, +, *, =]
-                    let q: [_; Q_POLYS] = [I, I, NI, O, O, O, O, O, O];
+                    //                    [l, r,  o, m, c, p, +, *, =, R]
+                    let q: [_; Q_POLYS] = [I, I, NI, O, O, O, O, O, O, O];
                     let w: [_; W_POLYS] = [a, b, c, O, O, O, O, O, O, O, O, O, O, O, O, O];
                     ws.multi_assign(row, w);
                     qs.multi_assign(row, q);
@@ -298,8 +291,8 @@ impl TraceBuilder {
                     // ----- Gate Constraints ----- //
                     let row = slots[0].row_0_indexed();
                     let (ws, qs) = (&mut ws[fid as usize], &mut qs[fid as usize]);
-                    //                    [l, r,  o, m, c, p, +, *, =]
-                    let q: [_; Q_POLYS] = [O, O, NI, I, O, O, O, O, O];
+                    //                    [l, r,  o, m, c, p, +, *, =, R]
+                    let q: [_; Q_POLYS] = [O, O, NI, I, O, O, O, O, O, O];
                     let w: [_; W_POLYS] = [a, b, c, O, O, O, O, O, O, O, O, O, O, O, O, O];
                     ws.multi_assign(row, w);
                     qs.multi_assign(row, q);
@@ -342,8 +335,8 @@ impl TraceBuilder {
                     let (ws, qs, rs) = (&mut ws[fid_idx], &mut qs[fid_idx], &mut rs[fid_idx]);
                     let w: [_; W_POLYS] =
                         [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, O];
-                    //                    [l, r, o, m, c, p, +, *, =]
-                    let q: [_; Q_POLYS] = [O, O, O, O, O, I, O, O, O];
+                    //                    [l, r, o, m, c, p, +, *, =, R]
+                    let q: [_; Q_POLYS] = [O, O, O, O, O, I, O, O, O, O];
                     ws.multi_assign(row, w);
                     qs.multi_assign(row, q);
                     rs.multi_assign(row, r);
@@ -376,8 +369,8 @@ impl TraceBuilder {
                     // ----- Gate Constraints ----- //
                     let row = slots[0].row_0_indexed();
                     let (ws, qs) = (&mut ws[fid as usize], &mut qs[fid as usize]);
-                    //                    [l, r, o, m, c, p, +, *, =]
-                    let q: [_; Q_POLYS] = [O, O, O, O, O, O, O, O, O];
+                    //                    [l, r, o, m, c, p, +, *, =, R]
+                    let q: [_; Q_POLYS] = [O, O, O, O, O, O, O, O, O, O];
                     let w: [_; W_POLYS] = [w0, w1, w2, O, O, O, O, O, O, O, O, O, O, O, O, O];
                     ws.multi_assign(row, w);
                     qs.multi_assign(row, q);
@@ -418,8 +411,8 @@ impl TraceBuilder {
                     let row = slots[0].row_0_indexed();
                     let (ws, qs) = (&mut ws[fid as usize], &mut qs[fid as usize]);
                     let w: [_; W_POLYS] = [xp, yp, xq, yq, xr, yr, α, β, γ, δ, λ, O, O, O, O, O];
-                    //                    [l, r, o, m, c, p, +, *, =]
-                    let q: [_; Q_POLYS] = [O, O, O, O, O, O, I, O, O];
+                    //                    [l, r, o, m, c, p, +, *, =, R]
+                    let q: [_; Q_POLYS] = [O, O, O, O, O, O, I, O, O, O];
                     ws.multi_assign(row, w);
                     qs.multi_assign(row, q);
 
@@ -450,8 +443,8 @@ impl TraceBuilder {
                     let row = slots[0].row_0_indexed();
                     let (ws, qs) = (&mut ws[fid as usize], &mut qs[fid as usize]);
                     let w: [_; W_POLYS] = [x, x_inv, I, O, O, O, O, O, O, O, O, O, O, O, O, O];
-                    //                    [l, r,  o, m, c, p, +, *, =]
-                    let q: [_; Q_POLYS] = [O, O, NI, I, O, O, O, O, O];
+                    //                    [l, r,  o, m, c, p, +, *, =, R]
+                    let q: [_; Q_POLYS] = [O, O, NI, I, O, O, O, O, O, O];
                     ws.multi_assign(row, w);
                     qs.multi_assign(row, q);
 
@@ -477,8 +470,8 @@ impl TraceBuilder {
                     // ----- Gate Constraints ----- //
                     let row = slots[0].row_0_indexed();
                     let (ws, qs) = (&mut ws[fid as usize], &mut qs[fid as usize]);
-                    //                    [l, r,  o, m, c, p, +, *, =]
-                    let q: [_; Q_POLYS] = [I, I, NI, O, O, O, O, O, O];
+                    //                    [l, r,  o, m, c, p, +, *, =, R]
+                    let q: [_; Q_POLYS] = [I, I, NI, O, O, O, O, O, O, O];
                     let w: [_; W_POLYS] = [x, x_neg, O, O, O, O, O, O, O, O, O, O, O, O, O, O];
                     ws.multi_assign(row, w);
                     qs.multi_assign(row, q);
@@ -501,35 +494,77 @@ impl TraceBuilder {
                         true => Fq::one(),
                         false => Fq::zero(),
                     };
-                    let high_bits =
-                        Fq::from_bigint(BigInt::<4>::from_bits_le(&bits[1..bits.len()])).unwrap();
+                    let high_bits = bits[1..bits.len()].to_vec();
 
-                    let h = high_bits.into();
+                    let h = Fq::from_bigint(BigInt::<4>::from_bits_le(&high_bits))
+                        .unwrap()
+                        .into();
                     let l = low_bit.into();
 
                     let (ws, qs) = (&mut ws[fid_idx_inv], &mut qs[fid_idx_inv]);
 
                     let slots = self.get_message_pass_slot_ids(fid.inv());
                     let row = slots[0].row_0_indexed();
-                    //                    [l, r, o, m, c, p, +, *, =]
-                    let q: [_; Q_POLYS] = [I, O, O, O, O, O, O, O, O];
+                    //                    [l, r, o, m, c, p, +, *, =, R]
+                    let q: [_; Q_POLYS] = [I, O, O, O, O, O, O, O, O, O];
                     let w: [_; W_POLYS] = [h, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O];
                     ws.multi_assign(row, w);
                     qs.multi_assign(row, q);
-                    message_pass_inputs[fid_idx_inv].push(-h);
+                    message_pass_inputs[fid_idx_inv].push(h);
                     wire_output_slots[fid_idx_inv][out_wires[0].id] = Some(slots[0]);
                     copy_constraints[fid_idx_inv][out_wires[0].id].push(slots[0]);
 
                     let slots = self.get_message_pass_slot_ids(fid.inv());
                     let row = slots[0].row_0_indexed();
-                    //                    [l, r, o, m, c, p, +, *, =]
-                    let q: [_; Q_POLYS] = [I, O, O, O, O, O, O, O, O];
-                    let w: [_; W_POLYS] = [l, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O];
+                    //                    [l,  r, o, m, c, p, +, *, =, R]
+                    let q: [_; Q_POLYS] = [NI, I, O, I, O, O, O, O, O, O];
+                    let w: [_; W_POLYS] = [l, l, O, O, O, O, O, O, O, O, O, O, O, O, O, O];
                     ws.multi_assign(row, w);
                     qs.multi_assign(row, q);
-                    message_pass_inputs[fid_idx_inv].push(-l);
+                    message_pass_inputs[fid_idx_inv].push(l);
                     wire_output_slots[fid_idx_inv][out_wires[1].id] = Some(slots[0]);
                     copy_constraints[fid_idx_inv][out_wires[1].id].push(slots[0]);
+
+                    let two = Fq::one() + Fq::one();
+                    let mut acc = PastaFE::zero(Some(fid));
+                    for i in 0..17 {
+                        let b: Vec<PastaFE> = high_bits[i * R_POLYS..i * R_POLYS + 15]
+                            .iter()
+                            .map(|b| PastaFE::from_bool(*b, Some(fid)))
+                            .collect();
+                        assert_eq!(b.len(), 15);
+
+                        let mut r: [_; R_POLYS] = [O; R_POLYS];
+                        let mut acc_next = acc;
+                        for j in 0..R_POLYS {
+                            let two_pow = two.pow([(i * R_POLYS + j) as u64]).into();
+                            r[j] = two_pow;
+                            acc_next +=
+                                PastaFE::from_bool(high_bits[i * R_POLYS + j], None) * two_pow;
+                        }
+
+                        let slots = self.get_slot_ids(fid.inv());
+                        let row = slots[0].row_0_indexed();
+                        //                    [l, r, o, m, c, p, +, *, =, R]
+                        let q: [_; Q_POLYS] = [O, O, O, O, O, O, O, O, O, I];
+                        let w: [_; W_POLYS] = [
+                            acc, b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], b[9], b[10],
+                            b[11], b[12], b[13], b[14],
+                        ];
+                        ws.multi_assign(row, w);
+                        qs.multi_assign(row, q);
+                        rs[fid_idx_inv].multi_assign(row, r);
+
+                        acc = acc_next;
+                    }
+                    let slots = self.get_slot_ids(fid.inv());
+                    let row = slots[0].row_0_indexed();
+                    //                    [l, r, o, m, c, p, +, *, =, R]
+                    let q: [_; Q_POLYS] = [O, O, O, O, O, O, O, O, O, O];
+                    let w: [_; W_POLYS] = [acc, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O];
+                    ws.multi_assign(row, w);
+                    qs.multi_assign(row, q);
+                    copy_constraints[fid_idx_inv][out_wires[0].id].push(slots[0]);
 
                     for wire in out_wires {
                         match wire.output_id {
@@ -544,23 +579,48 @@ impl TraceBuilder {
                     let fid_idx = fid as usize;
                     let fid_idx_inv = fid.inv() as usize;
 
-                    let v_fp = wire_vals[fid_idx][in_wire.id];
-                    let v_fq = PastaFE::new(v_fp.into_bigint(), Some(fid.inv()));
+                    let v = PastaFE::new(
+                        wire_vals[fid_idx][in_wire.id].into_bigint(),
+                        Some(fid.inv()),
+                    );
 
-                    let (ws, qs) = (&mut ws[fid_idx_inv], &mut qs[fid_idx_inv]);
                     let slots = self.get_message_pass_slot_ids(fid.inv());
                     let row = slots[0].row_0_indexed();
-                    //                    [l, r, o, m, c, p, +, *, =]
-                    let q: [_; Q_POLYS] = [I, O, O, O, O, O, O, O, O];
-                    let w: [_; W_POLYS] = [v_fq, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O];
-                    ws.multi_assign(row, w);
-                    //                   [l, r, o, m, c, p, +, *]
-                    qs.multi_assign(row, q);
-                    message_pass_inputs[fid_idx_inv].push(-v_fq);
+                    //                    [l, r, o, m, c, p, +, *, =, R]
+                    let q: [_; Q_POLYS] = [I, O, O, O, O, O, O, O, O, O];
+                    let w: [_; W_POLYS] = [v, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O];
+                    ws[fid_idx_inv].multi_assign(row, w);
+                    qs[fid_idx_inv].multi_assign(row, q);
+                    message_pass_inputs[fid_idx_inv].push(v);
                     wire_output_slots[fid_idx_inv][out_wires[0].id] = Some(slots[0]);
                     copy_constraints[fid_idx_inv][out_wires[0].id].push(slots[0]);
 
-                    wire_vals[fid_idx_inv][out_wires[0].id] = v_fq;
+                    wire_vals[fid_idx_inv][out_wires[0].id] = v;
+                }
+                GateType::FpBoolMessagePass([in_wire], out_wires)
+                | GateType::FqBoolMessagePass([in_wire], out_wires) => {
+                    let fid = in_wire.fid;
+                    let fid_idx = fid as usize;
+                    let fid_idx_inv = fid.inv() as usize;
+
+                    let b = PastaFE::new(
+                        wire_vals[fid_idx][in_wire.id].into_bigint(),
+                        Some(fid.inv()),
+                    );
+
+                    let slots = self.get_message_pass_slot_ids(fid.inv());
+                    let row = slots[0].row_0_indexed();
+                    //                    [l,  r, o, m, c, p, +, *, =, R]
+                    let q: [_; Q_POLYS] = [NI, I, O, I, O, O, O, O, O, O];
+                    let w: [_; W_POLYS] = [b, b, O, O, O, O, O, O, O, O, O, O, O, O, O, O];
+
+                    ws[fid_idx_inv].multi_assign(row, w);
+                    qs[fid_idx_inv].multi_assign(row, q);
+                    message_pass_inputs[fid_idx_inv].push(b);
+                    wire_output_slots[fid_idx_inv][out_wires[0].id] = Some(slots[0]);
+                    copy_constraints[fid_idx_inv][out_wires[0].id].push(slots[0]);
+
+                    wire_vals[fid_idx_inv][out_wires[0].id] = b;
                 }
                 GateType::ScalarMulPallas(in_wires, out_wires) => {
                     let fid = in_wires[0].fid;
@@ -605,8 +665,8 @@ impl TraceBuilder {
                         let (ws, qs, rs) = (&mut ws[fid_idx], &mut qs[fid_idx], &mut rs[fid_idx]);
                         let w: [_; W_POLYS] =
                             [p.x, p.y, a, g.x, g.y, b, q.x, q.y, r.x, r.y, βq, λq, αr, γr, δr, λr];
-                        //                    [l, r, o, m, c, p, +, *, =]
-                        let q: [_; Q_POLYS] = [O, O, O, O, O, O, O, I, O];
+                        //                    [l, r, o, m, c, p, +, *, =, R]
+                        let q: [_; Q_POLYS] = [O, O, O, O, O, O, O, I, O, O];
                         let r: [_; R_POLYS] = [pow_2i, O, O, O, O, O, O, O, O, O, O, O, O, O, O];
                         ws.multi_assign(row, w);
                         qs.multi_assign(row, q);
@@ -635,8 +695,8 @@ impl TraceBuilder {
 
                     let w: [_; W_POLYS] =
                         [p.x, p.y, a, g.x, g.y, b, q.x, q.y, r.x, r.y, βq, λq, αr, γr, δr, λr];
-                    //                    [l, r, o, m, c, p, +, *, =]
-                    let q: [_; Q_POLYS] = [O, O, O, O, O, O, O, I, O];
+                    //                    [l, r, o, m, c, p, +, *, =, R]
+                    let q: [_; Q_POLYS] = [O, O, O, O, O, O, O, I, O, O];
                     let r: [_; R_POLYS] = [pow_2i, O, O, O, O, O, O, O, O, O, O, O, O, O, O];
 
                     ws.multi_assign(row, w);
@@ -648,8 +708,8 @@ impl TraceBuilder {
                     // ----- Zero Row Gate Constraints ----- //
                     let slots = self.get_slot_ids(fid);
                     let row = slots[0].row_0_indexed();
-                    //                    [l, r, o, m, c, p, +, *, =]
-                    let q: [_; Q_POLYS] = [O, O, O, O, O, O, O, O, O];
+                    //                    [l, r, o, m, c, p, +, *, =, R]
+                    let q: [_; Q_POLYS] = [O, O, O, O, O, O, O, O, O, O];
                     let w: [_; W_POLYS] =
                         [point_acc.x, point_acc.y, bit_acc, O, O, O, O, O, O, O, O, O, O, O, O, O];
                     ws.multi_assign(row, w);
@@ -711,8 +771,8 @@ impl TraceBuilder {
                         let row = slots[0].row_0_indexed();
                         let w: [_; W_POLYS] =
                             [p.x, p.y, a, g.x, g.y, b, q.x, q.y, r.x, r.y, βq, λq, αr, γr, δr, λr];
-                        //                    [l, r, o, m, c, p, +, *, =]
-                        let q: [_; Q_POLYS] = [O, O, O, O, O, O, O, I, O];
+                        //                    [l, r, o, m, c, p, +, *, =, R]
+                        let q: [_; Q_POLYS] = [O, O, O, O, O, O, O, I, O, O];
                         let r: [_; R_POLYS] = [pow_2i, O, O, O, O, O, O, O, O, O, O, O, O, O, O];
                         ws[fid_idx].multi_assign(row, w);
                         qs[fid_idx].multi_assign(row, q);
@@ -722,8 +782,8 @@ impl TraceBuilder {
                     // ----- Zero Row Gate Constraints ----- //
                     let slots = self.get_slot_ids(fid);
                     let row = slots[0].row_0_indexed();
-                    //                    [l, r, o, m, c, p, +, *, =]
-                    let q: [_; Q_POLYS] = [O, O, O, O, O, O, O, O, O];
+                    //                    [l, r, o, m, c, p, +, *, =, R]
+                    let q: [_; Q_POLYS] = [O, O, O, O, O, O, O, O, O, O];
                     let w: [_; W_POLYS] =
                         [point_acc.x, point_acc.y, bit_acc, O, O, O, O, O, O, O, O, O, O, O, O, O];
                     ws[fid_idx].multi_assign(row, w);
@@ -747,8 +807,6 @@ impl TraceBuilder {
                 }
                 GateType::WitnessBool(_, [out_wire]) => {
                     let fid = out_wire.fid;
-                    let slots = self.get_slot_ids(fid);
-                    node_map.insert(node_idx, slots);
 
                     // ----- Values ----- //
                     let v = *self.witnesses[fid as usize]
@@ -757,10 +815,11 @@ impl TraceBuilder {
                     wire_vals[fid as usize][out_wire.id] = v;
 
                     // ----- Gate Constraints ----- //
+                    let slots = self.get_slot_ids(fid);
                     let row = slots[0].row_0_indexed();
                     let (ws, qs) = (&mut ws[fid as usize], &mut qs[fid as usize]);
-                    //                    [l,  r, o, m, c, p, +, *, =]
-                    let q: [_; Q_POLYS] = [NI, O, O, I, O, O, O, O, O];
+                    //                    [l,  r, o, m, c, p, +, *, =, R]
+                    let q: [_; Q_POLYS] = [NI, O, O, I, O, O, O, O, O, O];
                     let w: [_; W_POLYS] = [v, v, O, O, O, O, O, O, O, O, O, O, O, O, O, O];
                     qs.multi_assign(row, q);
                     ws.multi_assign(row, w);
@@ -785,8 +844,8 @@ impl TraceBuilder {
                     let slots = self.get_slot_ids(fid);
                     let row = slots[0].row_0_indexed();
                     let (ws, qs) = (&mut ws[fid as usize], &mut qs[fid as usize]);
-                    //                    [l, r, o, m, c, p, +, *, =]
-                    let q: [_; Q_POLYS] = [O, O, O, O, O, O, O, O, I];
+                    //                    [l, r, o, m, c, p, +, *, =, R]
+                    let q: [_; Q_POLYS] = [O, O, O, O, O, O, O, O, I, O];
                     let w: [_; W_POLYS] = [a_v, b_v, one, eq, inv, O, O, O, O, O, O, O, O, O, O, O];
                     qs.multi_assign(row, q);
                     ws.multi_assign(row, w);
@@ -813,8 +872,12 @@ impl TraceBuilder {
         let [fp_out_wires, fq_out_wires] = out_wires;
         let [fp_rows, fq_rows] = row_counts;
         let (fp_acc_prev, fq_acc_prev) = match accs_prev {
-            None => (Accumulator::zero(fp_rows, 2), Accumulator::zero(fq_rows, 2)),
+            None => (Accumulator::zero(fp_rows, 1), Accumulator::zero(fq_rows, 1)),
             Some((fp, fq)) => (fp, fq),
+        };
+        let (fp_circuit, fq_circuit) = match static_circuits {
+            None => (None, None),
+            Some((fp, fq)) => (Some(fp), Some(fq)),
         };
 
         let fp_public_inputs: Vec<Fp> = fp_public_inputs.into_iter().map(Fp::from).collect();
@@ -822,6 +885,7 @@ impl TraceBuilder {
         let fp_rs = fp_rs.map(|x| x.into_iter().map(Fp::from).collect());
         let fp_qs = fp_qs.map(|x| x.into_iter().map(Fp::from).collect());
         let fp_out_wires = fp_out_wires.into_iter().map(Fp::from).collect();
+        let fp_message_pass_inputs = message_pass_inputs[0].iter().map(|x| (*x).into()).collect();
         let fp_trace = Trace::<PallasConfig>::new(
             fp_copy_constraints,
             fp_public_inputs,
@@ -831,6 +895,8 @@ impl TraceBuilder {
             fp_out_wires,
             fp_rows,
             fp_acc_prev,
+            fp_circuit,
+            fp_message_pass_inputs,
         );
 
         let fq_public_inputs: Vec<Fq> = fq_public_inputs.into_iter().map(Fq::from).collect();
@@ -838,6 +904,7 @@ impl TraceBuilder {
         let fq_rs = fq_rs.map(|x| x.into_iter().map(Fq::from).collect());
         let fq_qs = fq_qs.map(|x| x.into_iter().map(Fq::from).collect());
         let fq_out_wires = fq_out_wires.into_iter().map(Fq::from).collect();
+        let fq_message_pass_inputs = message_pass_inputs[1].iter().map(|x| (*x).into()).collect();
         let fq_trace = Trace::<VestaConfig>::new(
             fq_copy_constraints,
             fq_public_inputs,
@@ -847,6 +914,8 @@ impl TraceBuilder {
             fq_out_wires,
             fq_rows,
             fq_acc_prev,
+            fq_circuit,
+            fq_message_pass_inputs,
         );
 
         Ok((fp_trace, fq_trace))

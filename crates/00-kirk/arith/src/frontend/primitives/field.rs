@@ -288,17 +288,17 @@ mod tests {
         call.witness(x, x_v)?;
         call.witness(y, y_v)?;
 
-        let (fp_trace, fq_trace) = call.trace(None)?;
+        let (fp_trace, fq_trace) = call.trace()?;
 
         let output = fp_trace.outputs[0];
         let expected_output = x_v * y_v + z_v;
         assert_eq!(fp_trace.outputs.len(), 1);
         assert_eq!(output, expected_output);
 
-        let (plonk_public_input, plonk_witness) = fp_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
-        let (plonk_public_input, plonk_witness) = fq_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (circuit, x, w) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
+        let (circuit, x, w) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
 
         Ok(())
     }
@@ -329,15 +329,15 @@ mod tests {
         call.witness(y, y_v)?;
         call.witness(z, z_v)?;
 
-        let (fp_trace, fq_trace) = call.trace(None)?;
+        let (fp_trace, fq_trace) = call.trace()?;
 
         assert_eq!(fp_trace.outputs.len(), 2);
         assert_eq!(fp_trace.outputs, [x_v.inverse().unwrap(), -y_v]);
 
-        let (plonk_public_input, plonk_witness) = fp_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
-        let (plonk_public_input, plonk_witness) = fq_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (circuit, x, w) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
+        let (circuit, x, w) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
 
         Ok(())
     }
@@ -369,7 +369,7 @@ mod tests {
         call.witness(x, x_v)?;
         call.witness(y, y_v)?;
 
-        let (fp_trace, fq_trace) = call.trace(None)?;
+        let (fp_trace, fq_trace) = call.trace()?;
         println!("----- FP TRACE -----");
         println!("{:?}", fp_trace);
 
@@ -381,10 +381,10 @@ mod tests {
         assert_eq!(fq_trace.outputs.len(), 1);
         assert_eq!(output, expected_output);
 
-        let (plonk_public_input, plonk_witness) = fp_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
-        let (plonk_public_input, plonk_witness) = fq_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (circuit, x, w) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
+        let (circuit, x, w) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
 
         Ok(())
     }
@@ -420,15 +420,15 @@ mod tests {
 
         call.witness(x, x_fq)?;
 
-        let (fp_trace, fq_trace) = call.trace(None)?;
+        let (fp_trace, fq_trace) = call.trace()?;
         let y_out = fp_trace.outputs[0];
 
         println!("{:?}", fp_trace);
         println!("{:?}", fq_trace);
-        let (plonk_public_input, plonk_witness) = fp_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
-        let (plonk_public_input, plonk_witness) = fq_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (circuit, x, w) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
+        let (circuit, x, w) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
 
         println!("{:?}", x_u64);
         println!("{:?}", x_fp);
@@ -441,7 +441,7 @@ mod tests {
     #[test]
     fn message_pass_fp() -> Result<()> {
         let rng = &mut test_rng();
-        let x_u64 = 7u64;
+        let x_u64 = ((1 << 17) - 1) as u64;
         let x_fp = Fp::from(x_u64);
         let x_fq = Fq::from(x_u64);
 
@@ -454,15 +454,15 @@ mod tests {
 
         call.witness(x, x_fp)?;
 
-        let (fp_trace, fq_trace) = call.trace(None)?;
+        let (fp_trace, fq_trace) = call.trace()?;
         let h_out = fq_trace.outputs[0];
         let l_out = fq_trace.outputs[1];
 
         println!("{:?}", fq_trace);
-        let (plonk_public_input, plonk_witness) = fp_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
-        let (plonk_public_input, plonk_witness) = fq_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (circuit, x, w) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
+        let (circuit, x, w) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
 
         let x_bits: Vec<u64> = x_fp
             .into_bigint()

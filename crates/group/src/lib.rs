@@ -11,6 +11,7 @@ pub use ark_ec;
 pub use ark_ff;
 pub use ark_pallas::PallasConfig;
 pub use ark_poly;
+pub use ark_serialize;
 pub use ark_std;
 pub use ark_vesta::VestaConfig;
 pub use group::*;

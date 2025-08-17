@@ -1,24 +1,74 @@
+use anyhow::Result;
 use halo_group::PastaConfig;
 use halo_poseidon::Protocols;
+use halo_schnorr::SchnorrSignature;
 
 use crate::frontend::{
+    Call,
     poseidon::outer_sponge::OuterSponge,
-    primitives::{WireAffine, WireScalar},
+    primitives::{WireAffine, WireBool, WireScalar},
 };
 
-// Schnorr signature struct: (R, s)
-#[derive(Clone)]
-pub struct SchnorrSignature<P: PastaConfig> {
-    r: WireAffine<P>, // Commitment point R = k * G
-    s: WireScalar<P>, // s = k + e * x
+pub type WirePublicKey<P> = WireAffine<P>;
+
+pub trait CallSignature {
+    fn witness_signature<P: PastaConfig>(
+        &mut self,
+        wire_proof: WireSchnorrSignature<P>,
+        proof: SchnorrSignature<P>,
+    ) -> Result<()>;
+    fn public_input_signature<P: PastaConfig>(
+        &mut self,
+        wire_proof: WireSchnorrSignature<P>,
+        proof: SchnorrSignature<P>,
+    ) -> Result<()>;
 }
-impl<P: PastaConfig> SchnorrSignature<P> {
+impl CallSignature for Call {
+    fn witness_signature<P: PastaConfig>(
+        &mut self,
+        wire_signature: WireSchnorrSignature<P>,
+        signature: SchnorrSignature<P>,
+    ) -> Result<()> {
+        let WireSchnorrSignature { r, s } = wire_signature;
+        self.witness_affine(r, signature.r)?;
+        self.witness(s, signature.s)
+    }
+    fn public_input_signature<P: PastaConfig>(
+        &mut self,
+        wire_signature: WireSchnorrSignature<P>,
+        signature: SchnorrSignature<P>,
+    ) -> Result<()> {
+        let WireSchnorrSignature { r, s } = wire_signature;
+        self.public_input_affine(r, signature.r)?;
+        self.public_input(s, signature.s)
+    }
+}
+
+// Schnorr signature struct: (R, s)
+#[derive(Clone, Copy)]
+pub struct WireSchnorrSignature<P: PastaConfig> {
+    pub r: WireAffine<P>, // Commitment point R = k * G
+    pub s: WireScalar<P>, // s = k + e * x
+}
+impl<P: PastaConfig> WireSchnorrSignature<P> {
+    pub fn witness() -> Self {
+        Self {
+            r: WireAffine::witness(),
+            s: WireScalar::witness(),
+        }
+    }
+    pub fn public_input() -> Self {
+        Self {
+            r: WireAffine::public_input(),
+            s: WireScalar::public_input(),
+        }
+    }
     pub fn new(r: WireAffine<P>, s: WireScalar<P>) -> Self {
         Self { r, s }
     }
 }
 
-impl<P: PastaConfig> SchnorrSignature<P> {
+impl<P: PastaConfig> WireSchnorrSignature<P> {
     fn hash_message(
         public_key: WireAffine<P>,
         r: WireAffine<P>,
@@ -32,14 +82,18 @@ impl<P: PastaConfig> SchnorrSignature<P> {
         sponge.challenge()
     }
 
-    pub fn verify(&self, pk: WireAffine<P>, message: &[WireScalar<P::OtherCurve>]) {
+    pub fn verify(
+        &self,
+        pk: WireAffine<P>,
+        message: &[WireScalar<P::OtherCurve>],
+    ) -> WireBool<P::OtherCurve> {
         // e = H(P || R || m)
         let e = Self::hash_message(pk, self.r, message);
 
         // s * G =? R + e * P
         let lhs = WireAffine::generator() * self.s;
         let rhs = self.r + pk * e;
-        lhs.assert_eq(rhs)
+        lhs.equals(rhs)
     }
 }
 
@@ -57,7 +111,7 @@ mod tests {
         frontend::{
             Call,
             primitives::{WireAffine, WireScalar},
-            signature::SchnorrSignature,
+            signature::WireSchnorrSignature,
         },
         plonk::PlonkProof,
     };
@@ -83,7 +137,7 @@ mod tests {
         let r = WireAffine::<PallasConfig>::witness();
         let s = WireScalar::<PallasConfig>::witness();
 
-        let signature = SchnorrSignature::new(r, s);
+        let signature = WireSchnorrSignature::new(r, s);
         signature.verify(pk, &message);
 
         let mut call = Call::new();
@@ -91,12 +145,12 @@ mod tests {
         call.witness_affine(r, signature_v.r)?;
         call.witness(s, signature_v.s)?;
 
-        let (fp_trace, fq_trace) = call.trace(None)?;
+        let (fp_trace, fq_trace) = call.trace()?;
 
-        let (plonk_public_input, plonk_witness) = fp_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
-        let (plonk_public_input, plonk_witness) = fq_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (circuit, x, w) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
+        let (circuit, x, w) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
         Ok(())
     }
 }

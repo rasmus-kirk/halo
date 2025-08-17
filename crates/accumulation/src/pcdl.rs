@@ -2,14 +2,14 @@
 
 //! Bulletproofs-style polynomial commitments based on the Discrete Log assumption
 use anyhow::{ensure, Result};
-use ark_ec::CurveGroup;
+use ark_ec::{short_weierstrass::Affine, CurveGroup};
 use ark_ff::{AdditiveGroup, Field};
 use ark_pallas::PallasConfig;
 use ark_poly::{univariate::DensePolynomial, DenseUVPolynomial, Polynomial};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
-use ark_std::{One, UniformRand};
+use ark_std::{One, UniformRand, Zero};
 use educe::Educe;
-use rand::Rng;
+use rand::{thread_rng, Rng};
 use rayon::prelude::*;
 
 use halo_group::{
@@ -26,11 +26,11 @@ use crate::pedersen;
 #[derive(Educe, CanonicalSerialize, CanonicalDeserialize)]
 #[educe(Debug, Clone, PartialEq, Eq)]
 pub struct Instance<P: PastaConfig> {
-    pub(crate) C: Point<P>,      // Commitment to the coefficints of a polynomial p
-    pub(crate) d: usize,         // The degree of p
-    pub(crate) z: Scalar<P>,     // The point to evaluate p at
-    pub(crate) v: Scalar<P>,     // The evaluation of p(z) = v
-    pub(crate) pi: EvalProof<P>, // The proof that p(z) = v
+    pub C: Point<P>,      // Commitment to the coefficints of a polynomial p
+    pub d: usize,         // The degree of p
+    pub z: Scalar<P>,     // The point to evaluate p at
+    pub v: Scalar<P>,     // The evaluation of p(z) = v
+    pub pi: EvalProof<P>, // The proof that p(z) = v
 }
 
 impl<P: PastaConfig> Instance<P> {
@@ -49,6 +49,43 @@ impl<P: PastaConfig> Instance<P> {
         let v = p.evaluate(z);
         let pi = open(rng, p, C, d, z, w);
         Self { C, d, z: *z, v, pi }
+    }
+
+    pub fn zero(n: usize) -> Self {
+        assert!(n.is_power_of_two());
+        let rng = &mut thread_rng();
+
+        let C = (Affine::<P>::identity()).into();
+        let d = n - 1;
+        let z = Scalar::<P>::zero();
+        let v = Scalar::<P>::zero();
+        let pi = open(rng, Poly::<P>::zero(), C, d, &z, None);
+
+        Self { C, d, z, v, pi }
+    }
+
+    pub fn zero_invalid(n: usize) -> Self {
+        assert!(n.is_power_of_two());
+        let lg_n = n.ilog2() as usize;
+
+        let C = (Affine::<P>::identity()).into();
+        let d = n - 1;
+        let z = Scalar::<P>::zero();
+        let v = Scalar::<P>::zero();
+        let pi = EvalProof {
+            Ls: (0..lg_n)
+                .map(|_| (Affine::<P>::identity()).into())
+                .collect(),
+            Rs: (0..lg_n)
+                .map(|_| (Affine::<P>::identity()).into())
+                .collect(),
+            U: (Affine::<P>::identity()).into(),
+            c: Scalar::<P>::zero(),
+            C_bar: None,
+            w_prime: None,
+        };
+
+        Self { C, d, z, v, pi }
     }
 
     pub fn rand<R: Rng>(rng: &mut R, n: usize) -> Self {
@@ -122,12 +159,12 @@ impl<P: PastaConfig> Instance<P> {
 #[derive(Educe, CanonicalSerialize, CanonicalDeserialize)]
 #[educe(Debug, Clone, PartialEq, Eq)]
 pub struct EvalProof<P: PastaConfig> {
-    pub(crate) Ls: Vec<Point<P>>,
-    pub(crate) Rs: Vec<Point<P>>,
-    pub(crate) U: Point<P>,
-    pub(crate) c: Scalar<P>,
-    pub(crate) C_bar: Option<Point<P>>,
-    pub(crate) w_prime: Option<Scalar<P>>,
+    pub Ls: Vec<Point<P>>,
+    pub Rs: Vec<Point<P>>,
+    pub U: Point<P>,
+    pub c: Scalar<P>,
+    pub C_bar: Option<Point<P>>,
+    pub w_prime: Option<Scalar<P>>,
 }
 impl<P: PastaConfig> EvalProof<P> {
     pub fn into_tuple(
@@ -678,6 +715,18 @@ mod tests {
 
         // Verify that check works
         check(&C, d, &z, &v, pi)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_zero() -> Result<()> {
+        let mut rng = rand::thread_rng();
+        let n = 2_usize.pow(rng.sample(Uniform::new(2, 10)));
+
+        let instance = Instance::<PallasConfig>::zero(n);
+        println!("{:?}", instance);
+        instance.check()?;
 
         Ok(())
     }

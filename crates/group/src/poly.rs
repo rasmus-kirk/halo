@@ -24,6 +24,7 @@ impl<P: PastaConfig> Evals<P> {
     }
 
     pub fn shift_right(mut self) -> Self {
+        assert!(self.evals.evals.len() > 0);
         let last = self.evals.evals.pop().unwrap();
         self.evals.evals.insert(0, last);
         self
@@ -156,9 +157,10 @@ impl<P: PastaConfig> Index<usize> for Evals<P> {
 impl<P: PastaConfig> Mul<Evals<P>> for Evals<P> {
     type Output = Evals<P>;
     #[inline]
-    fn mul(mut self, other: Evals<P>) -> Evals<P> {
-        self *= &other;
-        self
+    fn mul(self, other: Evals<P>) -> Evals<P> {
+        Evals {
+            evals: &self.evals * &other.evals,
+        }
     }
 }
 
@@ -177,7 +179,7 @@ impl<P: PastaConfig> Mul<&Evals<P>> for Evals<P> {
 
     #[inline]
     fn mul(mut self, other: &Evals<P>) -> Evals<P> {
-        self *= &other;
+        self *= other;
         self
     }
 }
@@ -190,15 +192,6 @@ impl<'a, 'b, P: PastaConfig> Mul<&'a Evals<P>> for &'b Evals<P> {
         Evals {
             evals: &self.evals * &other.evals,
         }
-    }
-}
-
-// ---------- MulAssign ---------- //
-
-impl<P: PastaConfig> MulAssign<&Evals<P>> for Evals<P> {
-    #[inline]
-    fn mul_assign(&mut self, other: &Evals<P>) {
-        self.evals *= &other.evals;
     }
 }
 
@@ -219,7 +212,7 @@ impl<'a, P: PastaConfig> Add<&'a Evals<P>> for Evals<P> {
 
     #[inline]
     fn add(mut self, other: &'a Evals<P>) -> Evals<P> {
-        self += &other;
+        self += other;
         self
     }
 }
@@ -260,7 +253,7 @@ impl<'a, P: PastaConfig> Sub<&'a Evals<P>> for Evals<P> {
     type Output = Evals<P>;
     #[inline]
     fn sub(mut self, other: &'a Evals<P>) -> Evals<P> {
-        self -= &other;
+        self -= other;
         self
     }
 }
@@ -268,9 +261,10 @@ impl<'a, P: PastaConfig> Sub<&'a Evals<P>> for Evals<P> {
 impl<'a, P: PastaConfig> Sub<Evals<P>> for &'a Evals<P> {
     type Output = Evals<P>;
     #[inline]
-    fn sub(self, mut other: Evals<P>) -> Evals<P> {
-        other -= self;
-        other
+    fn sub(self, other: Evals<P>) -> Evals<P> {
+        Evals {
+            evals: &self.evals - &other.evals,
+        }
     }
 }
 
@@ -293,11 +287,41 @@ impl<'a, P: PastaConfig> AddAssign<&'a Evals<P>> for Evals<P> {
     }
 }
 
+impl<P: PastaConfig> AddAssign<Evals<P>> for Evals<P> {
+    #[inline]
+    fn add_assign(&mut self, other: Evals<P>) {
+        self.evals += &other.evals;
+    }
+}
+
 // ---------- SubAssign ---------- //
 
 impl<'a, P: PastaConfig> SubAssign<&'a Evals<P>> for Evals<P> {
     #[inline]
     fn sub_assign(&mut self, other: &'a Evals<P>) {
         self.evals -= &other.evals;
+    }
+}
+
+impl<P: PastaConfig> SubAssign<Evals<P>> for Evals<P> {
+    #[inline]
+    fn sub_assign(&mut self, other: Evals<P>) {
+        self.evals -= &other.evals;
+    }
+}
+
+// ---------- MulAssign ---------- //
+
+impl<P: PastaConfig> MulAssign<&Evals<P>> for Evals<P> {
+    #[inline]
+    fn mul_assign(&mut self, other: &Evals<P>) {
+        self.evals *= &other.evals;
+    }
+}
+
+impl<P: PastaConfig> MulAssign<Evals<P>> for Evals<P> {
+    #[inline]
+    fn mul_assign(&mut self, other: Evals<P>) {
+        self.evals *= &other.evals;
     }
 }

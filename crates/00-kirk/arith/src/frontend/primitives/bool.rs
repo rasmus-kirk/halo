@@ -1,6 +1,6 @@
 use std::{
     marker::PhantomData,
-    ops::{BitAnd, Not},
+    ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, Not},
 };
 
 use halo_group::PastaConfig;
@@ -56,6 +56,17 @@ impl<P: PastaConfig> WireBool<P> {
         FRONTEND.with(|frontend| {
             let mut frontend = frontend.borrow_mut();
             frontend.circuit.assert_eq_gate(self.wire, other.wire);
+        })
+    }
+
+    pub fn message_pass(&self) -> WireBool<P::OtherCurve> {
+        FRONTEND.with(|frontend| {
+            let mut frontend = frontend.borrow_mut();
+            if P::IS_PALLAS {
+                WireBool::new(frontend.circuit.fp_bool_message_pass(self.wire))
+            } else {
+                WireBool::new(frontend.circuit.fq_bool_message_pass(self.wire))
+            }
         })
     }
 
@@ -128,12 +139,37 @@ impl<P: PastaConfig> BitAnd for WireBool<P> {
         })
     }
 }
+impl<P: PastaConfig> BitAndAssign for WireBool<P> {
+    fn bitand_assign(&mut self, rhs: Self) {
+        *self = *self & rhs
+    }
+}
+impl<P: PastaConfig> BitOr for WireBool<P> {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        FRONTEND.with(|frontend| {
+            let mut frontend = frontend.borrow_mut();
+            let a = self.wire;
+            let b = rhs.wire;
+            let a_plus_b = frontend.circuit.add_gate(a, b);
+            let a_times_b = frontend.circuit.mul_gate(a, b);
+            let neg_a_times_b = frontend.circuit.neg_gate(a_times_b);
+            WireBool::new(frontend.circuit.add_gate(a_plus_b, neg_a_times_b))
+        })
+    }
+}
+impl<P: PastaConfig> BitOrAssign for WireBool<P> {
+    fn bitor_assign(&mut self, rhs: Self) {
+        *self = *self | rhs
+    }
+}
 
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
     use halo_group::{
-        Fp, PallasConfig,
+        Fp, PallasConfig, PastaFE, VestaConfig,
         ark_ff::{AdditiveGroup, Field, UniformRand},
         ark_std::{rand::Rng, test_rng},
     };
@@ -168,7 +204,7 @@ mod tests {
         call.witness_scalar_bool(x, x_v)?;
         call.witness_scalar_bool(y, y_v)?;
 
-        let (fp_trace, fq_trace) = call.trace(None)?;
+        let (fp_trace, fq_trace) = call.trace()?;
 
         let c_out = fp_trace.outputs[0];
         let d_out = fp_trace.outputs[1];
@@ -178,10 +214,10 @@ mod tests {
         assert_eq!(c_out, expected_c_out.into());
         assert_eq!(d_out, expected_d_out.into());
 
-        let (plonk_public_input, plonk_witness) = fp_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
-        let (plonk_public_input, plonk_witness) = fq_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (circuit, x, w) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
+        let (circuit, x, w) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
 
         Ok(())
     }
@@ -206,17 +242,96 @@ mod tests {
         call.witness(x, x_v)?;
         call.witness(y, y_v)?;
 
-        let (fp_trace, fq_trace) = call.trace(None)?;
+        let (fp_trace, fq_trace) = call.trace()?;
         println!("{:?}", fp_trace);
 
         let neq_out = fp_trace.outputs[0];
         let expected_neq_out = Fp::ZERO;
         assert_eq!(neq_out, expected_neq_out.into());
 
-        let (plonk_public_input, plonk_witness) = fp_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
-        let (plonk_public_input, plonk_witness) = fq_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (circuit, x, w) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
+        let (circuit, x, w) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn bool_fp_message_pass() -> Result<()> {
+        let rng = &mut test_rng();
+        let x_v = rng.gen_bool(0.5);
+        let y_v = rng.gen_bool(0.5);
+        let x = WireBool::<PallasConfig>::witness();
+        let x_mp = x.message_pass();
+        let y = WireBool::<PallasConfig>::witness();
+        let y_mp = y.message_pass();
+        let c = x_mp & y_mp;
+        c.output();
+
+        FRONTEND.with(|frontend| {
+            let frontend = frontend.borrow_mut();
+            println!("{:?}", frontend.circuit);
+        });
+
+        let mut call = Call::new();
+
+        call.witness_bool(x, x_v)?;
+        call.witness_bool(y, y_v)?;
+
+        let (fp_trace, fq_trace) = call.trace()?;
+        println!("{:?}", fp_trace);
+
+        println!("outputs {:?}", fq_trace.outputs);
+        println!("outputs {:?}", fp_trace.outputs);
+        let out = fq_trace.outputs[0];
+        let expected_out = PastaFE::from_bool(x_v && y_v, None);
+        assert_eq!(out, expected_out.into());
+
+        let (circuit, x, w) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
+        let (circuit, x, w) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn bool_fq_message_pass() -> Result<()> {
+        let rng = &mut test_rng();
+        let x_v = rng.gen_bool(0.5);
+        let y_v = rng.gen_bool(0.5);
+        let x = WireBool::<VestaConfig>::witness();
+        let x_mp = x.message_pass();
+        let y = WireBool::<VestaConfig>::witness();
+        let y_mp = y.message_pass();
+        let c = x_mp & y_mp;
+        c.output();
+
+        FRONTEND.with(|frontend| {
+            let frontend = frontend.borrow_mut();
+            println!("{:?}", frontend.circuit);
+        });
+
+        let mut call = Call::new();
+
+        call.witness_bool(x, x_v)?;
+        call.witness_bool(y, y_v)?;
+
+        let (fp_trace, fq_trace) = call.trace()?;
+        println!("{:?}", fp_trace);
+        println!("{:?}", fq_trace);
+
+        println!("outputs {:?}", fq_trace.outputs);
+        println!("outputs {:?}", fp_trace.outputs);
+        let out = fp_trace.outputs[0];
+        let expected_out = PastaFE::from_bool(x_v && y_v, None);
+        assert_eq!(out, expected_out.into());
+
+        let (circuit, x, w) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
+        let (circuit, x, w) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
 
         Ok(())
     }
@@ -241,18 +356,19 @@ mod tests {
         call.witness(x, x_v)?;
         call.witness(y, y_v)?;
 
-        let (fp_trace, fq_trace) = call.trace(None)?;
+        let (fp_trace, fq_trace) = call.trace()?;
         println!("{:?}", fp_trace);
+        println!("{:?}", fq_trace);
 
         let eq_out = fp_trace.outputs[0];
         let expected_eq_out = Fp::ONE;
         assert_eq!(fp_trace.outputs.len(), 1);
         assert_eq!(eq_out, expected_eq_out);
 
-        let (plonk_public_input, plonk_witness) = fp_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
-        let (plonk_public_input, plonk_witness) = fq_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (circuit, x, w) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
+        let (circuit, x, w) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
 
         Ok(())
     }
@@ -280,7 +396,7 @@ mod tests {
         call.witness(x, x_v)?;
         call.witness(y, y_v)?;
 
-        let (fp_trace, fq_trace) = call.trace(None)?;
+        let (fp_trace, fq_trace) = call.trace()?;
         println!("{:?}", fp_trace);
 
         let c_out = fp_trace.outputs[0];
@@ -288,10 +404,10 @@ mod tests {
         assert_eq!(fp_trace.outputs.len(), 1);
         assert_eq!(c_out, expected_c_out);
 
-        let (plonk_public_input, plonk_witness) = fp_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
-        let (plonk_public_input, plonk_witness) = fq_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (circuit, x, w) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
+        let (circuit, x, w) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
 
         Ok(())
     }

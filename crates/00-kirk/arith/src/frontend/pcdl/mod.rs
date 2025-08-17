@@ -6,10 +6,20 @@ use halo_poseidon::Protocols;
 use crate::frontend::{
     Call,
     poseidon::outer_sponge::OuterSponge,
-    primitives::{WireAffine, WireScalar},
+    primitives::{WireAffine, WireBool, WireScalar},
 };
 
 pub trait CallInstance {
+    fn public_input_eval_proof<P: PastaConfig>(
+        &mut self,
+        wire_eval_proof: &WireEvalProof<P>,
+        eval_proof: &EvalProof<P>,
+    ) -> Result<()>;
+    fn public_input_instance<P: PastaConfig>(
+        &mut self,
+        wire_instance: &WireInstance<P>,
+        instance: &Instance<P>,
+    ) -> Result<()>;
     fn witness_instance<P: PastaConfig>(
         &mut self,
         wire_instance: &WireInstance<P>,
@@ -34,6 +44,18 @@ impl CallInstance for Call {
 
         Ok(())
     }
+    fn public_input_instance<P: PastaConfig>(
+        &mut self,
+        wire_instance: &WireInstance<P>,
+        instance: &Instance<P>,
+    ) -> Result<()> {
+        self.public_input_eval_proof(&wire_instance.pi, &instance.pi)?;
+        self.public_input_affine(wire_instance.C, instance.C.into_affine())?;
+        self.public_input(wire_instance.z, instance.z)?;
+        self.public_input(wire_instance.v, instance.v)?;
+
+        Ok(())
+    }
     fn witness_eval_proof<P: PastaConfig>(
         &mut self,
         wire_eval_proof: &WireEvalProof<P>,
@@ -48,6 +70,23 @@ impl CallInstance for Call {
         }
         self.witness_affine(wire_eval_proof.U, eval_proof.U.into_affine())?;
         self.witness(wire_eval_proof.c, eval_proof.c)?;
+
+        Ok(())
+    }
+    fn public_input_eval_proof<P: PastaConfig>(
+        &mut self,
+        wire_eval_proof: &WireEvalProof<P>,
+        eval_proof: &EvalProof<P>,
+    ) -> Result<()> {
+        assert_eq!(eval_proof.Ls.len(), eval_proof.Rs.len());
+        assert_eq!(eval_proof.Ls.len(), wire_eval_proof.Ls.len());
+        assert_eq!(eval_proof.Ls.len(), wire_eval_proof.Rs.len());
+        for i in 0..eval_proof.Ls.len() {
+            self.public_input_affine(wire_eval_proof.Ls[i], eval_proof.Ls[i].into_affine())?;
+            self.public_input_affine(wire_eval_proof.Rs[i], eval_proof.Rs[i].into_affine())?;
+        }
+        self.public_input_affine(wire_eval_proof.U, eval_proof.U.into_affine())?;
+        self.public_input(wire_eval_proof.c, eval_proof.c)?;
 
         Ok(())
     }
@@ -97,6 +136,18 @@ impl<P: PastaConfig> WireEvalProof<P> {
         let c = WireScalar::<P>::witness();
         WireEvalProof { Ls, Rs, U, c }
     }
+    pub fn public_input(n: usize) -> Self {
+        let lg_n = n.ilog2() as usize;
+        let mut Ls = Vec::with_capacity(lg_n);
+        let mut Rs = Vec::with_capacity(lg_n);
+        for _ in 0..lg_n {
+            Ls.push(WireAffine::public_input());
+            Rs.push(WireAffine::public_input());
+        }
+        let U = WireAffine::<P>::public_input();
+        let c = WireScalar::<P>::public_input();
+        WireEvalProof { Ls, Rs, U, c }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -138,15 +189,20 @@ impl<P: PastaConfig> WireInstance<P> {
         WireInstance { C, z, v, pi }
     }
 
-    pub fn succinct_check(self, pp: WirePublicParams<P>) -> (WireHPoly<P>, WireAffine<P>) {
-        // let n = d + 1;
-        // let lg_n = n.ilog2() as usize;
-        // assert!(n.is_power_of_two(), "n ({n}) is not a power of two");
-        // ensure!(d <= pp.D, "d was larger than D!");
+    pub fn public_input(n: usize) -> Self {
+        let C = WireAffine::<P>::public_input();
+        let z = WireScalar::<P>::public_input();
+        let v = WireScalar::<P>::public_input();
+        let pi = WireEvalProof::public_input(n);
+        WireInstance { C, z, v, pi }
+    }
 
-        let WireInstance { C, z, v, pi } = self;
-
+    pub fn succinct_check(
+        self,
+        pp: WirePublicParams<P>,
+    ) -> (WireBool<P::OtherCurve>, WireHPoly<P>, WireAffine<P>) {
         let mut transcript = OuterSponge::new(Protocols::PCDL);
+        let WireInstance { C, z, v, pi } = self;
 
         // 1. Parse rk as (⟨group⟩, S, H, d'), and π as (L, R, U, c, C_bar, ω').
         let WireEvalProof { Ls, Rs, U, c } = pi;
@@ -189,10 +245,10 @@ impl<P: PastaConfig> WireInstance<P> {
 
         // 10. Check that C_(log_n) = CM.Commit_Σ(c || v'), where Σ = (U || H').
 
-        C_i.assert_eq(U * c + H_prime * v_prime);
+        let b = C_i.equals(U * c + H_prime * v_prime);
 
         // 11. Output (h, U).
-        (h, U)
+        (b, h, U)
     }
 }
 
@@ -201,10 +257,10 @@ mod tests {
     use anyhow::Result;
     use halo_accumulation::pcdl::Instance;
     use halo_group::{
-        PallasConfig, Scalar,
+        Fq, PallasConfig, Scalar,
         ark_ec::{AffineRepr, CurveGroup},
         ark_ff::UniformRand,
-        ark_std::test_rng,
+        ark_std::{One, test_rng},
     };
 
     use crate::{
@@ -230,7 +286,8 @@ mod tests {
         let pp = WirePublicParams::new(n);
         let wire_instance = WireInstance::witness(n);
 
-        let (h, U) = wire_instance.clone().succinct_check(pp);
+        let (b, h, U) = wire_instance.clone().succinct_check(pp);
+        b.output();
         U.output();
         let h_eval = h.eval(r);
         h_eval.output();
@@ -240,19 +297,21 @@ mod tests {
         call.witness_instance(&wire_instance, &instance)?;
         call.witness(r, r_v)?;
 
-        let (fp_trace, fq_trace) = call.trace(None)?;
-        let Ux = fq_trace.outputs[0];
-        let Uy = fq_trace.outputs[1];
+        let (fp_trace, fq_trace) = call.trace()?;
+        let b = fq_trace.outputs[0];
+        let Ux = fq_trace.outputs[1];
+        let Uy = fq_trace.outputs[2];
         let h_eval_v = fp_trace.outputs[0];
 
+        assert_eq!(b, Fq::one());
         assert_eq!(Ux, U_expected.into_affine().x().unwrap());
         assert_eq!(Uy, U_expected.into_affine().y().unwrap());
         assert_eq!(h_eval_v, h_expected.eval(&r_v));
 
-        let (plonk_public_input, plonk_witness) = fp_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
-        let (plonk_public_input, plonk_witness) = fq_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (circuit, x, w) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
+        let (circuit, x, w) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
 
         Ok(())
     }

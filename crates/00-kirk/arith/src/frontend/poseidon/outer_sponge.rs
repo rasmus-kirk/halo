@@ -97,7 +97,7 @@ mod tests {
         for (w, v) in witnesses.iter().zip(values) {
             call.witness(*w, v)?
         }
-        let (fp_trace, fq_trace) = call.trace(None)?;
+        let (fp_trace, fq_trace) = call.trace()?;
         let output = fp_trace.outputs[0];
 
         let mut sponge = halo_poseidon::Sponge::<PallasConfig>::new(Protocols::PCDL);
@@ -105,10 +105,10 @@ mod tests {
         let expected_output = sponge.challenge();
         assert_eq!(output, expected_output);
 
-        let (plonk_public_input, plonk_witness) = fp_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
-        let (plonk_public_input, plonk_witness) = fq_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (circuit, x, w) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
+        let (circuit, x, w) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
 
         Ok(())
     }
@@ -129,7 +129,7 @@ mod tests {
         for (w, v) in witnesses.iter().zip(values) {
             call.witness(*w, v)?
         }
-        let (fp_trace, fq_trace) = call.trace(None)?;
+        let (fp_trace, fq_trace) = call.trace()?;
         let output = fp_trace.outputs[0];
 
         let mut sponge = halo_poseidon::Sponge::<PallasConfig>::new(Protocols::PCDL);
@@ -137,10 +137,10 @@ mod tests {
         let expected_output = sponge.challenge();
         assert_eq!(output, expected_output);
 
-        let (plonk_public_input, plonk_witness) = fp_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
-        let (plonk_public_input, plonk_witness) = fq_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (circuit, x, w) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
+        let (circuit, x, w) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
 
         Ok(())
     }
@@ -161,7 +161,7 @@ mod tests {
         for (w, v) in witnesses.iter().zip(values) {
             call.witness_affine(*w, v)?
         }
-        let (fp_trace, fq_trace) = call.trace(None)?;
+        let (fp_trace, fq_trace) = call.trace()?;
         let output = fp_trace.outputs[0];
 
         let mut sponge = halo_poseidon::Sponge::<PallasConfig>::new(Protocols::PCDL);
@@ -169,10 +169,10 @@ mod tests {
         let expected_output = sponge.challenge();
         assert_eq!(output, expected_output);
 
-        let (plonk_public_input, plonk_witness) = fp_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
-        let (plonk_public_input, plonk_witness) = fq_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (circuit, x, w) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
+        let (circuit, x, w) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
 
         Ok(())
     }

@@ -17,9 +17,12 @@ pub const W_POLYS: usize = 16;
 /// How many round coefficient polynomials in plonk
 pub const R_POLYS: usize = 15;
 /// How many selector polynomials in plonk
-pub const Q_POLYS: usize = 9;
+pub const Q_POLYS: usize = 10;
 /// How many copy constraint polynomials in plonk
 pub const S_POLYS: usize = 8;
+/// The maximum degree of the constraint polynomials in f_gc. I.e.
+/// f_gc.degree() <= n * CONSTRAINT_DEGREE_MULTIPLIER.
+pub const CONSTRAINT_DEGREE_MULTIPLIER: usize = 8;
 
 pub trait MultiAssign<T> {
     fn multi_assign<const N: usize>(&mut self, row: usize, values: [T; N]);
@@ -199,25 +202,25 @@ impl<P: PastaConfig> std::fmt::Debug for Trace<P> {
             write!(f, "\n")?;
         }
 
-        // write!(f, "\n|  i ||")?;
-        // for i in 0..self.r_polys.len() {
-        //     write!(f, " r{:>2} |", i)?;
-        // }
-        // write!(f, "\n|----||")?;
-        // for _ in 0..self.r_polys.len() {
-        //     write!(f, "-----|")?;
-        // }
-        // write!(f, "\n")?;
-        // for i in 0..self.rows {
-        //     let i = i + 1;
-        //     let omega_i = &self.omega.pow([i as u64]);
-        //     write!(f, "| {:>i_width$} ||", i)?;
-        //     for j in 0..self.r_polys.len() {
-        //         let eval = self.r_polys[j].evaluate(&omega_i);
-        //         write!(f, "{:>width$} |", fmt_scalar::<P>(eval))?;
-        //     }
-        //     write!(f, "\n")?;
-        // }
+        write!(f, "\n|  i ||")?;
+        for i in 0..self.r_polys.len() {
+            write!(f, " r{:>2} |", i)?;
+        }
+        write!(f, "\n|----||")?;
+        for _ in 0..self.r_polys.len() {
+            write!(f, "-----|")?;
+        }
+        write!(f, "\n")?;
+        for i in 0..self.rows {
+            let i = i + 1;
+            let omega_i = &self.omega.pow([i as u64]);
+            write!(f, "| {:>i_width$} ||", i)?;
+            for j in 0..self.r_polys.len() {
+                let eval = self.r_polys[j].evaluate(&omega_i);
+                write!(f, "{:>width$} |", fmt_scalar::<P>(eval))?;
+            }
+            write!(f, "\n")?;
+        }
 
         Ok(())
     }

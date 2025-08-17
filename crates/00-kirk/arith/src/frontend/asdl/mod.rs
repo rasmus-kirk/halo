@@ -7,7 +7,7 @@ use crate::frontend::{
     Call,
     pcdl::{CallInstance, WireHPoly, WireInstance, WirePublicParams},
     poseidon::outer_sponge::OuterSponge,
-    primitives::{WireAffine, WireScalar},
+    primitives::{WireAffine, WireBool, WireScalar},
 };
 
 fn point_dot<P: PastaConfig>(a: &[WireScalar<P>], p: &[WireAffine<P>]) -> WireAffine<P> {
@@ -22,6 +22,11 @@ fn point_dot<P: PastaConfig>(a: &[WireScalar<P>], p: &[WireAffine<P>]) -> WireAf
 }
 
 pub trait CallAccumulator {
+    fn public_input_accumulator<P: PastaConfig>(
+        &mut self,
+        wire_accumulator: &WireAccumulator<P>,
+        accumulator: &Accumulator<P>,
+    ) -> Result<()>;
     fn witness_accumulator<P: PastaConfig>(
         &mut self,
         wire_accumulator: &WireAccumulator<P>,
@@ -37,6 +42,16 @@ impl CallAccumulator for Call {
         let instance = &accumulator.q;
         let wire_instance = &wire_accumulator.instance;
         self.witness_instance(wire_instance, instance)?;
+        Ok(())
+    }
+    fn public_input_accumulator<P: PastaConfig>(
+        &mut self,
+        wire_accumulator: &WireAccumulator<P>,
+        accumulator: &Accumulator<P>,
+    ) -> Result<()> {
+        let instance = &accumulator.q;
+        let wire_instance = &wire_accumulator.instance;
+        self.public_input_instance(wire_instance, instance)?;
         Ok(())
     }
 }
@@ -82,7 +97,7 @@ impl<P: PastaConfig> AccumulatedHPolys<P> {
 
 #[derive(Clone)]
 pub struct WireAccumulator<P: PastaConfig> {
-    instance: WireInstance<P>,
+    pub instance: WireInstance<P>,
 }
 impl<P: PastaConfig> WireAccumulator<P> {
     pub fn witness(n: usize) -> Self {
@@ -90,10 +105,20 @@ impl<P: PastaConfig> WireAccumulator<P> {
         Self { instance }
     }
 
+    pub fn public_input(n: usize) -> Self {
+        let instance = WireInstance::public_input(n);
+        Self { instance }
+    }
+
     pub fn common_subroutine(
         pp: WirePublicParams<P>,
         qs: Vec<WireInstance<P>>,
-    ) -> (WireAffine<P>, WireScalar<P>, AccumulatedHPolys<P>) {
+    ) -> (
+        WireBool<P::OtherCurve>,
+        WireAffine<P>,
+        WireScalar<P>,
+        AccumulatedHPolys<P>,
+    ) {
         let m = qs.len();
 
         let mut transcript = OuterSponge::new(Protocols::ASDL);
@@ -107,18 +132,17 @@ impl<P: PastaConfig> WireAccumulator<P> {
         // (3). Check that U_0 is a deterministic commitment to h_0: U_0 = PCDL.Commit_ρ0(ck^(1)_PC, h; ω = ⊥).
 
         // 4. For each i ∈ [m]:
+        let mut res = WireBool::t();
         for q in qs {
             // 4.a Parse q_i as a tuple ((C_i, d_i, z_i, v_i), π_i).
             // 4.b Compute (h_i(X), U_i) := PCDL.SuccinctCheckρ0(rk, C_i, z_i, v_i, π_i) (see Figure 2).
-            let (h_i, U_i) = q.succinct_check(pp);
+            let (b, h_i, U_i) = q.succinct_check(pp);
             hs.hs.push(h_i);
             Us.push(U_i);
+            res = res & b;
 
             // 5. For each i in [n], check that d_i = D. (We accumulate only the degree bound D.)
         }
-
-        hs.hs[0].xis[0].print("xi[0][0]");
-        hs.hs[0].xis[1].print("xi[0][1]");
 
         // 6. Compute the challenge α := ρ1([h_i, U_i]^n_(i=0)) ∈ F_q.
         transcript.absorb_fp(&hs.get_scalars());
@@ -129,7 +153,6 @@ impl<P: PastaConfig> WireAccumulator<P> {
         // 7. Set the polynomial h(X) := Σ^n_(i=0) α^i · h_i(X) ∈ Fq[X].
 
         // 8. Compute the accumulated commitment C := Σ^n_(i=0) α^i · U_i.
-        alpha.print("alpha");
         let C = point_dot(&hs.alphas, &Us);
 
         // 9. Compute the challenge z := ρ1(C, h) ∈ F_q.
@@ -139,20 +162,21 @@ impl<P: PastaConfig> WireAccumulator<P> {
         let C_bar = C;
 
         // 11. Output (C_bar, d, z, h(X)).
-        (C_bar, z, hs)
+        (res, C_bar, z, hs)
     }
 
-    pub fn verify(self, pp: WirePublicParams<P>, qs: Vec<WireInstance<P>>) {
+    pub fn verify(self, pp: WirePublicParams<P>, qs: Vec<WireInstance<P>>) -> WireBool<P> {
         let acc = self;
         let WireInstance { C, z, v, pi: _ } = acc.instance;
 
         // 1. The accumulation verifier V computes (C_bar', d', z', h(X)) := T^ρ(avk, [qi]^n_(i=1), π_V)
-        let (C_bar_prime, z_prime, h) = Self::common_subroutine(pp, qs);
+        let (is_subroutine_ok, C_bar_prime, z_prime, h) = Self::common_subroutine(pp, qs);
 
         // 2. Then checks that C_bar' = C_bar, d' = d, z' = z, and h(z) = v.
-        C_bar_prime.assert_eq(C);
-        z_prime.assert_eq(z);
-        h.eval(z).assert_eq(v);
+        let is_C_bar_eq = C_bar_prime.equals(C);
+        let is_z_prime_eq = z_prime.equals(z);
+        let is_h_eval_eq = h.eval(z).equals(v);
+        (is_subroutine_ok & is_C_bar_eq).message_pass() & is_z_prime_eq & is_h_eval_eq
     }
 }
 
@@ -163,7 +187,10 @@ mod tests {
         acc::{self, Accumulator},
         pcdl::Instance,
     };
-    use halo_group::{PallasConfig, ark_std::test_rng};
+    use halo_group::{
+        Fp, PallasConfig,
+        ark_std::{One, test_rng},
+    };
 
     use crate::{
         frontend::{
@@ -195,7 +222,6 @@ mod tests {
         let k = 2;
 
         let (instances, accumulator) = accumulate_random_instances(n, k)?;
-        println!("\n");
 
         let pp = WirePublicParams::<PallasConfig>::new(n);
         let mut wire_instances = Vec::new();
@@ -203,7 +229,10 @@ mod tests {
             wire_instances.push(WireInstance::witness(n));
         }
         let wire_accumulator = WireAccumulator::witness(n);
-        wire_accumulator.clone().verify(pp, wire_instances.clone());
+        wire_accumulator
+            .clone()
+            .verify(pp, wire_instances.clone())
+            .output();
 
         let mut call = Call::new();
 
@@ -212,12 +241,13 @@ mod tests {
             call.witness_instance(wire_instance, &instance)?
         }
 
-        let (fp_trace, fq_trace) = call.trace(None)?;
+        let (fp_trace, fq_trace) = call.trace()?;
 
-        let (plonk_public_input, plonk_witness) = fp_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
-        let (plonk_public_input, plonk_witness) = fq_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        assert_eq!(fp_trace.outputs[0], Fp::one());
+        let (circuit, x, w) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
+        let (circuit, x, w) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
 
         Ok(())
     }

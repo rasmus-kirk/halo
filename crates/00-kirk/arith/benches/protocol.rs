@@ -277,59 +277,59 @@ fn get_incoming_nodes(graph: &DiGraph<RandGate, &str>, node_idx: NodeIndex) -> V
 //     group.finish();
 // }
 
-pub fn prover_verifier_scalar_mul(c: &mut Criterion) {
-    use halo_group::ark_ff::UniformRand;
+// pub fn prover_verifier_scalar_mul(c: &mut Criterion) {
+//     use halo_group::ark_ff::UniformRand;
 
-    env_logger::init();
-    let group = c.benchmark_group("prover_verifier");
-    let rng = &mut test_rng();
-    println!(
-        "|‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|"
-    );
-    println!(
-        "| n      | fp_rows  | fq_rows  | Circuit (s)  | Trace (s)    | Prover (s)   | Verifier (s) |"
-    );
-    println!(
-        "|========|==========|==========|==============|==============|==============|==============|"
-    );
-    for size in MIN..MAX + 1 {
-        let n = 2usize.pow(size as u32) - 3 * size - 2;
-        let start_time = Instant::now();
-        let x = WireScalar::<PallasConfig>::constant(Scalar::<PallasConfig>::rand(rng));
-        let p = WireAffine::constant(Affine::rand(rng));
-        for _ in 0..n {
-            let _ = p * x;
-        }
-        let random_circ_time = start_time.elapsed().as_secs_f32();
+//     env_logger::init();
+//     let group = c.benchmark_group("prover_verifier");
+//     let rng = &mut test_rng();
+//     println!(
+//         "|‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|"
+//     );
+//     println!(
+//         "| n      | fp_rows  | fq_rows  | Circuit (s)  | Trace (s)    | Prover (s)   | Verifier (s) |"
+//     );
+//     println!(
+//         "|========|==========|==========|==============|==============|==============|==============|"
+//     );
+//     for size in MIN..MAX + 1 {
+//         let n = 2usize.pow(size as u32) - 3 * size - 2;
+//         let start_time = Instant::now();
+//         let x = WireScalar::<PallasConfig>::constant(Scalar::<PallasConfig>::rand(rng));
+//         let p = WireAffine::constant(Affine::rand(rng));
+//         for _ in 0..n {
+//             let _ = p * x;
+//         }
+//         let random_circ_time = start_time.elapsed().as_secs_f32();
 
-        let start_time = Instant::now();
-        let (fp_trace, fq_trace) = Call::<PallasConfig>::new().trace().unwrap();
-        let trace_time = start_time.elapsed().as_secs_f32();
+//         let start_time = Instant::now();
+//         let (fp_trace, fq_trace) = Call::<PallasConfig>::new().trace().unwrap();
+//         let trace_time = start_time.elapsed().as_secs_f32();
 
-        let fp_trace_clone = fp_trace.clone();
-        let fq_trace_clone = fq_trace.clone();
-        let start_time = Instant::now();
-        let fp_pi = PlonkProof::naive_prover(rng, fp_trace_clone);
-        let fq_pi = PlonkProof::naive_prover(rng, fq_trace_clone);
-        let prover_time = start_time.elapsed().as_secs_f32();
+//         let fp_trace_clone = fp_trace.clone();
+//         let fq_trace_clone = fq_trace.clone();
+//         let start_time = Instant::now();
+//         let fp_pi = PlonkProof::naive_prover(rng, fp_trace_clone);
+//         let fq_pi = PlonkProof::naive_prover(rng, fq_trace_clone);
+//         let prover_time = start_time.elapsed().as_secs_f32();
 
-        let rows = fq_trace.rows;
-        let start_time = Instant::now();
-        fp_pi.verify(fp_trace).unwrap();
-        fq_pi.verify(fq_trace).unwrap();
-        let verifier_time = start_time.elapsed().as_secs_f32();
+//         let rows = fq_trace.rows;
+//         let start_time = Instant::now();
+//         fp_pi.verify(fp_trace).unwrap();
+//         fq_pi.verify(fq_trace).unwrap();
+//         let verifier_time = start_time.elapsed().as_secs_f32();
 
-        Frontend::reset();
+//         Frontend::reset();
 
-        println!(
-            "| {:>6} | {:>8} | {:>12.8} | {:>12.8} | {:>12.8} | {:>12.8} |",
-            n, rows, random_circ_time, trace_time, prover_time, verifier_time
-        );
-    }
-    println!("|____|______________|______________|______________|");
+//         println!(
+//             "| {:>6} | {:>8} | {:>12.8} | {:>12.8} | {:>12.8} | {:>12.8} |",
+//             n, rows, random_circ_time, trace_time, prover_time, verifier_time
+//         );
+//     }
+//     println!("|____|______________|______________|______________|");
 
-    group.finish();
-}
+//     group.finish();
+// }
 
 pub fn prover_verifier_pcdl(c: &mut Criterion) {
     env_logger::init();
@@ -401,24 +401,25 @@ pub fn prover_verifier_pcdl(c: &mut Criterion) {
         call.witness(c, c_v).unwrap();
 
         let circ_time = start_time.elapsed().as_secs_f32();
+        println!("circ_time: {} s", circ_time);
 
         let start_time = Instant::now();
-        let (fp_trace, fq_trace) = call.trace().unwrap();
+        let (fp_trace, fq_trace) = call.trace(None).unwrap();
         let trace_time = start_time.elapsed().as_secs_f32();
 
         let fp_rows = fp_trace.rows;
         let fq_rows = fq_trace.rows;
 
-        let fp_trace_clone = fp_trace.clone();
-        let fq_trace_clone = fq_trace.clone();
+        let (fp_circuit, fp_x, fp_w) = fp_trace.consume();
+        let (fq_circuit, fq_x, fq_w) = fq_trace.consume();
         let start_time = Instant::now();
-        let pi_fp = PlonkProof::naive_prover(rng, fp_trace_clone);
-        let pi_fq = PlonkProof::naive_prover(rng, fq_trace_clone);
+        let pi_fp = PlonkProof::naive_prover(rng, fp_circuit, fp_x.clone(), fp_w);
+        let pi_fq = PlonkProof::naive_prover(rng, fq_circuit, fq_x.clone(), fq_w);
         let prover_time = start_time.elapsed().as_secs_f32();
 
         let start_time = Instant::now();
-        pi_fp.verify(fp_trace).unwrap();
-        pi_fq.verify(fq_trace).unwrap();
+        pi_fp.verify(fp_circuit, fp_x).unwrap();
+        pi_fq.verify(fq_circuit, fq_x).unwrap();
         let verifier_time = start_time.elapsed().as_secs_f32();
 
         Frontend::reset();

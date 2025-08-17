@@ -2,7 +2,7 @@
 
 use std::{
     fmt,
-    ops::{Add, Div, Mul, Neg, Sub},
+    ops::{Add, AddAssign, Div, Mul, Neg, Sub},
     sync::OnceLock,
 };
 
@@ -158,6 +158,11 @@ impl Add for PastaAffine {
             }
             (None, None) => panic!("No Field ID found for PastaFE!"),
         }
+    }
+}
+impl AddAssign for PastaAffine {
+    fn add_assign(&mut self, other: Self) {
+        *self = *self + other;
     }
 }
 
@@ -340,6 +345,11 @@ impl Add for PastaFE {
             | (_, Some(PastaFieldId::Fq)) => (Fq::from(self.inner) + Fq::from(other.inner)).into(),
             (None, None) => panic!("No Field ID found for PastaFE!"),
         }
+    }
+}
+impl AddAssign for PastaFE {
+    fn add_assign(&mut self, other: Self) {
+        *self = *self + other;
     }
 }
 impl Mul for PastaFE {

@@ -111,17 +111,17 @@ mod tests {
         call.witness(s1, s1_v)?;
         call.witness(s2, s2_v)?;
 
-        let (fp_trace, fq_trace) = call.trace(None)?;
+        let (fp_trace, fq_trace) = call.trace()?;
 
         let outputs: [_; STATE_SIZE] = array::from_fn(|i| fp_trace.outputs[i]);
         let mut expected_state = [s0_v, s1_v, s2_v];
         halo_poseidon::inner_sponge::poseidon_block_cipher::<VestaConfig>(&mut expected_state);
         assert_eq!(outputs, expected_state);
 
-        let (plonk_public_input, plonk_witness) = fp_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
-        let (plonk_public_input, plonk_witness) = fq_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (circuit, x, w) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
+        let (circuit, x, w) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
 
         Ok(())
     }
@@ -141,7 +141,7 @@ mod tests {
         for (w, v) in witnesses.iter().zip(values) {
             call.witness(*w, v)?
         }
-        let (fp_trace, fq_trace) = call.trace(None)?;
+        let (fp_trace, fq_trace) = call.trace()?;
         let output = fp_trace.outputs[0];
 
         let mut sponge = halo_poseidon::inner_sponge::PoseidonSponge::<VestaConfig>::new();
@@ -149,10 +149,10 @@ mod tests {
         let expected_output = sponge.squeeze();
         assert_eq!(output, expected_output);
 
-        let (plonk_public_input, plonk_witness) = fp_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
-        let (plonk_public_input, plonk_witness) = fq_trace.consume();
-        PlonkProof::naive_prover(rng, plonk_witness).verify(plonk_public_input)?;
+        let (circuit, x, w) = fp_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
+        let (circuit, x, w) = fq_trace.consume();
+        PlonkProof::naive_prover(rng, circuit, &x, w).verify(circuit, &x)?;
 
         Ok(())
     }
