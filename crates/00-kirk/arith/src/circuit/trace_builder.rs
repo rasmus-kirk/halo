@@ -662,15 +662,14 @@ impl TraceBuilder {
 
                         // ----- Gate Constraints ----- //
                         let row = slots[0].row_0_indexed();
-                        let (ws, qs, rs) = (&mut ws[fid_idx], &mut qs[fid_idx], &mut rs[fid_idx]);
                         let w: [_; W_POLYS] =
                             [p.x, p.y, a, g.x, g.y, b, q.x, q.y, r.x, r.y, βq, λq, αr, γr, δr, λr];
                         //                    [l, r, o, m, c, p, +, *, =, R]
                         let q: [_; Q_POLYS] = [O, O, O, O, O, O, O, I, O, O];
                         let r: [_; R_POLYS] = [pow_2i, O, O, O, O, O, O, O, O, O, O, O, O, O, O];
-                        ws.multi_assign(row, w);
-                        qs.multi_assign(row, q);
-                        rs.multi_assign(row, r);
+                        ws[fid_idx].multi_assign(row, w);
+                        qs[fid_idx].multi_assign(row, q);
+                        rs[fid_idx].multi_assign(row, r);
                     }
 
                     let slots = self.get_slot_ids(fid);

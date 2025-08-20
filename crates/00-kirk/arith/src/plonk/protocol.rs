@@ -781,9 +781,9 @@ fn affine_mul_constraints_evals<P: PastaConfig>(
     result += λ·λ - xp·2 - xq;
     result += λq * (xp - xq) - yp - yq;
 
-    // // ----- R = Q + G ----- //
+    // ----- R = Q + G ----- //
 
-    // // (xg - xq) · ((xg - xq) · λ - (yg - yq))
+    // (xg - xq) · ((xg - xq) · λ - (yg - yq))
     let xg一xq = xg - xq;
     let yg一yq = yg - yq;
     result += (&xg一xq) * (&xg一xq * λr - yg一yq);
