@@ -1,13 +1,52 @@
-{pkgs, self}: let
+{pkgs, self, lib, resholve, writeTextFile, runtimeShell, stdenv, shellcheck}: let
   fonts = pkgs.makeFontsConf { fontDirectories = [ pkgs.dejavu_fonts ]; };
   latexPkgs =  with pkgs; [
+    uutils-coreutils-noprefix
     pandoc
     haskellPackages.pandoc-crossref
     texlive.combined.scheme-full
     librsvg
-    uutils-coreutils-noprefix
   ];
-  mk-pandoc-script = pkgs.writeShellApplication {
+  # writeShellApplication with clean path
+  writeShellApplication =
+    { name
+    , text
+    , runtimeInputs ? [ ]
+    , checkPhase ? null
+    }:
+    writeTextFile {
+      inherit name;
+      executable = true;
+      destination = "/bin/${name}";
+      text = ''
+        #!${runtimeShell}
+        set -o errexit
+        set -o nounset
+        set -o pipefail
+      '' + lib.optionalString (runtimeInputs == [ ]) ''
+
+        export PATH=""
+      '' + ''
+      '' + lib.optionalString (runtimeInputs != [ ]) ''
+
+        export PATH="${lib.makeBinPath runtimeInputs}"
+      '' + ''
+
+        ${text}
+      '';
+
+      checkPhase =
+        if checkPhase == null then ''
+          runHook preCheck
+          ${stdenv.shellDryRun} "$target"
+          ${shellcheck}/bin/shellcheck "$target"
+          runHook postCheck
+        ''
+        else checkPhase;
+
+      meta.mainProgram = name;
+    };
+  mk-pandoc-script = writeShellApplication {
     name = "mk-pandoc-script";
     runtimeInputs = latexPkgs;
     text = ''
@@ -52,7 +91,7 @@
         -o "$out/$name"
     '';
   };
-  mk-pandoc = pkgs.writeShellApplication {
+  mk-pandoc = writeShellApplication {
     name = "mk-pandoc";
     runtimeInputs = [ mk-pandoc-script ];
     text = ''
@@ -64,9 +103,9 @@
       mk-pandoc-script "out.pdf" "." "$@"
     '';
   };
-  mk-pandoc-loop = pkgs.writeShellApplication {
+  mk-pandoc-loop = writeShellApplication {
     name = "pandoc-compile-continuous";
-    runtimeInputs = [mk-pandoc pkgs.entr pkgs.uutils-core-utils-noprefix];
+    runtimeInputs = [mk-pandoc pkgs.entr];
     text = ''
       set +e
       if [ -z "''${1:-}" ]; then
@@ -87,12 +126,12 @@
       ' /_ "$@"
     '';
   };
-  spellcheck = pkgs.writeShellApplication {
+  spellcheck = writeShellApplication {
     name = "spellcheck";
     runtimeInputs = [pkgs.nodePackages_latest.cspell];
     text = ''cspell "**/*.md"'';
   };
-  spellcheck-watch = pkgs.writeShellApplication {
+  spellcheck-watch = writeShellApplication {
     name = "spellcheck";
     runtimeInputs = [pkgs.nodePackages_latest.cspell];
     text = ''watch --color cspell --color "**/*.md"'';
