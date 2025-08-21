@@ -216,13 +216,18 @@ $$
 
 Now, we want that $x = y \implies b = 1$ and $a \neq b \implies \a = 0$.
 
-| Degree | | Constraint                                             | Meaning                                 |
-|:------:|-|:-------------------------------------------------------|:----------------------------------------|
-|      3 | | $q_{\text{(=)}} \cdot ((x - y) \cdot b) = 0$           | $x \neq y \implies b = 0$               |
-|      3 | | $q_{\text{(=)}} \cdot ((x - y) \cdot \a + b - 1) = 0$  | $x = y \implies b = 1$                  |
+\begin{center}
+  \captionof*{table}{Equals Constraints} \label{tab:equals-constraints} 
+  \begin{tabu}{|cllll|}
+    \hline
+    Degree & & Constraint                    & & Meaning                    \\\tabucline[1pt]{-}
+    3      & & $(x - y) \cdot b$             & & $x \neq y \implies b = 0$  \\\hline
+    3      & & $(x - y) \cdot \a + b - 1$    & & $x = y \implies b = 1$     \\\hline
+  \end{tabu}
+\end{center}
 
 \begin{center}
-  \captionof*{table}{Witness Row} \label{tab:equals-witness} 
+  \captionof*{table}{Equals Witness Row} \label{tab:equals-witness} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
     $w_1$ & $w_2$ & $w_3$ & $w_4$  & $w_5$  & $w_6$  & $w_7$  & $w_8$  & $w_9$  & $w_{10}$ & $w_{11}$ & $w_{12}$ & $w_{13}$ & $w_{14}$ & $w_{15}$ & $w_{16}$ \\\tabucline[1pt]{-}
@@ -232,7 +237,7 @@ Now, we want that $x = y \implies b = 1$ and $a \neq b \implies \a = 0$.
 \end{center}
 
 \begin{center}
-  \captionof*{table}{Selector Row} \label{tab:equals-selector} 
+  \captionof*{table}{Equals Selector Row} \label{tab:equals-selector} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
     $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_H$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
@@ -296,7 +301,8 @@ y)$. To see why it works, given that $x, y$ are already constrained to be bits:
   \end{tabu}
 \end{center}
 
-This can naively be done in three rows, but we can compress it to a single row as $0 = x + y - c - (x \cdot y)$:
+This can naively be done in three rows, but we can compress it to a single
+row as $0 = x + y - c - (x \cdot y)$:
 
 \begin{center}
   \captionof*{table}{Witness Row} \label{tab:witness-point-witness} 
@@ -319,7 +325,8 @@ This can naively be done in three rows, but we can compress it to a single row a
 
 ## Rangecheck
 
-We want to constrain $x \in [0, 2^{254})$. We decompose $x$ into 254 bits and check that:
+We want to constrain $x \in [0, 2^{254})$. We decompose $x$ into 254 bits
+and check that:
 
 $$x = \sum_{i=0}^{253} b_i \cdot 2^i$$
 
@@ -527,21 +534,21 @@ Leading us to the constraints:
   \begin{tabu}{|cllll|}
     \hline
     Degree & & Constraint                                                                                                   & & Meaning                                                                                  \\\tabucline[1pt]{-}
-    3      & & $s_{1,0} - \vec{M}{0,0} \cdot s_{0,0}^7 + \vec{M}{0,1} \cdot s_{0,0}^7 + \vec{M}{0,2} \cdot s_{0,0}^7 + r_{0,0}$ & &                                                                                          \\
-    3      & & $s_{1,1} - \vec{M}{1,0} \cdot s_{0,1}^7 + \vec{M}{1,1} \cdot s_{0,1}^7 + \vec{M}{1,2} \cdot s_{0,1}^7 + r_{0,1}$ & &  $\vec{s_1} = \vec{M} \cdot (\text{sbox}(\vec{s_0})) + [r_{0,0}, r_{0,1}, r_{0,2}]^\top$ \\
-    3      & & $s_{1,2} - \vec{M}{2,0} \cdot s_{0,2}^7 + \vec{M}{2,1} \cdot s_{0,2}^7 + \vec{M}{2,2} \cdot s_{0,2}^7 + r_{0,2}$ & &                                                                                          \\\hline
-    3      & & $s_{2,0} - \vec{M}{0,0} \cdot s_{1,0}^7 + \vec{M}{0,1} \cdot s_{1,0}^7 + \vec{M}{0,2} \cdot s_{1,0}^7 + r_{1,0}$ & &                                                                                          \\
-    3      & & $s_{2,1} - \vec{M}{1,0} \cdot s_{1,1}^7 + \vec{M}{1,1} \cdot s_{1,1}^7 + \vec{M}{1,2} \cdot s_{1,1}^7 + r_{1,1}$ & &  $\vec{s_2} = \vec{M} \cdot (\text{sbox}(\vec{s_1})) + [r_{1,0}, r_{1,1}, r_{1,2}]^\top$ \\
-    3      & & $s_{2,2} - \vec{M}{2,0} \cdot s_{1,2}^7 + \vec{M}{2,1} \cdot s_{1,2}^7 + \vec{M}{2,2} \cdot s_{1,2}^7 + r_{1,2}$ & &                                                                                          \\\hline
-    3      & & $s_{3,0} - \vec{M}{0,0} \cdot s_{2,0}^7 + \vec{M}{0,1} \cdot s_{2,0}^7 + \vec{M}{0,2} \cdot s_{2,0}^7 + r_{2,0}$ & &                                                                                          \\
-    3      & & $s_{3,1} - \vec{M}{1,0} \cdot s_{2,1}^7 + \vec{M}{1,1} \cdot s_{2,1}^7 + \vec{M}{1,2} \cdot s_{2,1}^7 + r_{2,1}$ & &  $\vec{s_3} = \vec{M} \cdot (\text{sbox}(\vec{s_2})) + [r_{2,0}, r_{2,1}, r_{2,2}]^\top$ \\
-    3      & & $s_{3,2} - \vec{M}{2,0} \cdot s_{2,2}^7 + \vec{M}{2,1} \cdot s_{2,2}^7 + \vec{M}{2,2} \cdot s_{2,2}^7 + r_{2,2}$ & &                                                                                          \\\hline
-    3      & & $s_{4,0} - \vec{M}{0,0} \cdot s_{3,0}^7 + \vec{M}{0,1} \cdot s_{3,0}^7 + \vec{M}{0,2} \cdot s_{3,0}^7 + r_{3,0}$ & &                                                                                          \\
-    3      & & $s_{4,1} - \vec{M}{1,0} \cdot s_{3,1}^7 + \vec{M}{1,1} \cdot s_{3,1}^7 + \vec{M}{1,2} \cdot s_{3,1}^7 + r_{3,1}$ & &  $\vec{s_4} = \vec{M} \cdot (\text{sbox}(\vec{s_3})) + [r_{3,0}, r_{3,1}, r_{3,2}]^\top$ \\
-    3      & & $s_{4,2} - \vec{M}{2,0} \cdot s_{3,2}^7 + \vec{M}{2,1} \cdot s_{3,2}^7 + \vec{M}{2,2} \cdot s_{3,2}^7 + r_{3,2}$ & &                                                                                          \\\hline
-    3      & & $s_{5,0} - \vec{M}{0,0} \cdot s_{4,0}^7 + \vec{M}{0,1} \cdot s_{4,0}^7 + \vec{M}{0,2} \cdot s_{4,0}^7 + r_{4,0}$ & &                                                                                          \\
-    3      & & $s_{5,1} - \vec{M}{1,0} \cdot s_{4,1}^7 + \vec{M}{1,1} \cdot s_{4,1}^7 + \vec{M}{1,2} \cdot s_{4,1}^7 + r_{4,1}$ & &  $\vec{s_5} = \vec{M} \cdot (\text{sbox}(\vec{s_4})) + [r_{4,0}, r_{4,1}, r_{4,2}]^\top$ \\
-    3      & & $s_{5,2} - \vec{M}{2,0} \cdot s_{4,2}^7 + \vec{M}{2,1} \cdot s_{4,2}^7 + \vec{M}{2,2} \cdot s_{4,2}^7 + r_{4,2}$ & &                                                                                          \\\hline
+    8      & & $s_{1,0} - \vec{M}{0,0} \cdot s_{0,0}^7 + \vec{M}{0,1} \cdot s_{0,0}^7 + \vec{M}{0,2} \cdot s_{0,0}^7 + r_{0,0}$ & &                                                                                          \\
+    8      & & $s_{1,1} - \vec{M}{1,0} \cdot s_{0,1}^7 + \vec{M}{1,1} \cdot s_{0,1}^7 + \vec{M}{1,2} \cdot s_{0,1}^7 + r_{0,1}$ & &  $\vec{s_1} = \vec{M} \cdot (\text{sbox}(\vec{s_0})) + [r_{0,0}, r_{0,1}, r_{0,2}]^\top$ \\
+    8      & & $s_{1,2} - \vec{M}{2,0} \cdot s_{0,2}^7 + \vec{M}{2,1} \cdot s_{0,2}^7 + \vec{M}{2,2} \cdot s_{0,2}^7 + r_{0,2}$ & &                                                                                          \\\hline
+    8      & & $s_{2,0} - \vec{M}{0,0} \cdot s_{1,0}^7 + \vec{M}{0,1} \cdot s_{1,0}^7 + \vec{M}{0,2} \cdot s_{1,0}^7 + r_{1,0}$ & &                                                                                          \\
+    8      & & $s_{2,1} - \vec{M}{1,0} \cdot s_{1,1}^7 + \vec{M}{1,1} \cdot s_{1,1}^7 + \vec{M}{1,2} \cdot s_{1,1}^7 + r_{1,1}$ & &  $\vec{s_2} = \vec{M} \cdot (\text{sbox}(\vec{s_1})) + [r_{1,0}, r_{1,1}, r_{1,2}]^\top$ \\
+    8      & & $s_{2,2} - \vec{M}{2,0} \cdot s_{1,2}^7 + \vec{M}{2,1} \cdot s_{1,2}^7 + \vec{M}{2,2} \cdot s_{1,2}^7 + r_{1,2}$ & &                                                                                          \\\hline
+    8      & & $s_{3,0} - \vec{M}{0,0} \cdot s_{2,0}^7 + \vec{M}{0,1} \cdot s_{2,0}^7 + \vec{M}{0,2} \cdot s_{2,0}^7 + r_{2,0}$ & &                                                                                          \\
+    8      & & $s_{3,1} - \vec{M}{1,0} \cdot s_{2,1}^7 + \vec{M}{1,1} \cdot s_{2,1}^7 + \vec{M}{1,2} \cdot s_{2,1}^7 + r_{2,1}$ & &  $\vec{s_3} = \vec{M} \cdot (\text{sbox}(\vec{s_2})) + [r_{2,0}, r_{2,1}, r_{2,2}]^\top$ \\
+    8      & & $s_{3,2} - \vec{M}{2,0} \cdot s_{2,2}^7 + \vec{M}{2,1} \cdot s_{2,2}^7 + \vec{M}{2,2} \cdot s_{2,2}^7 + r_{2,2}$ & &                                                                                          \\\hline
+    8      & & $s_{4,0} - \vec{M}{0,0} \cdot s_{3,0}^7 + \vec{M}{0,1} \cdot s_{3,0}^7 + \vec{M}{0,2} \cdot s_{3,0}^7 + r_{3,0}$ & &                                                                                          \\
+    8      & & $s_{4,1} - \vec{M}{1,0} \cdot s_{3,1}^7 + \vec{M}{1,1} \cdot s_{3,1}^7 + \vec{M}{1,2} \cdot s_{3,1}^7 + r_{3,1}$ & &  $\vec{s_4} = \vec{M} \cdot (\text{sbox}(\vec{s_3})) + [r_{3,0}, r_{3,1}, r_{3,2}]^\top$ \\
+    8      & & $s_{4,2} - \vec{M}{2,0} \cdot s_{3,2}^7 + \vec{M}{2,1} \cdot s_{3,2}^7 + \vec{M}{2,2} \cdot s_{3,2}^7 + r_{3,2}$ & &                                                                                          \\\hline
+    8      & & $s_{5,0} - \vec{M}{0,0} \cdot s_{4,0}^7 + \vec{M}{0,1} \cdot s_{4,0}^7 + \vec{M}{0,2} \cdot s_{4,0}^7 + r_{4,0}$ & &                                                                                          \\
+    8      & & $s_{5,1} - \vec{M}{1,0} \cdot s_{4,1}^7 + \vec{M}{1,1} \cdot s_{4,1}^7 + \vec{M}{1,2} \cdot s_{4,1}^7 + r_{4,1}$ & &  $\vec{s_5} = \vec{M} \cdot (\text{sbox}(\vec{s_4})) + [r_{4,0}, r_{4,1}, r_{4,2}]^\top$ \\
+    8      & & $s_{5,2} - \vec{M}{2,0} \cdot s_{4,2}^7 + \vec{M}{2,1} \cdot s_{4,2}^7 + \vec{M}{2,2} \cdot s_{4,2}^7 + r_{4,2}$ & &                                                                                          \\\hline
   \end{tabu}
 \end{center}
 
@@ -856,7 +863,7 @@ constraints. Witness:
 
 $$
 \begin{aligned}
-  \b_q &= \text{inv0}(x_a) \\
+  \g_q &= \text{inv0}(x_a) \\
   \l_q &= \begin{cases}
     \frac{3x_a^2}{2y_a}, & \text{ if } A \neq \Oc, \\
     0,                   & \text{ otherwise.}

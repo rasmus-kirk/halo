@@ -1,363 +1,89 @@
 ## Cycle of Curves
 
-If we can operate our NARK over a cycle of curves, we can optimize elliptic
-curve operations used in the circuit to great effect.
+We operate our IVC-circuit over a cycle of curves. This means that field
+operations can be handled natively in the scalar field circuit $\Fb_S$
+and elliptic curve operations are handled natively in the basefield circuit
+$\Fb_B$. This improves performance drastically, since we don't need to handle
+foreign field arithmetic at any point. The Pallas and Vesta curves use the
+other's scalar field as their base field and vice-versa:
 
-### Required Operations
+- Pallas: $a \in \Fb_p, P \in \Eb_p(\Fb_q)$
+- Vesta:  $a \in \Fb_q, P \in \Eb_q(\Fb_p)$
+- $| \Fb_p | = p , | \Fb_q | = q, | \Eb_p(\Fb_q) | = p, p > q$
 
-Since our goal is to construct a minimal Halo2-style recursive proof scheme,
-we start by defining the language that's needed to implement the relevant
-verifiers ($\ASDLVerifier$, $\SurkalVerifier$):
+This is useful when creating proofs. Starting in the first proof in an
+IVC-setting, we need a proof that verifies some relation, the simplest
+minimal example would be $a \cdot P \meq \Oc$. This then creates two constraint
+tables, one over $\Fb_S = \Fb_p$ and one over $\Fb_B = \Fb_B$. Then, in the
+next IVC-step, we need to verify both proofs, but the proof over $\Fb_p$
+produces scalars over $\Fb_p$ and points over $\Eb_p(\Fb_q)$ and the proof
+over $\Fb_q$ produces scalars over $\Fb_q$ and points over $\Eb_p(\Fb_q)$. This
+is because the proof both contains scalars and points. If we did _not_
+have a cycle of curves this pattern would result in a chain:
 
-$$
-  \begin{matrix}
-    \Fb_p: & a + b & a * b & a^{-1} & a \meq b & \text{if-then-else}(a, b, c) \\
-    \Fb_q: & P + Q & aP    & -P     & P \meq Q & H(\vec{P}, \vec{a}: \Fb^k_p)
-  \end{matrix}
-$$
+- Curve 1: $a \in \Fb_{p_1}, P \in \Eb_{p_1}(\Fb_{p_2})$
+- Curve 2: $a \in \Fb_{p_2}, P \in \Eb_q(\Fb_{p_3})$
+- Curve 3: $a \in \Fb_{p_3}, P \in \Eb_q(\Fb_{p_4})$
+- ...
 
-This leads to the following constraints:
-
-- Point (non-id) ([link](https://zcash.github.io/halo2/design/gadgets/ecc/witnessing-points.html)):
-  - $q_{point (non-id)} \cdot (y^2 - x^3 - 5) = 0$
-- Point ([link](https://zcash.github.io/halo2/design/gadgets/ecc/witnessing-points.html)):
-  - $(q_{point} \cdot x) \cdot (y^2 - x^3 - 5) = 0$
-  - $(q_{point} \cdot y) \cdot (y^2 - x^3 - 5) = 0$
-- Incomplete point addition ($P \incompleteadd Q = R$) ([link](https://zcash.github.io/halo2/design/gadgets/ecc/addition.html)):
-  - $q_{add-incomplete} \cdot ((x_r + x_q + x_p) \cdot (x_p - x_q)^2 - (y_p - y_q)^2) = 0$, 
-  - $q_{add-incomplete} \cdot ((y_r + y_q) \cdot (x_p - x_q) - (y_p - y_q) \cdot (x_q - x_r)$
-- Complete point addition ([link](https://zcash.github.io/halo2/design/gadgets/ecc/addition.html)):
-  - Define the following for the below constraints:
-    $$
-    \begin{aligned}
-      \text{inv0}(x) &= \begin{cases} 
-        0,   & \text{if } x = 0 \\
-        1/x, & \text{otherwise} 
-      \end{cases} \\
-      \a &= \text{inv0}(x_q - x_p) \\
-      \b &= \text{inv0}(x_p) \\
-      \g &= \text{inv0}(x_q) \\
-      \d &= \begin{cases} 
-        \text{inv0}(y_q + y_p), & \text{if } x_q = x_p \\
-        0, & \text{otherwise} 
-      \end{cases} \\
-      \l &= \begin{cases} 
-        \frac{y_q - y_p}{x_q - x_p}, & \text{if } x_q \neq x_p \\
-        \frac{3x_p^2}{2 y_p} & \text{if } x_q = x_p \land y_p \neq 0 \\
-        0 & \text{otherwise}
-      \end{cases} \\
-    \end{aligned}
-    $$
-  - $term_1 = (x_q - x_p) \cdot ((x_q - x_p) \cdot \l - (y_q - y_p)) = 0$
-  - $term_2 = (1 - (x_q - x_p) \cdot \a) \cdot (2y_p \cdot \l - 3x_p^2) = 0$
-  - $term_3 = x_p \cdot x_q \cdot (x_q - x_r) \cdot (\l^2 - x_p - x_q - x_r) = 0$
-  - $term_4 = x_p \cdot x_q \cdot (x_q - x_r) \cdot (\l \cdot (x_p - x_r) - y_p - y_r) = 0$
-  - $term_5 = x_q \cdot (y_q + y_r) \cdot (\l^2 - x_p - x_q - x_r) = 0$
-  - $term_6 = x_q \cdot (y_q + y_r) \cdot (\l \cdot (x_p - x_r) - y_p - y_r) = 0$
-  - $term_7 = (1 - x_q \cdot \b) \cdot (x_r - x_q) = 0$
-  - $term_8 = (1 - x_q \cdot \b) \cdot (y_r - y_q) = 0$
-  - $term_9 = (1 - x_q \cdot \g) \cdot (x_r - x_p) = 0$
-  - $term_{10} = (1 - x_q \cdot \g) \cdot (y_r - y_p) = 0$
-  - $term_{11} = (1 - x_q \cdot x_p) \cdot \a \cdot (y_q + y_p) \cdot \d \cdot x_r = 0$
-  - $term_{12} = (1 - x_q \cdot x_p) \cdot \a \cdot (y_q + y_p) \cdot \d \cdot y_r = 0$
-- $P = -Q$ (home baked):
-  - $q_{point-neg} \cdot (x_p - x_q) = 0$
-  - $q_{point-neg} \cdot (y_p + y_q) = 0$
-- $P \meq Q$ (home baked):
-  - $q_{point-eq} \cdot (x_p - x_q) = 0$
-  - $q_{point-eq} \cdot (y_p - y_q) = 0$
-- $a^{-1} = b$ (home baked):
-  - $q_{inv} \cdot (a \cdot b) = 0$
-- $c = \textbf{if } b \textbf{ then } x \textbf{ else } y \implies b \cdot x + (1-b) \cdot y$ (home baked):
-  - $q_{ite} \cdot (c - (b \cdot x + (1-b) \cdot y))$
-- $c = \textbf{if } b \textbf{ then } x \textbf{ else } y \implies b \cdot x + (1-b) \cdot y$ (home baked):
-- Poseidon Constraints:
-  - Round 1:
-    - $w_6  - (r_0 + (M_{0,0} w_0^7 + M_{0,1} w_1^7 + M_{0,2} w_2^7))$
-    - $w_7  - (r_1 + (M_{1,0} w_0^7 + M_{1,1} w_1^7 + M_{1,2} w_2^7))$
-    - $w_8  - (r_2 + (M_{2,0} w_0^7 + M_{2,1} w_1^7 + M_{2,2} w_2^7))$
-  - Round 2:
-    - $w_9  - (r_3 + (M_{0,0} w_6^7 + M_{0,1} w_7^7 + M_{0,2} w_8^7))$
-    - $w_{10} - (r_4 + (M_{1,0} w_6^7 + M_{1,1} w_7^7 + M_{1,2} w_8^7))$
-    - $w_{11} - (r_5 + (M_{2,0} w_6^7 + M_{2,1} w_7^7 + M_{2,2} w_8^7))$
-  - Round 3:
-    - $w_{12} - (r_6 + (M_{0,0} w_9^7 + M_{0,1} w_{10}^7 + M_{0,2} w_{11}^7))$
-    - $w_{13} - (r_7 + (M_{1,0} w_9^7 + M_{1,1} w_{10}^7 + M_{1,2} w_{11}^7))$
-    - $w_{14} - (r_8 + (M_{2,0} w_9^7 + M_{2,1} w_{10}^7 + M_{2,2} w_{11}^7))$
-  - Round 4:
-    - $w_3 - (r_9 + (M_{0,0} w_{12}^7 + M_{0,1} w_{13}^7 + M_{0,2} w_{14}^7))$
-    - $w_4 - (r_{10} + (M_{1,0} w_{12}^7 + M_{1,1} w_{13}^7 + M_{1,2} w_{14}^7))$
-    - $w_5 - (r_{11} + (M_{2,0} w_{12}^7 + M_{2,1} w_{13}^7 + M_{2,2} w_{14}^7))$
-  - Round 5:
-    - $w_{0,\text{next}} - (r_{12} + (M_{0,0} w_3^7 + M_{0,1} w_4^7 + M_{0,2} w_5^7))$
-    - $w_{1,\text{next}} - (r_{13} + (M_{1,0} w_3^7 + M_{1,1} w_4^7 + M_{1,2} w_5^7))$
-    - $w_{2,\text{next}} - (r_{14} + (M_{2,0} w_3^7 + M_{2,1} w_4^7 + M_{2,2} w_5^7))$
-  - The $w_{i,\text{next}}$ refers to the input of the next row so the polynomial $w(\o x)$
-- Boolean range check:
-  - $q_{bit} \cdot (x \cdot (x-1)) = 0$
-- Range Check $a \in [0, 2^{\floor{p}}]$:
-  - First decompose $a$ into 21 limbs of 12 bits (a_i^{(12)}) and 1 limb
-    of 2 bits $a^{(2)}$. For each of the 12-bit limbs we can do a plookup,
-    for the 2-bit limb:
-  - $q_{p-range} (x \cdot (x - 1) \cdot (x - 2) \cdot (x - 3)) = 0$
-
-And the following gadgets:
-
-\begin{algorithm}[H]
-\caption*{
-  \textbf{Elliptic Curve Scalar Multiplication Gadget:} Performs scalar multiplication ($aP = Q$)
-  (\href{https://zcash.github.io/halo2/design/gadgets/ecc/var-base-scalar-mul.html}{link}).
-}
-\textbf{Inputs} \\
-  \Desc{$\vec{a}: \Fb^{255}$}{The bit-decomposition of scalar $a$.} \\
-  \Desc{$P: \Eb(\Fb)$}{The point to scale.} \\
-\textbf{Output} \\
-  \Desc{$Q: \Eb(\Fb)$}{Q = aP}
-\begin{algorithmic}[1]
-  \State $Acc := 2 P$
-  \For{$i = 253$ to $3$} \Comment{Incomplete addition}
-    \State $P := a_{i+1} \; ? \; P \; : \; -P$
-    \State $Acc = (Acc \incompleteadd P) \incompleteadd Acc$
-  \EndFor
-  \For{$i = 2$ to $0$} \Comment{Complete addition}
-    \State $P := a_{i+1} \; ? \; P \; : \; -P$
-    \State $Acc = (Acc + P) + Acc$
-  \EndFor
-  \If{$k_0 = 0$}
-    \State \Return $Q := Acc + (-T)$
-  \Else
-    \State \Return $Q := Acc$
-  \EndIf
-\end{algorithmic}
-\end{algorithm}
-
-#### Poseidon
-
-The Poseidon State can be one of the following values:
-
-$$
-  \textbf{SpongeState} = \begin{cases}
-    \texttt{Absorbed}(0) \\
-    \texttt{Absorbed}(1) \\
-    \texttt{Absorbed}(2) \\
-    \texttt{Squeezed}(1) \\
-    \texttt{Squeezed}(2) \\
-  \end{cases}
-$$
-The $\textbf{SpongeState}$ shouldn't be part of the circuit, it just governs
-what when the full poseidon gates should be added to the circuit, i.e. when
-enough values has been absorbed.
-
-\begin{algorithm}[H]
-\caption*{
-  \textbf{Inner Sponge Absorb Gadget:} Absorbs a list of field elements into the poseidon sponge.
-}
-\textbf{Inputs} \\
-  \Desc{$\text{sponge\_state}: \textbf{SpongeState}$}{
-    The current state condition of the sponge.
-  } \\
-  \Desc{$\vec{s}: \Fb^3$}{The inner state of the sponge (3 field elements).} \\
-  \Desc{$\vec{xs}$}{The field elements that the sponge should absorb.} \\
-\textbf{Output} \\
-  \Desc{$(c, s): (\textbf{SpongeState}, \Fb^3)$}{
-    The sponge state condition and inner state after absorption.
-  }
-\begin{algorithmic}[1]
-  \For{$x$ in $\vec{xs}$}
-    \If{$\text{sponge\_state} = \texttt{Absorbed}(n) \land n < 2$}
-      \State $\text{sponge\_state} = \texttt{Absorbed}(n + 1)$
-      \State $s_n = x$
-    \ElsIf{$\text{sponge\_state} = \texttt{Absorbed}(2)$}
-      \For{$i \in [0, 10]$} \Comment{Permute 55 times by using the Hades Gate 11 times}
-        \State $\vec{s} = PoseidonBlockCipher(i, c, \vec{s})$
-      \EndFor
-      \State $\text{sponge\_state} = \texttt{Absorbed}(1)$
-      \State $s_0 = s_0 + x$
-    \Else
-      \State $\text{sponge\_state} = \texttt{Absorbed}(1)$
-      \State $s_0 = s_0 + x$
-    \EndIf
-  \EndFor
-\end{algorithmic}
-\end{algorithm}
-
-\begin{algorithm}[H]
-\caption*{
-  \textbf{Inner Sponge Squeeze Gadget:} Squeezes a field element from the the poseidon sponge.
-}
-\textbf{Inputs} \\
-  \Desc{$\text{sponge\_state}: \textbf{SpongeState}$}{The current state condition of the sponge.} \\
-  \Desc{$\vec{s}: \Fb^3$}{The inner state of the sponge (3 field elements).} \\
-\textbf{Output} \\
-  \Desc{$(c, s, x): (\textbf{SpongeState}, \Fb^3, \Fb)$}{
-    The sponge state condition and inner state after absorption and the squeezed element
-  }
-\begin{algorithmic}[1]
-  \If{$\text{sponge\_state} = \texttt{Squeezed}(n) \land n < 2$}
-    \State $\text{sponge\_state} = \texttt{Squeezed}(n + 1)$
-    \State \textbf{Return} $x = s_n$
-  \Else
-    \For{$i \in [0, 10]$} \Comment{Permute 55 times by using the Hades Gate 11 times}
-      \State $\vec{s} = \text{HadesGate}_i(c, \vec{s})$
-    \EndFor
-    \State $\text{sponge\_state} = \texttt{Squeezed}(1)$
-    \State \textbf{Return} $x = s_0$
-  \EndIf
-\end{algorithmic}
-\end{algorithm}
-
-\begin{algorithm}[H]
-\caption*{
-  \textbf{Outer Sponge Absorb Affine Gadget:} Absorbs affine points into the inner sponge.
-}
-\textbf{Inputs} \\
-  \Desc{$\text{sponge\_state}: \textbf{SpongeState}$}{The current state condition of the sponge.} \\
-  \Desc{$\vec{s}: \Fb^3$}{The inner state of the sponge (3 field elements).} \\
-  \Desc{$\vec{Ps}$}{The affine points to absorb} \\
-\textbf{Output} \\
-  \Desc{$(c, s): (\textbf{SpongeState}, \Fb^3, \Fb)$}{
-    The sponge state condition and inner state after absorption
-  }
-\begin{algorithmic}[1]
-  \For{$P$ in $\vec{Ps}$}
-    \If{$P \meq \Oc$}
-      \State $\text{InnerAbsorb}(\text{sponge\_state}, \vec{s}, 0)$
-      \State $\text{InnerAbsorb}(\text{sponge\_state}, \vec{s}, 0)$
-    \Else
-      \State $\text{InnerAbsorb}(\text{sponge\_state}, \vec{s}, P.x)$
-      \State $\text{InnerAbsorb}(\text{sponge\_state}, \vec{s}, P.y)$
-    \EndIf
-  \EndFor
-\end{algorithmic}
-\end{algorithm}
-
-\begin{algorithm}[H]
-\caption*{
-  \textbf{Outer Sponge Absorb Field Element Gadget:} Absorbs field elements into the inner sponge.
-}
-\textbf{Inputs} \\
-  \Desc{$\text{sponge\_state}: \textbf{SpongeState}$}{The current state condition of the sponge.} \\
-  \Desc{$\vec{s}: \Fb^3$}{The inner state of the sponge (3 field elements).} \\
-  \Desc{$\vec{xs}: \Fb_{BF}$}{The field elements to absorb} \\
-\textbf{Output} \\
-  \Desc{$(c, s): (\textbf{SpongeState}, \Fb_{BF}^3, \Fb_{BF})$}{
-    The sponge state condition and inner state after absorption
-  }
-\begin{algorithmic}[1]
-  \For{$x$ in $\vec{xs}$}
-      \State $\text{InnerAbsorb}(\text{sponge\_state}, \vec{s}, x)$
-  \EndFor
-\end{algorithmic}
-\end{algorithm}
-
-\begin{algorithm}[H]
-\caption*{
-  \textbf{Outer Sponge Absorb Scalar Gadget:} Absorbs scalars into the inner sponge.
-}
-\textbf{Inputs} \\
-  \Desc{$\text{sponge\_state}: \textbf{SpongeState}$}{The current state condition of the sponge.} \\
-  \Desc{$\vec{s}: \Fb_{BF}^3$}{The inner state of the sponge (3 field elements).} \\
-  \Desc{$\vec{xs} \in (\Fb_{S})$}{The scalars to absorb} \\
-\textbf{Output} \\
-  \Desc{$(c, s): (\textbf{SpongeState}, \Fb_{BF}^3, \Fb_{BF})$}{
-    The sponge state condition and inner state after absorption
-  }
-\begin{algorithmic}[1]
-  \For{$x$ in $\vec{xs}$}
-    \If{$|\text{Scalar-Field}| < |\text{Base-Field}|$}
-      \State $\text{InnerAbsorb}(\text{sponge\_state}, \vec{s}, x)$
-    \Else
-      \State Decompose $x$ into $h, l$ where $h$ represents the high-bits of $x$ and $l$ represents the low-bit.
-      \State $\text{InnerAbsorb}(\text{sponge\_state}, \vec{s}, h)$
-      \State $\text{InnerAbsorb}(\text{sponge\_state}, \vec{s}, l)$
-    \EndIf
-  \EndFor
-\end{algorithmic}
-\end{algorithm}
-
-\begin{algorithm}[H]
-\caption*{
-  \textbf{Outer Sponge Squeeze Scalar Gadget:} Squeezes a scalar from the inner sponge.
-}
-\textbf{Inputs} \\
-  \Desc{$\text{sponge\_state}: \textbf{SpongeState}$}{The current state condition of the sponge.} \\
-  \Desc{$\vec{s}: \Fb_{BF}^3$}{The inner state of the sponge (3 field elements).} \\
-\textbf{Output} \\
-  \Desc{$(c, s, x): (\textbf{SpongeState}, \Fb_{BF}^3, \Fb_{S})$}{
-    The sponge state condition and inner state after squeezing and the squeezed scalar. 
-  }
-\begin{algorithmic}[1]
-    \If{$x < |\text{Base-Field}|$}
-      \State $\text{InnerAbsorb}(\text{sponge\_state}, \vec{x}, x)$
-    \Else
-      \State $\text{InnerAbsorb}(\text{sponge\_state}, \vec{s}, 0)$
-    \EndIf
-\end{algorithmic}
-\end{algorithm}
-
-
-This gadget returns zero for values that are too large. This means that
-there is a bias for the value zero (in one of the curves). An attacker
-could try to target that seed, in order to predict the challenges produced
-by the weaker sponge. This would allow the attacker to mess with the result
-of the proofs. Previously the attacker's odds were $\frac{1}{q}$, now it's
-$\frac{q-p}{q}$. Since $lg(q-p) \approx 86$ and $lg(q) \approx 254$ the odds
-of a successful attack are still negligible, but we do lose some security.
-
-$$\frac{q - p}{q} \approx \frac{2^{86}}{2^{254}} = 2^{86 - 254} = 2^{-168}$$
+Which means that each $p_i$ must be able to define a valid curve, and if
+this never cycles, we would need to support this infinite chain of curves. 
 
 ### Input Passing
 
-The above section describes how each language instruction is mapped to
-one of two circuits, verifying both circuits should convince the verifier
-that the program $f(w, x)$ is satisfied. However, for the Elliptic Curve
-Multiplication and the Poseidon Hashes, we need to pass inputs from one circuit
-to another. We have a circuit over $\Fb_p$, $C(\Fb_p)$, and a circuit over
-$\Fb_q$, $C(\Fb_q)$, with $p > q$. We wish to pass a message from $C(\Fb_q)$
-to $C(\Fb_p)$ and want to convince the verifier that $v_q = v_p$. Naively,
-if these values are added as public inputs, the verifier could add the check
-that $v_q \meq v_p$, but once we get to IVC, this becomes unfeasible, as the
-set of values to check will grow as the IVC chain grows, which in worst-case
-makes the proof size $\Oc(n)$.
+<!-- The above section describes how each language instruction is mapped to -->
+<!-- one of two circuits, verifying both circuits should convince the verifier -->
+<!-- that the program $f(w, x)$ is satisfied. However, for the Elliptic Curve -->
+<!-- Multiplication and the Poseidon Hashes, we need to pass inputs from one circuit -->
+<!-- to another. We have a circuit over $\Fb_p$, $C(\Fb_p)$, and a circuit over -->
+<!-- $\Fb_q$, $C(\Fb_q)$, with $p > q$. We wish to pass a message from $C(\Fb_q)$ -->
+<!-- to $C(\Fb_p)$ and want to convince the verifier that $v_q = v_p$. Naively, -->
+<!-- if these values are added as public inputs, the verifier could add the check -->
+<!-- that $v_q \meq v_p$, but once we get to IVC, this becomes unfeasible, as the -->
+<!-- set of values to check will grow as the IVC chain grows, which in worst-case -->
+<!-- makes the proof size $\Oc(n)$. -->
 
-Since the values of $v_q$ is committed to in the public input, the verifier
-has the commitment $C^{(q)}_{PI}$ and likewise for $p$, the verifier knows
-$v_p, C^{(q)}_{PI}$. So we pass $v_q$ to $C(\Fb_p)$ as $v_p$ and then verify
-add the following constraint to $C(\Fb_p)$:
+<!-- Since the values of $v_q$ is committed to in the public input, the verifier -->
+<!-- has the commitment $C^{(q)}_{PI}$ and likewise for $p$, the verifier knows -->
+<!-- $v_p, C^{(q)}_{PI}$. So we pass $v_q$ to $C(\Fb_p)$ as $v_p$ and then verify -->
+<!-- add the following constraint to $C(\Fb_p)$: -->
 
-$$C^{(p)}_{PI} \meq v_p \cdot G_1 \in \Eb_p(\Fb_q)$$
+<!-- $$C^{(p)}_{PI} \meq v_p \cdot G_1 \in \Eb_p(\Fb_q)$$ -->
 
-This proves that I know the openings of the commitment $C^{(p)}_{PI}$,
-and since I know that this opening correspond to the public inputs, by the
-binding property of the commitment scheme, I know the public inputs of the
-other circuit.
+<!-- This proves that I know the openings of the commitment $C^{(p)}_{PI}$, -->
+<!-- and since I know that this opening correspond to the public inputs, by the -->
+<!-- binding property of the commitment scheme, I know the public inputs of the -->
+<!-- other circuit. -->
 
-Now, what if we reverse the flow? I now have a value $v_p$, in $C(\Fb_p)$,
-that I want to pass to $C(\Fb_q)$. Here the problem is that since $p > q$,
-the value might be too large to represent in $\Fb_q$-field. The solution is
-to decompose the value as such:
+<!-- Now, what if we reverse the flow? I now have a value $v_p$, in $C(\Fb_p)$, -->
+<!-- that I want to pass to $C(\Fb_q)$. Here the problem is that since $p > q$, -->
+<!-- the value might be too large to represent in $\Fb_q$-field. The solution is -->
+<!-- to decompose the value as such: -->
 
-$$v_p = 2 h + l$$
+<!-- $$v_p = 2 h + l$$ -->
 
-Where $h$ represents the high-bits of $v_p$ ($h \in [0, 2^{\floor{\log{p}}}]$)
-and $l$ represents the low-bit ($h \in \Bb$). The value $v_p$ can now be
-represented with $h, l$, both of which are less than $q$. Which means we
-can pass the value to $C(\Fb_q)$.
+<!-- Where $h$ represents the high-bits of $v_p$ ($h \in [0, 2^{\floor{\log{p}}}]$) -->
+<!-- and $l$ represents the low-bit ($h \in \Bb$). The value $v_p$ can now be -->
+<!-- represented with $h, l$, both of which are less than $q$. Which means we -->
+<!-- can pass the value to $C(\Fb_q)$. -->
 
-The final constraints on each side then becomes:
+<!-- The final constraints on each side then becomes: -->
 
-- $\Fb_q$:
-  - $C^{(p)}_{PI} \meq h G_1 + l G_2$
-  - $C^{(p)}_{PI} \meq h G_1 + l G_2$
-- $\Fb_p$:
-  - $v_p = 2 h + l$
-  - $h \in [0, 2^{\floor{\log{p}}}]$ (range check)
-  - $l \in \Bb$ (simple boolean constraint)
+<!-- - $\Fb_q$: -->
+  <!-- - $C^{(p)}_{PI} \meq h G_1 + l G_2$ -->
+  <!-- - $C^{(p)}_{PI} \meq h G_1 + l G_2$ -->
+<!-- - $\Fb_p$: -->
+  <!-- - $v_p = 2 h + l$ -->
+  <!-- - $h \in [0, 2^{\floor{\log{p}}}]$ (range check) -->
+  <!-- - $l \in \Bb$ (simple boolean constraint) -->
 
 ### The New IVC-Scheme
 
-Recall the graph from the prerequisites section about IVC based on accumulation
-schemes:
+We now operate over two curves, with two accumulators, proofs and a single state:
+
+$s_i, \acc_i = (\acc_{i}^{(p)}, \acc_{i}^{(q)}), \pi_i = (\pi_{i}^{(p)}, \pi_{i}^{(q)})$
+
+Which means that the IVC state chain remains unchanged:
 
 \begin{figure}[!H]
 \centering
@@ -377,39 +103,186 @@ schemes:
 \end{tikzpicture}
 \caption{
   A visualization of the relationship between $F, \vec{s}, \vec{\pi}$ and
-  $\vec{\acc}$ in an IVC setting using Accumulation Schemes. Where $\Pc$ is
-  defined to be $\Pc(s_{i-1}, \pi_{i-1}, \acc_{i-1}) = \IVCProver(s_{i-1},
-  \pi_{i-1}, \acc_{i-1}) = \pi_i$, $s_i = F(s_{i-1})$, $\acc_i =
-  \ASProver(\vec{q}, \acc_{i-1})$.
+  $\vec{\acc}$ in an IVC setting using Accumulation Schemes and a cycle of
+  curves. Where $\Pc$ is defined to be $\Pc(s_{i-1}, \pi_{i-1}, \acc_{i-1})
+  = \IVCProver(s_{i-1}, \pi_{i-1}, \acc_{i-1}) \to (s_i, \pi_i, \acc_i)$.
 }
 \end{figure}
 
-We now operate over two curves, with two accumulators, proofs and states:
+But the circuit needs to be updated. Let:
 
-\begin{figure}[!H]
+$$
+\begin{aligned}
+  c_{\text{VF}_p} &= \NARKVerifierFast(R_{IVC}^{(q)}, x_{i-1}^{(p)}, \pi_{i-1}^{(p)}) \meq \top \\
+  c_{\text{AS}_p} &= \ASVerifier(\vec{q}^{(p)}, \acc_{i-1}^{(p)}, \acc_i^{(p)}) \meq \top \\
+  c_{\text{VF}_q} &= \NARKVerifierFast(R_{IVC}^{(q)}, x_{i-1}^{(q)}, \pi_{i-1}^{(q)}) \meq \top \\
+  c_{\text{AS}_q} &= \ASVerifier(\vec{q}^{(q)}, \acc_{i-1}^{(q)}, \acc_i^{(q)}) \meq \top \\
+  c_V &= c_{\text{VF}_p} \land c_{\text{AS}_p} \land c_{\text{VF}_q} \land c_{\text{AS}_q} \\ 
+  c_0 &= s_{i-1}^{(i)} \meq 0 \\
+  c_F &= F(s_{i-1}) \meq s_i \\
+  c_{\text{IVC}} &= (c_0 \lor c_V) \land c_F
+\end{aligned}
+$$
+
+We also need to check that the next $i$ is equals to the previous $i$
+incremented once, but this can be modelled as part of the state transition
+function $F$.
+
+\begin{figure}[H]
 \centering
-\begin{tikzpicture}[node distance=2.25cm]
-  % Nodes
-  \node (s0) [node] {$s_0$};
-  \node (s1) [node, right=of s0] {$(s_1, \pi_1, \acc_1)$};
-  \node (dots) [right=2.75cm of s1] {$\dots$};
-  \node (sn) [node, right=4cm of dots] {$(s_n, \pi_n, \acc_n)$};
-  % Arrows with labels
-  \draw[thick-arrow] (s0) -- node[above] {$\Pc(s_0, \bot, \bot)$} (s1);
-  \draw[thick-arrow] (s1) -- node[above] {$\Pc(s_1, \pi_1, \acc_1)$} (dots);
-  \draw[thick-arrow] (dots) -- node[above] {$\Pc(s_{n-1}, \pi_{n-1}, \acc_{n-1})$} (sn);
+\begin{tikzpicture}
+  % First Layer
+  %% Nodes
+  \node[draw, rectangle] (R_ivc_p) at (2.25, 6.5) {$R_{IVC}^{(p)}$};
+  \node[draw, rectangle] (x_prev_p) at (3.5, 6.5) {$x_{i-1}^{(p)}$};
+  \node[draw, rectangle] (pi_prev_p) at (4.75, 6.5) {$\pi_{i-1}^{(p)}$};
 
-  % Second chain (bottom row)
-  \node (t0) [node, below=1.5cm of s0] {$s_0$};
-  \node (t1) [node, right=of t0] {$(s_1, \pi_1, \acc_1)$};
-  \node (dots2) [right=2.75cm of t1] {$\dots$};
-  \node (tn) [node, right=4cm of dots2] {$(s_n, \pi_n, \acc_n)$};
-  % Arrows for second chain
-  \draw[thick-arrow] (t0) -- node[above] {$\Pc(t_0, \bot, \bot)$} (t1);
-  \draw[thick-arrow] (t1) -- node[above] {$\Pc(t_1, \pi_1, \acc_1)$} (dots2);
-  \draw[thick-arrow] (dots2) -- node[above] {$\Pc(t_{n-1}, \pi_{n-1}, \acc_{n-1})$} (tn);
+  \node[draw, rectangle] (q_p) at (6, 6.5) {$\vec{q}^{(p)}$};
+  \node[draw, rectangle] (acc_prev_p) at (7.5, 6.5) {$\acc_{i-1}^{(p)}$};
+  \node[draw, rectangle] (acc_next_p) at (9, 6.5) {$\acc_i^{(p)}$};
+
+  \node[draw, rectangle] (R_ivc_q) at (10.75, 6.5) {$R_{IVC}^{(q)}$};
+  \node[draw, rectangle] (x_prev_q) at (12, 6.5) {$x_{i-1}^{(q)}$};
+  \node[draw, rectangle] (pi_prev_q) at (13.25, 6.5) {$\pi_{i-1}^{(q)}$};
+
+  \node[draw, rectangle] (q_q) at (14.5, 6.5) {$\vec{q}^{(p)}$};
+  \node[draw, rectangle] (acc_prev_q) at (16, 6.5) {$\acc_{i-1}^{(p)}$};
+  \node[draw, rectangle] (acc_next_q) at (17.5, 6.5) {$\acc_i^{(p)}$};
+
+  %% Arrows
+  \draw[dashed-arrow] (R_ivc_p) -- (2.25, 7.1) -- (3.5, 7.1) -- (x_prev_p);
+  \draw[dashed-arrow] (pi_prev_p) -- (4.75, 7.1) -- (6, 7.1) -- (q_p);
+  \draw[dashed-arrow] (acc_prev_p) -- (7.5, 7.4) -- (3.5, 7.4) -- (x_prev_p);
+
+  \draw[dashed-arrow] (R_ivc_q) -- (10.75, 7.1) -- (12, 7.1) -- (x_prev_q);
+  \draw[dashed-arrow] (pi_prev_q) -- (13.25, 7.1) -- (14.5, 7.1) -- (q_q);
+  \draw[dashed-arrow] (acc_prev_q) -- (16, 7.4) -- (12, 7.4) -- (x_prev_q);
+
+  % Second Layer
+  \node[draw, rectangle] (svf_p) at (3.5, 5) {$\NARKVerifierFast$};
+  \node[draw, rectangle] (asv_p) at (7.5, 5) {$\ASVerifier$};
+
+  \node[draw, rectangle] (svf_q) at (12, 5) {$\NARKVerifierFast$};
+  \node[draw, rectangle] (asv_q) at (16, 5) {$\ASVerifier$};
+
+  %% Arrows
+  \draw[arrow] (R_ivc_p) -- (2.25, 6) -- (3.5, 5.75) -- (svf_p);
+  \draw[arrow] (x_prev_p) -- (3.5, 6) -- (3.5, 5.75) -- (svf_p);
+  \draw[arrow] (pi_prev_p) -- (4.75, 6) -- (3.5, 5.75) -- (svf_p);
+
+  \draw[arrow] (q_p) -- (6, 6) -- (7.5, 5.75) -- (asv_p);
+  \draw[arrow] (acc_prev_p) -- (7.5, 6) -- (7.5, 5.75) -- (asv_p);
+  \draw[arrow] (acc_next_p) -- (9, 6) -- (7.5, 5.75) -- (asv_p);
+
+  \draw[arrow] (R_ivc_q) -- (10.75, 6) -- (12, 5.75) -- (svf_q);
+  \draw[arrow] (x_prev_q) -- (12, 6) -- (12, 5.75) -- (svf_q);
+  \draw[arrow] (pi_prev_q) -- (13.25, 6) -- (12, 5.75) -- (svf_q);
+
+  \draw[arrow] (q_q) -- (14.5, 6) -- (16, 5.75) -- (asv_q);
+  \draw[arrow] (acc_prev_q) -- (16, 6) -- (16, 5.75) -- (asv_q);
+  \draw[arrow] (acc_next_q) -- (17.5, 6) -- (16, 5.75) -- (asv_q);
+
+  % Third Layer
+  \node[draw, rectangle] (and) at (9.5, 3) {$\land$};
+
+  %% Arrows
+  \draw[arrow] (svf_p) -- (3.5, 4.5) -- (9.5, 3.75) -- (and);
+  \draw[arrow] (asv_p) -- (7.5, 4.5) -- (9.5, 3.75) -- (and);
+  \draw[arrow] (svf_q) -- (12, 4.5) -- (9.5, 3.75) -- (and);
+  \draw[arrow] (asv_q) -- (16, 4.5) -- (9.5, 3.75) -- (and);
+
+  % Fourth Layer
+  \node[draw, rectangle] (s_next) at (3.25, 3.5) {$s_i$};
+  \node[draw, rectangle] (s_prev) at (4.5, 3.5) {$s_{i-1}$};
+  \node[draw, rectangle] (s_0) at (5.75, 3.5) {$s_0$};
+
+  % Fifth Layer
+  \node[draw, rectangle] (zero) at (5.75, 2) {$s_{i-1} \meq s_0$};
+  \node[draw, rectangle] (F) at (3.25, 2) {$F(s_{i-1}) \meq s_i$};
+
+  \draw[arrow] (s_next) -- (3.25, 3) -- (3.25, 2.75) -- (F);
+  \draw[arrow] (s_prev) -- (4.25, 3) -- (3.25, 2.75) -- (F);
+
+  \draw[arrow] (s_prev) -- (4.75, 3) -- (5.75, 2.75) -- (zero);
+  \draw[arrow] (s_0) -- (5.75, 3) -- (5.75, 2.75) -- (zero);
+
+  % Sixth Layer
+  \node[draw, rectangle] (or1) at (8, 0.5) {$\lor$};
+  
+  \draw[arrow] (zero) -- (5.75, 1.5) -- (8, 1.25) -- (or1);
+  \draw[arrow] (and) -- (9.5, 1.5) -- (8, 1.25) -- (or1);
+
+  % Sixth Layer
+  \node[draw, rectangle] (and2) at (5.75, -1) {$\land$};
+  \draw[arrow] (or1) -- (8, 0) -- (5.75, -0.25) -- (and2);
+  \draw[arrow] (F) -- (3.25, 0) -- (5.75, -0.25) -- (and2);
+
 \end{tikzpicture}
-\caption{
-  lol.
-}
+\caption{A visualization of $R_{\text{IVC}}$.}
 \end{figure}
+
+In our case the state contains
+
+<!-- Before describing the IVC protocol, we first describe the circuit for the -->
+<!-- IVC relation as it's more complex than for the naive SNARK-based approach. Let: -->
+
+<!-- - $\pi_{i-1} = \vec{q}, \acc_{i-1}, s_{i-1}$ from the previous iteration. -->
+<!-- - $s_i = F(s_{i-1})$ -->
+<!-- - $\acc_i = \ASProver(\vec{q}, \acc_{i-1})$ -->
+
+<!-- Giving us the public inputs $x = \{ R_{IVC}, s_0, s_i, \acc_i \}$ and witness -->
+<!-- $w = \{ s_{i-1}, \pi_{i-1} = \vec{q}, \acc_{i-1} \}$, which will be used to -->
+<!-- construct the the IVC circuit $R_{IVC}$: -->
+<!-- $$ -->
+<!-- \begin{aligned} -->
+  <!-- x_{i-1} &:= \{ R_{IVC}, s_{i-1}, \acc_{i-1} \} \\ -->
+  <!-- \Vc_1   &:= \NARKVerifierFast(R_{IVC}, x_{i-1}, \pi_{i-1}) \meq \top \\ -->
+  <!-- \Vc_2   &:= \ASVerifier(\pi_{i-1} = \vec{q}, \acc_{i-1}, \acc_i) \meq \top \\ -->
+  <!-- R_{IVC} &:= \text{I.K } w \text{ s.t. } F(s_{i-1}) \meq s_i \land (s_{i-1} \meq s_0 \lor ( \Vc_1 \land \Vc_2 ) ) \\ -->
+<!-- \end{aligned} -->
+<!-- $$ -->
+
+
+The verifier and prover for the IVC scheme can be seen below:
+
+\begin{algorithm}[H]
+\caption*{\textbf{Algorithm} $\IVCProver$}
+\textbf{Inputs} \\
+  \Desc{$R_{IVC}: \Circuit$}{The IVC circuit as defined above.} \\
+  \Desc{$x: \PublicInputs$}{Public inputs for $R_{IVC}$.} \\
+  \Desc{$w: \Option(\Witness)$}{Private inputs for $R_{IVC}$.} \\
+\textbf{Output} \\
+  \Desc{$(S, \Proof, \Acc)$}{The values for the next IVC iteration.}
+\begin{algorithmic}[1]
+  \Require $x = \{ s_0 \}$
+  \Require $w = \{ s_{i-1}, \pi_{i-1}, \acc_{i-1} \} \lor w = \bot$
+  \State Parse $s_0$ from $x = \{ s_0 \}$.
+  \If{$w = \bot$}
+    \State $w = \{ s_{i-1} = s_0 \}$ (base-case).
+  \Else
+    \State Run the accumulation prover: $\acc_i = \ASProver(\pi_{i-1} = \vec{q}, \acc_{i-1})$.
+    \State Compute the next value: $s_i = F(s_{i-1})$.
+    \State Define $x' = x \cup \{ R_{IVC}, s_i, \acc_i \}$.
+  \EndIf
+  \State Then generate a NARK proof $\pi_i$ using the circuit $R_{IVC}$: $\pi_i = \NARKProver(R_{IVC}, x', w)$.
+  \State Output $(s_i, \pi_i, \acc_i)$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption*{\textbf{Algorithm} $\IVCVerifier$}
+\textbf{Inputs} \\
+  \Desc{$R_{IVC}: \Circuit$}{The IVC circuit.} \\
+  \Desc{$x: \PublicInputs$}{Public inputs for $R_{IVC}$.} \\
+\textbf{Output} \\
+  \Desc{$\Result(\top, \bot)$}{Returns $\top$ if the verifier accepts and $\bot$ if the verifier rejects.}
+\begin{algorithmic}[1]
+  \Require $x = \{ s_0, s_i, \acc_i \}$
+  \State Define $x' = x \cup \{ R_{IVC} \}$.
+  \State Verify that the accumulation scheme decider accepts: $\top \meq \ASDecider(\acc_i)$.
+  \State Verify the validity of the IVC proof: $\top \meq \NARKVerifier(R_{IVC}, x', \pi_i)$.
+  \State If the above two checks pass, then output $\top$, else output $\bot$.
+\end{algorithmic}
+\end{algorithm}
+
+
