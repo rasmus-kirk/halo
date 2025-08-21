@@ -66,7 +66,7 @@
   };
   mk-pandoc-loop = pkgs.writeShellApplication {
     name = "pandoc-compile-continuous";
-    runtimeInputs = [mk-pandoc pkgs.entr];
+    runtimeInputs = [mk-pandoc pkgs.entr pkgs.uutils-core-utils-noprefix];
     text = ''
       set +e
       if [ -z "''${1:-}" ]; then

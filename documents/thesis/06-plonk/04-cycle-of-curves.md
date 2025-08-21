@@ -221,7 +221,15 @@ function $F$.
 \caption{A visualization of $R_{\text{IVC}}$.}
 \end{figure}
 
-In our case the state contains
+For the purpose of creating the chain of signatures we can define:
+
+$$
+\begin{aligned}
+  s_0 &= (\s_0, 0, pk_0) \\
+  s_i &= (\s_i, i, pk_i) \\
+  F(s_{i-1}, s_i) &= \textsc{Schnorr.Verify}(\s, pk_i) \\
+\end{aligned}
+$$
 
 <!-- Before describing the IVC protocol, we first describe the circuit for the -->
 <!-- IVC relation as it's more complex than for the naive SNARK-based approach. Let: -->
