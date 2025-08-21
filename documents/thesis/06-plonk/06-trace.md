@@ -376,7 +376,3 @@ $$
 &= \mathrm{interpolate} \circ \mathrm{trace}_{\text{public}}(\vec{x}') \circ \mathrm{build}(f)
 \end{array}
 $$
-
-**Trace Correctness Example**
-
-TODO
