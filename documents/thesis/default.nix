@@ -6,6 +6,7 @@
     haskellPackages.pandoc-crossref
     texlive.combined.scheme-full
     librsvg
+    uutils-findutils
   ];
   # writeShellApplication with clean path
   writeShellApplication =
@@ -105,7 +106,14 @@
   };
   mk-pandoc-loop = writeShellApplication {
     name = "pandoc-compile-continuous";
-    runtimeInputs = [mk-pandoc pkgs.entr];
+    runtimeInputs = [
+      mk-pandoc
+      pkgs.entr
+      pkgs.uutils-findutils
+      pkgs.bash
+      pkgs.uutils-coreutils-noprefix
+      pkgs.bc
+    ];
     text = ''
       set +e
       if [ -z "''${1:-}" ]; then

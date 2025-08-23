@@ -225,11 +225,13 @@ For the purpose of creating the chain of signatures we can define:
 
 $$
 \begin{aligned}
-  s_0 &= (\s_0, 0, pk_0) \\
-  s_i &= (\s_i, i, pk_i) \\
-  F(s_{i-1}, s_i) &= \textsc{Schnorr.Verify}(\s, pk_i) \\
+  s_0 &= (\s_0, j_0 = 0, pk_0) \\
+  s_i &= (\s_i, j_i, pk_i) \\
+  F(s_{i-1}, s_i) &= \textsc{Schnorr.Verify}_{pk_{i-1}}(\s_i, pk_i) \land j_i = j_{i-1} \\
 \end{aligned}
 $$
+
+The first signature, $s_0$, can be invalid, since it's never checked.
 
 <!-- Before describing the IVC protocol, we first describe the circuit for the -->
 <!-- IVC relation as it's more complex than for the naive SNARK-based approach. Let: -->
