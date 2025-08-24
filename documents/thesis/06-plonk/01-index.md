@@ -1,4 +1,4 @@
-# Surkål: The Ultra-\plonk-ish NARK protocol
+# \Surkal: The Ultra-\plonk-ish NARK protocol
 
 We construct a NARK with support for recursive proofs, heavily inspired by
 the Z-Cash's Halo2 and Mina's Kimchi proof systems. As with both of these
@@ -20,16 +20,16 @@ The below sections will describe this protocol in detail.
 
 Our NARK protocol has the following:
 
-1. add and mul gates, copy constraints, vanishing arguments (\plonk)
-2. arbitrary fan-in and fan-out custom gates (Turbo-\plonk)
-3. arbitrary lookup tables via \plookup (Ultra-\plonk)
-4. pedersen polynomial commitment scheme (Halo2)
-5. ergonomic multi type wire arithmetization (Surkål)
-6. circuits over cycle of curves via pasta curves (Surkål)
+| Protocol| Features | References |
+|-|-----|--|
+| \plonk        | Add and mul gates, copy constraints, vanishing arguments | @plonk |
+| Turbo-\plonk  | Arbitrary fan-in and fan-out custom gates | |
+| Ultra-\plonk  | Arbitrary lookup tables via \plookup, \plonkup | @plonkup |
+| Halo2         | Pedersen polynomial commitment scheme and cycle of curves circuits | |
 
-The arithmetization scheme is agnostic of types of values, gates, lookup tables and trace, thus can potentially be extended for other variants of \plonk-ish protocols.
+Our NARK protocol $\Surkal$ is a simplified variant of Halo2[^our-plonk] with circuits defined over the pasta curves.
 
-We will present our protocol[^our-plonk] by constructing and arguing for the individual arguments in the next sections.
+In preprocessing, we feature an ergonomic multi type wire arithmetizer that is agnostic to types of values, gates, lookup tables and trace, thus a candidate for the preprocessor of other variants of \plonk-ish protocols.
 
 [^our-plonk]: There are many variations of \plonk, our variant has the
 feature-set of [Ultra-\plonk](https://zkjargon.github.io/definitions/plonkish_arithmetization.html#plonkish-variants-and-extensions),
