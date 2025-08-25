@@ -22,8 +22,8 @@ is because the proof both contains scalars and points. If we did _not_
 have a cycle of curves this pattern would result in a chain:
 
 - Curve 1: $a \in \Fb_{p_1}, P \in \Eb_{p_1}(\Fb_{p_2})$
-- Curve 2: $a \in \Fb_{p_2}, P \in \Eb_q(\Fb_{p_3})$
-- Curve 3: $a \in \Fb_{p_3}, P \in \Eb_q(\Fb_{p_4})$
+- Curve 2: $a \in \Fb_{p_2}, P \in \Eb_{p_2}(\Fb_{p_3})$
+- Curve 3: $a \in \Fb_{p_3}, P \in \Eb_{p_3}(\Fb_{p_4})$
 - ...
 
 Which means that each $p_i$ must be able to define a valid curve, and if
@@ -31,51 +31,147 @@ this never cycles, we would need to support this infinite chain of curves.
 
 ### Input Passing
 
-<!-- The above section describes how each language instruction is mapped to -->
-<!-- one of two circuits, verifying both circuits should convince the verifier -->
-<!-- that the program $f(w, x)$ is satisfied. However, for the Elliptic Curve -->
-<!-- Multiplication and the Poseidon Hashes, we need to pass inputs from one circuit -->
-<!-- to another. We have a circuit over $\Fb_p$, $C(\Fb_p)$, and a circuit over -->
-<!-- $\Fb_q$, $C(\Fb_q)$, with $p > q$. We wish to pass a message from $C(\Fb_q)$ -->
-<!-- to $C(\Fb_p)$ and want to convince the verifier that $v_q = v_p$. Naively, -->
-<!-- if these values are added as public inputs, the verifier could add the check -->
-<!-- that $v_q \meq v_p$, but once we get to IVC, this becomes unfeasible, as the -->
-<!-- set of values to check will grow as the IVC chain grows, which in worst-case -->
-<!-- makes the proof size $\Oc(n)$. -->
+The above section describes how each language instruction is mapped to
+one of two circuits, verifying both circuits should convince the verifier
+that the program $f(w, x)$ is satisfied. However, for the Elliptic Curve
+Multiplication and the Poseidon Hashes, we need to pass inputs from one
+circuit to another.
 
-<!-- Since the values of $v_q$ is committed to in the public input, the verifier -->
-<!-- has the commitment $C^{(q)}_{PI}$ and likewise for $p$, the verifier knows -->
-<!-- $v_p, C^{(q)}_{PI}$. So we pass $v_q$ to $C(\Fb_p)$ as $v_p$ and then verify -->
-<!-- add the following constraint to $C(\Fb_p)$: -->
+**Passing $v^{(q)} \to v^{(p)}$:**
 
-<!-- $$C^{(p)}_{PI} \meq v_p \cdot G_1 \in \Eb_p(\Fb_q)$$ -->
+We start with the simpler case. We have a circuit over $\Fb_p$, $R^{(p)}$,
+and a circuit over $\Fb_q$, $R^{(q)}$, with $p > q$. We wish to pass
+a value, $v^{(q)} \in \Fb_q$, from $R^{(q)}$ to $R^{(p)}$ and wish to
+convince the verifier that $v^{(q)} = v^{(q)}$. Naively, if these values
+are added as public inputs, the verifier could add the check that $v^{(q)}
+\meq v^{(p)}$. But this won't work for IVC, since we can't check equality
+across circuits, in-circuit. Instead we compute the commitment to $v^{(p)}$
+on the $R^{(p)}$-side.
 
-<!-- This proves that I know the openings of the commitment $C^{(p)}_{PI}$, -->
-<!-- and since I know that this opening correspond to the public inputs, by the -->
-<!-- binding property of the commitment scheme, I know the public inputs of the -->
-<!-- other circuit. -->
+$$C^{(q)}_{\text{IP}} := v^{(q)} \cdot G_1^{(q)} \in \Eb_p(\Fb_q)$$
 
-<!-- Now, what if we reverse the flow? I now have a value $v_p$, in $C(\Fb_p)$, -->
-<!-- that I want to pass to $C(\Fb_q)$. Here the problem is that since $p > q$, -->
-<!-- the value might be too large to represent in $\Fb_q$-field. The solution is -->
-<!-- to decompose the value as such: -->
+The scalar operation may seem invalid, but since we know that $v^{(q)}
+\leq q - 1 < p - 1$, it can logically be computed by the usual double and
+add, since the bits of $v^{(q)}$ will correspond to the bits of $v^{(p)}$
+if $\text{lift}(v^{(q)}) = \text{lift}(v^{(p)})$. If $C^{(q)}$ is emitted in
+the public inputs of the circuit, then the verifier will know that $C^{(q)}$
+is a commitment to $v^{(q)}$. To convince the verifier of the desired relation
+that $\text{lift}(v^{(q)}) = \text{lift}(v^{(p)})$, it will now suffice to
+convince them that $v^{(p)}$ is a valid opening of $C^{(q)}$. So the verifier
+checks manually that:
 
-<!-- $$v_p = 2 h + l$$ -->
+$$C^{(q)} \meq v^{(p)} \cdot G_1^{(q)}$$
 
-<!-- Where $h$ represents the high-bits of $v_p$ ($h \in [0, 2^{\floor{\log{p}}}]$) -->
-<!-- and $l$ represents the low-bit ($h \in \Bb$). The value $v_p$ can now be -->
-<!-- represented with $h, l$, both of which are less than $q$. Which means we -->
-<!-- can pass the value to $C(\Fb_q)$. -->
+Which, given that the rest of the proof verifies correctly, will then imply
+that $v^{(q)} = v^{(p)}$. If the verifier is encoded as a circuit, then
+we need to input pass when performing this additional check, since scalar
+multiplication itself requires input passing to work. However this is no
+problem, since that circuit-verifier will be verified by another verifier!
 
-<!-- The final constraints on each side then becomes: -->
+**Passing $v^{(p)} \to v^{(q)}$:**
 
-<!-- - $\Fb_q$: -->
-  <!-- - $C^{(p)}_{PI} \meq h G_1 + l G_2$ -->
-  <!-- - $C^{(p)}_{PI} \meq h G_1 + l G_2$ -->
-<!-- - $\Fb_p$: -->
-  <!-- - $v_p = 2 h + l$ -->
-  <!-- - $h \in [0, 2^{\floor{\log{p}}}]$ (range check) -->
-  <!-- - $l \in \Bb$ (simple boolean constraint) -->
+What if we reverse the flow? We now have a value $v^{(p)}$, in $R^{(p)}$,
+that we want to pass to $R^{(q)}$. Here the problem is that since $p > q$,
+the value might be too large to represent in the $\Fb_q$-field. The solution
+is to decompose the value:
+
+$$v_p = 2 h + l$$
+
+Where $h$ represents the high-bits of $v_p$ ($h \in [0, 2^{\floor{\log{p}}}]$)
+and $l$ represents the low-bit ($h \in \Bb$). The value $v_p$ can now be
+represented with $h, l$, both of which are less than $q$. Which means we
+can pass the value to $R^{(q)}$.
+
+The constraints added to $R^{(p)}$ then becomes:
+
+- $C^{(p)}_{\text{PI}} \meq h \cdot G_1 + l \cdot G_2$
+- $v = 2 h + l$
+- $h \in [0, 2^{\floor{\log{p}}}]$ (range check)
+- $l \in \Bb$ (simple boolean constraint)
+
+We of course don't need to commit each time we input pass, we can create a
+standard vector pedersen commit, containing all the passed values:
+
+$$C^{(p)}_{\text{PI}} = h_{v_1}^{(p)} \cdot G_1^{(p)} + l_{v_1}^{(p)} \cdot G_2^{(p)} + h_{v_2}^{(p)} \cdot G_3^{(p)} + l_{v_2}^{(p)} \cdot G_4^{(p)} + \dots$$
+
+Now, the $R_q$-verifier and $R_p$-verifier, would each also take in a
+single input pass vector, in addition to the standard public input vector:
+$$\text{InputPass}^{(q \to p)} \in \Fb_p^k, \qquad \text{InputPass}^{(p \to q)} \in \Fb_q^k$$
+
+Each passed input is of course public, so the public input vector is then
+defined as:
+
+$$\text{PublicInputs}^{(p)}_{\text{new}} := \text{PublicInputs}^{(p)} \cat \text{InputPass}^{(p)}$$
+
+For both the verifier and prover of course. Each of the $R^{(p)}$ and $R^{(q)}$
+verifier can then use $\text{InputPass}^{(q \to p)}, \text{InputPass}^{(p \to q)}$
+to verify $C^{(p)}, C^{(q)}$:
+
+\begin{tcolorbox}[colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
+
+Take the following example circuit:
+
+\begin{algorithm}[H]
+\caption*{\textbf{Example Circuit}}
+\textbf{Inputs} \\
+  \Desc{$x, y \in \Fb_p$}{ } \\
+  \Desc{$P \in \Eb_p(\Fb_q)$}{ }
+\begin{algorithmic}[1]
+  \State $z := x + y \in \Fb_p$
+  \State $Q_1 := z \cdot P \in \Eb_p(\Fb_q)$
+  \State $Q_2 := x \cdot P \in \Eb_p(\Fb_q)$
+  \State $\a := \Hc(Q_1, Q_2) \in \Fb_p$
+\end{algorithmic}
+\end{algorithm}
+
+Which means that we pass $z, x$ from $R^{(p)}$ to $R^{(q)}$ and $\a$ from
+$R^{(q)}$ to $R^{(p)}$. Thus, we need to split $z, x$ but not $\a$. We add the
+constraints:
+
+\begin{itemize}
+  \item $R^{(p)}$:
+  \begin{itemize}
+    \item $C^{(p)}_{\text{IP}} := h_z^{(p)} \cdot G_1^{(p)} + l_z^{(p)} \cdot G_2^{(p)} + h_x^{(p)} \cdot G_3^{(p)} + l_x^{(p)} \cdot G_4^{(p)}$
+    \item $z := 2 \cdot h_z^{(p)} + l_z^{(p)}$ (Decomposition correctness check)
+    \item $h_z^{(p)} \in [0, 2^{\floor{\log{p}}}]$ (Range check)
+    \item $l_z^{(p)} \in \Bb$ (Boolean check)
+  \end{itemize}
+  \item $R^{(q)}$:
+  \begin{itemize}
+    \item $C^{(q)}_{\text{IP}} := \a^{(q)} \cdot G_1^{(q)}$
+  \end{itemize}
+\end{itemize}
+
+\
+
+Now the $R_q$-verifier and $R_p$-verifier, would each also take in the input
+pass vectors:
+
+$$
+\begin{aligned}
+  \text{InputPass}^{(p \to q)} &= [ h_z^{(q)}, l_z^{(q)}, h_x^{(q)}, l_x^{(q)} ] \\
+  \text{InputPass}^{(q \to p)} &= [ \a^{(p)} ] \\
+\end{aligned}
+$$
+
+Each passed input is of course public, so the public input vector is
+then defined as:
+
+$$\text{PublicInputs}^{(p)}_{\text{new}} := \text{PublicInputs}^{(p)} \cat \text{InputPass}^{(p)}$$
+
+For both the verifier and prover of course. Now the verifier needs to verify
+what it otherwise would, but also that:
+$$
+\begin{aligned}
+  C^{(p)}_{\text{IP}} &\meq h_z^{(q)} \cdot G_1^{(p)} + l_z^{(q)} \cdot G_2^{(p)} + h_x^{(q)} \cdot G_3^{(p)} + l_x^{(q)} \cdot G_4^{(p)} \\
+  C^{(q)}_{\text{IP}} &\meq \a^{(p)} \cdot G_1^{(q)} \\
+\end{aligned}
+$$
+
+Note, that when recursing, these extra checks require input passing themselves,
+but this is not an issue as that's handled by the next verifier.
+
+\end{tcolorbox}
 
 ### The New IVC-Scheme
 
@@ -126,7 +222,7 @@ $$
 
 We also need to check that the next $i$ is equals to the previous $i$
 incremented once, but this can be modelled as part of the state transition
-function $F$.
+check function $F'$.
 
 \begin{figure}[H]
 \centering
@@ -198,7 +294,7 @@ function $F$.
 
   % Fifth Layer
   \node[draw, rectangle] (zero) at (5.75, 2) {$s_{i-1} \meq s_0$};
-  \node[draw, rectangle] (F) at (3.25, 2) {$F(s_{i-1}) \meq s_i$};
+  \node[draw, rectangle] (F) at (3.25, 2) {$F'(s_{i-1}, s_i)$};
 
   \draw[arrow] (s_next) -- (3.25, 3) -- (3.25, 2.75) -- (F);
   \draw[arrow] (s_prev) -- (4.25, 3) -- (3.25, 2.75) -- (F);
@@ -227,70 +323,78 @@ $$
 \begin{aligned}
   s_0 &= (\s_0, j_0 = 0, pk_0) \\
   s_i &= (\s_i, j_i, pk_i) \\
-  F(s_{i-1}, s_i) &= \textsc{Schnorr.Verify}_{pk_{i-1}}(\s_i, pk_i) \land j_i = j_{i-1} \\
+  F'(s_{i-1}, s_i) &= \textsc{Schnorr.Verify}_{pk_{i-1}}(\s_i, pk_i) \land j_i \meq j_{i-1} + 1\\
 \end{aligned}
 $$
 
-The first signature, $s_0$, can be invalid, since it's never checked.
-
-<!-- Before describing the IVC protocol, we first describe the circuit for the -->
-<!-- IVC relation as it's more complex than for the naive SNARK-based approach. Let: -->
-
-<!-- - $\pi_{i-1} = \vec{q}, \acc_{i-1}, s_{i-1}$ from the previous iteration. -->
-<!-- - $s_i = F(s_{i-1})$ -->
-<!-- - $\acc_i = \ASProver(\vec{q}, \acc_{i-1})$ -->
-
-<!-- Giving us the public inputs $x = \{ R_{IVC}, s_0, s_i, \acc_i \}$ and witness -->
-<!-- $w = \{ s_{i-1}, \pi_{i-1} = \vec{q}, \acc_{i-1} \}$, which will be used to -->
-<!-- construct the the IVC circuit $R_{IVC}$: -->
-<!-- $$ -->
-<!-- \begin{aligned} -->
-  <!-- x_{i-1} &:= \{ R_{IVC}, s_{i-1}, \acc_{i-1} \} \\ -->
-  <!-- \Vc_1   &:= \NARKVerifierFast(R_{IVC}, x_{i-1}, \pi_{i-1}) \meq \top \\ -->
-  <!-- \Vc_2   &:= \ASVerifier(\pi_{i-1} = \vec{q}, \acc_{i-1}, \acc_i) \meq \top \\ -->
-  <!-- R_{IVC} &:= \text{I.K } w \text{ s.t. } F(s_{i-1}) \meq s_i \land (s_{i-1} \meq s_0 \lor ( \Vc_1 \land \Vc_2 ) ) \\ -->
-<!-- \end{aligned} -->
-<!-- $$ -->
-
+The first signature, $s_0$, can be invalid, since it's never checked. The
+$j_i \meq j_{i-1}$ is required for soundness, it means that each iteration
+will terminate. The $s_{i-1} \meq s_0$ will thus also check whether we are
+in the base-state with $j = 0$ and that $pk_0$ is the genesis public-key. 
 
 The verifier and prover for the IVC scheme can be seen below:
 
 \begin{algorithm}[H]
 \caption*{\textbf{Algorithm} $\IVCProver$}
+\textbf{Constants} \\
+  \Desc{$R_{\text{IVC}} = \left( R_{\text{IVC}}^{(p)}, R_{\text{IVC}}^{(q)} \right)$}{The IVC circuit as defined above.} \\
+  \Desc{$s_0 = \left( \s_0, 0, pk_0 \right)$}{The base IVC-state.} \\
 \textbf{Inputs} \\
-  \Desc{$R_{IVC}: \Circuit$}{The IVC circuit as defined above.} \\
-  \Desc{$x: \PublicInputs$}{Public inputs for $R_{IVC}$.} \\
-  \Desc{$w: \Option(\Witness)$}{Private inputs for $R_{IVC}$.} \\
+  \Desc{$s_{i-1} = \left( \s_{i-1}, j_{i-1}, pk_{i-1} \right)$}{The previous IVC-state.} \\
+  \Desc{$\pi_{i-1} = \left( \pi_{i-1}^{(p)}, \pi_{i-1}^{(q)} \right)$}{The previous IVC-proof.} \\
+  \Desc{$\acc_{i-1} = \left( \acc_{i-1}^{(p)}, \acc_{i-1}^{(q)} \right)$}{The previous IVC-accumulator.} \\
+  \Desc{$s_i = \left( \s_i, j_i, pk_i \right)$}{The next IVC-state} \\
 \textbf{Output} \\
   \Desc{$(S, \Proof, \Acc)$}{The values for the next IVC iteration.}
 \begin{algorithmic}[1]
-  \Require $x = \{ s_0 \}$
-  \Require $w = \{ s_{i-1}, \pi_{i-1}, \acc_{i-1} \} \lor w = \bot$
-  \State Parse $s_0$ from $x = \{ s_0 \}$.
-  \If{$w = \bot$}
-    \State $w = \{ s_{i-1} = s_0 \}$ (base-case).
-  \Else
-    \State Run the accumulation prover: $\acc_i = \ASProver(\pi_{i-1} = \vec{q}, \acc_{i-1})$.
-    \State Compute the next value: $s_i = F(s_{i-1})$.
-    \State Define $x' = x \cup \{ R_{IVC}, s_i, \acc_i \}$.
-  \EndIf
-  \State Then generate a NARK proof $\pi_i$ using the circuit $R_{IVC}$: $\pi_i = \NARKProver(R_{IVC}, x', w)$.
+  \Require $F'(s_{i-1}, s_i) = \top$
+  \Require $j_i = j_{i-1} + 1$
+  \State Compute the next IVC-proof, $\pi_i$:
+    \State \algind Define the witness for the IVC-circuit:
+      \Statex \algind \algind $x_{i-1}^{(p)} := \lbrace R_{\text{IVC}}^{(p)}, s_0, s_{i-1}, acc_{i-1}^{(p)} \rbrace$
+      \Statex \algind \algind $x_{i-1}^{(q)} := \lbrace R_{\text{IVC}}^{(q)}, acc_{i-1}^{(q)} \rbrace$
+      \Statex \algind \algind $w_i^{(p)} := \lbrace x_{i-1}^{(p)}, \pi_{i-1}^{(p)}, \acc_{i-1}^{(p)}, s_{i-1} \rbrace$
+      \Statex \algind \algind $w_i^{(q)} := \lbrace x_{i-1}^{(q)}, \pi_{i-1}^{(q)}, \acc_{i-1}^{(q)} \rbrace$
+    \State \algind Define the public inputs for the IVC-circuit:
+      \Statex \algind \algind $x_i^{(p)} := \lbrace R_{\text{IVC}}^{(p)}, s_0, s_i, acc_i^{(p)} \rbrace$
+      \Statex \algind \algind $x_i^{(q)} := \lbrace R_{\text{IVC}}^{(q)}, acc_i^{(q)} \rbrace$
+    \State \algind Compute the proofs:
+      \Statex \algind \algind $\pi_i^{(p)} := \NARKProver \left( R_{\text{IVC}}^{(p)}, x_i^{(p)}, w_i^{(p)} \right)$
+      \Statex \algind \algind $\pi_i^{(q)} := \NARKProver \left( R_{\text{IVC}}^{(q)}, x_i^{(q)}, w_i^{(q)} \right)$
+      \Statex \algind \algind $\pi_i := \left( \pi_i^{(p)}, \pi_i^{(q)} \right)$
+  \State Compute the next accumulator, $\acc_i$:
+    \State \algind Parse $\vec{q}^{(p)}$ from $\pi_{i-1}^{(p)}$, and $\vec{q}^{(q)}$ from $\pi_{i-1}^{(q)}$.
+    \State \algind Run the $\ASProver$.
+    \Statex \algind \algind $\acc_i^{(p)} = \ASProver \left( \vec{q}^{(p)}, \acc_{i-1}^{(p)} \right)$
+    \Statex \algind \algind $\acc_i^{(q)} = \ASProver \left( \vec{q}^{(q)}, \acc_{i-1}^{(q)} \right)$
+    \Statex \algind \algind $\acc_i = \left( \acc_i^{(p)}, \acc_i^{(q)} \right)$
   \State Output $(s_i, \pi_i, \acc_i)$
 \end{algorithmic}
 \end{algorithm}
 
+
+
 \begin{algorithm}[H]
 \caption*{\textbf{Algorithm} $\IVCVerifier$}
+\textbf{Constants} \\
+  \Desc{$R_{\text{IVC}} = \left( R_{\text{IVC}}^{(p)}, R_{\text{IVC}}^{(q)} \right)$}{The IVC circuit as defined above.} \\
+  \Desc{$s_0 = \left( \s_0, 0, pk_0 \right)$}{The base IVC-state.} \\
 \textbf{Inputs} \\
-  \Desc{$R_{IVC}: \Circuit$}{The IVC circuit.} \\
-  \Desc{$x: \PublicInputs$}{Public inputs for $R_{IVC}$.} \\
+  \Desc{$s_i = \left( \s_i, j_i, pk_i \right)$}{The current IVC-state.} \\
+  \Desc{$\pi_i = \left( \pi_i^{(p)}, \pi_i^{(q)} \right)$}{The current IVC-proof.} \\
+  \Desc{$\acc_i = \left( \acc_i^{(p)}, \acc_i^{(q)} \right)$}{The current IVC-accumulator.} \\
 \textbf{Output} \\
   \Desc{$\Result(\top, \bot)$}{Returns $\top$ if the verifier accepts and $\bot$ if the verifier rejects.}
 \begin{algorithmic}[1]
-  \Require $x = \{ s_0, s_i, \acc_i \}$
-  \State Define $x' = x \cup \{ R_{IVC} \}$.
-  \State Verify that the accumulation scheme decider accepts: $\top \meq \ASDecider(\acc_i)$.
-  \State Verify the validity of the IVC proof: $\top \meq \NARKVerifier(R_{IVC}, x', \pi_i)$.
+  \If{$s_i \meq s_0$} \Comment{If this is true, then the proofs will be invalid and unnecessary.}
+    \State \Return $\top$.
+  \EndIf
+  \State Verify the accumulators using the accumulation scheme decider:
+    \Statex \algind $\ASDecider \left( \acc_i^{(p)} \right) \meq \ASDecider \left( \acc_i^{(q)} \right) \meq \top$
+  \State Verify the NARK-proofs:
+    \Statex \algind $x_i^{(p)} := \lbrace R_{\text{IVC}}^{(p)}, s_0, s_i, acc_i^{(p)} \rbrace$
+    \Statex \algind $x_i^{(q)} := \lbrace R_{\text{IVC}}^{(q)}, acc_i^{(q)} \rbrace$
+    \Statex \algind $\NARKVerifier \left( R_{\text{IVC}}^{(p)}, x_i^{(p)}, \pi_i^{(p)} \right) \meq \NARKVerifier \left( R_{\text{IVC}}^{(q)}, x_i^{(q)}, \pi_i^{(q)} \right) \meq \top$
   \State If the above two checks pass, then output $\top$, else output $\bot$.
 \end{algorithmic}
 \end{algorithm}
