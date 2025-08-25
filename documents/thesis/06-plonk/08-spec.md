@@ -10,16 +10,18 @@ The *gate constraint polynomial* $F_{GC}$ is defined as an *abstract equation*; 
 
 \begin{center}
 \begin{multicols}{3}
-\begin{grammar}
-<Eqn> ::= \lit{-} \synt{Eqn1}
-\alt \synt{Scalar} \lit{×} \synt{Eqn1}
-\alt \lit{(} \synt{Eqn1} \lit{)}
-\alt \synt{Column}
-
-<Eqn1> ::= \synt{Eqn2} \synt{Eqn1'}
-
-<Eqn2> ::= \synt{Eqn} \synt{Eqn2'}
-\end{grammar}
+\begin{math}
+\begin{array}{rl}
+\langle Eqn \rangle &::= - Eqn1 \\
+& |\ \mathtt{Scalar}\ \times \ Eqn1 \\
+& |\ \mathtt{(}\ Eqn1 \mathtt{)} \\
+& |\ \mathtt{Column} \\
+\\
+\langle Eqn1 \rangle &::= Eqn2\ Eqn1' \\
+\\
+\langle Eqn2 \rangle &::= Eqn\ Eqn2'
+\end{array}
+\end{math}
 
 \columnbreak
 
@@ -31,12 +33,14 @@ g &:\Ops \\
 \end{array}
 \end{math}
 
-\begin{grammar}
-<Eqn1'> ::= \lit{+} \synt{Eqn1}
-\alt \lit{-} \synt{Eqn1} | $\epsilon$
-
-<Eqn2'> ::= \lit{×} \synt{Eqn2} | $\epsilon$
-\end{grammar}
+\begin{math}
+\begin{array}{rl}
+\langle Eqn1'\rangle &::= +\ Eqn1 \\
+& |\ -\ Eqn1\ | \epsilon \\
+\\
+\langle Eqn2'\rangle &::= \times Eqn2\ |\ \epsilon \\
+\end{array}
+\end{math}
 
 \columnbreak
 
