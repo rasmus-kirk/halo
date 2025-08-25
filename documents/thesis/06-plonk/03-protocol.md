@@ -299,3 +299,40 @@ In Plonk, we don't have a single polynomial spanning over each $\vec{a},
     $\omega^8$ & 0     & 0     & 0     & 0     & 0     & 0     & 0     & 0     & 8      & 16     & 24     & 8      & 16     & 24     \\\hline
   \end{tabu}
 \end{center}
+## Outline
+
+We now define the $\Surkal$ protocol using the above arguments.
+
+\begin{algorithm}[H]
+\caption*{
+  \textbf{Surkål:} The Ultra-\plonk-ish NARK protocol.
+}
+\textbf{Inputs} \\
+  \Desc{$f: W[\tin{}] \to W[\tout{}]$}{NP problem / program.} \\
+  \Desc{$\vec{x} \in W[\tin{}]$}{The prover's private input to the program $f$} \\
+  \Desc{$\vec{x}' \in W[\vec{t^{pub}}]$}{The verifier's public input to the trace table} \\
+\textbf{Output} \\
+  \Desc{$\Result(\top, \bot)$}{Either the verifier accepts with $\top$ or rejects with $\bot$}
+\begin{algorithmic}[1]
+  \State $P \to V:$ Prover computes and sends proof $\pi$ to verifier
+    \Statex \algind $\SurkalProver \circ \SurkalArithmetize(f, \vec{x}) = \pi$
+  \State $V:$ Verifier checks
+    \Statex \algind $\SurkalVerifier(\pi) \circ \SurkalArithmetize_{\text{public}}(f, \vec{x}') \stackrel{?}{=} \top$
+  \end{algorithmic}
+\end{algorithm}
+
+### $\SurkalProver$
+
+- handwave describe notation in concrete protocol
+- describe use of arguments
+- construct polys for vanishing argument
+  - F_GC
+  - grand products: F_CC1, F_CC2, F_PL1, F_PL2
+- fiat shamir transformation of vanishing argument
+
+TODO
+
+### $\SurkalVerifier$
+
+TODO
+

@@ -1,5 +1,7 @@
 ## Arguments
 
+We now describe the arguments used in \plonk and $\plookup$.
+
 ### Vanishing Argument
 
 <!-- TODO: Generally fine, but cleanup -->

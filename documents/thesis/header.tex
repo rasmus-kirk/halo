@@ -6,6 +6,7 @@
 
 % Color stuff
 \usepackage{xcolor}
+\usepackage{colortbl}
 % Gruvbox
 \definecolor{GbBg}{HTML}{fbf1c7}
 \definecolor{GbBg0}{HTML}{f9f5d7}
@@ -34,8 +35,9 @@
 \usepackage{mathtools}
 
 \usepackage{subcaption}
+\usepackage{pgfmath}
 \usepackage{tikz}
-\usetikzlibrary{shapes.geometric, arrows, positioning, calc}
+\usetikzlibrary{shapes.geometric, arrows, positioning, calc, patterns}
 
 \tikzstyle{process} = [rectangle, minimum width=2cm, minimum height=1cm, text centered, draw=black]
 \tikzstyle{data} = [trapezium, trapezium left angle=70, trapezium right angle=110, minimum width=1.5cm, minimum height=1cm, text centered, draw=black]
@@ -57,7 +59,7 @@
     citecolor=GbGreenNt,   % Citation links
     urlcolor=GbBlueDk      % External URL links
 }
-
+\usepackage{array}
 \usepackage{caption}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
@@ -67,7 +69,15 @@
 %\usepackage{MnSymbol}
 \usepackage{yfonts}
 \usepackage{amsmath, amssymb}
-\usepackage{graphicx} % for \reflectbox
+\usepackage{graphicx}
+\usepackage{xparse}
+\usepackage{pgffor}
+\usepackage{booktabs}
+\usepackage{etoolbox}
+\usepackage{longtable}
+
+\usepackage{tabularx}
+\newcolumntype{Y}{>{\centering\arraybackslash}X}
 
 \newcommand{\Desc}[2]{\hspace*{\algorithmicindent} \makebox[14.5em][l]{#1}\parbox[t]{32em}{#2}}
 
@@ -82,6 +92,121 @@
 } {
     \endorigfigure
 }
+
+% Circuit Diagram Macros
+\tikzset{
+  port/.pic={
+    % Default height = 1cm (can be scaled using pic scale)
+    \def\h{0.125}
+    \pgfmathsetmacro{\b}{2 / sqrt(3) * \h} % base length from height
+    \pgfmathsetmacro{\bx}{\b / 2} % half-base x offset
+
+    % Vertices: tip at (0,0), base at height h
+    \draw[pic actions, fill=black]
+      (0,0) -- (-\bx,\h) -- (\bx,\h) -- cycle;
+  }
+}
+% TikZ Gate Macro - Clean Version
+% Usage: \gate{id}{coordinate}{input_labels}{gate_operation}{num_outputs}
+% Example: \gate{id}{(0,0)}{$\abst{x}_1$,$\abst{x}_2$,$\abst{x}_3$}{$\ty(g)$}{2}
+% For no inputs: \gate{input1}{(0,0)}{}{$\text{Input}^q_1$}{1}
+\makeatletter
+
+% Helper to check if string is empty
+\newcommand{\gate@ifempty}[3]{%
+  \if\relax\detokenize{#1}\relax
+    #2%
+  \else
+    #3%
+  \fi
+}
+
+% Main gate command
+\newcommand{\gate}[5]{%
+  \begin{scope}[shift={#2}, local bounding box=#1]
+    \begin{scope}[local bounding box=#1-top]
+      \gate@ifempty{#3}{%
+        % No input labels - just place gate operation at origin
+        \node[anchor=north west] (#1-g) at (0,0) {#4};
+      }{%
+        % Process input labels
+        \begin{scope}[local bounding box=#1-in]
+          \expandafter\gate@process@inputs\expandafter{#1}{#3}
+        \end{scope}
+        % Draw internal borders
+        \expandafter\gate@draw@borders\expandafter{#1}{#3}
+        % Bottom border of input section
+        \draw (#1-in.south west) -- (#1-in.south east);
+        % Gate operation below inputs
+        \node[anchor=north] (#1-g) at (#1-in.south) {#4};
+      }
+    \end{scope}
+    % Output ports
+    \gate@draw@outputs{#1}{#5}
+  \end{scope}
+  \draw[rounded corners] (#1.north west) rectangle (#1.south east);
+}
+
+% Process comma-separated input labels
+\newcommand{\gate@process@inputs}[2]{%
+  \def\gate@current@input{1}%
+  \def\gate@port@height{0.125}% Height of port pic
+  \gate@process@input@list{#1}#2,\gate@end@marker,%
+}
+
+\def\gate@process@input@list#1#2,#3\gate@end@marker{%
+  \ifnum\gate@current@input=1
+    % First input: place label below the port height to align top-left corners
+    \node[anchor=north west] (#1-in\gate@current@input l) at (0,-\gate@port@height) {#2};
+  \else
+    \pgfmathtruncatemacro{\gate@prev@input}{\gate@current@input-1}
+    \node[anchor=north west] (#1-in\gate@current@input l) at (#1-in\gate@prev@input l.north east) {#2};
+  \fi
+  % Coordinate at the base of the input port (tip + port height)
+  \coordinate (#1-in-\gate@current@input) at ($(#1-in\gate@current@input l.north)+(0,\gate@port@height)$);
+  \pic[anchor=south] at (#1-in\gate@current@input l.north) {port};
+  \pgfmathtruncatemacro{\gate@current@input}{\gate@current@input+1}
+  \ifx\relax#3\relax\else
+    \gate@process@input@list{#1}#3\gate@end@marker
+  \fi
+}
+
+% Count inputs first
+\newcommand{\gate@count@inputs}[1]{%
+  \def\gate@input@count{0}%
+  \gate@count@input@list#1,\gate@end@marker,%
+}
+
+\def\gate@count@input@list#1,#2\gate@end@marker{%
+  \pgfmathtruncatemacro{\gate@input@count}{\gate@input@count+1}
+  \ifx\relax#2\relax\else
+    \gate@count@input@list#2\gate@end@marker
+  \fi
+}
+
+% Draw vertical borders between inputs
+\newcommand{\gate@draw@borders}[2]{%
+  \gate@count@inputs{#2}%
+  \ifnum\gate@input@count>1
+    \foreach \i in {2,...,\gate@input@count} {
+      \draw (#1-in\i l.north west |- #1-in.north west) -- (#1-in\i l.south west |- #1-in.south west);
+    }
+  \fi
+}
+
+% Draw output ports
+\newcommand{\gate@draw@outputs}[2]{%
+  \ifnum#2>0
+    \foreach \i in {1,...,#2} {
+      \pgfmathsetmacro{\gate@output@pos}{(\i-0.5)/#2}
+      % Coordinate at the base of the output port (tip - port height since yscale=-1)
+      \coordinate (#1-out-\i) at ($(#1-top.south west)!\gate@output@pos!(#1-top.south east)+(0,-0.125)$);
+      \pic[yscale=-1, anchor=north] at ($(#1-top.south west)!\gate@output@pos!(#1-top.south east)$) {port};
+    }
+  \fi
+}
+
+\makeatother
 
 % \newcommand*\Bb{\mathbb{B}}
 % \newcommand*\Zb{\mathbb{Z}}
@@ -318,29 +443,118 @@
 \newcommand*\AccHiding{\mathbf{AccHiding}}
 \newcommand*\EvalProof{\mathbf{EvalProof}}
 
-\newcommand{\plonk}{$\mathcal{P}\textfrak{lon}\mathcal{K}$}
+\newcommand{\plonkm}{\mathcal{P}\textfrak{lon}\mathcal{K}}
+\newcommand{\plonk}{$\plonkm$}
 \newcommand{\plookup}{$\textfrak{plookup}$}
+\newcommand{\pcell}{\textfrak{p}}
+\newcommand{\plonkup}{\plonk$\textfrak{up}$}
 \newcommand{\Surkal}{\text{Surkål}}
+\newcommand{\SurkalArithmetize}{\Surkal.\mathrm{\text{A\scriptsize RITHMETIZE}}}
 \newcommand{\SurkalProver}{\Surkal.\mathrm{\text{P\scriptsize ROVER}}}
 \newcommand{\SurkalVerifier}{\Surkal.\mathrm{\text{V\scriptsize ERIFIER}}}
 
-\newcommand{\maybe}[2]{ \left[ #1 \middle\vert #2 \right]}
+\newcommand{\Unit}{\mathbf{1}}
+\newcommand{\maybe}[2]{ \left\{ #1 \middle\vert #2 \right.}
 \newcommand{\abst}[1]{ \hat{#1} }
+\newcommand{\avec}[1]{\abst{\vec{#1}}}
 \newcommand{\set}[1]{ \left\{ #1 \right\}}
 \newcommand{\build}[3]{\left\llbracket #1 \right\rrbracket^{#2}_{#3}}
 \newcommand{\AbsCirc}{\text{ACirc}}
-\newcommand{\Gate}{\text{Gate}}
-\newcommand{\GateType}{\text{GateType}}
+\newcommand{\Ggt}{\text{Gadget}}
+\makeatletter
+\newcommand{\ggt}[2]{%
+  \text{#1}(
+    \def\ggt@first{1}%
+    \@for\next:=#2\do{%
+      \ifnum\ggt@first=1
+        \abst{\next}%
+        \def\ggt@first{0}%
+      \else
+        ,\abst{\next}%
+      \fi
+    }%
+  )
+}
+\newcommand{\ggtw}[2]{%
+  \text{#1}(
+    \def\ggt@first{1}%
+    \@for\next:=#2\do{%
+      \ifnum\ggt@first=1
+        \next%
+        \def\ggt@first{0}%
+      \else
+        ,\next%
+      \fi
+    }%
+  )
+}
+\newcommand{\ggtu}[2]{%
+  #1(
+    \def\ggt@first{1}%
+    \@for\next:=#2\do{%
+      \ifnum\ggt@first=1
+        \next%
+        \def\ggt@first{0}%
+      \else
+        ,\next%
+      \fi
+    }%
+  )
+}
+\makeatother
+\newcommand{\inr}{\text{inr}}
+\newcommand{\inl}{\text{inl}}
+\newcommand{\gpair}[2]{ \underline{#1\ #2} }
+\newcommand{\Ops}{\text{Op}}
 \newcommand{\AState}{\text{AState}}
 \newcommand{\RState}{\text{RState}}
 \newcommand{\VMap}{\text{VMap}}
 \newcommand{\pto}{\rightharpoonup}
 \newcommand{\Wire}{\text{Wire}}
-\newcommand{\WireType}{\text{WireType}}
+\newcommand{\WireType}{\text{WTy}}
+\newcommand{\wire}[2]{\underline{#1 : #2}}
+\newcommand{\new}{\text{new}}
+\newcommand{\state}{\text{state}}
+\newcommand{\astate}[3]{\underline{#1\ #2\ #3}}
 \newcommand{\ty}{\text{ty}}
 \newcommand{\id}{\text{id}}
 \newcommand{\idx}{\text{idx}}
-\newcommand{\tin}{\text{in}}
+\newcommand{\gin}{\text{in}}
+\newcommand{\tin}[1]{\vec{t}^{\vec{in}\ifstrempty{#1}{}{,#1}}}
+\newcommand{\tout}[1]{\vec{t}^{\vec{out}\ifstrempty{#1}{}{,#1}}}
 \newcommand{\out}{\text{out}}
+\newcommand{\entries}{\text{pairs}}
+\newcommand{\aput}{\text{put}}
+\newcommand{\aget}{\text{get}}
 \newcommand{\otherwise}{\text{otherwise}}
 \newcommand{\lift}{\text{lift}}
+\DeclareMathOperator*{\opcirc}{\circ}
+\DeclareMathOperator*{\opcat}{\cat}
+\newcommand{\Slot}{\text{Slot}}
+\newcommand{\Selector}{\text{Selector}}
+\newcommand{\SlotNSelector}{\text{Slot} + \text{Selector}}
+\newcommand{\Column}{\text{Column}}
+\newcommand{\eval}{\text{eval}}
+\newcommand{\refg}{\text{ref}}
+\newcommand{\Base}{\text{Base}}
+\newcommand{\ctrn}{\text{ctrn}}
+\newcommand{\term}{\text{term}}
+\newcommand{\IndexMap}{\text{IMap}}
+\newcommand{\Uni}{\mathcal{U}}
+\newcommand{\TraceTable}{\text{TraceTable}}
+\newcommand{\Cell}{\text{Cell}}
+\newcommand{\PreTable}{\text{PreTable}}
+\newcommand{\OpGroup}{\text{OGrp}}
+\newcommand{\OpCollection}{\text{OCol}}
+\newcommand{\Grp}{\text{Grp}}
+\newcommand{\Col}{\text{Col}}
+\newcommand{\Spec}{\text{Spec}}
+\newcommand{\FMap}{\text{FMap}}
+\newcommand{\Eqn}{\text{Eqn}}
+\newcommand{\AWire}{\text{AWire}}
+\newcommand{\lin}{\text{lin}}
+\newcommand{\Arg}{\text{Arg}}
+\newcommand{\base}{\text{base}}
+\newcommand{\Input}{\text{Input}}
+\newcommand{\pset}[1]{\mathcal{P}(#1)}
+\newcommand{\Rel}{\text{Rel}}
