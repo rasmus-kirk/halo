@@ -240,10 +240,8 @@ $$
 
 The $\beta$ and $\gamma$ terms are necessary for soundness.
 
-\begin{quote}
-\color{GbGrey}
 
-\textbf{Example:}
+\begin{tcolorbox}[colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
 
 To highlight why this works, consider the following example, without the
 soundness values $\b, \g$:
@@ -262,7 +260,7 @@ $$
                                      &= (f(\o^1) + 1)(f(\o^4) + 4)(f(\o^5) + 5)(f(\o^6) + 6)(f(\o^3) + 3)(f(\o^2) + 2)
 \end{aligned}
 $$
-\end{quote}
+\end{tcolorbox}
 
 **Correctness:**
 

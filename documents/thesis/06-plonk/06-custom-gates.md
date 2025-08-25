@@ -1,4 +1,4 @@
-# Gates
+## Gates
 
 For each gate, we have a *Witness Row*, *Selector Row* and a *Coefficient
 Row*. These rows describe the form of the constraints. Take the addition
@@ -50,9 +50,47 @@ zero. This is also the case for our example add gate.
   \end{tabu}
 \end{center}
 
-## Field
+Some of the more complicated gates will have their own designated selector
+polynomial and a table of constraints. The simplest one is the equals gate:
 
-### Addition, Subtraction, Multiplication, Negation
+\begin{center}
+  \captionof*{table}{Equals Constraints} \label{tab:equals-constraints} 
+  \begin{tabu}{|cllll|}
+    \hline
+    Degree & & Constraint                    & & Meaning                    \\\tabucline[1pt]{-}
+    3      & & $(x - y) \cdot b$             & & $x \neq y \implies b = 0$  \\\hline
+    3      & & $(x - y) \cdot \a + b - 1$    & & $x = y \implies b = 1$     \\\hline
+  \end{tabu}
+\end{center}
+
+It's implicit that each constraint in the constraint tables should always be
+equal to zero. To translate this into the form expected by $f_{GC}(X)$, we
+start by multiplying each row by the relevant designated selector polynomial,
+in this case it's $q_{(=)}(X)$. This also explains why the degree is three, not
+two, in the table. The $x, y, b, \a$ can be read from the witness table from
+the equality gate, which in this case leads to $x = w_1(X), y = w_2(X), b =
+w_3(X), \a = w_4(X)$. Finally, a challenge (in this case $\zeta$) multiplied
+to each row, creating a geometric sum. Taken together, this leads to adding
+the following terms to $f_{GC}(X)$ for the equality gate:
+
+$$
+\begin{aligned}
+  f_{GC}(X) &= \dots + q_{(=)}(X) \cdot (((w_1(X) - w_2(X)) \cdot w_3(X)) + \zeta ((w_1(X) - w_2(X)) \cdot w_4(X) + w_3(X) - 1)) + \dots \\
+  f_{GC}(X) &= \dots \\
+    &+ \zeta^0 \cdot q_{(=)}(X) \cdot ((w_1(X) - w_2(X)) \cdot w_3(X)) \\
+    &+ \zeta^1 \cdot q_{(=)}(X) \cdot ((w_1(X) - w_2(X)) \cdot w_4(X) + w_3(X) - 1)) \\
+    &+ \dots
+\end{aligned}
+$$
+
+Of course, if this gate had more rows in the constraint table, the next
+term would be multiplied with $\zeta^2$ and so on. If a constraint uses
+exponentiation, for example, if a row states $x^2$ and $x = w_1(X)$
+then that simply means $w_1(X) \cdot w_1(X)$ as one would expect.
+
+### Field
+
+#### Addition, Subtraction, Multiplication, Negation
 
 For completeness, we include the witness tables for field addition, subtraction,
 multiplication and negation even though they are part of vanilla-Plonk:
@@ -126,9 +164,9 @@ multiplication and negation even though they are part of vanilla-Plonk:
   \captionof*{table}{Witness Row} \label{tab:field-neg-witness} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
-    $w_1$ & $w_2$  &  $w_3$ & $w_4$  & $w_5$  & $w_6$  & $w_7$  & $w_8$  & $w_9$  & $w_{10}$  & $w_{11}$  & $w_{12}$  & $w_{13}$  & $w_{14}$  & $w_{15}$  & $w_{16}$  \\\tabucline[1pt]{-}
-    $a$   & 0      &  0     & 0      & 0      & 0      & 0      & 0      & 0      & 0         & 0         & 0         & 0         & 0         & 0         & 0         \\\hline
-    $I_1$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    \\\hline
+    $w_1$ & $w_2$  & $w_3$ & $w_4$  & $w_5$  & $w_6$  & $w_7$  & $w_8$  & $w_9$  & $w_{10}$  & $w_{11}$  & $w_{12}$  & $w_{13}$  & $w_{14}$  & $w_{15}$  & $w_{16}$  \\\tabucline[1pt]{-}
+    $a$   & 0      & $-a$  & 0      & 0      & 0      & 0      & 0      & 0      & 0         & 0         & 0         & 0         & 0         & 0         & 0         \\\hline
+    $I_1$ & $\bot$ & $O_1$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    \\\hline
   \end{tabu}
 \end{center}
 
@@ -165,9 +203,9 @@ that $x \cdot x^{-1} = 1$:
   \end{tabu}
 \end{center}
 
-## Booleans
+### Booleans
 
-### Witness Boolean
+#### Witness Boolean
 
 To witness a boolean, we need to constrain that the witnessed value indeed
 is a bit. So we need that:
@@ -195,7 +233,7 @@ This can be modelled using the native plonk selector polynomials.
   \end{tabu}
 \end{center}
 
-### Equals
+#### Equals
 
 To check whether two values are equal, $b = x \meq y$, we need to witness $b$
 and $\text{inv0}(x - y)$:
@@ -281,7 +319,7 @@ $$
 \end{aligned}
 $$
 
-### And, Or
+#### And, Or
 
 To implement "And" for two booleans, $x, y$, we can simply multiply them,
 costing a single row. Because $x, y$ are constrained to be bits, when they are
@@ -323,7 +361,7 @@ row as $0 = x + y - c - (x \cdot y)$:
   \end{tabu}
 \end{center}
 
-## Rangecheck
+### Rangecheck
 
 We want to constrain $x \in [0, 2^{254})$. We decompose $x$ into 254 bits
 and check that:
@@ -488,7 +526,7 @@ We copy constrain $acc_{17}$ to $I_1$ to indicate that $x = acc_{17}$ must hold.
          rows does not have any copy constraints associated with it.
 
 
-## Poseidon
+### Poseidon
 <!-- TODO: reference -->
 
 We also create a special gate type for poseidon hashing. This gate type is
@@ -558,9 +596,9 @@ For the first row:
   \captionof*{table}{Witness Row} \label{tab:witness-point-witness} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
-    $w_1$ & $w_2$ & $w_3$ & $w_4$  & $w_5$  & $w_6$  & $w_7$  & $w_8$  & $w_9$  & $w_{10}$ & $w_{11}$ & $w_{12}$ & $w_{13}$ & $w_{14}$ & $w_{15}$ & $w_{16}$    \\\tabucline[1pt]{-}
-    $s_0$ & $s_1$ & $s_2$ & $s_3$  & $s_4$  & $s_5$  & $s_6$  & $s_7$  & $s_8$  & $s_9$    & $s_{10}$ & $s_{11}$ & $s_{12}$ & $s_{13}$ & $s_{14}$ & 0      \\\hline
-    $I_1$ & $I_2$ & $I_3$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$ \\\hline
+    $w_1$     & $w_2$     & $w_3$     & $w_4$     & $w_5$     & $w_6$     & $w_7$     & $w_8$     & $w_9$     & $w_{10}$  & $w_{11}$  & $w_{12}$  & $w_{13}$  & $w_{14}$  & $w_{15}$  & $w_{16}$ \\\tabucline[1pt]{-}
+    $s_{0,0}$ & $s_{0,1}$ & $s_{0,2}$ & $s_{1,0}$ & $s_{1,1}$ & $s_{1,2}$ & $s_{2,0}$ & $s_{2,1}$ & $s_{2,2}$ & $s_{3,0}$ & $s_{3,1}$ & $s_{3,2}$ & $s_{4,0}$ & $s_{4,1}$ & $s_{4,2}$ & $0$      \\\hline
+    $I_1$     & $I_2$     & $I_3$     & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$   \\\hline
   \end{tabu}
 \end{center}
 
@@ -583,9 +621,9 @@ to store the final state after 55 rounds (11 times the above gates):
   \captionof*{table}{Witness Row} \label{tab:witness-point-witness} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
-    $w_1$ & $w_2$ & $w_3$ & $w_4$  & $w_5$  & $w_6$  & $w_7$  & $w_8$  & $w_9$  & $w_{10}$ & $w_{11}$ & $w_{12}$ & $w_{13}$ & $w_{14}$ & $w_{15}$ & $w_{16}$    \\\tabucline[1pt]{-}
-    $s_0''$ & $s_1$ & $s_2$ & $s_3$  & $s_4$  & $s_5$  & $s_6$  & $s_7$  & $s_8$  & $s_9$    & $s_{10}$ & $s_{11}$ & $s_{12}$ & $s_{13}$ & $s_{14}$ & 0      \\\hline
-    $I_1$ & $I_2$ & $I_3$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$ \\\hline
+    $w_1$      & $w_2$      & $w_3$      & $w_4$  & $w_5$  & $w_6$  & $w_7$  & $w_8$  & $w_9$  & $w_{10}$ & $w_{11}$ & $w_{12}$ & $w_{13}$ & $w_{14}$ & $w_{15}$ & $w_{16}$ \\\tabucline[1pt]{-}
+    $s_{55,0}$ & $s_{55,1}$ & $s_{55,2}$ & $0$    & $0$    & $0$    & $0$    & $0$    & $0$    & $0$      & $0$      & $0$      & $0$      & $0$      & $0$      & 0        \\\hline
+    $O_1$      & $O_2$      & $O_3$      & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$   \\\hline
   \end{tabu}
 \end{center}
 
@@ -600,9 +638,9 @@ to store the final state after 55 rounds (11 times the above gates):
 
 [^poseidon-cc]: Obviously, for the next 10 rounds there is no copy constraints.
 
-## Elliptic Curves
+### Elliptic Curves
 
-### Witness Point
+#### Witness Point
 
 Points are represented in Affine Form, and the identity point is represented
 as $\Oc = (0,0)$. 0 is not a valid $x$-coordinate of a valid point, because
@@ -619,9 +657,9 @@ equation. So we need constraints that encodes that $x \neq
   \captionof*{table}{Custom Constraints} \label{tab:witness-point-constraints} 
   \begin{tabu}{|cllll|}
     \hline
-    Degree & & Constraint                                             & & Meaning                                 \\\tabucline[1pt]{-}
-    5      & & $(q_{\text{point}} \cdot x) \cdot (y^2 - x^3 - 5) = 0$ & & $x \neq 0 \implies (y^2 - x^3 - 5) = 0$ \\\hline
-    5      & & $(q_{\text{point}} \cdot y) \cdot (y^2 - x^3 - 5) = 0$ & & $y \neq 0 \implies (y^2 - x^3 - 5) = 0$ \\\hline
+    Degree & & Constraint                    & & Meaning                                 \\\tabucline[1pt]{-}
+    5      & & $x \cdot (y^2 - x^3 - 5) = 0$ & & $x \neq 0 \implies (y^2 - x^3 - 5) = 0$ \\\hline
+    5      & & $y \cdot (y^2 - x^3 - 5) = 0$ & & $y \neq 0 \implies (y^2 - x^3 - 5) = 0$ \\\hline
   \end{tabu}
 \end{center}
 
@@ -646,7 +684,7 @@ equation. So we need constraints that encodes that $x \neq
 
 Soundness and completeness hold trivially.
 
-### Addition
+#### Addition
 
 In the constraints, we use a trick similar to the one used in the equality
 gate, where we model the condition $x = 0 \implies y = z$ by using the
@@ -695,20 +733,20 @@ $$
   \captionof*{table}{Custom Constraints} \label{tab:witness-point-constraints} 
   \begin{tabu}{|c|l|l|}
     \hline
-    Degree & Constraint                                                                                    & Meaning                                                                                    \\\tabucline[1pt]{-} \rule{0pt}{14pt} \rule[-8pt]{0pt}{0pt}
-    4      & $q_{(+)} \cdot (x_q - x_p) \cdot ((x_q - x_p) \cdot \l - (y_q - y_p)) = 0$                    & $x_q \neq x_p \implies \l = \frac{y_q - y_p}{x_q - x_p}$                                   \\\hline \rule{0pt}{14pt}
-    5      & $q_{(+)} \cdot (1 - (x_q - x_p) \cdot \a) \cdot (2y_p \cdot \l - 3x_p^2) = 0$                 & $x_q = x_p \land y_p \neq 0 \implies \l = \frac{3x_p^2}{2y_p}$                             \\\rule[-8pt]{0pt}{0pt}
-           &                                                                                               & $x_q = x_p \land y_p = 0 \implies x_p = 0$                                                 \\\hline \rule{0pt}{14pt}
-    6      & $q_{(+)} \cdot (x_p \cdot x_q \cdot (x_q - x_p) \cdot (\l^2 - x_p - x_q - x_r) = 0$           & $x_p \neq 0 \land x_q \neq 0 \land x_q \neq x_p \implies x_r = \l^2 - x_p - x_q$           \\
-    6      & $q_{(+)} \cdot (x_p \cdot x_q \cdot (x_q - x_p) \cdot (\l \cdot (x_p - x_r) - y_p - y_r) = 0$ & $x_p \neq 0 \land x_q \neq 0 \land x_q \neq x_p \implies y_r = \l \cdot (x_p - x_q) - y_p$ \\
-    6      & $q_{(+)} \cdot (x_p \cdot x_q \cdot (y_q - y_p) \cdot (\l^2 - x_p - x_q - x_r) = 0$           & $x_p \neq 0 \land x_q \neq 0 \land y_q \neq y_p \implies x_r = \l^2 - x_p - x_q$           \\\rule[-8pt]{0pt}{0pt}
-    6      & $q_{(+)} \cdot (x_p \cdot x_q \cdot (y_q - y_p) \cdot (\l \cdot (x_p - x_r) - y_p - y_r) = 0$ & $x_p \neq 0 \land x_q \neq 0 \land y_q \neq y_p \implies y_r = \l \cdot (x_p - x_q) - y_p$ \\\hline \rule{0pt}{14pt}
-    4      & $q_{(+)} \cdot (1 - x_p \cdot \b) \cdot (x_r - x_q) = 0$                                      & $x_p = 0 \implies x_r = x_q$                                                               \\\rule[-8pt]{0pt}{0pt}
-    4      & $q_{(+)} \cdot (1 - x_p \cdot \b) \cdot (y_r - y_q) = 0$                                      & $x_p = 0 \implies y_r = y_q$                                                               \\\hline \rule{0pt}{14pt}
-    4      & $q_{(+)} \cdot (1 - x_q \cdot \b) \cdot (x_r - x_p) = 0$                                      & $x_q = 0 \implies x_r = x_p$                                                               \\\rule[-8pt]{0pt}{0pt}
-    4      & $q_{(+)} \cdot (1 - x_q \cdot \b) \cdot (y_r - y_p) = 0$                                      & $x_q = 0 \implies y_r = y_p$                                                               \\\hline \rule{0pt}{14pt}
-    4      & $q_{(+)} \cdot (1 - (x_q - x_p) \cdot \a - (y_q + y_p) \cdot \d) \cdot x_r = 0$               & $x_q = x_p \land y_q = -y_p \implies x_r = 0$                                              \\\rule[-8pt]{0pt}{0pt}
-    4      & $q_{(+)} \cdot (1 - (x_q - x_p) \cdot \a - (y_q + y_p) \cdot \d) \cdot y_r = 0$               & $x_q = x_p \land y_q = -y_p \implies y_r = 0$                                              \\\hline
+    Degree & Constraint                                                                  & Meaning                                                                                    \\\tabucline[1pt]{-} \rule{0pt}{14pt} \rule[-8pt]{0pt}{0pt}
+    4      & $(x_q - x_p) \cdot ((x_q - x_p) \cdot \l - (y_q - y_p))$                    & $x_q \neq x_p \implies \l = \frac{y_q - y_p}{x_q - x_p}$                                   \\\hline \rule{0pt}{14pt}
+    5      & $(1 - (x_q - x_p) \cdot \a) \cdot (2y_p \cdot \l - 3x_p^2)$                 & $x_q = x_p \land y_p \neq 0 \implies \l = \frac{3x_p^2}{2y_p}$                             \\\rule[-8pt]{0pt}{0pt}
+           &                                                                             & $x_q = x_p \land y_p = 0 \implies x_p = 0$                                                 \\\hline \rule{0pt}{14pt}
+    6      & $(x_p \cdot x_q \cdot (x_q - x_p) \cdot (\l^2 - x_p - x_q - x_r)$           & $x_p \neq 0 \land x_q \neq 0 \land x_q \neq x_p \implies x_r = \l^2 - x_p - x_q$           \\
+    6      & $(x_p \cdot x_q \cdot (x_q - x_p) \cdot (\l \cdot (x_p - x_r) - y_p - y_r)$ & $x_p \neq 0 \land x_q \neq 0 \land x_q \neq x_p \implies y_r = \l \cdot (x_p - x_q) - y_p$ \\
+    6      & $(x_p \cdot x_q \cdot (y_q + y_p) \cdot (\l^2 - x_p - x_q - x_r)$           & $x_p \neq 0 \land x_q \neq 0 \land y_q \neq -y_p \implies x_r = \l^2 - x_p - x_q$           \\\rule[-8pt]{0pt}{0pt}
+    6      & $(x_p \cdot x_q \cdot (y_q + y_p) \cdot (\l \cdot (x_p - x_r) - y_p - y_r)$ & $x_p \neq 0 \land x_q \neq 0 \land y_q \neq -y_p \implies y_r = \l \cdot (x_p - x_q) - y_p$ \\\hline \rule{0pt}{14pt}
+    4      & $(1 - x_p \cdot \b) \cdot (x_r - x_q)$                                      & $x_p = 0 \implies x_r = x_q$                                                               \\\rule[-8pt]{0pt}{0pt}
+    4      & $(1 - x_p \cdot \b) \cdot (y_r - y_q)$                                      & $x_p = 0 \implies y_r = y_q$                                                               \\\hline \rule{0pt}{14pt}
+    4      & $(1 - x_q \cdot \b) \cdot (x_r - x_p)$                                      & $x_q = 0 \implies x_r = x_p$                                                               \\\rule[-8pt]{0pt}{0pt}
+    4      & $(1 - x_q \cdot \b) \cdot (y_r - y_p)$                                      & $x_q = 0 \implies y_r = y_p$                                                               \\\hline \rule{0pt}{14pt}
+    4      & $(1 - (x_q - x_p) \cdot \a - (y_q + y_p) \cdot \d) \cdot x_r$               & $x_q = x_p \land y_q = -y_p \implies x_r = 0$                                              \\\rule[-8pt]{0pt}{0pt}
+    4      & $(1 - (x_q - x_p) \cdot \a - (y_q + y_p) \cdot \d) \cdot y_r$               & $x_q = x_p \land y_q = -y_p \implies y_r = 0$                                              \\\hline
   \end{tabu}
 \end{center}
 
@@ -735,8 +773,9 @@ $$
 
 1. $q_{(+)} \cdot (x_q - x_p) \cdot ((x_q - x_p) \cdot \l - (y_q - y_p)) = 0$  
 
-   Meaning that $x_q \neq x_p \implies \l = \frac{y_q - y_p}{x_q - x_p}$ Which
-   is equivalent to stating $P \neq Q \implies \l = \frac{y_q - y_p}{x_q - x_p}$.
+   Which ensures:  
+   $x_q \neq x_p \implies \l = \frac{y_q - y_p}{x_q - x_p}$  
+   $(P \neq Q \land P \neq -Q) \implies \l = \frac{y_q - y_p}{x_q - x_p}$
 
 2. $q_{(+)} \cdot (1 - (x_q - x_p) \cdot \a) \cdot (2y_p \cdot \l - 3x_p^2) = 0$
 
@@ -749,66 +788,126 @@ $$
    ensures:  
 
    $x_q = x_p \land y_p \neq 0 \implies \l = \frac{3x_p^2}{2y_p}$  
-   $x_q = x_p \land y_p = 0 \implies x_p = 0$
-
-   Or:
-
+   $x_q = x_p \land y_p = 0 \implies x_p = 0$  
    $(P = Q \lor Q = -P) \land P \neq \Oc \land Q \neq \Oc \implies \l = \frac{3x_p^2}{2y_p}$
 
 3.
   a. $q_{(+)} \cdot (x_p \cdot x_q \cdot (x_q - x_p) \cdot (\l^2 - x_p - x_q - x_r) = 0$
   b. $q_{(+)} \cdot (x_p \cdot x_q \cdot (x_q - x_p) \cdot (\l \cdot (x_p - x_r) - y_p - y_r) = 0$
-  c. $q_{(+)} \cdot (x_p \cdot x_q \cdot (y_q - y_p) \cdot (\l^2 - x_p - x_q - x_r) = 0$
-  d. $q_{(+)} \cdot (x_p \cdot x_q \cdot (y_q - y_p) \cdot (\l \cdot (x_p - x_r) - y_p - y_r) = 0$
+  c. $q_{(+)} \cdot (x_p \cdot x_q \cdot (y_q + y_p) \cdot (\l^2 - x_p - x_q - x_r) = 0$
+  d. $q_{(+)} \cdot (x_p \cdot x_q \cdot (y_q + y_p) \cdot (\l \cdot (x_p - x_r) - y_p - y_r) = 0$
 
   It's clear that if $(x_p \cdot x_q \cdot (x_q - x_p) \neq 0 \implies x_p
-  \neq 0 \land x_q \neq 0 x_q \neq x_p$. So 3.a states:
+  \neq 0 \land x_q \neq 0 \land x_q \neq x_p$. So 3.a states:
 
   $x_p \neq 0 \land x_q \neq 0 \land x_q \neq x_p \implies x_r = \l^2 - x_p - x_q$.
 
-  Constraint 3.b, 3.c, 3.d have similar meaning. Combining 3.a, 3.b, 3.c, 3.d yeilds:
+  Constraint 3.b, 3.c, 3.d have similar meaning. Combining 3.a, 3.b, 3.c, 3.d yields:
 
   $x_p \neq 0 \land x_q \neq 0 \land x_q \neq x_p \implies x_r = \l^2 - x_p - x_q \land y_r = \l \cdot (x_p - x_r) - y_p$  
-  $x_p \neq 0 \land x_q \neq 0 \land y_q \neq y_p \implies x_r = \l^2 - x_p - x_q \land y_r = \l \cdot (x_p - x_r) - y_p$
+  $x_p \neq 0 \land x_q \neq 0 \land y_q \neq -y_p \implies x_r = \l^2 - x_p - x_q \land y_r = \l \cdot (x_p - x_r) - y_p$
 
   Or equivalently:
 
-  $x_p \neq 0 \land x_q \neq 0 \land x_q \neq x_p \land y_q \neq y_p \implies x_r = \l^2 - x_p - x_q \land y_r = \l \cdot (x_p - x_r) - y_p$  
+  $x_p \neq 0 \land x_q \neq 0 \land x_q \neq x_p \land y_q \neq -y_p \implies x_r = \l^2 - x_p - x_q \land y_r = \l \cdot (x_p - x_r) - y_p$  
 
   From the curve we know that any point where $x$ or $y$ is 0, is invalid,
   except if it's the identity point. We can also combine the two implications:
 
-  $x_p \neq 0 \land y_p \neq 0 \land x_q \neq 0 \land y_q \neq 0 \land x_q \neq x_p \land y_q \neq y_p \implies x_r = \l^2 - x_p - x_q \land y_r = \l \cdot (x_p - x_r) - y_p$  
+  $x_p \neq 0 \land y_p \neq 0 \land x_q \neq 0 \land y_q \neq 0 \land x_q \neq x_p \land y_q \neq -y_p \implies x_r = \l^2 - x_p - x_q \land y_r = \l \cdot (x_p - x_r) - y_p$  
 
   Which simplifies to:
 
-  $P \neq \Oc \land Q \neq \Oc \land P \neq Q \implies x_r = \l^2 - x_p - x_q \land y_r = \l \cdot (x_p - x_r) - y_p$
+  $P \neq \Oc \land Q \neq \Oc \land -P \neq Q \implies x_r = \l^2 - x_p - x_q \land y_r = \l \cdot (x_p - x_r) - y_p$
 4.
   a. $q_{(+)} \cdot (1 - x_p \cdot \b) \cdot (x_r - x_q) = 0$
   b. $q_{(+)} \cdot (1 - x_p \cdot \b) \cdot (y_r - y_q) = 0$
 
   Meaning that:  
-  $x_p = 0 \land y_p = 0 \implies x_r = x_q \land y_r = y_q$
+  $x_p = 0 \land y_p = 0 \implies x_r = x_q \land y_r = y_q$  
   $P = \Oc \implies R = Q$
 5.
   a. $q_{(+)} \cdot (1 - x_q \cdot \b) \cdot (x_r - x_p) = 0$
   b. $q_{(+)} \cdot (1 - x_q \cdot \b) \cdot (y_r - y_p) = 0$
 
   Meaning that:  
-  $x_q = 0 \land y_q = 0 \implies x_r = x_p \land y_r = y_p$
+  $x_q = 0 \land y_q = 0 \implies x_r = x_p \land y_r = y_p$  
   $Q = \Oc \implies R = P$
 6.
   a. $q_{(+)} \cdot (1 - (x_q - x_p) \cdot \a - (y_q + y_p) \cdot \d) \cdot x_r = 0$
   b. $q_{(+)} \cdot (1 - (x_q - x_p) \cdot \a - (y_q + y_p) \cdot \d) \cdot y_r = 0$
 
   Meaning that:  
-  $x_q = x_p \land y_q = -y_p \implies x_r = 0 \land y_r = 0$
-
-  Or:  
+  $x_q = x_p \land y_q = -y_p \implies x_r = 0 \land y_r = 0$  
   $Q = -P \implies R = \Oc$
 
+**Security:**
 
-### Scalar Multiplication
+Analysing the cases of $P + Q = R$:
+
+- $\Oc + \Oc = \Oc$
+  - Completeness:
+    1. Holds because $P = Q$
+    2. Holds because $P = Q = \Oc$
+    3. Holds because $P = Q = \Oc$
+    4. Holds because $P = \Oc \land R = Q = \Oc$
+    5. Holds because $Q = \Oc \land R = P = \Oc$
+    6. Holds because $Q = -P = \Oc \land R = \Oc$
+  - Soundness: $R = \Oc$ is the only solution to 6.
+- $P + \Oc = P : P \neq \Oc$
+  - Completeness:
+    1. $P \neq Q$, so $\l = \frac{y_q - y_p}{x_q - x_p}$ is a solution
+    2. Holds because $Q = \Oc$
+    3. Holds because $Q = \Oc$
+    4. Holds because $P \neq \Oc$
+    5. Holds because $Q = \Oc \land R = P$
+    6. Holds because $Q \neq -P$
+  - Soundness: $R = \Oc$ is the only solution to 5.
+- $\Oc + Q = Q : Q \neq \Oc$
+  - Completeness:
+    1. $P \neq Q$, so $\l = \frac{y_q - y_p}{x_q - x_p}$ is a solution
+    2. Holds because $P = \Oc$
+    3. Holds because $P = \Oc$
+    4. Holds because $P = \Oc \land R = Q$
+    5. Holds because $Q \neq \Oc$
+    6. Holds because $Q \neq -P$
+  - Soundness: $R = \Oc$ is the only solution to 4.
+- $P + Q = 2P : P = Q \neq \Oc$
+  - Completeness:
+    1. Holds because $P = Q$
+    2. $P = Q$, so $\l = \frac{2x_p^2}{2y_p}$ is a solution
+    3. Holds because $P \neq \Oc \land Q \neq 0 \land Q \neq -P$, so $R =
+       (x_r = \l^2 - x_p - x_q, y_r = \l \cdot (x_p - x_r) - y_p)$. Which
+       is consistent with point doubling, since $x_p = x_q$ and $\l =
+       \frac{2x_p^2}{2y_p}$.
+    4. Holds because $P \neq \Oc$
+    5. Holds because $Q \neq \Oc$
+    6. Holds because $Q \neq -P$
+  - Soundness: $\l$ is computed correctly (2). $R = 2P$ is the only solution
+    to 3.
+- $P + Q = \Oc : P = -Q \neq \Oc$
+  - Completeness:
+    1. Holds because $P = -Q$
+    2. $P = Q$, so $\l = \frac{2x_p^2}{2y_p}$ is a solution
+    3. Holds because $-P = Q$
+    4. Holds because $P \neq \Oc$
+    5. Holds because $Q \neq \Oc$
+    6. Holds because $Q = -P \land R = \Oc$
+  - Soundness: $R = \Oc$ is the only solution to 6.
+- $P + Q = \Oc : P \neq -Q, P \neq Q, P \neq \Oc, Q \neq \Oc$
+  - Completeness:
+    1. $P \neq Q \land P \neq -Q$, so $\l = \frac{y_q - y_p}{x_q - x_p}$ is a valid solution
+    2. Holds because $P \neq Q \land Q \neq -P$
+    3. Holds because $P \neq -Q$, so $R =
+       (x_r = \l^2 - x_p - x_q, y_r = \l \cdot (x_p - x_r) - y_p)$. Which
+       is consistent with affine point addition since $\l = \frac{y_q -
+       y_p}{x_q - x_p}$.
+    4. Holds because $P \neq \Oc$
+    5. Holds because $Q \neq \Oc$
+    6. Holds because $Q \neq -P$
+  - Soundness: $\l$ is computed correctly (2). $R = P + Q$ is the only solution
+
+#### Scalar Multiplication
 
 We follow a standard double-and-add scalar multiplication algorithm. It's
 specified below. It may seem a bit odd, but it's just to better relate to
@@ -877,12 +976,12 @@ And add the following constraints:
   \captionof*{table}{Custom Constraints} \label{tab:witness-point-constraints} 
   \begin{tabu}{|c|ll|ll|}
     \hline
-    Degree & & Constraint                                                        & & Meaning                              \\\tabucline[1pt]{-}
-    4      & & $q_{(\cdot)} \cdot (1 - x_a \cdot \b_q) \cdot x_q = 0$            & & $x_a = 0 \implies x_q = 0$           \\
-    4      & & $q_{(\cdot)} \cdot (1 - x_a \cdot \b_q) \cdot y_q = 0$            & & $x_a = 0 \implies y_q = 0$           \\\hline
-    3      & & $q_{(\cdot)} \cdot (2 \cdot y_a \cdot \l_q - 3 \cdot x_a^2) = 0$  & & $\l_q = \frac{3x_a^2}{2y_a}$         \\\hline
-    3      & & $q_{(\cdot)} \cdot (\l_q^2 - 2 \cdot x_a - x_q) = 0$              & & $x_q = \l_q^2 - 2 \cdot x_a$         \\\hline
-    3      & & $q_{(\cdot)} \cdot (\l_q \cdot (x_a - x_q) - y_a - y_q) = 0$      & & $y_q = \l_q \cdot (x_a - x_q) - y_a$ \\\hline
+    Degree & & Constraint                                  & & Meaning                              \\\tabucline[1pt]{-}
+    4      & & $(1 - x_a \cdot \g_q) \cdot x_q$            & & $x_a = 0 \implies x_q = 0$           \\
+    4      & & $(1 - x_a \cdot \g_q) \cdot y_q$            & & $x_a = 0 \implies y_q = 0$           \\\hline
+    3      & & $(2 \cdot y_a \cdot \l_q - 3 \cdot x_a^2)$  & & $\l_q = \frac{3x_a^2}{2y_a}$         \\\hline
+    3      & & $(\l_q^2 - 2 \cdot x_a - x_q)$              & & $x_q = \l_q^2 - 2 \cdot x_a$         \\\hline
+    3      & & $(\l_q \cdot (x_a - x_q) - y_a - y_q)$      & & $y_q = \l_q \cdot (x_a - x_q) - y_a$ \\\hline
   \end{tabu}
 \end{center}
 
@@ -914,23 +1013,23 @@ And add the following constraints:
      $x_q$ is computed correctly, (4) states that $y_q$ is computed correctly.
      Thus, $Q = 2A$
 
-From here, we simply add the previous point addition constraints, with one
-small change; we already have $\b_q$, which is used to check whether $A$
-is the identity point. However, since $A = \Oc \implies Q = \Oc$, we can
-replace the $\b$ from the point addition constraints with the already witnessed
-$\b_q$. Soundness and completeness follow from the previous section. Finally,
-we need to create constraints for $S = \textbf{ if } b_1 = 1 \textbf{ then }
-R \textbf{ else } Q$.
+From here, we simply add the previous point addition constraints, with
+one small change; we already have $\g_q$, which is used to check whether
+$A$ is the identity point. However, since $A = \Oc \implies Q = \Oc$, we
+can replace the $\g$ from the point addition constraints with the already
+witnessed $\g_q$. Then, soundness and completeness follow trivially from the
+previous section. Finally, we need to create constraints for $S = \textbf{
+if } b_1 = 1 \textbf{ then } R \textbf{ else } Q$.
 
 \begin{center}
   \captionof*{table}{Custom Constraints} \label{tab:scalar-mul-bit-constraints} 
   \begin{tabu}{|c|ll|ll|}
     \hline
-    Degree & & Constraint                                                          & & Meaning                                                               \\\tabucline[1pt]{-}
-    3      & & $b_i \cdot (b_i - 1) = 0$                                           & & $b_i \in \Bb$                                                         \\\hline
-    3      & & $q_{(\cdot)} \cdot x_s - (b_i \cdot x_r + (1 - b_i) \cdot x_q) = 0$ & & $x_s = \textbf{ if } b_i = 1 \textbf{ then } x_r \textbf{ else } x_q$ \\
-    3      & & $q_{(\cdot)} \cdot y_s - (b_i \cdot y_r + (1 - b_i) \cdot y_q) = 0$ & & $y_s = \textbf{ if } b_i = 1 \textbf{ then } y_r \textbf{ else } y_q$ \\\hline
-    3      & & $q_{(\cdot)} \cdot acc_{i+1} - (acc_i + b_i \cdot 2^i) = 0$         & & $acc_{i+1} - (acc_i + b_i \cdot 2^i)$                                 \\\hline
+    Degree & & Constraint                                    & & Meaning                                                               \\\tabucline[1pt]{-}
+    3      & & $b_i \cdot (b_i - 1)$                         & & $b_i \in \Bb$                                                         \\\hline
+    3      & & $x_s - (b_i \cdot x_r + (1 - b_i) \cdot x_q)$ & & $x_s = \textbf{ if } b_i = 1 \textbf{ then } x_r \textbf{ else } x_q$ \\
+    3      & & $y_s - (b_i \cdot y_r + (1 - b_i) \cdot y_q)$ & & $y_s = \textbf{ if } b_i = 1 \textbf{ then } y_r \textbf{ else } y_q$ \\\hline
+    3      & & $acc_{i+1} - (acc_i + b_i \cdot 2^i)$         & & $acc_{i+1} - (acc_i + b_i \cdot 2^i)$                                 \\\hline
   \end{tabu}
 \end{center}
 
@@ -974,29 +1073,29 @@ $$
   \captionof*{table}{Custom Constraints} \label{tab:witness-point-constraints} 
   \begin{tabu}{|c|l|l|}
     \hline
-    Degree & Constraint                                                                                      & Meaning                                                                                      \\\tabucline[1pt]{-}
-    4      & $q_{(\cdot)} \cdot (1 - x_a \cdot \b_q) \cdot x_q$                                           & $x_a = 0 \implies x_q = 0$                                                                   \\
-    4      & $q_{(\cdot)} \cdot (1 - x_a \cdot \b_q) \cdot y_q$                                           & $x_a = 0 \implies y_q = 0$                                                                   \\\hline
-    3      & $q_{(\cdot)} \cdot (2 \cdot y_a \cdot \l_q - 3 \cdot x_a^2)$                                    & $\l_q = \frac{3x_a^2}{2y_a}$                                                                 \\\hline
-    3      & $q_{(\cdot)} \cdot (\l_q^2 - 2 \cdot x_a - x_q)$                                               & $x_q = \l_q^2 - 2 \cdot x_a$                                                                 \\\hline
-    3      & $q_{(\cdot)} \cdot (\l_q \cdot (x_a - x_q) - y_a - y_q)$                                       & $y_q = \l_q \cdot (x_a - x_q) - y_a$                                                         \\\hline
-    4      & $q_{(\cdot)} \cdot (x_q - x_p) \cdot ((x_q - x_p) \cdot \l_r - (y_q - y_p))$                 & $x_q \neq x_p \implies \l_r = \frac{y_q - y_p}{x_q - x_p}$                                   \\\hline
-    5      & $q_{(\cdot)} \cdot (1 - (x_q - x_p) \cdot \a_r) \cdot (2y_p \cdot \l_r - 3x_p^2)$            & $x_q = x_p \land y_p \neq 0 \implies \l_r = \frac{3x_p^2}{2y_p}$                             \\
-           &                                                                                                 & $x_q = x_p \land y_p = 0 \implies x_p = 0$                                                  \\\hline
-    6      & $q_{(\cdot)} \cdot x_p \cdot x_q \cdot (x_q - x_p) \cdot (\l_r^2 - x_p - x_q - x_r)$           & $x_p, x_q \neq 0 \land x_q \neq x_p \implies x_r = \l_r^2 - x_p - x_q$                       \\
-    6      & $q_{(\cdot)} \cdot x_p \cdot x_q \cdot (x_q - x_p) \cdot (\l_r \cdot (x_p - x_r) - y_p - y_r)$ & $x_p, x_q \neq 0 \land x_q \neq x_p \implies y_r = \l_r \cdot (x_p - x_q) - y_p$             \\
-    6      & $q_{(\cdot)} \cdot x_p \cdot x_q \cdot (y_q - y_p) \cdot (\l_r^2 - x_p - x_q - x_r)$           & $x_p, x_q \neq 0 \land y_q \neq y_p \implies x_r = \l_r^2 - x_p - x_q$                       \\
-    6      & $q_{(\cdot)} \cdot x_p \cdot x_q \cdot (y_q - y_p) \cdot (\l_r \cdot (x_p - x_r) - y_p - y_r)$ & $x_p, x_q \neq 0 \land y_q \neq y_p \implies y_r = \l_r \cdot (x_p - x_q) - y_p$             \\\hline
-    4      & $q_{(\cdot)} \cdot (1 - x_p \cdot \b_r) \cdot (x_r - x_q))$                                   & $x_p = 0 \implies x_r = x_q$                                                                 \\
-    4      & $q_{(\cdot)} \cdot (1 - x_p \cdot \b_r) \cdot (y_r - y_q))$                                   & $x_p = 0 \implies y_r = y_q$                                                                 \\\hline
-    4      & $q_{(\cdot)} \cdot (1 - x_q \cdot \g_q) \cdot (x_r - x_p))$                                   & $x_q = 0 \implies x_r = x_p$                                                                 \\
-    4      & $q_{(\cdot)} \cdot (1 - x_q \cdot \g_q) \cdot (y_r - y_p))$                                   & $x_q = 0 \implies y_r = y_p$                                                                 \\\hline
-    4      & $q_{(\cdot)} \cdot (1 - (x_q - x_p) \cdot \a_r - (y_q + y_p) \cdot \d_r) \cdot x_r)$          & $x_q = x_p \land y_q = -y_p \implies x_r = 0$                                                \\
-    4      & $q_{(\cdot)} \cdot (1 - (x_q - x_p) \cdot \a_r - (y_q + y_p) \cdot \d_r) \cdot y_r)$          & $x_q = x_p \land y_q = -y_p \implies y_r = 0$                                                \\\hline
-    3      & $q_{(\cdot)} \cdot b_i \cdot (b_i - 1)$                                                       & $b_i \in \Bb$                                                                                \\\hline
-    3      & $q_{(\cdot)} \cdot (x_s - (b_i \cdot x_r + (1 - b_i) \cdot x_q))$                               & $x_s = \textbf{ if } b_i = 1 \textbf{ then } x_r \textbf{ else } x_q$                        \\
-    3      & $q_{(\cdot)} \cdot (y_s - (b_i \cdot y_r + (1 - b_i) \cdot y_q))$                               & $y_s = \textbf{ if } b_i = 1 \textbf{ then } y_r \textbf{ else } y_q$                        \\\hline
-    3      & $q_{(\cdot)} \cdot (acc_{i+1} - (acc_i + b_i \cdot 2^i))$                                       & $acc_{i+1} - (acc_i + b_i \cdot 2^i)$                                                        \\\hline
+    Degree & Constraint                                                                   & Meaning                                                                                      \\\tabucline[1pt]{-}
+    4      & $(1 - x_a \cdot \b_q) \cdot x_q$                                             & $x_a = 0 \implies x_q = 0$                                                                   \\
+    4      & $(1 - x_a \cdot \b_q) \cdot y_q$                                             & $x_a = 0 \implies y_q = 0$                                                                   \\\hline
+    3      & $(2 \cdot y_a \cdot \l_q - 3 \cdot x_a^2)$                                   & $\l_q = \frac{3x_a^2}{2y_a}$                                                                 \\\hline
+    3      & $(\l_q^2 - 2 \cdot x_a - x_q)$                                               & $x_q = \l_q^2 - 2 \cdot x_a$                                                                 \\\hline
+    3      & $(\l_q \cdot (x_a - x_q) - y_a - y_q)$                                       & $y_q = \l_q \cdot (x_a - x_q) - y_a$                                                         \\\hline
+    4      & $(x_q - x_p) \cdot ((x_q - x_p) \cdot \l_r - (y_q - y_p))$                   & $x_q \neq x_p \implies \l_r = \frac{y_q - y_p}{x_q - x_p}$                                   \\\hline
+    5      & $(1 - (x_q - x_p) \cdot \a_r) \cdot (2y_p \cdot \l_r - 3x_p^2)$              & $x_q = x_p \land y_p \neq 0 \implies \l_r = \frac{3x_p^2}{2y_p}$                             \\
+           &                                                                              & $x_q = x_p \land y_p = 0 \implies x_p = 0$                                                   \\\hline
+    6      & $x_p \cdot x_q \cdot (x_q - x_p) \cdot (\l_r^2 - x_p - x_q - x_r)$           & $x_p, x_q \neq 0 \land x_q \neq x_p \implies x_r = \l_r^2 - x_p - x_q$                       \\
+    6      & $x_p \cdot x_q \cdot (x_q - x_p) \cdot (\l_r \cdot (x_p - x_r) - y_p - y_r)$ & $x_p, x_q \neq 0 \land x_q \neq x_p \implies y_r = \l_r \cdot (x_p - x_q) - y_p$             \\
+    6      & $x_p \cdot x_q \cdot (y_q - y_p) \cdot (\l_r^2 - x_p - x_q - x_r)$           & $x_p, x_q \neq 0 \land y_q \neq y_p \implies x_r = \l_r^2 - x_p - x_q$                       \\
+    6      & $x_p \cdot x_q \cdot (y_q - y_p) \cdot (\l_r \cdot (x_p - x_r) - y_p - y_r)$ & $x_p, x_q \neq 0 \land y_q \neq y_p \implies y_r = \l_r \cdot (x_p - x_q) - y_p$             \\\hline
+    4      & $(1 - x_p \cdot \b_r) \cdot (x_r - x_q))$                                    & $x_p = 0 \implies x_r = x_q$                                                                 \\
+    4      & $(1 - x_p \cdot \b_r) \cdot (y_r - y_q))$                                    & $x_p = 0 \implies y_r = y_q$                                                                 \\\hline
+    4      & $(1 - x_q \cdot \g_q) \cdot (x_r - x_p))$                                    & $x_q = 0 \implies x_r = x_p$                                                                 \\
+    4      & $(1 - x_q \cdot \g_q) \cdot (y_r - y_p))$                                    & $x_q = 0 \implies y_r = y_p$                                                                 \\\hline
+    4      & $(1 - (x_q - x_p) \cdot \a_r - (y_q + y_p) \cdot \d_r) \cdot x_r)$           & $x_q = x_p \land y_q = -y_p \implies x_r = 0$                                                \\
+    4      & $(1 - (x_q - x_p) \cdot \a_r - (y_q + y_p) \cdot \d_r) \cdot y_r)$           & $x_q = x_p \land y_q = -y_p \implies y_r = 0$                                                \\\hline
+    3      & $b_i \cdot (b_i - 1)$                                                        & $b_i \in \Bb$                                                                                \\\hline
+    3      & $(x_s - (b_i \cdot x_r + (1 - b_i) \cdot x_q))$                              & $x_s = \textbf{ if } b_i = 1 \textbf{ then } x_r \textbf{ else } x_q$                        \\
+    3      & $(y_s - (b_i \cdot y_r + (1 - b_i) \cdot y_q))$                              & $y_s = \textbf{ if } b_i = 1 \textbf{ then } y_r \textbf{ else } y_q$                        \\\hline
+    3      & $(acc_{i+1} - (acc_i + b_i \cdot 2^i))$                                      & $acc_{i+1} - (acc_i + b_i \cdot 2^i)$                                                        \\\hline
   \end{tabu}
 \end{center}
 
@@ -1031,7 +1130,7 @@ define $x_s(X) = w_1(\o X), y_s = w_2(\o X), acc_{i+1} = w_3(\o X)$.
   \end{tabu}
 \end{center}
 
-Meaning that in the constraints $2^i = r_1$
+Meaning that in the constraints $2^i = r_1(X)$
 
 **Last Row**
 

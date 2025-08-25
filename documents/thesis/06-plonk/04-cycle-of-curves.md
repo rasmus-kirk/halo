@@ -372,8 +372,6 @@ The verifier and prover for the IVC scheme can be seen below:
 \end{algorithmic}
 \end{algorithm}
 
-
-
 \begin{algorithm}[H]
 \caption*{\textbf{Algorithm} $\IVCVerifier$}
 \textbf{Constants} \\
@@ -398,5 +396,3 @@ The verifier and prover for the IVC scheme can be seen below:
   \State If the above two checks pass, then output $\top$, else output $\bot$.
 \end{algorithmic}
 \end{algorithm}
-
-
