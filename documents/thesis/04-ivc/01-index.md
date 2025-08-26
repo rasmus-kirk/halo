@@ -1,179 +1,247 @@
-## Cycle of Curves
+# IVC Scheme
 
-We operate our IVC-circuit over a cycle of curves. This means that field
-operations can be handled natively in the scalar field circuit $\Fb_S$
-and elliptic curve operations are handled natively in the basefield circuit
-$\Fb_B$. This improves performance drastically, since we don't need to handle
-foreign field arithmetic at any point. The Pallas and Vesta curves use the
-other's scalar field as their base field and vice-versa:
+## IVC from Accumulation Schemes (Stub)
 
-- Pallas: $a \in \Fb_p, P \in \Eb_p(\Fb_q)$
-- Vesta:  $a \in \Fb_q, P \in \Eb_q(\Fb_p)$
-- $| \Fb_p | = p , | \Fb_q | = q, | \Eb_p(\Fb_q) | = p, p > q$
+For simplicity, as in the PCS section, we assume we have an underlying NARK[^NARK]
+which proof consists of only instances $\pi \in \Proof = \{ \vec{q} \}$. We
+assume this NARK has three algorithms:
 
-This is useful when creating proofs. Starting in the first proof in an
-IVC-setting, we need a proof that verifies some relation, the simplest
-minimal example would be $a \cdot P \meq \Oc$. This then creates two constraint
-tables, one over $\Fb_S = \Fb_p$ and one over $\Fb_B = \Fb_B$. Then, in the
-next IVC-step, we need to verify both proofs, but the proof over $\Fb_p$
-produces scalars over $\Fb_p$ and points over $\Eb_p(\Fb_q)$ and the proof
-over $\Fb_q$ produces scalars over $\Fb_q$ and points over $\Eb_p(\Fb_q)$. This
-is because the proof both contains scalars and points. If we did _not_
-have a cycle of curves this pattern would result in a chain:
+- $\NARKProver(R: \Circuit, x: \PublicInfo, w: \Witness) \to \Proof$
+- $\NARKVerifier(R: \Circuit, x: \PublicInfo, \pi) \to \Result(\top, \bot)$
+- $\NARKVerifierFast(R: \Circuit, x: \PublicInfo) \to \Result(\top, \bot)$
 
-- Curve 1: $a \in \Fb_{p_1}, P \in \Eb_{p_1}(\Fb_{p_2})$
-- Curve 2: $a \in \Fb_{p_2}, P \in \Eb_{p_2}(\Fb_{p_3})$
-- Curve 3: $a \in \Fb_{p_3}, P \in \Eb_{p_3}(\Fb_{p_4})$
-- ...
+The $(\NARKProver, \NARKVerifier)$ pair is just the usual algorithms,
+but the verifier may run in linear time. The $\NARKVerifierFast$ _must_
+run in sub-linear time however, but may assume each $q_j \in \vec{q}$ is
+a valid instance, meaning that $\forall q_j \in \vec{q} : \PCCheck(q_j)
+= \top$. This means that $\NARKVerifierFast$ only performs linear checks
+to ensure that the instances, $\vec{q}$, representing information about
+the witness $w$, satisfies the constraints dictated by the circuit $R$
+and the public inputs $x$. It also means that when the $\NARKVerifierFast$
+accepts with $\top$, then we don't know that these relations hold until we
+also know that all the instances are valid.
 
-Which means that each $p_i$ must be able to define a valid curve, and if
-this never cycles, we would need to support this infinite chain of curves. 
+Each step in the IVC protocol built from accumulation schemes, consists of the
+triple ($s_{i-1}, \pi_{i-1}, \acc_{i-1}$), representing the previous proof,
+accumulator and value. As per usual, the base-case is the exception, that
+only consists of $s_0$. This gives us the following chain:
 
-### Input Passing
+\begin{figure}[!H]
+\centering
+\begin{tikzpicture}[node distance=2.25cm]
 
-The above section describes how each language instruction is mapped to
-one of two circuits, verifying both circuits should convince the verifier
-that the program $f(w, x)$ is satisfied. However, for the Elliptic Curve
-Multiplication and the Poseidon Hashes, we need to pass inputs from one
-circuit to another.
+  % Nodes
+  \node (s0) [node] {$s_0$};
+  \node (s1) [node, right=of s0] {$(s_1, \pi_1, \acc_1)$};
+  \node (dots) [right=2.75cm of s1] {$\dots$};
+  \node (sn) [node, right=4cm of dots] {$(s_n, \pi_n, \acc_n)$};
 
-**Passing $v^{(q)} \to v^{(p)}$:**
+  % Arrows with labels
+  \draw[thick-arrow] (s0) -- node[above] {$\Pc(s_0, \bot, \bot)$} (s1);
+  \draw[thick-arrow] (s1) -- node[above] {$\Pc(s_1, \pi_1, \acc_1)$} (dots);
+  \draw[thick-arrow] (dots) -- node[above] {$\Pc(s_{n-1}, \pi_{n-1}, \acc_{n-1})$} (sn);
 
-We start with the simpler case. We have a circuit over $\Fb_p$, $R^{(p)}$,
-and a circuit over $\Fb_q$, $R^{(q)}$, with $p > q$. We wish to pass
-a value, $v^{(q)} \in \Fb_q$, from $R^{(q)}$ to $R^{(p)}$ and wish to
-convince the verifier that $v^{(q)} = v^{(q)}$. Naively, if these values
-are added as public inputs, the verifier could add the check that $v^{(q)}
-\meq v^{(p)}$. But this won't work for IVC, since we can't check equality
-across circuits, in-circuit. Instead we compute the commitment to $v^{(p)}$
-on the $R^{(p)}$-side.
+\end{tikzpicture}
+\caption{
+  A visualization of the relationship between $F, \vec{s}, \vec{\pi}$ and
+  $\vec{\acc}$ in an IVC setting using Accumulation Schemes. Where $\Pc$ is
+  defined to be $\Pc(s_{i-1}, \pi_{i-1}, \acc_{i-1}) = \IVCProver(s_{i-1},
+  \pi_{i-1}, \acc_{i-1}) = \pi_i$, $s_i = F(s_{i-1})$, $\acc_i =
+  \ASProver(\vec{q}, \acc_{i-1})$.
+}
+\end{figure}
 
-$$C^{(q)}_{\text{IP}} := v^{(q)} \cdot G_1^{(q)} \in \Eb_p(\Fb_q)$$
+Before describing the IVC protocol, we first describe the circuit for the
+IVC relation as it's more complex than for the naive SNARK-based approach. Let:
 
-The scalar operation may seem invalid, but since we know that $v^{(q)}
-\leq q - 1 < p - 1$, it can logically be computed by the usual double and
-add, since the bits of $v^{(q)}$ will correspond to the bits of $v^{(p)}$
-if $\text{lift}(v^{(q)}) = \text{lift}(v^{(p)})$. If $C^{(q)}$ is emitted in
-the public inputs of the circuit, then the verifier will know that $C^{(q)}$
-is a commitment to $v^{(q)}$. To convince the verifier of the desired relation
-that $\text{lift}(v^{(q)}) = \text{lift}(v^{(p)})$, it will now suffice to
-convince them that $v^{(p)}$ is a valid opening of $C^{(q)}$. So the verifier
-checks manually that:
+- $\pi_{i-1} = \vec{q}, \acc_{i-1}, s_{i-1}$ from the previous iteration.
+- $s_i = F(s_{i-1})$
+- $\acc_i = \ASProver(\vec{q}, \acc_{i-1})$
 
-$$C^{(q)} \meq v^{(p)} \cdot G_1^{(q)}$$
+Giving us the public inputs $x = \{ R_{IVC}, s_0, s_i, \acc_i \}$ and witness
+$w = \{ s_{i-1}, \pi_{i-1} = \vec{q}, \acc_{i-1} \}$, which will be used to
+construct the the IVC circuit $R_{IVC}$:
+$$
+\begin{aligned}
+  x_{i-1} &:= \{ R_{IVC}, s_{i-1}, \acc_{i-1} \} \\
+  \Vc_1   &:= \NARKVerifierFast(R_{IVC}, x_{i-1}, \pi_{i-1}) \meq \top \\
+  \Vc_2   &:= \ASVerifier(\pi_{i-1} = \vec{q}, \acc_{i-1}, \acc_i) \meq \top \\
+  R_{IVC} &:= \text{I.K } w \text{ s.t. } F(s_{i-1}) \meq s_i \land (s_{i-1} \meq s_0 \lor ( \Vc_1 \land \Vc_2 ) ) \\
+\end{aligned}
+$$
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+  % First Layer
+  \node[draw, rectangle] (q) at (6, 6.5) {$\vec{q}$};
+  \node[draw, rectangle] (acc_prev) at (7.5, 6.5) {$\acc_{i-1}$};
+  \node[draw, rectangle] (acc_next) at (9, 6.5) {$\acc_i$};
 
-Which, given that the rest of the proof verifies correctly, will then imply
-that $v^{(q)} = v^{(p)}$. If the verifier is encoded as a circuit, then
-we need to input pass when performing this additional check, since scalar
-multiplication itself requires input passing to work. However this is no
-problem, since that circuit-verifier will be verified by another verifier!
+  \node[draw, rectangle] (R_ivc) at (2.25, 6.5) {$R_{IVC}$};
+  \node[draw, rectangle] (x_prev) at (3.5, 6.5) {$x_{i-1}$};
+  \node[draw, rectangle] (pi_prev) at (4.75, 6.5) {$\pi_{i-1}$};
 
-**Passing $v^{(p)} \to v^{(q)}$:**
+  \node[draw, rectangle] (s_next) at (-1.5, 6.5) {$s_i$};
+  \node[draw, rectangle] (s_prev) at (-0.25, 6.5) {$s_{i-1}$};
+  \node[draw, rectangle] (s_0) at (1, 6.5) {$s_0$};
 
-What if we reverse the flow? We now have a value $v^{(p)}$, in $R^{(p)}$,
-that we want to pass to $R^{(q)}$. Here the problem is that since $p > q$,
-the value might be too large to represent in the $\Fb_q$-field. The solution
-is to decompose the value:
+  \draw[dashed-arrow] (pi_prev) -- (4.75, 7) -- (6, 7) -- (q);
 
-$$v_p = 2 h + l$$
+  \draw[dashed-arrow] (R_ivc) -- (2.25, 7) -- (3.5, 7) -- (x_prev);
+  \draw[dashed-arrow] (s_prev) -- (-0.25, 7.1) -- (3.5, 7.1) -- (x_prev);
+  \draw[dashed-arrow] (acc_prev) -- (7.5, 7.2) -- (3.5, 7.2) -- (x_prev);
 
-Where $h$ represents the high-bits of $v_p$ ($h \in [0, 2^{\floor{\log{p}}}]$)
-and $l$ represents the low-bit ($h \in \Bb$). The value $v_p$ can now be
-represented with $h, l$, both of which are less than $q$. Which means we
-can pass the value to $R^{(q)}$.
+  % Second Layer
+  \node[draw, rectangle] (svf) at (3.5, 5.5) {$\NARKVerifierFast$};
+  \node[draw, rectangle] (asv) at (7.5, 5.5) {$\ASVerifier$};
 
-The constraints added to $R^{(p)}$ then becomes:
+  \draw[arrow] (R_ivc) -- (svf);
+  \draw[arrow] (x_prev) -- (svf);
+  \draw[arrow] (pi_prev) -- (svf);
 
-- $C^{(p)}_{\text{PI}} \meq h \cdot G_1 + l \cdot G_2$
-- $v = 2 h + l$
-- $h \in [0, 2^{\floor{\log{p}}}]$ (range check)
-- $l \in \Bb$ (simple boolean constraint)
+  \draw[arrow] (q) -- (asv);
+  \draw[arrow] (acc_prev) -- (asv);
+  \draw[arrow] (acc_next) -- (asv);
 
-We of course don't need to commit each time we input pass, we can create a
-standard vector pedersen commit, containing all the passed values:
+  % Third Layer
+  \node[draw, rectangle] (asv_svf_and) at (5.75, 4.5) {$\land$};
+  \node[draw, rectangle] (base_case) at (1, 4.5) {$s_{i-1} \meq s_0$};
 
-$$C^{(p)}_{\text{PI}} = h_{v_1}^{(p)} \cdot G_1^{(p)} + l_{v_1}^{(p)} \cdot G_2^{(p)} + h_{v_2}^{(p)} \cdot G_3^{(p)} + l_{v_2}^{(p)} \cdot G_4^{(p)} + \dots$$
+  \draw[arrow] (asv) -- (asv_svf_and);
+  \draw[arrow] (svf) -- (asv_svf_and);
 
-Now, the $R_q$-verifier and $R_p$-verifier, would each also take in a
-single input pass vector, in addition to the standard public input vector:
-$$\text{InputPass}^{(q \to p)} \in \Fb_p^k, \qquad \text{InputPass}^{(p \to q)} \in \Fb_q^k$$
+  \draw[arrow] (s_prev) -- (base_case);
+  \draw[arrow] (s_0) -- (base_case);
 
-Each passed input is of course public, so the public input vector is then
-defined as:
+  % Fourth Layer
+  \node[draw, rectangle] (or) at (4, 3.5) {$\lor$};
+  \node[draw, rectangle] (F) at (-1, 3.5) {$F(s_{i-1}) \meq s_i$};
 
-$$\text{PublicInputs}^{(p)}_{\text{new}} := \text{PublicInputs}^{(p)} \cat \text{InputPass}^{(p)}$$
+  \draw[arrow] (asv_svf_and) -- (or);
+  \draw[arrow] (base_case) -- (or);
 
-For both the verifier and prover of course. Each of the $R^{(p)}$ and $R^{(q)}$
-verifier can then use $\text{InputPass}^{(q \to p)}, \text{InputPass}^{(p \to q)}$
-to verify $C^{(p)}, C^{(q)}$:
+  \draw[arrow] (s_next) -- (F);
+  \draw[arrow] (s_prev) -- (F);
 
-\begin{tcolorbox}[colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
+  % Fifth Layer
+  \node[draw, rectangle] (end_and) at (3, 2.5) { $\land$ };
+  \draw[arrow] (or) -- (end_and);
+  \draw[arrow] (F) -- (end_and);
 
-Take the following example circuit:
+\end{tikzpicture}
+\caption{A visualization of $R_{IVC}$}
+\end{figure}
+
+The verifier and prover for the IVC scheme can be seen below:
 
 \begin{algorithm}[H]
-\caption*{\textbf{Example Circuit}}
+\caption*{\textbf{Algorithm} $\IVCProver$}
 \textbf{Inputs} \\
-  \Desc{$x, y \in \Fb_p$}{ } \\
-  \Desc{$P \in \Eb_p(\Fb_q)$}{ }
+  \Desc{$R_{IVC}: \Circuit$}{The IVC circuit as defined above.} \\
+  \Desc{$x: \PublicInputs$}{Public inputs for $R_{IVC}$.} \\
+  \Desc{$w: \Option(\Witness)$}{Private inputs for $R_{IVC}$.} \\
+\textbf{Output} \\
+  \Desc{$(S, \Proof, \Acc)$}{The values for the next IVC iteration.}
 \begin{algorithmic}[1]
-  \State $z := x + y \in \Fb_p$
-  \State $Q_1 := z \cdot P \in \Eb_p(\Fb_q)$
-  \State $Q_2 := x \cdot P \in \Eb_p(\Fb_q)$
-  \State $\a := \Hc(Q_1, Q_2) \in \Fb_p$
+  \Require $x = \{ s_0 \}$
+  \Require $w = \{ s_{i-1}, \pi_{i-1}, \acc_{i-1} \} \lor w = \bot$
+  \State Parse $s_0$ from $x = \{ s_0 \}$.
+  \If{$w = \bot$}
+    \State $w = \{ s_{i-1} = s_0 \}$ (base-case).
+  \Else
+    \State Run the accumulation prover: $\acc_i = \ASProver(\pi_{i-1} = \vec{q}, \acc_{i-1})$.
+    \State Compute the next value: $s_i = F(s_{i-1})$.
+    \State Define $x' = x \cup \{ R_{IVC}, s_i, \acc_i \}$.
+  \EndIf
+  \State Then generate a NARK proof $\pi_i$ using the circuit $R_{IVC}$: $\pi_i = \NARKProver(R_{IVC}, x', w)$.
+  \State Output $(s_i, \pi_i, \acc_i)$
 \end{algorithmic}
 \end{algorithm}
 
-Which means that we pass $z, x$ from $R^{(p)}$ to $R^{(q)}$ and $\a$ from
-$R^{(q)}$ to $R^{(p)}$. Thus, we need to split $z, x$ but not $\a$. We add the
-constraints:
+\begin{algorithm}[H]
+\caption*{\textbf{Algorithm} $\IVCVerifier$}
+\textbf{Inputs} \\
+  \Desc{$R_{IVC}: \Circuit$}{The IVC circuit.} \\
+  \Desc{$x: \PublicInputs$}{Public inputs for $R_{IVC}$.} \\
+\textbf{Output} \\
+  \Desc{$\Result(\top, \bot)$}{Returns $\top$ if the verifier accepts and $\bot$ if the verifier rejects.}
+\begin{algorithmic}[1]
+  \Require $x = \{ s_0, s_i, \acc_i \}$
+  \State Define $x' = x \cup \{ R_{IVC} \}$.
+  \State Verify that the accumulation scheme decider accepts: $\top \meq \ASDecider(\acc_i)$.
+  \State Verify the validity of the IVC proof: $\top \meq \NARKVerifier(R_{IVC}, x', \pi_i)$.
+  \State If the above two checks pass, then output $\top$, else output $\bot$.
+\end{algorithmic}
+\end{algorithm}
 
-\begin{itemize}
-  \item $R^{(p)}$:
-  \begin{itemize}
-    \item $C^{(p)}_{\text{IP}} := h_z^{(p)} \cdot G_1^{(p)} + l_z^{(p)} \cdot G_2^{(p)} + h_x^{(p)} \cdot G_3^{(p)} + l_x^{(p)} \cdot G_4^{(p)}$
-    \item $z := 2 \cdot h_z^{(p)} + l_z^{(p)}$ (Decomposition correctness check)
-    \item $h_z^{(p)} \in [0, 2^{\floor{\log{p}}}]$ (Range check)
-    \item $l_z^{(p)} \in \Bb$ (Boolean check)
-  \end{itemize}
-  \item $R^{(q)}$:
-  \begin{itemize}
-    \item $C^{(q)}_{\text{IP}} := \a^{(q)} \cdot G_1^{(q)}$
-  \end{itemize}
-\end{itemize}
-
-\
-
-Now the $R_q$-verifier and $R_p$-verifier, would each also take in the input
-pass vectors:
-
+Consider the above chain run $n$ times. As in the "simple" SNARK IVC
+construction, if $\IVCVerifier$ accepts at the end, then we get a chain
+of implications:
 $$
-\begin{aligned}
-  \text{InputPass}^{(p \to q)} &= [ h_z^{(q)}, l_z^{(q)}, h_x^{(q)}, l_x^{(q)} ] \\
-  \text{InputPass}^{(q \to p)} &= [ \a^{(p)} ] \\
-\end{aligned}
+\begin{alignedat}[b]{2}
+  &\IVCVerifier(R_{IVC}, x_n = \{ s_0, s_n, \acc_i \}, \pi_n) = \top           &&\then \\
+  &\forall i \in [n], \forall q_j \in \pi_i = \vec{q} : \PCDLCheck(q_j) = \top &&\;\; \land \\
+  &F(s_{n-1}) = s_n     \land (s_{n-1} = s_0 \lor ( \Vc_1 \land \Vc_2 ))       &&\then \\
+  &\ASVerifier(\pi_{n-1}, \acc_{n-1}, \acc_n) = \top                           &&\;\; \land \\
+  &\NARKVerifierFast(R_{IVC}, x_{n-1}, \pi_{n-1}) = \top                      &&\then \dots \\
+  &F(s_0) = s_1 \land (s_0 = s_0 \lor ( \Vc_1 \land \Vc_2 ))                   &&\then \\
+  &F(s_0) = s_1                                                                &&\then \\
+\end{alignedat}
 $$
+Since $\IVCVerifier$ runs $\ASDecider$, the previous accumulator is valid,
+and by recursion, all previous accumulators are valid, given that each
+$\ASVerifier$ accepts. Therefore, if a $\ASVerifier$ accepts, that means that
+$\vec{q} = \pi_i$ are valid evaluation proofs. We defined $\NARKVerifierFast$,
+s.t. it verifies correctly provided the $\vec{q}$'s are valid evaluation
+proofs. This allows us to recurse through this chain of implications.
 
-Each passed input is of course public, so the public input vector is
-then defined as:
+From this we learn:
 
-$$\text{PublicInputs}^{(p)}_{\text{new}} := \text{PublicInputs}^{(p)} \cat \text{InputPass}^{(p)}$$
+1. $\forall i \in [2, n] : \ASVerifier(\pi_{i-1}, \acc_{i-1}, \acc_i) = \top$, i.e, all accumulators are accumulated correctly.
+2. $\forall i \in [2, n] : \NARKVerifierFast(R_{IVC}, x_{i-1}, \pi_{i-1})$, i.e, all the proofs are valid.
 
-For both the verifier and prover of course. Now the verifier needs to verify
-what it otherwise would, but also that:
-$$
-\begin{aligned}
-  C^{(p)}_{\text{IP}} &\meq h_z^{(q)} \cdot G_1^{(p)} + l_z^{(q)} \cdot G_2^{(p)} + h_x^{(q)} \cdot G_3^{(p)} + l_x^{(q)} \cdot G_4^{(p)} \\
-  C^{(q)}_{\text{IP}} &\meq \a^{(p)} \cdot G_1^{(q)} \\
-\end{aligned}
-$$
+These points in turn imply that $\forall i \in [n] : F(s_{i-1}) = s_i$,
+therefore, $s_n = F^n(s_0)$. From this discussion it should be clear that an
+honest prover will convince an honest verifier, i.e. completeness holds. As
+for soundness, it should mostly depend on the soundness of the underlying PCS,
+accumulation scheme and NARK[^unsoundness].
 
-Note, that when recursing, these extra checks require input passing themselves,
-but this is not an issue as that's handled by the next verifier.
+As for efficiency, assuming that:
 
-\end{tcolorbox}
+- The runtime of $\NARKProver$ scales linearly with the degree-bound, $d$, of the polynomial, $p_j$, used for each $q_j \in \vec{q}_m$ ($\Oc(d)$)
+- The runtime of $\NARKVerifierFast$ scales logarithmically with the degree-bound, $d$, of $p_j$ ($\Oc(\lg(d))$)
+- The runtime of $\NARKVerifier$ scales linearly with the degree-bound, $d$, of $p_j$ ($\Oc(d)$)
+- The runtime of $F$ is less than $\Oc(d)$, since it needs to be compiled to a circuit of size at most $\approx d$
 
-### The New IVC-Scheme
+Then we can conclude:
+
+- The runtime of $\IVCProver$ is:
+  - Step 5: The cost of running $\ASDLProver$, $\Oc(d)$.
+  - Step 6: The cost of computing $F$, $\Oc(F(x))$.
+  - Step 7: The cost of running $\NARKProver$, $\Oc(d)$.
+
+  Totalling $\Oc(F(x) + d)$. So $\Oc(d)$.
+- The runtime of $\IVCVerifier$ is:
+  - Step 2: The cost of running $\ASDLDecider$, $\Oc(d)$ scalar multiplications.
+  - Step 3: The cost of running $\NARKVerifier$, $\Oc(d)$ scalar multiplications.
+
+  Totalling $\Oc(2d)$. So $\Oc(d)$
+
+Notice that although the runtime of $\IVCVerifier$ is linear, it scales
+with $d$, _not_ $n$. So the cost of verifying does not scale with the number
+of iterations.
+
+[^unsoundness]: A more thorough soundness discussion would reveal that running
+the extractor on a proof-chain of length $n$ actually fails, as argued by
+Valiant in his original 2008 paper. Instead he constructs a proof-tree of
+size $\Oc(\lg(n))$ size, to circumvent this. However, practical applications
+conjecture that the failure of the extractor does not lead to any real-world
+attack, thus still achieving constant proof sizes, but with an additional
+security assumption added.
+
+[^NARK]: Technically it's a NARK since verification may be linear.
+
+## The New IVC-Scheme
 
 We now operate over two curves, with two accumulators, proofs and a single state:
 
@@ -396,3 +464,4 @@ The verifier and prover for the IVC scheme can be seen below:
   \State If the above two checks pass, then output $\top$, else output $\bot$.
 \end{algorithmic}
 \end{algorithm}
+

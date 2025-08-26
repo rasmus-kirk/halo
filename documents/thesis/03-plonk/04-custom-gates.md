@@ -1,4 +1,4 @@
-## Gates
+## Custom Gates
 
 For each gate, we have a *Witness Row*, *Selector Row* and a *Coefficient
 Row*. These rows describe the form of the constraints. Take the addition
@@ -137,6 +137,8 @@ multiplication and negation even though they are part of vanilla-Plonk:
   \end{tabu}
 \end{center}
 
+Negation can be modelled as $-a = 0 - a$, a dedicated negation gate would also be one row anyways.
+
 **Multiplication:**
 
 \begin{center}
@@ -154,28 +156,7 @@ multiplication and negation even though they are part of vanilla-Plonk:
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
     $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_H$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
-    0     & 0     & -1    & 0     & 0     & 0       & 0     & 0         & 0             & 0         & 0       \\\hline
-  \end{tabu}
-\end{center}
-
-**Negation:**
-
-\begin{center}
-  \captionof*{table}{Witness Row} \label{tab:field-neg-witness} 
-  \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
-    \hline
-    $w_1$ & $w_2$  & $w_3$ & $w_4$  & $w_5$  & $w_6$  & $w_7$  & $w_8$  & $w_9$  & $w_{10}$  & $w_{11}$  & $w_{12}$  & $w_{13}$  & $w_{14}$  & $w_{15}$  & $w_{16}$  \\\tabucline[1pt]{-}
-    $a$   & 0      & $-a$  & 0      & 0      & 0      & 0      & 0      & 0      & 0         & 0         & 0         & 0         & 0         & 0         & 0         \\\hline
-    $I_1$ & $\bot$ & $O_1$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    \\\hline
-  \end{tabu}
-\end{center}
-
-\begin{center}
-  \captionof*{table}{Selector Row} \label{tab:field-neg-selector} 
-  \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|}
-    \hline
-    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_H$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
-    -1    & 0     & -1    & 0     & 0     & 0       & 0     & 0         & 0             & 0         & 0       \\\hline
+    0     & 0     & -1    & 1     & 0     & 0       & 0     & 0         & 0             & 0         & 0       \\\hline
   \end{tabu}
 \end{center}
 

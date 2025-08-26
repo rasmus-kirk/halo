@@ -1,8 +1,8 @@
 
 \appendix
 
-
-# \Surkal: Base spec defined operations
+# Appendix
+## \Surkal: Base spec defined operations
 
 TODO: ask which needs bool check
 
@@ -32,7 +32,7 @@ TODO plonkup gadgets:
 | IsMul$(x,y,z)$            | $()$                          |                         |
 | IsLookup$_T(x,y,z)$       | $()$                          |                         |
 
-# Notation
+## Notation
 
 \begin{longtable*}{@{} c l @{}}
 \toprule
