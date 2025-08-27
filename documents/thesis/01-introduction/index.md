@@ -11,16 +11,17 @@ by Mina. Both can be broken down into the following main components:
 
 - **Plonk**: A general-purpose, potentially zero-knowledge, a SNARK.
 - **$\PCDL$**: A Polynomial Commitment Scheme in the Discrete Log setting.
-- **$\ASDL$**: An Accumulation Scheme in the Discrete Log setting.
+- **$\ASDL$**: An Accumulation Scheme for Evaluation Proof instances in the Discrete Log setting.
 - **Pasta**: A cycle of elliptic curves, Pallas and Vesta, collectively known as Pasta.
 
-A previous project by one of the author's analyzed and implemented the
-accumulation and polynomial commitment schemes. This project is focused on
-the Plonk component, including all additions and amendments needed to acheive
-an IVC-friendly SNARK. We also define an IVC-circuit for proving the validity
-of a Chain of Signatures. Finally,A we implement the IVC circuit to analyze
-the performance.Both this document and the implementation can be found in
-the project's repository[@repo].
+A previous project by one of the authors of this paper, analyzed and
+implemented the accumulation and polynomial commitment schemes. This project
+is focused on the Plonk component, including all additions and amendments
+needed to acheive an IVC-friendly SNARK. We also define an IVC-circuit
+for proving the validity of a Chain of Signatures, which can be used for
+blockchain catch-up. We also implement the IVC circuit for verifying a
+chain of signatures, to benchmark the performance. Both this document and
+the implementation can be found in the project's repository[@repo].
 
 ## Chain of Signatures
 

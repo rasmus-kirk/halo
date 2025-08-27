@@ -1,4 +1,4 @@
-# \Surkal: The Ultra-\plonk-ish NARK protocol
+# An IVC-friendly Plonk Scheme
 
 We construct a NARK with support for recursive proofs, heavily inspired by
 the Z-Cash's Halo2 and Mina's Kimchi proof systems. As with both of these

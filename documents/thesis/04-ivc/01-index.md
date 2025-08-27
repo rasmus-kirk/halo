@@ -1,5 +1,7 @@
 # IVC Scheme
 
+**Draft Note:** The idea here is to combine these two sections into something coherent...
+
 ## IVC from Accumulation Schemes (Stub)
 
 For simplicity, as in the PCS section, we assume we have an underlying NARK[^NARK]

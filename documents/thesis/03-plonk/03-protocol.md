@@ -1,4 +1,4 @@
-## Protocol
+## Protocol Components
 
 ### Gate Constraints
 
@@ -83,6 +83,7 @@ meaning we want to show that we know $x_1, x_2$ such that the equation equals
     Two ways of viewing the circuit representing $3x_1^2 + 5x_2 = 47$. The
     left circuit is also instantiated with the witness $x_1, x_2$.
   }
+  \label{fig:example-circuit}
 \end{figure}
 
 This is a trivial problem, so we deduce that $x_1 = 2, x_2 = 7$. From the graphs
@@ -173,37 +174,32 @@ this we need _Copy Constraints._
 
 ### Copy Constraints
 
-For the copy constraints it helps to visualize the list of wires, recall
-from the previous section:
-
-$$\vec{w} = [ 2, 7, 4, 3, 12, 5, 35, 47 ]$$
-
 For example we want to show that $a(\o^1) = b(\o^1)$, first we concatinate
 the lists $\vec{a}, \vec{b}, \vec{c}$:
 
-$$\vec{w} = [ 2, 7, 3, 12 ] \cat [ 2, 5, 4, 35 ] \cat [ 4, 35, 12, 42 ] = [ 2, 7, 3, 12, 2, 5, 4, 35, 4, 35, 12, 42 ]$$
+$$\vec{d} = [ 2, 7, 3, 12 ] \cat [ 2, 5, 4, 35 ] \cat [ 4, 35, 12, 42 ] = [ 2, 7, 3, 12, 2, 5, 4, 35, 4, 35, 12, 42 ]$$
 
 Now, we wish to show, that for some permutation $\pi: \Fb^k \to \Fb^k$,
 the list remains unchanged once permuted:
 
-$$\vec{w} = \pi(\vec{w})$$
+$$\vec{d} = \pi(\vec{d})$$
 
 This permutation permutes the list according to what wires we wish to show are equal:
 
-$$\vec{w} = [ 2, 7, 3, 12 ] \cat [ 2, 5, 4, 35 ] \cat [ 4, 35, 12, 42 ]$$
+$$\vec{d} = [ 2, 7, 3, 12 ] \cat [ 2, 5, 4, 35 ] \cat [ 4, 35, 12, 42 ]$$
 
-From the circuit in Figure <!-- TODO --> we gather that the following wires
+From the circuit in Figure \ref{fig:example-circuit} we gather that the following wires
 must be equal:
 
 $$a_1 = b_1, \quad c_1 = b_3, \quad c_3 = a_4, \quad c_2 = b_4$$
 
-To highlight the values of $\vec{w}$ and $\pi(\vec{w})$, the specific values
+To highlight the values of $\vec{d}$ and $\pi(\vec{d})$, the specific values
 have been subbed out for variables below:
 
 $$
 \begin{aligned}
-  \vec{w}      &= [ a_1, a_2, a_3, a_4 ] \cat [ b_1, b_2, b_3, b_4 ] \cat [ c_1, c_2, c_3, c_4 ] \\
-  \pi(\vec{w}) &= [ b_1, a_2, a_3, c_3 ] \cat [ a_1, b_2, c_1, c_2 ] \cat [ b_3, b_4, a_4, c_4 ]
+  \vec{d}      &= [ a_1, a_2, a_3, a_4 ] \cat [ b_1, b_2, b_3, b_4 ] \cat [ c_1, c_2, c_3, c_4 ] \\
+  \pi(\vec{d}) &= [ b_1, a_2, a_3, c_3 ] \cat [ a_1, b_2, c_1, c_2 ] \cat [ b_3, b_4, a_4, c_4 ]
 \end{aligned}
 $$
 
@@ -211,9 +207,9 @@ If the prover is honest, it's easy to see that these lists will match,
 in fact, that's why we have to use variables in the above list, otherwise
 the permutation _seems_ to do nothing. But as can also be seen above,
 if the prover tries to cheat by violating $a_1 = b_1$ then the permuted
-$\pi(\vec{w})$ will not be equal to the original $\vec{w}$. As in the above
-section we can model the vectors as polynomials using FFT, such that $w(\o^1)
-= w_1, w(\o^2) = w_2 \dots$.
+$\pi(\vec{d})$ will not be equal to the original $\vec{d}$. As in the above
+section we can model the vectors as polynomials using FFT, such that $d(\o^1)
+= d_1, d(\o^2) = d_2 \dots$.
 
 Given two polynomials $f(X), g(X)$ we want to check whether:
 
@@ -225,26 +221,37 @@ which would show:
 $$\prod_{\o \in H} f(\o) = \prod_{\o \in H} g(s)$$
 
 But this only proves there exists _some_ permutation between $f(X)$ and
-$g(X)$, not necessarily $\s(X)$. To prove for the specific permutation $\s$,
-we add the indices ($\{ (f(\o^i), \id(\o^i)) \mid i \in [1,n] \} \meq \{
-(g(\o^i), \s(\o^i)) \mid i \in [1,n] \}$). And to make it compatible to the
-grand-product argument, we can add the indices as terms:
+$g(X)$, not necessarily $\s(X)$. We can start by trying to model sets of
+pairs, rather than just sets:
+
+$$\{ (a_i, b_i) \mid i \in [1,n] \} = \{ (c_i, d_i) \mid i \in [1,n] \}$$
+
+Which can be modelled with $f(X) = a_i(X) + \beta b_i(X), g(X) = c_i(X) +
+d_i(X)$. To prove for the specific permutation $\s$, we can then model the
+indices as pairs.
 
 $$
 \begin{aligned}
-  \prod_{\o \in H} f'(\o) &= \prod_{\o \in H} g'(\o) \\
-                    f'(X) &= f(X) + \beta \cdot \id(X) + \g \\
-                    g'(X) &= g(X) + \beta \cdot \s(X) + \g
+  \vec{\tilde{f}} &= [f(\o^i), \dots, f(\o^n)] \\
+  \vec{\tilde{g}} &= \pi(\vec{\tilde{f}}) \\
+  \{ (\tilde{f}_i, i) \mid i \in [1,n] \} &= \{ (\tilde{g}_i, i) \mid i \in [1,n] \} \implies \tilde{f}_i = \tilde{g}_i \; \land \\
+  \{ (f(\o^i), \id(\o^i)) \mid i \in [1,n] \} &= \{ (f(\o^i), \s(\o^i)) \mid i \in [1,n] \} \implies \\
+  \vec{\tilde{f}} &= \pi(\vec{\tilde{f}})
 \end{aligned}
 $$
 
-The $\beta$ and $\gamma$ terms are necessary for soundness.
+**Correctness:**
 
+TODO
+
+**Soundness:**
+
+TODO
 
 \begin{tcolorbox}[colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
 
-To highlight why this works, consider the following example, without the
-soundness values $\b, \g$:
+To sanity check that this makes sense, consider the following example,
+that doesn't include soundness values:
 
 $$
   \begin{alignedat}{10}
@@ -262,28 +269,27 @@ $$
 $$
 \end{tcolorbox}
 
-**Correctness:**
-
-Since $f(\o^i) = g(\o^{\s(i)})$: 
-
-$$
-\begin{aligned}
-  \prod_{i \in [n]} g'(\o^i) &= \prod_{i \in [n]} f'(\o^i) \\
-                             &= \prod_{i \in [n]} f(\o^i) + \id(\o^i) \\
-                             &= \prod_{i \in [n]} f(\o^{\s(i)}) + \s(\o^i) \\
-                             &= \prod_{i \in [n]} g(\o^i) + \s(\o^i) \\
-                             &= \prod_{i \in [n]} g'(\o^i)
-\end{aligned}
-$$
-
-**Soundness:**
-
-TODO
-
 #### Permutation Argument Over Multiple Polynomials
 
 In Plonk, we don't have a single polynomial spanning over each $\vec{a},
-\vec{b}, \vec{c}$.
+\vec{b}, \vec{c}$. Since the Grand Product Argument operates over products,
+we can define:
+
+$$
+\begin{aligned}
+  f_a(X) &= a(X) + \id(X) \b + \g \\
+  f_b(X) &= b(X) + \id(n + X) \b + \g \\
+  f_c(X) &= c(X) + \id(2n + X) \b + \g \\
+  g_a(X) &= a(X) + \s(X) \b + \g \\
+  g_b(X) &= b(X) + \s(n + X) \b + \g \\
+  g_c(X) &= c(X) + \s(2n + X) \b + \g \\
+  f(X) &= f_a(X) \cdot f_b(X) \cdot f_c(X) \\
+  g(X) &= g_a(X) \cdot g_b(X) \cdot g_c(X)
+\end{aligned}
+$$
+
+Which means that for our example circuit in Figure \ref{fig:example-circuit},
+we now get the table:
 
 \begin{center}
   \begin{tabu}{|c|[1pt]c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
@@ -299,7 +305,6 @@ In Plonk, we don't have a single polynomial spanning over each $\vec{a},
     $\omega^8$ & 0     & 0     & 0     & 0     & 0     & 0     & 0     & 0     & 8      & 16     & 24     & 8      & 16     & 24     \\\hline
   \end{tabu}
 \end{center}
-
 
 ### Input Passing
 

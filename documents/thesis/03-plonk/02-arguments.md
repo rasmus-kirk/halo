@@ -1,6 +1,6 @@
 ## Arguments
 
-We now describe the arguments used in \plonk and $\plookup$.
+We now describe the arguments used in Plonk.
 
 ### Vanishing Argument
 
@@ -177,15 +177,48 @@ is $\frac{k}{|\Fb|}$.
 
 ### Grand Product Argument
 
-Suppose a prover, given polynomials $f'(X), g'(x)$ wanted to prove that
+Suppose a prover, given polynomials $f(X), g(x)$ wanted to prove that
 these polynomials when viewed as sets are equal to each other. This is
 called multi-set equality, i.e, $\{ f(i) \mid i \in [1, n] \} \meq \{ g(i)
-\mid i \in [1, n] \}$, or $\forall \o \in H : f'(X) = g'(X)$. This relation
+\mid i \in [1, n] \}$, or $\forall \o \in H : f(X) = g(X)$. This relation
 can be modelled with a grand product:
 
-$$\prod_{i \in n} f'(\o^i) = \prod_{i \in n} g'(\o^i)$$
+$$
+\begin{aligned}
+  f'(X) &= f(X) + \gamma \\
+  g'(X) &= g(X) + \gamma \\
+  \prod_{i \in n} f'(\o^i) &= \prod_{i \in n} g'(\o^i)
+\end{aligned}
+$$
 
-The prover can then create a polynomial, $z(X)$, to check this relation:
+Completeness is trivial. As for soundness. We can interpretate each side of
+the equality as a polynomial variable in $\g$:
+
+$$
+\begin{aligned}
+  p(X) &= \prod_{i \in n} f(\o^i) + X \\
+  q(X) &= \prod_{i \in n} g(\o^i) + X \\
+\end{aligned}
+$$
+
+Then by Schwarz-Zippel, if we consider $r(X) = p(X) - q(X)$, if $r(\g) :
+\g \in_R \Fb$ then $p(X) = q(X)$. Now, we just need to prove that $p(X) =
+q(X) \implies \{ a_1, \dots, a_n \} = \{ b_1, \dots, b_n \}$.
+
+Consider the roots of $p(X)$ and $q(X)$. These are clearly $\{ -a_1, -a_2, \dots, -a_n \}$ and $\{ -b_1, -b_2, \dots, -b_n \}$ respectively. Since $p(X) = q(X)$, the roots must also be the same and:
+
+$$
+\begin{aligned}
+  \{ -a_1, -a_2, \dots, -a_n \} &= \{ -b_1, -b_2, \dots, -b_n \} \implies
+  \{ a_1, a_2, \dots, a_n \} &= \{ b_1, b_2, \dots, b_n \}
+\end{aligned}
+$$
+
+$\qed$
+
+We still need to convert $\prod_{i \in n} f'(\o^i) = \prod_{i \in n} g'(\o^i)$
+to a polynomial that can be checked by the verifier. The prover can create
+a polynomial, $z(X)$, to check the relation:
 
 $$
 \begin{aligned}
