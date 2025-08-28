@@ -9,18 +9,18 @@ most used in practice is based on [@halo], which includes Halo2 by the
 Electric Coin Company (to be used in Zcash) and Kimchi developed and used
 by Mina. Both can be broken down into the following main components:
 
-- **Plonk**: A general-purpose, potentially zero-knowledge, a SNARK.
+- **Plonk**: A general-purpose, potentially zero-knowledge, SNARK.
 - **$\PCDL$**: A Polynomial Commitment Scheme in the Discrete Log setting.
 - **$\ASDL$**: An Accumulation Scheme for Evaluation Proof instances in the Discrete Log setting.
 - **Pasta**: A cycle of elliptic curves, Pallas and Vesta, collectively known as Pasta.
 
-A previous project by one of the authors of this paper, analyzed and
-implemented the accumulation and polynomial commitment schemes. This project
-is focused on the Plonk component, including all additions and amendments
-needed to acheive an IVC-friendly SNARK. We also define an IVC-circuit
-for proving the validity of a Chain of Signatures, which can be used for
-blockchain catch-up. We also implement the IVC circuit for verifying a
-chain of signatures, to benchmark the performance. Both this document and
+A previous project by one of the authors of this thesis, analyzed and
+implemented the accumulation and polynomial commitment schemes. This project is
+focused on the Plonk component, including all additions and amendments needed
+to acheive an IVC-friendly SNARK. We also define an IVC-circuit for proving the
+validity of a Chain of Signatures, which can be used for blockchain catch-up or
+to model succcinct blockchains. We also implement the IVC circuit for verifying
+a chain of signatures, to benchmark the performance. Both this document and
 the implementation can be found in the project's repository[@repo].
 
 ## Chain of Signatures
@@ -34,7 +34,6 @@ is a proof of stake blockchain so the committee is elected according to the
 size of thier staked tokens. They could create a parallel _IVC blockchain_,
 one where each block contains:
 $$B_i = \{ \s^{(pk)}_i, j_i = i, pk_i, ptr_i \in \Bb^{32}, \s^{(ptr)} \}$$
-Let's break it down:
 
 - $\s^{(pk)}_i$: A signature on the current public key ($pk_i$), signed by the previous public key $pk_{i-1}$.
 - $j_i$: A block-id counter.
@@ -63,7 +62,7 @@ This is of course not much of an improvement, to catch up on the main
 blockchain you need to catch up on some other blockchain... The second
 blockchain is however constructed to be SNARK-friendly. There is only a
 single public key, representing the committee, the signature scheme can be
-Schnorr's with poseidon hashes, which works really well SNARK constructions.
+Schnorr's with poseidon hashes, which works well for SNARK constructions.
 Importantly, this secondary blockchain can use Poseidon hashes, while the
 main blockchain may prefer Sha3 for the slightly higher security, and the
 secondary blockchain may use schnorr signatures, while the main blockchain

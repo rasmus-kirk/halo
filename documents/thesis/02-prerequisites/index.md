@@ -568,4 +568,16 @@ this never cycles, we would need to support this infinite chain of curves.
 
 ## Poseidon Hash
 
-<!-- - Reference -->
+Traditionally, SNARKs are defined over somewhat large prime fields, ill-suited
+for bit-level operation such as XOR. As such, many modern cryptographic hash
+functions, particularly SHA3, are not particularly well suited for use in
+many SNARK circuits. The Poseidon Hash specification aims to solve this. The
+specification defines a cryptographic sponge construction, with the state
+permutation only consisting of native field operations. This makes use of
+poseidon in SNARKs much more efficient. The cryptographic sponge structure,
+is also particularly well suited for Fiat-Shamir, as messages from the prover
+to the verifier can be modelled with sponge absorbtion and challenge messages
+from the verifier to the prover can be modelled with sponge squeezing. Poseidon
+is still a very new hash function though, and is not nearly as used and
+"battle-tested" as SHA3, so using it can pose a potential security risk
+compared to SHA3.
