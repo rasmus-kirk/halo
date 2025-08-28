@@ -1,5 +1,12 @@
 ## Gadgets
 
+**Draft Note:** I still haven't decided whether to expand this with Schnorr
+Verifier, $\PCDLSuccinctCheck$, $\ASDLVerifier$, or whether it just bloats
+the report. The nice thing about having it is that it actually tells you how
+exactly the IVC-circuit is defined, which I feel is pretty important. The
+$\PlonkVerifier$ can be omitted since it will be the same as in the plonk
+section. Maybe appendix?
+
 ### Poseidon Sponges
 
 The Poseidon State can be one of the following values:
