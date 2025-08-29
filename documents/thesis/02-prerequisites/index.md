@@ -150,8 +150,6 @@ To generate the URS transparently, a collision-resistant hash function
 $\Hc : \Bb^* \to \Eb(\Fb_q)$ can be used to produce the generators. The URS
 can then be derived using a genesis string $s$:
 $$\text{URS} = \{ \Hc(s \cat 1), \Hc(s \cat 2), \dots, \Hc(s \cat D) \}$$
-This method is used in our implementation, as detailed in the implementation
-section
 
 ## Bulletproofs
 
@@ -445,12 +443,12 @@ instances, and only perform the expensive linear check (i.e. $\PCDLCheck$)
 at the end of accumulation.
 
 In the 2020 paper[@pcd] _"Proof-Carrying Data from Accumulation Schemes"_
-, that this project heavily relies on, the authors presented a generalized
-version of the previous accumulation structure of Halo that they coined
-_Accumulation Schemes_. Simply put, given a predicate $\Phi: \Instance \to
-\{ \top, \bot \}$, and $m$ representing the number of instances accumulated
-for each proof step and may vary for each time $\ASProver$ is called. An
-accumulation scheme then consists of the following functions:
+, the authors presented a generalized version of the previous accumulation
+structure of Halo that they coined _Accumulation Schemes_. Simply put, given
+a predicate $\Phi: \Instance \to \{ \top, \bot \}$, and $m$ representing
+the number of instances accumulated for each proof step and may vary for
+each time $\ASProver$ is called. An accumulation scheme then consists of
+the following functions:
 
 - $\ASSetup(\l) \to \pp_\AS$
 

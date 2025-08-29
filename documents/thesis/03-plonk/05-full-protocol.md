@@ -60,6 +60,9 @@ PlonkProof:
   - $\vec{C_t} \in \Eb(\Fb)^{16}$
   - $C_z \in \Eb(\Fb)$
 
+All of this proof is constant size, except the two evaluation proofs which
+have size $\Oc(\lg(n))$. Thus the Plonk proof size is also $\Oc(\lg(n))$.
+
 ### Prover
 
 \begin{algorithm}[H]
@@ -135,6 +138,16 @@ PlonkProof:
   \end{algorithmic}
 \end{algorithm}
 
+**Runtime:**
+
+First note that _all_ polynomial multiplications can be modelled to run in
+$\Oc(n \lg(n))$ because they can be modelled as $c(X) = a(X) \cdot b(X) = \fft(\ifft(a(X))
+\cdot \ifft(b(X)))$. The runtime of multiplication over the evaluation domain
+is $\Oc(n)$ and the runtime of the $\fft, \ifft$ is $\Oc(n \lg(n))$. Polynomial
+addition is $\Oc(n)$. The $\PCDL$ functions $\PCDLCommit, \PCDLOpen$ have
+a runtime of $\Oc(n)$. Therefore the worst-case runtime of the prover is
+$\Oc(n \lg(n))$.
+
 ### Verifier
 
 \begin{algorithm}[H]
@@ -168,7 +181,7 @@ PlonkProof:
   \State $\Tc \to \xi$
   \State Compute:
     \Statex \algind $\xi^n$ using iterative squaring, since $n$ is a power of 2 ($\lg(n)$ multiplications).
-    \Statex \algind $L_1(\xi) = \frac{\o \cdot (\xi_n - 1)}{n \cdot (\xi - \o)}$
+    \Statex \algind $L_1(\xi) = \frac{\o \cdot (\xi^n - 1)}{n \cdot (\xi - \o)}$
     \Statex \algind $z_H(\xi) = \xi^n - 1$
     \Statex \algind $x(\xi) = \sum_{i=1}^{\ell_1 + \ell_2} L_i(\xi) \cdot (-x_i) \quad \text{where} \quad L_i(\xi) = \frac{\o^i \cdot (\xi^n - 1)}{n \cdot (\xi - \o^i)}$
   \State Define $f_{CG}(\xi)$ to be all the constraints listed in the custom constraint
@@ -178,7 +191,7 @@ PlonkProof:
     \Statex \algind $f'(\xi) = \prod_{i = 1}^4 w^{(v)}_i + \b \cdot \id^{(v)}_i + \g$
     \Statex \algind $g'(\xi) = \prod_{i = 1}^4 w^{(v)}_i + \b \cdot \s^{(v)}_i + \g$
     \Statex \algind $f_{GC}(\xi) = w^{(v)}_1 q^{(v)}_1 + w^{(v)}_2 q^{(v)}_2 + w^{(v)}_3 q^{(v)}_3 + w^{(v)}_1 w^{(v)}_2 q^{(v)}_4 + q^{(v)}_5 + x(\xi) + f_{CG}(\xi)$
-    \Statex \algind $f_{CC_1}(\xi) = L_i(\xi) \cdot (z^{(v)} - 1)$
+    \Statex \algind $f_{CC_1}(\xi) = L_1(\xi) \cdot (z^{(v)} - 1)$
     \Statex \algind $f_{CC_2}(\xi) = z^{(v)} \cdot f'(\xi) - z_{\o}^{(v)} \cdot g'(\xi)$
     \Statex \algind $f(\xi) = f_{GC}(\xi) + \a \cdot f_{CC_1}(\xi) + \a^2 \cdot f_{CC_2}(\xi)$
     \Statex \algind $t(\xi) = \sum_{i=1}^{16} (\xi^n)^{i-1} \cdot t^{(v)}_i$
@@ -199,3 +212,13 @@ PlonkProof:
 \end{algorithmic}
 \end{algorithm}
 
+**Runtime:**
+
+- $\xi^n$ is $\Oc(\lg(n))$ multiplications, due to iterative squaring.
+- $x(\xi)$ is $\Oc(\ell)$
+- The computation of $f(\xi), t(\xi)$ doesn't depend on $n$, so that part is constant. Same is true for $s(X), s_\o(X)$.
+- The computation of $C_{\text{IP}}$ is $\ell_1$ scalar multiplications.
+- All transcript hash interactions are also constant.
+
+Overall, the worst-case runtime with fixed $\ell_1, \ell_2$ and variable $n$
+is $\Oc(\lg(n))$.
