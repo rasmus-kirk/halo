@@ -1,22 +1,22 @@
 ## Arguments
 
-We now describe the arguments used in Plonk.
+We now describe the arguments used in Plonk. We can safely assume that the
+degree bound of any polynomial is always much smaller than the size of the
+field, $|\Fb| \gg d$.
 
 ### Vanishing Argument
-
-<!-- TODO: Generally fine, but cleanup -->
 
 The checks that the verifier makes in Plonk boils down to checking identities
 of the following form:
 
-$$\forall a \in S : f(a) \meq 0$$
+$$\forall s \in S : f(s) \meq 0$$
 
 For some polynomial $f(X) \in \Fb_{\leq d}$ and some set $S \subset \Fb$. The
 subset, $S$, may be much smaller than $\Fb$ as is the case for Plonk where
 $S$ is set to be the set of roots of unity ($S = H = \{ \o^1, \o^2, \dots,
 \o^n \}$). Since we ultimately model the above check with challenge scalars,
-using just $S$, might not be sound. For this purpose construct the **Single
-Polynomial Vanishing Argument Protocol**:
+using just $S$, might not be sound. For this purpose, we can construct the
+**Single Polynomial Vanishing Argument Protocol**:
 
 \begin{algorithm}[H]
 \caption*{
@@ -65,16 +65,17 @@ $\qed$
 <!-- TODO(rasmus): The soundness argument doesn't limit the degree of p(X)! -->
 <!-- TODO(rasmus): Or maybe it does, should probably argue for it... -->
 
-Due to the factor theorem[^factor-theorem] $z_S(X)$ only divides $f(X)$ if and
-only if all of $s \in S : f(s) = 0$. Then from this the Schwartz-Zippel
-Lemma[^schwartz-zippel] states that evaluating a nonzero polynomial on
-inputs chosen randomly from a large enough set is likely to find an input
-that produces a nonzero output. Specifically, it ensures that $Pr[p(\xi) = 0]
-\leq \frac{deg(p(X))}{|\Fb|}$. Clearly $\xi \in \Fb$ is a large enough set as
-$|\Fb| \gg |S|$ and therefore $Pr[p(\xi) = 0 | P \neq 0]$ is negligible. Lastly,
-the evaluation checked depends on the soundness of the underlying PCS scheme
-used, but we assume that it has knowledge soundness and binding. From all
-this, we conclude that the above vanishing argument is sound.
+Due to the factor theorem[^factor-theorem] $z_S(X)$ only divides
+$f(X)$ if and only if all of $s \in S : f(s) = 0$. The Schwartz-Zippel
+Lemma[^schwartz-zippel] states that evaluating a non-zero polynomial on
+an input chosen randomly from a large enough set is extremely unlikely to
+evaluate to zero. Specifically, it ensures that $Pr[p(\xi) = 0 \land p(X)
+\neq 0] \leq \frac{deg(p(X))}{|\Fb|}$. Clearly $\xi \in_R \Fb$ is sampled from
+a large enough set as $|\Fb| \gg d \geq \deg(p(X))$ and therefore $Pr[p(\xi)
+= 0 \mid P \neq 0]$ is negligible. Lastly, the evaluation checked depends on
+the soundness of the underlying PCS scheme used, but we assume that it has
+knowledge soundness and binding. From all this, we conclude that the above
+vanishing argument is sound.
 
 [^schwartz-zippel]: The wikipedia page for the Schwartz-Zippel Lemma: [https://en.wikipedia.org/wiki/Schwartz%E2%80%93Zippel_lemma](https://en.wikipedia.org/wiki/Schwartz%E2%80%93Zippel_lemma)
 [^factor-theorem]: The wikipedia page for the Factor Theorem: [https://en.wikipedia.org/wiki/Factor_theorem](https://en.wikipedia.org/wiki/Factor_theorem)
@@ -87,7 +88,7 @@ Vanishing Argument**:
 \begin{algorithm}[H]
 \caption*{
   \textbf{Vanishing Argument Protocol:} Checks queries of the form $\forall
-  a \in S : f(a) \meq 0$, with scalars from $\Fb \supseteq S$, for a list
+  s \in S : f(s) \meq 0$, with scalars from $\Fb \supseteq S$, for a list
   of $\vec{f} \in \Fb^k_{\leq d}[X]$.
 }
 \textbf{Inputs} \\
@@ -177,10 +178,9 @@ is $\frac{k}{|\Fb|}$.
 
 ### Grand Product Argument
 
-Suppose a prover, given polynomials $f(X), g(x)$ wanted to prove that
-these polynomials when viewed as sets are equal to each other. This is
-called multi-set equality, i.e, $\{ f(i) \mid i \in [1, n] \} \meq \{ g(i)
-\mid i \in [1, n] \}$, or $\forall \o \in H : f(X) = g(X)$. This relation
+Suppose a prover, given polynomials $f(X), g(x)$ wanted to prove that these
+polynomials when viewed as sets are equal to each other. This is called
+multi-set equality, i.e, $\forall \o \in H : f(X) = g(X)$. This relation
 can be modelled with a grand product:
 
 $$
@@ -205,15 +205,13 @@ Then by Schwarz-Zippel, if we consider $r(X) = p(X) - q(X)$, if $r(\g) :
 \g \in_R \Fb$ then $p(X) = q(X)$. Now, we just need to prove that $p(X) =
 q(X) \implies \{ a_1, \dots, a_n \} = \{ b_1, \dots, b_n \}$.
 
-Consider the roots of $p(X)$ and $q(X)$. These are clearly $\{ -a_1, -a_2, \dots, -a_n \}$ and $\{ -b_1, -b_2, \dots, -b_n \}$ respectively. Since $p(X) = q(X)$, the roots must also be the same and:
-
+Consider the roots of $p(X)$ and $q(X)$. These are clearly $\{ -a_1, -a_2,
+\dots, -a_n \}$ and $\{ -b_1, -b_2, \dots, -b_n \}$ respectively. Since $p(X)
+= q(X)$, the roots must also be the same and:
 $$
-\begin{aligned}
-  \{ -a_1, -a_2, \dots, -a_n \} &= \{ -b_1, -b_2, \dots, -b_n \} \implies
-  \{ a_1, a_2, \dots, a_n \} &= \{ b_1, b_2, \dots, b_n \}
-\end{aligned}
+  \{ -a_1, -a_2, \dots, -a_n \} = \{ -b_1, -b_2, \dots, -b_n \} \implies
+  \{ a_1, a_2, \dots, a_n \} = \{ b_1, b_2, \dots, b_n \}
 $$
-
 $\qed$
 
 We still need to convert $\prod_{i \in n} f'(\o^i) = \prod_{i \in n} g'(\o^i)$

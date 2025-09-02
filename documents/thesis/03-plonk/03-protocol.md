@@ -87,7 +87,7 @@ meaning we want to show that we know $x_1, x_2$ such that the equation equals
 \end{figure}
 
 This is a trivial problem, so we deduce that $x_1 = 2, x_2 = 7$. From the graphs
-above, we can construct some vectors representing the wire values of our circuit:
+above, we can construct vectors representing the wire values of our circuit:
 
 $$
 \begin{aligned}
@@ -98,7 +98,7 @@ $$
 \end{aligned}
 $$
 
-We can then create polynomials $a(x), b(x), c(x)$ corresponding to the
+We can then create polynomials $a(X), b(X), c(X)$ corresponding to the
 left-input wire, the right-input wire and the output wire respectively:
 
 $$
@@ -159,12 +159,12 @@ Now we wish to prove that:
 
 $$\forall \o \in H = \{ \o^1, ..., \o^6 \} : f_{GC}(X) = 0$$
 
-And for this, we can use the **Vanishing Argument Protocol**. And in order for
-the verifier to know that $f_{GC}$ is constructed honestly, i.e. it respects
-the public selector polynomials, we can use the **Batched Evaluations Proofs
-Protocol** over each witness polynomial instead of $f_{GC}$. This securely
-gives the verifier $v_a = a(\xi), v_b = b(\xi), v_c = c(\xi)$ and the verifier
-can then check:
+And for this, we can use the **Vanishing Argument Protocol**. And in order
+for the verifier to know that $f_{GC}(X)$ is constructed honestly, i.e. it
+respects the public selector polynomials, we can use the **Batched Evaluations
+Proofs Protocol** over each witness polynomial instead of $f_{GC}(X)$. This
+securely gives the verifier $v_{f_{GC}} = f_{GC}(\xi), v_a = a(\xi), v_b = b(\xi), v_c = c(\xi)$
+and the verifier can then check:
 
 $$v_f = v_a q_l(\xi) + v_b q_r(\xi) + v_c q_o(\xi) + v_a v_b q_m(\xi) + q_c(\xi)$$
 
@@ -306,24 +306,43 @@ we now get the table:
   \end{tabu}
 \end{center}
 
+### Public Inputs
+
+It might be useful to have public inputs for a circuit. This is not to be confused with constants in the circuits:
+
+- _A constant_ is always the value set by the circuit, and is public, known by both the prover and verifier.
+- _A witness_ is an input value to the circuit, and is private, known only by the prover.
+- _A public input_ is an input value to the circuit, and is public, known by both the prover and verifier.
+
+We have a vector of public inputs:
+$$\vec{x} : |\vec{x}| = \ell_2$$
+Naturally leading to a polynomial:
+$$x(X) = \fft(\vec{x})$$
+The number of public inputs, $\ell_2$, is embedded in the circuit
+specification. The first $\ell_2$ rows of the witness table is reserved for
+public inputs. For each $x_i \in \vec{x}$, we set $q_l(\o^i) = 1, a(\o^i) =
+x_i$ and the rest of the witness and selector polynomials to zero. $F_{GC}$
+must then also be updated:
+
+$$f_{GC}(X) = a(X) q_l(X) + b(X) q_r(X) + c(X) q_o(X) + a(X) b(X) q_m(X) + q_c(X) + x(X)$$
+
 ### Input Passing
 
-The above section describes how each language instruction is mapped to
-one of two circuits, verifying both circuits should convince the verifier
-that the program $f(w, x)$ is satisfied. However, for the Elliptic Curve
-Multiplication and the Poseidon Hashes, we need to pass inputs from one
-circuit to another.
+Since we use a cycle of curves, each language instruction is mapped to one of
+two circuits, verifying both circuits should convince the verifier that the
+program $f(w, x)$ is satisfied. However, for Elliptic Curve Multiplication
+and the Poseidon Hashes, we need to pass inputs from one circuit to another.
 
 **Passing $v^{(q)} \to v^{(p)}$:**
 
-We start with the simpler case. We have a circuit over $\Fb_p$, $R^{(p)}$,
-and a circuit over $\Fb_q$, $R^{(q)}$, with $p > q$. We wish to pass
-a value, $v^{(q)} \in \Fb_q$, from $R^{(q)}$ to $R^{(p)}$ and wish to
-convince the verifier that $v^{(q)} = v^{(q)}$. Naively, if these values
-are added as public inputs, the verifier could add the check that $v^{(q)}
-\meq v^{(p)}$. But this won't work for IVC, since we can't check equality
-across circuits, in-circuit. Instead we compute the commitment to $v^{(p)}$
-on the $R^{(p)}$-side.
+We start with the simple case. We have a circuit over $\Fb_p$, $R^{(p)}$,
+and a circuit over $\Fb_q$, $R^{(q)}$, with $p > q$. We wish to pass a value,
+$v^{(q)} \in \Fb_q$, from $R^{(q)}$ to $R^{(p)}$. We can add $v^{(p)}$ to the
+public inputs to $R^{(q)}$, but then we still need to convince the verifier
+that $v^{(q)} = v^{(q)}$. Naively, the verifier could add the check that
+$v^{(q)} \meq v^{(p)}$. But this won't work for IVC, since we can't check
+equality across circuits, in-circuit. Instead we compute the commitment to
+$v^{(q)}$ on the $R^{(q)}$-side.
 
 $$C^{(q)}_{\text{IP}} := v^{(q)} \cdot G_1^{(q)} \in \Eb_p(\Fb_q)$$
 
@@ -343,7 +362,9 @@ Which, given that the rest of the proof verifies correctly, will then imply
 that $v^{(q)} = v^{(p)}$. If the verifier is encoded as a circuit, then
 we need to input pass when performing this additional check, since scalar
 multiplication itself requires input passing to work. However this is no
-problem, since that circuit-verifier will be verified by another verifier!
+problem, since that circuit-verifier will be verified by another verifier! At
+some point, this deferral will end with a regular verifier, that can compute
+the commitment outside the circuit.
 
 **Passing $v^{(p)} \to v^{(q)}$:**
 
@@ -352,22 +373,24 @@ that we want to pass to $R^{(q)}$. Here the problem is that since $p > q$,
 the value might be too large to represent in the $\Fb_q$-field. The solution
 is to decompose the value:
 
-$$v_p = 2 h + l$$
+$$v^{(p)}_p = 2 h^{(p)} + l^{(p)}$$
 
-Where $h$ represents the high-bits of $v_p$ ($h \in [0, 2^{\floor{\log{p}}}]$)
-and $l$ represents the low-bit ($h \in \Bb$). The value $v_p$ can now be
-represented with $h, l$, both of which are less than $q$. Which means we
-can pass the value to $R^{(q)}$.
+Where $h^{(p)}$ represents the high-bits of $v^{(p)}$ ($h^{(p)} \in [0,
+2^{\floor{\log{p}}}]$) and $l^{(p)}$ represents the low-bit ($h^{(p)} \in
+\Bb$). The value $v^{(p)}$ can now be represented with $h^{(p)}, l^{(p)}$, both
+of which are less than $q$. Which means we can pass the value to $R^{(q)}$.
 
 The constraints added to $R^{(p)}$ then becomes:
 
-- $C^{(p)}_{\text{PI}} \meq h \cdot G_1 + l \cdot G_2$
-- $v = 2 h + l$
+- $C^{(p)}_{\text{PI}} \meq h \cdot G_1^{(p)} + l \cdot G_2^{(p)}$
+- $v = 2 h^{(p)} + l^{(p)}$
 - $h \in [0, 2^{\floor{\log{p}}}]$ (range check)
 - $l \in \Bb$ (simple boolean constraint)
 
-We of course don't need to commit each time we input pass, we can create a
-standard vector pedersen commit, containing all the passed values:
+**Combining Commitments:**
+
+We of course don't need to commit each time we pass inputs, we can create
+a standard vector pedersen commit, containing all the passed values:
 
 $$C^{(p)}_{\text{PI}} = h_{v_1}^{(p)} \cdot G_1^{(p)} + l_{v_1}^{(p)} \cdot G_2^{(p)} + h_{v_2}^{(p)} \cdot G_3^{(p)} + l_{v_2}^{(p)} \cdot G_4^{(p)} + \dots$$
 
@@ -444,8 +467,5 @@ $$
   C^{(q)}_{\text{IP}} &\meq \a^{(p)} \cdot G_1^{(q)} \\
 \end{aligned}
 $$
-
-Note, that when recursing, these extra checks require input passing themselves,
-but this is not an issue as that's handled by the next verifier.
 
 \end{tcolorbox}

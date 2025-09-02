@@ -4,15 +4,16 @@ For each gate, we have a *Witness Row*, *Selector Row* and a *Coefficient
 Row*. These rows describe the form of the constraints. Take the addition
 gate as an example:
 
-\begin{center}
-  \captionof*{table}{Witness Row} \label{tab:example-witness} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Example - Witness Row} \label{tab:example-witness} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
     $w_1$ & $w_2$ & $w_3$ & $w_4$  & $w_5$  & $w_6$  & $w_7$  & $w_8$  & $w_9$  & $w_{10}$  & $w_{11}$  & $w_{12}$  & $w_{13}$  & $w_{14}$  & $w_{15}$  & $w_{16}$  \\\tabucline[1pt]{-}
     $a$   & $b$   & $c$   & 0      & 0      & 0      & 0      & 0      & 0      & 0         & 0         & 0         & 0         & 0         & 0         & 0         \\\hline
     $I_1$ & $I_2$ & $O_1$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
 Here the first row describes the 16 witness inputs associated for the gate. In
 this case only three witnesses are needed, so the other columns are set to 0.
@@ -22,14 +23,15 @@ slot 2 (corresponding to $w_2$) is copy constrained to the right input wire
 and slot 3 (corresponding to $w_3$) is copy constrained to the first, and
 for this gate; only, output wire.
 
-\begin{center}
-  \captionof*{table}{Selector Row} \label{tab:example-selector} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Example - Selector Row} \label{tab:example-selector} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
-    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_H$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
+    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_\Hc$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
     1     & 1     & -1    & 0     & 0     & 0       & 0     & 0       & 0             & 0         & 0       \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
 This means that the $q_l = 1, q_r = 1, q_o = -1$ is set for this row. So
 that for this row $f_{GC}$ becomes:
@@ -41,27 +43,29 @@ range-check gates. For all other gates they are set to zero. If they are
 not listed in a gate specification below, then all row-values are set to
 zero. This is also the case for our example add gate.
 
-\begin{center}
-  \captionof*{table}{Coefficient Row} \label{tab:example-selector} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Example - Coefficient Row} \label{tab:example-coefficient} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
     $r_1$ & $r_2$ & $r_3$ & $r_4$ & $r_5$ & $r_6$ & $r_7$ & $r_8$ & $r_9$ & $r_{10}$ & $r_{11}$ & $r_{12}$ & $r_{13}$ & $r_{14}$ & $r_{15}$ \\\tabucline[1pt]{-}
     0     & 0     & 0     & 0     & 0     & 0       & 0     & 0   & 0     & 0        & 0        & 0        & 0        & 0        & 0        \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
 Some of the more complicated gates will have their own designated selector
 polynomial and a table of constraints. The simplest one is the equals gate:
 
-\begin{center}
-  \captionof*{table}{Equals Constraints} \label{tab:equals-constraints} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Example - Custom Constraints} \label{tab:example-constraints} 
   \begin{tabu}{|cllll|}
     \hline
     Degree & & Constraint                    & & Meaning                    \\\tabucline[1pt]{-}
     3      & & $(x - y) \cdot b$             & & $x \neq y \implies b = 0$  \\\hline
     3      & & $(x - y) \cdot \a + b - 1$    & & $x = y \implies b = 1$     \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
 It's implicit that each constraint in the constraint tables should always be
 equal to zero. To translate this into the form expected by $f_{GC}(X)$, we
@@ -97,124 +101,133 @@ multiplication and negation even though they are part of vanilla-Plonk:
 
 **Addition:**
 
-\begin{center}
-  \captionof*{table}{Witness Row} \label{tab:field-add-witness} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Field Addition - Witness Row} \label{tab:field-add-witness} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
-    $w_1$ & $w_2$ & $w_3$ & $w_4$ & $w_5$ & $w_6$ & $w_7$ & $w_8$ & $w_9$ & $w_{10}$ & $w_{11}$ & $w_{12}$ & $w_{13}$ & $w_{14}$ & $w_{15}$ & $w_{16}$ \\\tabucline[1pt]{-}
-    $a$   & $b$   & $c$   & 0      & 0      &  0     &  0     & 0      & 0      & 0         & 0         & 0         & 0         & 0         & 0         & 0         \\\hline 
-    $I_1$ & $I_2$ & $O_1$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    \\\hline
+    $w_1$ & $w_2$ & $w_3$ & $w_4$  & $w_5$  & $w_6$  & $w_7$  & $w_8$  & $w_9$  & $w_{10}$  & $w_{11}$  & $w_{12}$  & $w_{13}$  & $w_{14}$  & $w_{15}$  & $w_{16}$ \\\tabucline[1pt]{-}
+    $a$   & $b$   & $c$   & 0      & 0      &  0     &  0     & 0      & 0      & 0         & 0         & 0         & 0         & 0         & 0         & 0        \\\hline 
+    $I_1$ & $I_2$ & $O_1$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$   \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
 \begin{center}
-  \captionof*{table}{Selector Row} \label{tab:field-add-selector} 
+  \captionof*{table}{Field Addition - Selector Row} \label{tab:field-add-selector} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
-    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_H$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
-    1     & 1     & -1    & 0     & 0     & 0       & 0     & 0         & 0             & 0         & 0     \\\hline
+    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_\Hc$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
+    1     & 1     & -1    & 0     & 0     & 0     & 0     & 0         & 0             & 0         & 0     \\\hline
   \end{tabu}
 \end{center}
 
 **Subtraction:**
 
-\begin{center}
-  \captionof*{table}{Witness Row} \label{tab:field-sub-witness} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Field Subtraction - Witness Row} \label{tab:field-sub-witness} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
     $w_1$ & $w_2$ & $w_3$ & $w_4$  & $w_5$  & $w_6$  & $w_7$  & $w_8$  & $w_9$  & $w_{10}$  & $w_{11}$  & $w_{12}$  & $w_{13}$  & $w_{14}$  & $w_{15}$  & $w_{16}$  \\\tabucline[1pt]{-}
     $a$   & $b$   & $c$   & 0      & 0      & 0      & 0      & 0      & 0      & 0         & 0         & 0         & 0         & 0         & 0         & 0         \\\hline
     $I_1$ & $I_2$ & $O_1$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
-\begin{center}
-  \captionof*{table}{Selector Row} \label{tab:field-sub-selector} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Field Subtraction - Selector Row} \label{tab:field-sub-selector} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
-    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_H$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
-    1     & -1    & -1    & 0     & 0     & 0       & 0     & 0         & 0             & 0         & 0       \\\hline
+    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_\Hc$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
+    1     & -1    & -1    & 0     & 0     & 0       & 0     & 0       & 0             & 0         & 0       \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
 Negation can be modelled as $-a = 0 - a$, a dedicated negation gate would also be one row anyways.
 
 **Multiplication:**
 
-\begin{center}
-  \captionof*{table}{Witness Row} \label{tab:field-mul-witness} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Field Multiplication - Witness Row} \label{tab:field-mul-witness} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
     $w_1$ & $w_2$ & $w_3$ & $w_4$  & $w_5$  & $w_6$  & $w_7$  & $w_8$  & $w_9$  & $w_{10}$  & $w_{11}$  & $w_{12}$  & $w_{13}$  & $w_{14}$  & $w_{15}$  & $w_{16}$  \\\tabucline[1pt]{-}
     $a$   & $b$   & $c$   & 0      & 0      & 0      & 0      & 0      & 0      & 0         & 0         & 0         & 0         & 0         & 0         & 0         \\\hline
     $I_1$ & $I_2$ & $O_1$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
-\begin{center}
-  \captionof*{table}{Selector Row} \label{tab:field-mul-selector} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Field Multiplication - Selector Row} \label{tab:field-mul-selector} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
-    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_H$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
-    0     & 0     & -1    & 1     & 0     & 0       & 0     & 0         & 0             & 0         & 0       \\\hline
+    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_\Hc$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
+    0     & 0     & -1    & 1     & 0     & 0       & 0     & 0         & 0           & 0         & 0       \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
 **Inverse:**
 
 To model inverses, we can witness the inverse of $x$, $x^{-1}$, and constrain
 that $x \cdot x^{-1} = 1$:
 
-\begin{center}
-  \captionof*{table}{Witness Row} \label{tab:field-neg-witness} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Field Inverse - Witness Row} \label{tab:field-inv-witness} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
     $w_1$ & $w_2$    &  $w_3$ & $w_4$  & $w_5$  & $w_6$  & $w_7$  & $w_8$  & $w_9$  & $w_{10}$  & $w_{11}$  & $w_{12}$  & $w_{13}$  & $w_{14}$  & $w_{15}$  & $w_{16}$  \\\tabucline[1pt]{-}
     $x$   & $x^{-1}$ &  0     & 0      & 0      & 0      & 0      & 0      & 0      & 0         & 0         & 0         & 0         & 0         & 0         & 0         \\\hline
     $I_1$ & $O_1$    & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
-\begin{center}
-  \captionof*{table}{Selector Row} \label{tab:field-neg-selector} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Field Inverse - Selector Row} \label{tab:field-inv-selector} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
-    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_H$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
-    0     & 0     & 0     & 1     & 1     & 0       & 0     & 0         & 0             & 0         & 0       \\\hline
+    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_\Hc$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
+    0     & 0     & 0     & 1     & 1     & 0       & 0     & 0         & 0           & 0         & 0       \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
 ### Booleans
 
 #### Witness Boolean
 
 To witness a boolean, we need to constrain that the witnessed value indeed
-is a bit. So we need that:
+is a bit:
 
 $$(b \cdot b) - b = 0$$
 
-This can be modelled using the native plonk selector polynomials.
+This can be modelled using the native Plonk selector polynomials.
 
-\begin{center}
-  \captionof*{table}{Witness Row} \label{tab:witness-bool-witness} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Witness Boolean - Witness Row} \label{tab:witness-bool-witness} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
     $w_1$  & $w_2$  & $w_3$  & $w_4$  & $w_5$  & $w_6$  & $w_7$  & $w_8$  & $w_9$  & $w_{10}$ & $w_{11}$ & $w_{12}$ & $w_{13}$ & $w_{14}$ & $w_{15}$ & $w_{16}$  \\\tabucline[1pt]{-}
     $b$    & $b$    & 0      & 0      & 0      & 0      & 0      & 0      & 0      & 0        & 0        & 0        & 0        & 0        & 0        & 0         \\\hline
     $O_1$  & $O_1$  & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$    \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
-\begin{center}
-  \captionof*{table}{Selector Row} \label{tab:witness-bool-selector} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Witness Boolean - Selector Row} \label{tab:witness-bool-selector} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
-    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_H$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
+    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_\Hc$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
     -1    & 0     & 0     & 1     & 0     & 0       & 0   & 0         & 0             & 0         & 0       \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
-#### Equals
+#### Equality
 
 To check whether two values are equal, $b = x \meq y$, we need to witness $b$
 and $\text{inv0}(x - y)$:
@@ -235,34 +248,37 @@ $$
 
 Now, we want that $x = y \implies b = 1$ and $a \neq b \implies \a = 0$.
 
-\begin{center}
-  \captionof*{table}{Equals Constraints} \label{tab:equals-constraints} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Equality - Custom Constraints} \label{tab:equals-constraints} 
   \begin{tabu}{|cllll|}
     \hline
     Degree & & Constraint                    & & Meaning                    \\\tabucline[1pt]{-}
     3      & & $(x - y) \cdot b$             & & $x \neq y \implies b = 0$  \\\hline
     3      & & $(x - y) \cdot \a + b - 1$    & & $x = y \implies b = 1$     \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
-\begin{center}
-  \captionof*{table}{Equals Witness Row} \label{tab:equals-witness} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Equality - Witness Row} \label{tab:equals-witness} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
     $w_1$ & $w_2$ & $w_3$ & $w_4$  & $w_5$  & $w_6$  & $w_7$  & $w_8$  & $w_9$  & $w_{10}$ & $w_{11}$ & $w_{12}$ & $w_{13}$ & $w_{14}$ & $w_{15}$ & $w_{16}$ \\\tabucline[1pt]{-}
     $x$   & $y$   & $b$   & $\a$   & 0      & 0      & 0      & 0      & 0      & 0        & 0        & 0        & 0        & 0        & 0        & 0      \\\hline
     $I_1$ & $I_2$ & $O_1$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$    \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
-\begin{center}
-  \captionof*{table}{Equals Selector Row} \label{tab:equals-selector} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Equality - Selector Row} \label{tab:equals-selector} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
-    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_H$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
+    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_\Hc$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
     0     & 0     & 0     & 0     & 0     & 0       & 0     & 0       & 0             & 1         & 0       \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
 **Completeness:**
 
@@ -303,13 +319,13 @@ $$
 #### And, Or
 
 To implement "And" for two booleans, $x, y$, we can simply multiply them,
-costing a single row. Because $x, y$ are constrained to be bits, when they are
-input (subsequent operations like "And" and "Or" are guaranteed to produce
-bits, provided the inputs of these operations are bits). To implement "Or",
-we can compose the following constraint that $c = x \lor y = x + y - (x \cdot
+costing a single row. Because $x, y$ are constrained to be bits, when they
+are input, the output is also guaranteed to be a bit. To implement "Or", we
+can compose the following constraint that $c = x \lor y = x + y - (x \cdot
 y)$. To see why it works, given that $x, y$ are already constrained to be bits:
 
-\begin{center}
+\begin{table}[H]
+  \centering
   \begin{tabu}{|c|c|c|}
     \hline
     $x$ & $y$ & Out                       \\\tabucline[1pt]{-}
@@ -318,29 +334,31 @@ y)$. To see why it works, given that $x, y$ are already constrained to be bits:
     1   & 0   & $1 + 0 - (1 \cdot 0) = 1$ \\\hline
     1   & 1   & $1 + 1 - (1 \cdot 1) = 1$ \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
 This can naively be done in three rows, but we can compress it to a single
 row as $0 = x + y - c - (x \cdot y)$:
 
-\begin{center}
-  \captionof*{table}{Witness Row} \label{tab:witness-point-witness} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Or - Witness Row} \label{tab:or-witness} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
     $w_1$ & $w_2$ & $w_3$ & $w_4$  & $w_5$ & $w_6$ & $w_7$ & $w_8$ & $w_9$ & $w_{10}$ & $w_{11}$ & $w_{12}$ & $w_{13}$ & $w_{14}$ & $w_{15}$ & $w_{16}$    \\\tabucline[1pt]{-}
     $a$   & $b$   & $c$   & 0      & 0      & 0      & 0      & 0      & 0      & 0        & 0        & 0        & 0        & 0        & 0        & 0      \\\hline
     $I_1$ & $I_2$ & $O_1$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$ \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
-\begin{center}
-  \captionof*{table}{Selector Row} \label{tab:witness-point-selector} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Or - Selector Row} \label{tab:or-selector} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
-    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_H$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
+    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_\Hc$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
     1     & 1     & -1    & -1    & 0     & 0       & 0     & 0         & 0           & 0         & 0       \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
 ### Rangecheck
 
@@ -351,8 +369,9 @@ $$x = \sum_{i=0}^{253} b_i \cdot 2^i$$
 
 The entire range-check then consists of $254 / 15 = 17$ rows:
 
-\begin{center}
-  \captionof*{table}{Witness Table} \label{tab:rangecheck-witness}
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Rangecheck - Witness Table} \label{tab:rangecheck-witness}
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
     $w_1$      & $w_2$     & $w_3$     & $w_4$     & $w_5$     & $w_6$     & $w_7$     & $w_8$     & $w_9$     & $w_{10}$  & $w_{11}$  & $w_{12}$  & $w_{13}$  & $w_{14}$  & $w_{15}$  & $w_{16}$  \\\tabucline[1pt]{-}
@@ -375,7 +394,7 @@ The entire range-check then consists of $254 / 15 = 17$ rows:
     $acc_{16}$ & $b_{240}$ & $b_{241}$ & $b_{242}$ & $b_{243}$ & $b_{244}$ & $b_{245}$ & $b_{246}$ & $b_{247}$ & $b_{248}$ & $b_{249}$ & $b_{250}$ & $b_{251}$ & $b_{252}$ & $b_{253}$ & 0         \\\hline
     $\bot$     & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
 The last row still indicates the copy constraints[^acc0]. Each $acc_i$ is the accumulation of all previously witnessed bits, so:
 
@@ -390,8 +409,9 @@ $$
 
 However, for this, we still need to witness each power of two. Luckily, these are constant and fixed in the circuit specification, so we can use the coefficient table for this:
 
-\begin{center}
-  \captionof*{table}{Coefficient Table} \label{tab:scalar-mul-selector} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Rangecheck - Coefficient Table} \label{tab:rangecheck-selector} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
     $r_1$     & $r_2$     & $r_3$     & $r_4$     & $r_5$     & $r_6$     & $r_7$     & $r_8$     & $r_9$     & $r_{10}$  & $r_{11}$  & $r_{12}$  & $r_{13}$  & $r_{14}$  & $r_{15}$ \\\tabucline[1pt]{-}
@@ -413,12 +433,13 @@ However, for this, we still need to witness each power of two. Luckily, these ar
     $2^{225}$ & $2^{226}$ & $2^{227}$ & $2^{228}$ & $2^{229}$ & $2^{230}$ & $2^{231}$ & $2^{232}$ & $2^{233}$ & $2^{234}$ & $2^{235}$ & $2^{236}$ & $2^{237}$ & $2^{238}$ & $2^{239}$ \\\hline
     $2^{240}$ & $2^{241}$ & $2^{242}$ & $2^{243}$ & $2^{244}$ & $2^{245}$ & $2^{246}$ & $2^{247}$ & $2^{248}$ & $2^{249}$ & $2^{250}$ & $2^{251}$ & $2^{252}$ & $2^{253}$ & 0         \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
 Now for the constraints, for each _row_ in the tables above:
 
-\begin{center}
-  \captionof*{table}{Range Check Constraints} \label{tab:witness-point-constraints} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Range Check - Custom Constraints} \label{tab:rangecheck-constraints} 
   \begin{tabu}{|cllll|}
     \hline
     Degree & & Constraint                                             & & Meaning                                                 \\\tabucline[1pt]{-}
@@ -454,7 +475,7 @@ Now for the constraints, for each _row_ in the tables above:
     3      & & $-(b_{(i \cdot 15+13)} \cdot 2^{(i \cdot 15+13)})$     & &                                                         \\
     3      & & $-(b_{(i \cdot 15+14)} \cdot 2^{(i \cdot 15+14)})$     & &                                                         \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
 However, notice that we reference the next $acc$ ($acc_{i+1}$) in the
 constraints, but this can be modelled as $w_1(\omega X)$. Each of the powers
@@ -481,26 +502,30 @@ degree from two to three.
 Finally, due to the fact that we store the sum in the _next_ row, we need
 a single zero row to capture the result of the sum:
 
-\begin{center}
-  \captionof*{table}{Range-check (zero-row) Witness Row} \label{tab:field-add-witness} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Rangecheck (Zero Row) - Witness Row} \label{tab:rangecheck-zero-witness} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
     $w_1$      & $w_2$  & $w_3$  & $w_4$  & $w_5$  & $w_6$  & $w_7$  & $w_8$  & $w_9$  & $w_{10}$  & $w_{11}$  & $w_{12}$  & $w_{13}$  & $w_{14}$  & $w_{15}$  & $w_{16}$ \\\tabucline[1pt]{-}
     $acc_{17}$ & 0      & 0      & 0      & 0      &  0     &  0     & 0      & 0      & 0         & 0         & 0         & 0         & 0         & 0         & 0         \\\hline 
     $I_1$      & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
-\begin{center}
-  \captionof*{table}{Range-check (zero-row) Selector Row} \label{tab:field-add-selector} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Rangecheck (Zero Row) - Selector Row} \label{tab:rangecheck-zero-selector} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
-    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_H$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
+    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_\Hc$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
     0     & 0     & 0     & 0     & 0     & 0       & 0   & 0         & 0             & 0         & 0       \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
-We copy constrain $acc_{17}$ to $I_1$ to indicate that $x = acc_{17}$ must hold.
+We copy constrain $acc_{17}$ to $I_1$ to indicate that $x = acc_{17}$ must
+hold. Since we only copy constrain $I_1$, a rangecheck can be veiwed as a
+gate with one input and zero outputs.
 
 [^acc0]: Except, this table doesn't capture the fact that $acc_0$ needs to
          be constrained to a zero constant value in the circuit! All other
@@ -508,89 +533,89 @@ We copy constrain $acc_{17}$ to $I_1$ to indicate that $x = acc_{17}$ must hold.
 
 
 ### Poseidon
-<!-- TODO: reference -->
 
-We also create a special gate type for poseidon hashing. This gate type is
-inspired from an equivalent gate in Mina's kimchi proof system. At the heart
-of the Poseidon hashing algorithm lies a cryptographic sponge construction,
-like the one seen in SHA3. This is very convenient for fiat-shamir
-transformations, since information sent to the verifier can cleanly be
-modelled as sponge absorption, and queries made to the verifier can be
-modelled as sponge squeezing. Squeezing and absorbing from the sponge a
-certain number of times, triggers a permutation of the sponge state. The
-original poseidon paper provide several small veriations on how this
-permutation can be performed, with a variable number of partial and full
-rounds of permutation. Kimchi's approach to this is to only perform the
-expensive full rounds, but conversely make a highly specialized gate for
-only these full rounds.
+We also create a special gate type for performing Poseidon[@poseidon]
+hashing. This gate type is inspired from an equivalent gate in Mina's
+Kimchi proof system. At the heart of the Poseidon hashing algorithm lies a
+cryptographic sponge construction, like the one seen in SHA3. This is very
+convenient for fiat-shamir transformations, since information sent to the
+verifier can cleanly be modelled as sponge absorption, and queries made to
+the verifier can be modelled as sponge squeezing. Squeezing and absorbing
+from the sponge a certain number of times, triggers a permutation of the
+sponge state. The original poseidon paper provide several small veriations
+on how this permutation can be performed, with a variable number of partial
+and full rounds of permutation. Kimchi's approach to this is to only perform
+the expensive full rounds, but conversely make a highly specialized gate
+for only these full rounds.
 
 A complete permutation of the poseidon sponge state of size 3, then consists
 of 55 full rounds of the following computation:
 $$
 \begin{aligned}
-  s_i &= [s_{i,0}, s_{i,1}, s_{i,2}]^\top \\
+  \vec{s_i} &= [s_{i,0}, s_{i,1}, s_{i,2}]^\top \\
   \text{sbox}(x) &= x^7 \\
   \vec{s_{i+1}} &= \vec{M} \cdot (\text{sbox}(\vec{s_i})) + [r_{i,0}, r_{i,1}, r_{i,2}]^\top \\
 \end{aligned}
 $$
-$\vec{M} \in \Fb^{(3,3)}$ represents the constant MDE matrix, and $r_i$
-represents the 55 round constants. Both of these were extracted from kimchi,
-as we wanted our hash to have the same behaviour and security. If we split
-this computation:
-
+$\vec{M} \in \Fb^{(3,3)}$ represents the constant MDS matrix, and $r_i$
+represents the 55 round constants. Both of these were extracted from
+Kimchi's code, as we wanted our hash to have the same behaviour and therefore
+security. If we split this computation:
 $$
 \begin{aligned}
-  s_0' &= \vec{M}{0,0} \cdot s_0^7 + \vec{M}{0,1} \cdot s_0^7 + \vec{M}{0,2} \cdot s_0^7 + r_{i,0} \\
-  s_1' &= \vec{M}{1,0} \cdot s_1^7 + \vec{M}{1,1} \cdot s_1^7 + \vec{M}{1,2} \cdot s_1^7 + r_{i,1} \\
-  s_2' &= \vec{M}{2,0} \cdot s_2^7 + \vec{M}{2,1} \cdot s_2^7 + \vec{M}{2,2} \cdot s_2^7 + r_{i,2} \\
+  s_0' &= M_{0,0} \cdot s_0^7 + M_{0,1} \cdot s_0^7 + M_{0,2} \cdot s_0^7 + r_{i,0} \\
+  s_1' &= M_{1,0} \cdot s_1^7 + M_{1,1} \cdot s_1^7 + M_{1,2} \cdot s_1^7 + r_{i,1} \\
+  s_2' &= M_{2,0} \cdot s_2^7 + M_{2,1} \cdot s_2^7 + M_{2,2} \cdot s_2^7 + r_{i,2} \\
 \end{aligned}
 $$
-
 Leading us to the constraints:
 
-\begin{center}
-  \captionof*{table}{Poseidon Check Constraints} \label{tab:witness-point-constraints} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Poseidon - Custom Constraints} \label{tab:poseidon-constraints} 
   \begin{tabu}{|cllll|}
     \hline
-    Degree & & Constraint                                                                                                   & & Meaning                                                                                  \\\tabucline[1pt]{-}
-    8      & & $s_{1,0} - \vec{M}{0,0} \cdot s_{0,0}^7 + \vec{M}{0,1} \cdot s_{0,0}^7 + \vec{M}{0,2} \cdot s_{0,0}^7 + r_{0,0}$ & &                                                                                          \\
-    8      & & $s_{1,1} - \vec{M}{1,0} \cdot s_{0,1}^7 + \vec{M}{1,1} \cdot s_{0,1}^7 + \vec{M}{1,2} \cdot s_{0,1}^7 + r_{0,1}$ & &  $\vec{s_1} = \vec{M} \cdot (\text{sbox}(\vec{s_0})) + [r_{0,0}, r_{0,1}, r_{0,2}]^\top$ \\
-    8      & & $s_{1,2} - \vec{M}{2,0} \cdot s_{0,2}^7 + \vec{M}{2,1} \cdot s_{0,2}^7 + \vec{M}{2,2} \cdot s_{0,2}^7 + r_{0,2}$ & &                                                                                          \\\hline
-    8      & & $s_{2,0} - \vec{M}{0,0} \cdot s_{1,0}^7 + \vec{M}{0,1} \cdot s_{1,0}^7 + \vec{M}{0,2} \cdot s_{1,0}^7 + r_{1,0}$ & &                                                                                          \\
-    8      & & $s_{2,1} - \vec{M}{1,0} \cdot s_{1,1}^7 + \vec{M}{1,1} \cdot s_{1,1}^7 + \vec{M}{1,2} \cdot s_{1,1}^7 + r_{1,1}$ & &  $\vec{s_2} = \vec{M} \cdot (\text{sbox}(\vec{s_1})) + [r_{1,0}, r_{1,1}, r_{1,2}]^\top$ \\
-    8      & & $s_{2,2} - \vec{M}{2,0} \cdot s_{1,2}^7 + \vec{M}{2,1} \cdot s_{1,2}^7 + \vec{M}{2,2} \cdot s_{1,2}^7 + r_{1,2}$ & &                                                                                          \\\hline
-    8      & & $s_{3,0} - \vec{M}{0,0} \cdot s_{2,0}^7 + \vec{M}{0,1} \cdot s_{2,0}^7 + \vec{M}{0,2} \cdot s_{2,0}^7 + r_{2,0}$ & &                                                                                          \\
-    8      & & $s_{3,1} - \vec{M}{1,0} \cdot s_{2,1}^7 + \vec{M}{1,1} \cdot s_{2,1}^7 + \vec{M}{1,2} \cdot s_{2,1}^7 + r_{2,1}$ & &  $\vec{s_3} = \vec{M} \cdot (\text{sbox}(\vec{s_2})) + [r_{2,0}, r_{2,1}, r_{2,2}]^\top$ \\
-    8      & & $s_{3,2} - \vec{M}{2,0} \cdot s_{2,2}^7 + \vec{M}{2,1} \cdot s_{2,2}^7 + \vec{M}{2,2} \cdot s_{2,2}^7 + r_{2,2}$ & &                                                                                          \\\hline
-    8      & & $s_{4,0} - \vec{M}{0,0} \cdot s_{3,0}^7 + \vec{M}{0,1} \cdot s_{3,0}^7 + \vec{M}{0,2} \cdot s_{3,0}^7 + r_{3,0}$ & &                                                                                          \\
-    8      & & $s_{4,1} - \vec{M}{1,0} \cdot s_{3,1}^7 + \vec{M}{1,1} \cdot s_{3,1}^7 + \vec{M}{1,2} \cdot s_{3,1}^7 + r_{3,1}$ & &  $\vec{s_4} = \vec{M} \cdot (\text{sbox}(\vec{s_3})) + [r_{3,0}, r_{3,1}, r_{3,2}]^\top$ \\
-    8      & & $s_{4,2} - \vec{M}{2,0} \cdot s_{3,2}^7 + \vec{M}{2,1} \cdot s_{3,2}^7 + \vec{M}{2,2} \cdot s_{3,2}^7 + r_{3,2}$ & &                                                                                          \\\hline
-    8      & & $s_{5,0} - \vec{M}{0,0} \cdot s_{4,0}^7 + \vec{M}{0,1} \cdot s_{4,0}^7 + \vec{M}{0,2} \cdot s_{4,0}^7 + r_{4,0}$ & &                                                                                          \\
-    8      & & $s_{5,1} - \vec{M}{1,0} \cdot s_{4,1}^7 + \vec{M}{1,1} \cdot s_{4,1}^7 + \vec{M}{1,2} \cdot s_{4,1}^7 + r_{4,1}$ & &  $\vec{s_5} = \vec{M} \cdot (\text{sbox}(\vec{s_4})) + [r_{4,0}, r_{4,1}, r_{4,2}]^\top$ \\
-    8      & & $s_{5,2} - \vec{M}{2,0} \cdot s_{4,2}^7 + \vec{M}{2,1} \cdot s_{4,2}^7 + \vec{M}{2,2} \cdot s_{4,2}^7 + r_{4,2}$ & &                                                                                          \\\hline
+    Degree & & Constraint                                                                                        & & Meaning                                                                                  \\\tabucline[1pt]{-}
+    8      & & $s_{1,0} - M_{0,0} \cdot s_{0,0}^7 + M_{0,1} \cdot s_{0,0}^7 + M_{0,2} \cdot s_{0,0}^7 + r_{0,0}$ & &                                                                                          \\
+    8      & & $s_{1,1} - M_{1,0} \cdot s_{0,1}^7 + M_{1,1} \cdot s_{0,1}^7 + M_{1,2} \cdot s_{0,1}^7 + r_{0,1}$ & &  $\vec{s_1} = \vec{M} \cdot (\text{sbox}(\vec{s_0})) + [r_{0,0}, r_{0,1}, r_{0,2}]^\top$ \\
+    8      & & $s_{1,2} - M_{2,0} \cdot s_{0,2}^7 + M_{2,1} \cdot s_{0,2}^7 + M_{2,2} \cdot s_{0,2}^7 + r_{0,2}$ & &                                                                                          \\\hline
+    8      & & $s_{2,0} - M_{0,0} \cdot s_{1,0}^7 + M_{0,1} \cdot s_{1,0}^7 + M_{0,2} \cdot s_{1,0}^7 + r_{1,0}$ & &                                                                                          \\
+    8      & & $s_{2,1} - M_{1,0} \cdot s_{1,1}^7 + M_{1,1} \cdot s_{1,1}^7 + M_{1,2} \cdot s_{1,1}^7 + r_{1,1}$ & &  $\vec{s_2} = \vec{M} \cdot (\text{sbox}(\vec{s_1})) + [r_{1,0}, r_{1,1}, r_{1,2}]^\top$ \\
+    8      & & $s_{2,2} - M_{2,0} \cdot s_{1,2}^7 + M_{2,1} \cdot s_{1,2}^7 + M_{2,2} \cdot s_{1,2}^7 + r_{1,2}$ & &                                                                                          \\\hline
+    8      & & $s_{3,0} - M_{0,0} \cdot s_{2,0}^7 + M_{0,1} \cdot s_{2,0}^7 + M_{0,2} \cdot s_{2,0}^7 + r_{2,0}$ & &                                                                                          \\
+    8      & & $s_{3,1} - M_{1,0} \cdot s_{2,1}^7 + M_{1,1} \cdot s_{2,1}^7 + M_{1,2} \cdot s_{2,1}^7 + r_{2,1}$ & &  $\vec{s_3} = \vec{M} \cdot (\text{sbox}(\vec{s_2})) + [r_{2,0}, r_{2,1}, r_{2,2}]^\top$ \\
+    8      & & $s_{3,2} - M_{2,0} \cdot s_{2,2}^7 + M_{2,1} \cdot s_{2,2}^7 + M_{2,2} \cdot s_{2,2}^7 + r_{2,2}$ & &                                                                                          \\\hline
+    8      & & $s_{4,0} - M_{0,0} \cdot s_{3,0}^7 + M_{0,1} \cdot s_{3,0}^7 + M_{0,2} \cdot s_{3,0}^7 + r_{3,0}$ & &                                                                                          \\
+    8      & & $s_{4,1} - M_{1,0} \cdot s_{3,1}^7 + M_{1,1} \cdot s_{3,1}^7 + M_{1,2} \cdot s_{3,1}^7 + r_{3,1}$ & &  $\vec{s_4} = \vec{M} \cdot (\text{sbox}(\vec{s_3})) + [r_{3,0}, r_{3,1}, r_{3,2}]^\top$ \\
+    8      & & $s_{4,2} - M_{2,0} \cdot s_{3,2}^7 + M_{2,1} \cdot s_{3,2}^7 + M_{2,2} \cdot s_{3,2}^7 + r_{3,2}$ & &                                                                                          \\\hline
+    8      & & $s_{5,0} - M_{0,0} \cdot s_{4,0}^7 + M_{0,1} \cdot s_{4,0}^7 + M_{0,2} \cdot s_{4,0}^7 + r_{4,0}$ & &                                                                                          \\
+    8      & & $s_{5,1} - M_{1,0} \cdot s_{4,1}^7 + M_{1,1} \cdot s_{4,1}^7 + M_{1,2} \cdot s_{4,1}^7 + r_{4,1}$ & &  $\vec{s_5} = \vec{M} \cdot (\text{sbox}(\vec{s_4})) + [r_{4,0}, r_{4,1}, r_{4,2}]^\top$ \\
+    8      & & $s_{5,2} - M_{2,0} \cdot s_{4,2}^7 + M_{2,1} \cdot s_{4,2}^7 + M_{2,2} \cdot s_{4,2}^7 + r_{4,2}$ & &                                                                                          \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
 For the first row:
 
-\begin{center}
-  \captionof*{table}{Witness Row} \label{tab:witness-point-witness} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Poseidon - Witness Row} \label{tab:poseidon-witness} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
     $w_1$     & $w_2$     & $w_3$     & $w_4$     & $w_5$     & $w_6$     & $w_7$     & $w_8$     & $w_9$     & $w_{10}$  & $w_{11}$  & $w_{12}$  & $w_{13}$  & $w_{14}$  & $w_{15}$  & $w_{16}$ \\\tabucline[1pt]{-}
     $s_{0,0}$ & $s_{0,1}$ & $s_{0,2}$ & $s_{1,0}$ & $s_{1,1}$ & $s_{1,2}$ & $s_{2,0}$ & $s_{2,1}$ & $s_{2,2}$ & $s_{3,0}$ & $s_{3,1}$ & $s_{3,2}$ & $s_{4,0}$ & $s_{4,1}$ & $s_{4,2}$ & $0$      \\\hline
     $I_1$     & $I_2$     & $I_3$     & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$   \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
-\begin{center}
-  \captionof*{table}{Selector Row} \label{tab:witness-point-selector} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Poseidon - Selector Row} \label{tab:poseidon-selector} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
-    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_H$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
+    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_\Hc$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
     0     & 0     & 0     & 0     & 0     & 1       & 0     & 0         & 0           & 0         & 0       \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
 This is missing the last 3 states, but these are used in the next
 five rounds of the permutation, so you can add these constraints,
@@ -598,24 +623,26 @@ witnesses and selector polynomials 10 more times to complete the
 permutation[^poseidon-cc]. Finally, a zero-row can be added
 to store the final state after 55 rounds (11 times the above gates):
 
-\begin{center}
-  \captionof*{table}{Witness Row} \label{tab:witness-point-witness} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Poseidon (Zero Row) - Witness Row} \label{tab:poseidon-zero-point-witness} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
     $w_1$      & $w_2$      & $w_3$      & $w_4$  & $w_5$  & $w_6$  & $w_7$  & $w_8$  & $w_9$  & $w_{10}$ & $w_{11}$ & $w_{12}$ & $w_{13}$ & $w_{14}$ & $w_{15}$ & $w_{16}$ \\\tabucline[1pt]{-}
     $s_{55,0}$ & $s_{55,1}$ & $s_{55,2}$ & $0$    & $0$    & $0$    & $0$    & $0$    & $0$    & $0$      & $0$      & $0$      & $0$      & $0$      & $0$      & 0        \\\hline
     $O_1$      & $O_2$      & $O_3$      & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$   \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
-\begin{center}
-  \captionof*{table}{Selector Row} \label{tab:witness-point-selector} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Poseidon (Zero Row) - Selector Row} \label{tab:poseidon-zero-selector} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
-    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_H$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
+    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_\Hc$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
     0     & 0     & 0     & 0     & 0     & 1       & 0     & 0         & 0           & 0         & 0       \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
 [^poseidon-cc]: Obviously, for the next 10 rounds there is no copy constraints.
 
@@ -634,38 +661,41 @@ point is on the curve. For the Pallas/Vesta curves used we have the curve
 equation. So we need constraints that encodes that $x \neq
 0 \land y \neq 0 \implies y^2 - x^3 - 5 = 0$:
 
-\begin{center}
-  \captionof*{table}{Custom Constraints} \label{tab:witness-point-constraints} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Witness Point - Custom Constraints} \label{tab:witness-point-constraints} 
   \begin{tabu}{|cllll|}
     \hline
     Degree & & Constraint                    & & Meaning                                 \\\tabucline[1pt]{-}
     5      & & $x \cdot (y^2 - x^3 - 5) = 0$ & & $x \neq 0 \implies (y^2 - x^3 - 5) = 0$ \\\hline
     5      & & $y \cdot (y^2 - x^3 - 5) = 0$ & & $y \neq 0 \implies (y^2 - x^3 - 5) = 0$ \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
-\begin{center}
-  \captionof*{table}{Witness Row} \label{tab:witness-point-witness} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Witness Point - Witness Row} \label{tab:witness-point-witness} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
     $w_1$ & $w_2$ & $w_3$  & $w_4$  & $w_5$ & $w_6$ & $w_7$ & $w_8$ & $w_9$ & $w_{10}$ & $w_{11}$ & $w_{12}$ & $w_{13}$ & $w_{14}$ & $w_{15}$ & $w_{16}$    \\\tabucline[1pt]{-}
     $x$   & $y$   & 0      & 0      & 0      & 0      & 0      & 0      & 0      & 0        & 0        & 0        & 0        & 0        & 0        & 0      \\\hline
     $O_1$ & $O_2$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$ \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
-\begin{center}
-  \captionof*{table}{Selector Row} \label{tab:witness-point-selector} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Witness Point - Selector Row} \label{tab:witness-point-selector} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
-    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_H$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
+    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_\Hc$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
     0     & 0     & 0     & 0     & 0     & 0       & 1     & 0         & 0           & 0         & 0       \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
 Soundness and completeness hold trivially.
 
-#### Addition
+#### Point Addition
 
 In the constraints, we use a trick similar to the one used in the equality
 gate, where we model the condition $x = 0 \implies y = z$ by using the
@@ -710,8 +740,9 @@ $$
   \end{cases} \\
 $$
 
-\begin{center}
-  \captionof*{table}{Custom Constraints} \label{tab:witness-point-constraints} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Point Addition - Custom Constraints} \label{tab:point-addition-constraints} 
   \begin{tabu}{|c|l|l|}
     \hline
     Degree & Constraint                                                                  & Meaning                                                                                    \\\tabucline[1pt]{-} \rule{0pt}{14pt} \rule[-8pt]{0pt}{0pt}
@@ -729,26 +760,28 @@ $$
     4      & $(1 - (x_q - x_p) \cdot \a - (y_q + y_p) \cdot \d) \cdot x_r$               & $x_q = x_p \land y_q = -y_p \implies x_r = 0$                                              \\\rule[-8pt]{0pt}{0pt}
     4      & $(1 - (x_q - x_p) \cdot \a - (y_q + y_p) \cdot \d) \cdot y_r$               & $x_q = x_p \land y_q = -y_p \implies y_r = 0$                                              \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
-\begin{center}
-  \captionof*{table}{Witness Row} \label{tab:witness-point-witness} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Point Addition - Witness Row} \label{tab:point-addition-witness} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
     $w_1$ & $w_2$ & $w_3$ & $w_4$ & $w_5$ & $w_6$ & $w_7$  & $w_8$  & $w_9$  & $w_{10}$ & $w_{11}$ & $w_{12}$ & $w_{13}$ & $w_{14}$ & $w_{15}$ & $w_{16}$  \\\tabucline[1pt]{-}
     $x_p$ & $y_p$ & $x_q$ & $y_q$ & $x_r$ & $y_r$ & $\a$   & $\b$   & $\g$   & $\d$     & $\l$     & 0        & 0        & 0        & 0        & 0         \\\hline
     $I_1$ & $I_2$ & $I_3$ & $I_4$ & $O_1$ & $O_2$ & $\bot$ & $\bot$ & $\bot$ & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$    \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
-\begin{center}
-  \captionof*{table}{Selector Row} \label{tab:witness-point-selector} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Point Addition - Selector Row} \label{tab:point-addition-selector} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
-    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_H$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
+    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_\Hc$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
     0     & 0     & 0     & 0     & 0     & 0       & 0     & 1         & 0           & 0         & 0       \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
 **Analysis**
 
@@ -953,8 +986,9 @@ $$
 
 And add the following constraints:
 
-\begin{center}
-  \captionof*{table}{Custom Constraints} \label{tab:witness-point-constraints} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Point Doubling - Custom Constraints} \label{tab:point-doubling-constraints} 
   \begin{tabu}{|c|ll|ll|}
     \hline
     Degree & & Constraint                                  & & Meaning                              \\\tabucline[1pt]{-}
@@ -964,7 +998,7 @@ And add the following constraints:
     3      & & $(\l_q^2 - 2 \cdot x_a - x_q)$              & & $x_q = \l_q^2 - 2 \cdot x_a$         \\\hline
     3      & & $(\l_q \cdot (x_a - x_q) - y_a - y_q)$      & & $y_q = \l_q \cdot (x_a - x_q) - y_a$ \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
 **Propositions:**
 
@@ -1002,8 +1036,9 @@ witnessed $\g_q$. Then, soundness and completeness follow trivially from the
 previous section. Finally, we need to create constraints for $S = \textbf{
 if } b_1 = 1 \textbf{ then } R \textbf{ else } Q$.
 
-\begin{center}
-  \captionof*{table}{Custom Constraints} \label{tab:scalar-mul-bit-constraints} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Ternary Point - Custom Constraints} \label{tab:ternary-constraints} 
   \begin{tabu}{|c|ll|ll|}
     \hline
     Degree & & Constraint                                    & & Meaning                                                               \\\tabucline[1pt]{-}
@@ -1012,7 +1047,7 @@ if } b_1 = 1 \textbf{ then } R \textbf{ else } Q$.
     3      & & $y_s - (b_i \cdot y_r + (1 - b_i) \cdot y_q)$ & & $y_s = \textbf{ if } b_i = 1 \textbf{ then } y_r \textbf{ else } y_q$ \\\hline
     3      & & $acc_{i+1} - (acc_i + b_i \cdot 2^i)$         & & $acc_{i+1} - (acc_i + b_i \cdot 2^i)$                                 \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
 **Propositions:**
 
@@ -1050,8 +1085,9 @@ $$
 \end{aligned}
 $$
 
-\begin{center}
-  \captionof*{table}{Custom Constraints} \label{tab:witness-point-constraints} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Scalar Multiplication - Custom Constraints} \label{tab:scalar-mul-constraints} 
   \begin{tabu}{|c|l|l|}
     \hline
     Degree & Constraint                                                                   & Meaning                                                                                      \\\tabucline[1pt]{-}
@@ -1078,38 +1114,41 @@ $$
     3      & $(y_s - (b_i \cdot y_r + (1 - b_i) \cdot y_q))$                              & $y_s = \textbf{ if } b_i = 1 \textbf{ then } y_r \textbf{ else } y_q$                        \\\hline
     3      & $(acc_{i+1} - (acc_i + b_i \cdot 2^i))$                                      & $acc_{i+1} - (acc_i + b_i \cdot 2^i)$                                                        \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
-\begin{center}
-  \captionof*{table}{Witness Row} \label{tab:scalar-mul-witness} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Scalar Multiplication - Witness Row} \label{tab:scalar-mul-witness} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
     $w_1$  & $w_2$  & $w_3$  & $w_4$ & $w_5$ & $w_6$  & $w_7$  & $w_8$  & $w_9$  & $w_{10}$ & $w_{11}$ & $w_{12}$ & $w_{13}$ & $w_{14}$ & $w_{15}$ & $w_{16}$  \\\tabucline[1pt]{-}
     $x_a$  & $y_a$  & $acc$  & $x_p$ & $y_p$ & $x_q$  & $y_q$  & $x_r$  & $y_r$  & $b_i$    & $\g_q$   & $\l_q$   & $\a_r$   & $\b_r$   & $\d_r$   & $\l_r$    \\\hline
     $\bot$ & $\bot$ & $\bot$ & $I_2$ & $I_3$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$    \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
 Each next $S$ is stored in the next row, so in the constraints, one would
 define $x_s(X) = w_1(\o X), y_s = w_2(\o X), acc_{i+1} = w_3(\o X)$.
 
-\begin{center}
-  \captionof*{table}{Selector Row} \label{tab:scalar-mul-selector} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Scalar Multiplication - Selector Row} \label{tab:scalar-mul-selector} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
-    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_H$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
-    0     & 0     & 0     & 0     & 0     & 0       & 0     & 0         & 1           & 0         & 0       \\\hline
+    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_\Hc$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
+    0     & 0     & 0     & 0     & 0     & 0       & 0     & 0       & 1           & 0         & 0       \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
-\begin{center}
-  \captionof*{table}{Coefficient Row} \label{tab:scalar-mul-selector} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Scalar Multiplication - Coefficient Row} \label{tab:scalar-mul-coefficient} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
     $r_1$ & $r_2$ & $r_3$ & $r_4$ & $r_5$ & $r_6$ & $r_7$ & $r_8$ & $r_9$ & $r_{10}$ & $r_{11}$ & $r_{12}$ & $r_{13}$ & $r_{14}$ & $r_{15}$ \\\tabucline[1pt]{-}
     $2^i$ & 0     & 0     & 0     & 0     & 0       & 0     & 0   & 0     & 0        & 0        & 0        & 0        & 0        & 0        \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
 Meaning that in the constraints $2^i = r_1(X)$
 
@@ -1118,26 +1157,28 @@ Meaning that in the constraints $2^i = r_1(X)$
 We need one last row since the next $A = \text{ if } b_i \meq 1 \text{ then }
 R \text{ else } Q$ is stored in the next row in each iteration.
 
-\begin{center}
-  \captionof*{table}{Witness Row} \label{tab:scalar-mul-witness} 
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Scalar Multiplication (Zero Row) - Witness Row} \label{tab:scalar-mul-zero-witness} 
   \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
     $w_1$  & $w_2$  & $w_3$  & $w_4$  & $w_5$  & $w_6$  & $w_7$  & $w_8$  & $w_9$  & $w_{10}$ & $w_{11}$ & $w_{12}$ & $w_{13}$ & $w_{14}$ & $w_{15}$ & $w_{16}$  \\\tabucline[1pt]{-}
     $x_a$  & $y_a$  & $acc$  & 0      & 0      & 0      & 0      & 0      & 0      & 0        & 0        & 0        & 0        & 0        & 0        & 0         \\\hline
     $O_1$  & $O_2$  & $I_1$  & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$   & $\bot$    \\\hline
   \end{tabu}
-\end{center}
+\end{table}
 
-Note: Copy constraining $acc$ to input 1 ensures that $\sum_{i=0}^{254} b_i \cdot 2^i$.
+Note: Copy constraining $acc$ to input 1 ensures that $x = \sum_{i=0}^{254} b_i \cdot 2^i$.
 
 Since this row is just to store the result and copy constrain $acc$, all
-selector polynomials is set to zero.
+selector polynomials are set to zero.
 
-\begin{center}
-  \captionof*{table}{Coefficient Row} \label{tab:scalar-mul-selector} 
-  \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Scalar Multiplication (Zero Row) - Selector Row} \label{tab:scalar-mul-zero-selector} 
+  \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|}
     \hline
-    $r_1$ & $r_2$ & $r_3$ & $r_4$ & $r_5$ & $r_6$ & $r_7$ & $r_8$ & $r_9$ & $r_{10}$ & $r_{11}$ & $r_{12}$ & $r_{13}$ & $r_{14}$ & $r_{15}$ \\\tabucline[1pt]{-}
-    0     & 0     & 0     & 0     & 0     & 0       & 0     & 0   & 0     & 0        & 0        & 0        & 0        & 0        & 0        \\\hline
+    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_\Hc$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
+    0     & 0     & 0     & 0     & 0     & 0       & 0     & 0       & 0           & 0         & 0       \\\hline
   \end{tabu}
-\end{center}
+\end{table}

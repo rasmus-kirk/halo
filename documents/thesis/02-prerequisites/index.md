@@ -2,14 +2,9 @@
 
 Basic knowledge of elliptic curves, groups and interactive arguments
 is assumed in the following text. Basic familiarity with SNARKs is also
-assumed. The polynomial commitment scheme implemented heavily relies on the
-Inner Product Proof from the Bulletproofs protocol. If needed, refer to the
-following resources:
-
-- Section 3 in the original Bulletproofs[@bulletproofs] paper.
-- From Zero (Knowledge) to Bulletproofs writeup[@from0k2bp].
-- Rust Dalek Bulletproofs implementation notes[@dalek-docs].
-- Section 4.1 of my bachelors thesis[@hacspec-bulletproofs].
+assumed. The polynomial commitment scheme and accumulation scheme used was
+implemented and analyzed in a previous paper[@halo-accumulation] by one of
+the authors of this paper.
 
 The following subsections introduce the concept of Incrementally Verifiable
 Computation (IVC) along with some background concepts. These concepts lead to
@@ -98,15 +93,13 @@ values sent from the verifier to the prover with calls to a non-interactive
 random oracle. In practice, a cryptographic hash function, $\rho$, is
 used. Composing proof systems will sometimes require *domain-separation*,
 whereby random oracles used by one proof system cannot be accessed by another
-proof system. This is the case for the zero-finding game that will be used
-in the soundness discussions of implemented accumulation scheme $\ASDL$. In
-practice one can have a domain specifier, for example $0, 1$, prepended to
-each message that is hashed using $\rho$:
-$$ \rho_0(m) = \rho(0 \cat m), \quad \rho_1(m) = \rho(1 \cat m)$$
+proof system. In practice one can have a domain specifier, for example $0,
+1$, prepended to each message that is hashed using $\rho$:
+$$\rho_0(m) = \rho(0 \cat m), \quad \rho_1(m) = \rho(1 \cat m)$$
 
 ## SNARKS
 
-**S**uccinct **N**on-interactive **AR**guments of **K**nowledge -
+SNARKs - Succinct Non-interactive Arguments of Knowledge -
 have seen increased usage due to their application in blockchains and
 cryptocurrencies. They also typically function as general-purpose proof
 schemes. This means that, given any solution to an NP-problem, the SNARK prover
@@ -150,6 +143,19 @@ To generate the URS transparently, a collision-resistant hash function
 $\Hc : \Bb^* \to \Eb(\Fb_q)$ can be used to produce the generators. The URS
 can then be derived using a genesis string $s$:
 $$\text{URS} = \{ \Hc(s \cat 1), \Hc(s \cat 2), \dots, \Hc(s \cat D) \}$$
+The genesis string can be any arbitrary string, that convinces outsiders
+that it's not maliciously chosen. We used:
+
+\begin{quote}
+\color{GbGrey}
+
+\textit{To understand recursion, one must first understand recursion.}
+
+\end{quote}
+
+Anyone can verify that the URS was generated from this string, and the
+probability that such a specific string, hashed, would lead to a known
+discrete log, should be negligible.
 
 ## Bulletproofs
 
@@ -194,11 +200,12 @@ to do this, the verification of the final output of the computation must be
 much smaller than simply running the computation again. Valiant creates the
 concept of IVC and argues that it can be used to achieve the above goal.
 
-Recently, IVC has seen renewed interest with cryptocurrencies, as this
-concept lends itself well to the structure of blockchains. It allows a
-blockchain node to omit all previous transaction history in favour of only
-a single state, for example, containing all current account balances. This
-is commonly called a _succinct blockchain_..
+Recently, IVC has seen renewed interest with cryptocurrencies, as this concept
+lends itself well to the structure of blockchains. It allows a blockchain node
+to omit all previous transaction history in favour of only a single state,
+for example, containing all current account balances. Each state-transition,
+where transactions are processed, can then be verified with a SNARK. This
+is commonly called a _succinct blockchain_.
 
 In order to achieve IVC, you need a function $F(x) \in S \to S$ along with
 some initial state $s_0 \in S$. Then you can call $F(x)$ $n$ times
@@ -278,12 +285,14 @@ Or more formally, $\pi_i$ is a proof of the following claim, expressed as
 a circuit $R$:
 $$R := \text{I.K.} \; w = \{ \pi_{i-1}, s_{i-1} \} \; \text{ s.t. } \; s_i \meq F(s_{i-1}) \; \land \; (s_{i-1} \meq s_0 \lor \SNARKVerifier(R_F, x = \{ s_0, s_i \}, \pi_{i-1}) \meq \top))$$
 Note that $R_F, s_i, s_0$ are not quantified above, as they are public
-values. The $\SNARKVerifier$ represents the verification circuit in the proof
-system we're using. This means, that we're taking the verifier, representing
-it as a circuit, and then feeding it to the prover. This is not a trivial
-task in practice! Note also, that the verification time must be sub-linear
-to achieve an IVC scheme, otherwise the verifier could just have computed
-$F^n(s_0)$ themselves, as $s_0$ and $F(x)$ necessarily must be public.
+values. Each state, $s_i$, including the genesis state, $s_0$, must also
+contain the current iteration, $i$, for soundness to hold. The $\SNARKVerifier$
+represents the verification circuit in the proof system we're using. This
+means, that we're taking the verifier, representing it as a circuit, and then
+feeding it to the prover. This is not a trivial task in practice! Note also,
+that the verification time must be sub-linear to achieve an IVC scheme,
+otherwise the verifier could just have computed $F^n(s_0)$ themselves,
+as $s_0$ and $F(x)$ necessarily must be public.
 
 To see that the above construction works, observe that $\pi_1, \dots,
 \pi_n$ proves:
@@ -374,7 +383,7 @@ valid witness for $X$. In this way, a proof of knowledge of a witness for
 any NP-problem can be represented as a series of PCS evaluation proofs,
 including our desired witness that $s_n = F^n(s_0)$.
 
-A PCS of course also has soundness and completeness properties:
+A PCS has soundness and completeness properties, as well as a binding property:
 
 **Completeness:** For every maximum degree bound $D = \poly(\l) \in \Nb$
 and publicly agreed upon $d \in \Nb$:
@@ -426,6 +435,34 @@ can recover $p$ such that the following holds: $C$ is a commitment to $p$,
 $v = p(c)$, and the degree of $p$ is properly bounded. Note that for this
 protocol, we have _knowledge soundness_, meaning that $\Ac$, must actually
 have knowledge of $p$ (i.e. the $\Ec$ can extract it).
+
+**Binding:** For every maximum degree bound $D = \poly(\l)
+\in \Nb$ and publicly agreed upon $d$, no polynomial-size adversary $\Ac$
+can find two polynomials s.t:
+
+$$
+\Pr \left[
+  \begin{array}{c|c}
+    \begin{array}{c}
+      p_1 \in \Fb[X]_{\leq d}, \;
+      p_2 \in \Fb[X]_{\leq d}, \;
+      p_1 \neq p_2 \\
+      \wedge \\
+      C_1 = C_2
+    \end{array}
+  &
+    \begin{aligned}
+      \rho                      &\leftarrow \Uc(\l) \\
+      \pp_\PC                   &\leftarrow \PCSetup^\rho(1^\l, D) \\
+      (p_1, p_2, d, \o_1, \o_2) &\leftarrow \Ac^\rho(\pp_\PC) \\
+      C_1                       &\leftarrow \PCCommit(p_1, d, \o_1) \\
+      C_2                       &\leftarrow \PCCommit(p_2, d, \o_2) \\
+    \end{aligned}
+  \end{array}
+\right] \leq \negl(\lambda).
+$$
+
+I.e. The adversary cannot change the polynomial that he committed to.
 
 ## Accumulation Schemes
 
@@ -535,11 +572,11 @@ and $\ASDecider(acc_i) = \top$.
 
 ## Cycles of Curves
 
-We operate our IVC-circuit over a cycle of curves. This means that field
-operations can be handled natively in the scalar field circuit $\Fb_S$
-and elliptic curve operations are handled natively in the basefield circuit
-$\Fb_B$. This improves performance drastically, since we don't need to handle
-foreign field arithmetic at any point. The Pallas and Vesta curves use the
+To simplify elliptic curve operations, a _Cycle of Curves_ can be used. Meaning
+that field operations can be handled natively in the scalar field circuit
+$\Fb_S$ and elliptic curve operations are handled natively in the basefield
+circuit $\Fb_B$. This improves performance drastically, since we never need
+to handle foreign field arithmetic. The Pallas and Vesta curves use the
 other's scalar field as their base field and vice-versa:
 
 - Pallas: $a \in \Fb_p, P \in \Eb_p(\Fb_q)$
@@ -548,13 +585,14 @@ other's scalar field as their base field and vice-versa:
 
 This is useful when creating proofs. Starting in the first proof in an
 IVC-setting, we need a proof that verifies some relation, the simplest
-minimal example would be $a \cdot P \meq \Oc$. This then creates two constraint
-tables, one over $\Fb_S = \Fb_p$ and one over $\Fb_B = \Fb_B$. Then, in the
-next IVC-step, we need to verify both proofs, but the proof over $\Fb_p$
-produces scalars over $\Fb_p$ and points over $\Eb_p(\Fb_q)$ and the proof
-over $\Fb_q$ produces scalars over $\Fb_q$ and points over $\Eb_p(\Fb_q)$. This
-is because the proof both contains scalars and points. If we did _not_
-have a cycle of curves this pattern would result in a chain:
+minimal example would be $R := a \cdot P \meq \Oc$. This then creates two
+constraint tables and two proofs, one over $\Fb_S = \Fb_p$ and one over
+$\Fb_B = \Fb_q$. Then, in the next IVC-step, we need to verify both proofs,
+but the proof over $\Fb_p$ produces scalars over $\Fb_p$ and points over
+$\Eb_p(\Fb_q)$ and the proof over $\Fb_q$ produces scalars over $\Fb_q$ and
+points over $\Eb_p(\Fb_q)$. This is because a proof of $R$ needs to contain
+both scalars and points. If we did _not_ have a cycle of curves this pattern
+would result in a chain:
 
 - Curve 1: $a \in \Fb_{p_1}, P \in \Eb_{p_1}(\Fb_{p_2})$
 - Curve 2: $a \in \Fb_{p_2}, P \in \Eb_{p_2}(\Fb_{p_3})$
@@ -567,15 +605,15 @@ this never cycles, we would need to support this infinite chain of curves.
 ## Poseidon Hash
 
 Traditionally, SNARKs are defined over somewhat large prime fields, ill-suited
-for bit-level operation such as XOR. As such, many modern cryptographic hash
-functions, particularly SHA3, are not particularly well suited for use in
-many SNARK circuits. The Poseidon Hash specification aims to solve this. The
-specification defines a cryptographic sponge construction, with the state
-permutation only consisting of native field operations. This makes use of
-poseidon in SNARKs much more efficient. The cryptographic sponge structure,
-is also particularly well suited for Fiat-Shamir, as messages from the prover
-to the verifier can be modelled with sponge absorbtion and challenge messages
-from the verifier to the prover can be modelled with sponge squeezing. Poseidon
-is still a very new hash function though, and is not nearly as used and
-"battle-tested" as SHA3, so using it can pose a potential security risk
-compared to SHA3.
+for bit-level operation such as XOR. As such, many modern cryptographic
+hash functions, particularly SHA3, are not particularly well suited for use
+in many SNARK circuits. The Poseidon[@poseidon] Hash specification aims to
+solve this. The specification defines a cryptographic sponge construction,
+with the state permutation only consisting of native field operations. This
+makes poseidon in SNARKs much more efficient. The cryptographic sponge
+structure, is also particularly well suited for Fiat-Shamir, as messages
+from the prover to the verifier can be modelled with sponge absorption and
+challenge messages from the verifier to the prover can be modelled with
+sponge squeezing. Poseidon is still a very new hash function though, and
+is not nearly as used and "battle-tested" as SHA3, so using it can pose a
+potential security risk compared to SHA3.

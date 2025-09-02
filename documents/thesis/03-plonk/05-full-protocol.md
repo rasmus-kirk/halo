@@ -8,60 +8,56 @@ for the worst-case runtimes of both algorithms.
 But first, let's more precisely define the inputs to the protocols, the
 circuit, witness and public inputs:
 
-PlonkCircuit:
+- PlonkCircuit:
+  - $n \in \Fb$: The number of rows in the trace table, must be a power of two.
+  - $d = n - 1$: The degree bound for all committed polynomials.
+  - $\ell_1 \in \Fb$: The number of input passes, from _the other circuit_ to _this circuit_.
+  - $\ell_2 \in \Fb$: The number of public inputs in the circuit.
+  - $\o \in \Fb$: The base element for the set of roots of unity $H = \{ 1, \o, \o^2, \dots, \o^{n-1} \}$
+  - Commitments:
+    - $\vec{C_q} \in \Eb(\Fb)^{10}$: Commitments to the selector polynomials
+    - $\vec{C_r} \in \Eb(\Fb)^{15}$: Commitments to the coefficient polynomials.
+    - $\vec{C_{id}} \in \Eb(\Fb)^{4}$: Commitments to the identity polynomials.
+    - $\vec{C_\s} \in \Eb(\Fb)^{4}$: Commitments to the $\sigma$ polynomials.
 
-- $n \in \Fb$: The number of rows in the trace table, must be a power of two.
-- $d = n - 1$: The degree bound for all committed polynomials.
-- $\ell_1 \in \Fb$: The number of input passes, from _the other circuit_ to _this circuit_.
-- $\ell_2 \in \Fb$: The number of public inputs in the circuit.
-- $\o \in \Fb$: The base element for the set of roots of unity $H = \{ 1, \o, \o^2, \dots, \o^{n-1} \}$
-- Commitments:
-  - $\vec{C_q} \in \Eb(\Fb)^{10}$: Commitments to the selector polynomials
-  - $\vec{C_r} \in \Eb(\Fb)^{15}$: Commitments to the coefficient polynomials.
-  - $\vec{C_{id}} \in \Eb(\Fb)^{4}$: Commitments to the identity polynomials.
-  - $\vec{C_\s} \in \Eb(\Fb)^{4}$: Commitments to the $\sigma$ polynomials.
+  All of these are static for the circuit, meaning that they do not depend on
+  the prover's private input or public input.
+- PlonkWitness:
+  - $\vec{q^{(e)}} \in (\Fb^n)^{10}$
+  - $\vec{r^{(e)}} \in (\Fb^n)^{15}$
+  - $\vec{\id^{(e)}} \in (\Fb^n)^4$
+  - $\vec{\s^{(e)}} \in (\Fb^n)^4$
+  - $\vec{w^{(e)}} \in (\Fb^n)^{16}$
 
-All of these are static for the circuit, meaning that they do not depend on
-the prover's private input or public input.
+  Here, we use $e$ to denote that these are evaluations of the polynomials,
+  which are computed by the arithmetizer. To get the actual polynomials,
+  the prover runs $\fft$ on each of these in round 0.
+- PlonkPublicInputs:
+  - $\vec{x} \in \Fb^{\ell_1 + 2 + \ell_2}$: The public inputs for the trace
+    table, containing both the vanilla public inputs ($\ell_2$), the inputs
+    passed from the other circuit ($\ell_1$) a commitment to the passed inputs
+    which has size 2.
+- PlonkProof:
+  - Evaluation Proofs:
+    - $\pi_s \in \EvalProof$
+    - $\pi_{s_\o} \in \EvalProof$
+  - Evaluations:
+    - $\vec{q^{(\xi)}} \in \Fb^{10}$
+    - $\vec{r^{(\xi)}} \in \Fb^{15}$
+    - $\vec{\id^{(\xi)}} \in \Fb^4$
+    - $\vec{\s^{(\xi)}} \in \Fb^4$
+    - $\vec{w^{(\xi)}} \in \Fb^{16}$
+    - $\vec{w^{(\xi\o)}} \in \Fb^{3}$
+    - $\vec{t^{(\xi)}} \in \Fb^{16}$
+    - $z^{(\xi)} \in \Fb$
+    - $z^{(\xi\o)} \in \Fb$
+  - Commitments:
+    - $\vec{C_w} \in \Eb(\Fb)^{16}$
+    - $\vec{C_t} \in \Eb(\Fb)^{16}$
+    - $C_z \in \Eb(\Fb)$
 
-Witness:
-
-- $\vec{q^{(e)}} \in (\Fb^n)^{10}$
-- $\vec{r^{(e)}} \in (\Fb^n)^{15}$
-- $\vec{\id^{(e)}} \in (\Fb^n)^4$
-- $\vec{\s^{(e)}} \in (\Fb^n)^4$
-- $\vec{w^{(e)}} \in (\Fb^n)^{16}$
-
-Here, we use $e$ to denote that these are evaluations of the polynomials,
-which are computed by the arithmetizer. To get the actual polynomials,
-the prover runs $\fft$ on each of these in round 0.
-
-PublicInputs:
-
-- $\vec{x} \in \Fb^{\ell_1 + \ell_2}$: The public inputs for the trace table, containing both the vanilla public inputs ($\ell_2$) and the inputs passed from the other circuit ($\ell_1$).
-
-PlonkProof:
-
-- Evaluation Proofs:
-  - $\pi_s \in \EvalProof$
-  - $\pi_{s_\o} \in \EvalProof$
-- Evaluations:
-  - $\vec{q^{(\xi)}} \in \Fb^{10}$
-  - $\vec{r^{(\xi)}} \in \Fb^{15}$
-  - $\vec{\id^{(\xi)}} \in \Fb^4$
-  - $\vec{\s^{(\xi)}} \in \Fb^4$
-  - $\vec{w^{(\xi)}} \in \Fb^{16}$
-  - $\vec{w^{(\xi\o)}} \in \Fb^{3}$
-  - $\vec{t^{(\xi)}} \in \Fb^{16}$
-  - $z^{(\xi)} \in \Fb$
-  - $z^{(\xi\o)} \in \Fb$
-- Commitments:
-  - $\vec{C_w} \in \Eb(\Fb)^{16}$
-  - $\vec{C_t} \in \Eb(\Fb)^{16}$
-  - $C_z \in \Eb(\Fb)$
-
-All of this proof is constant size, except the two evaluation proofs which
-have size $\Oc(\lg(n))$. Thus the Plonk proof size is also $\Oc(\lg(n))$.
+  All of this PlonkProof is constant size, except the two evaluation proofs which
+  have size $\Oc(\lg(n))$. Thus the Plonk proof size is also $\Oc(\lg(n))$.
 
 ### Prover
 
@@ -69,12 +65,8 @@ have size $\Oc(\lg(n))$. Thus the Plonk proof size is also $\Oc(\lg(n))$.
 \caption*{
   \textbf{Plonk Non-Interactive Prover:}
 }
-\textbf{Inputs} \\
-  \Desc{PlonkCircuit}{} \\
-  \Desc{PlonkPublicInput}{} \\
-  \Desc{PlonkWitness}{} \\
-\textbf{Output} \\
-  \Desc{PlonkProof}{}
+\textbf{Inputs:} PlonkCircuit, PlonkPublicInput, PlonkWitness \\
+\textbf{Output:} PlonkProof
 \begin{algorithmic}[1]
   \Statex \hspace*{-20px} \textbf{Round 0:}
     $$
@@ -141,12 +133,12 @@ have size $\Oc(\lg(n))$. Thus the Plonk proof size is also $\Oc(\lg(n))$.
 **Runtime:**
 
 First note that _all_ polynomial multiplications can be modelled to run in
-$\Oc(n \lg(n))$ because they can be modelled as $c(X) = a(X) \cdot b(X) = \fft(\ifft(a(X))
-\cdot \ifft(b(X)))$. The runtime of multiplication over the evaluation domain
-is $\Oc(n)$ and the runtime of the $\fft, \ifft$ is $\Oc(n \lg(n))$. Polynomial
-addition is $\Oc(n)$. The $\PCDL$ functions $\PCDLCommit, \PCDLOpen$ have
-a runtime of $\Oc(n)$. Therefore the worst-case runtime of the prover is
-$\Oc(n \lg(n))$.
+$\Oc(n \lg(n))$ because they can be modelled as $c(X) = a(X) \cdot b(X) =
+\fft(\ifft(a(X)) \cdot \ifft(b(X)))$. The runtime of multiplication over
+the evaluation domain is $\Oc(n)$ and the runtime of the $\fft$ and $\ifft$
+is $\Oc(n \lg(n))$. Polynomial addition is $\Oc(n)$. The $\PCDL$ functions
+$\PCDLCommit, \PCDLOpen$ have a runtime of $\Oc(n)$. Therefore the worst-case
+runtime of the prover is $\Oc(n \lg(n))$.
 
 ### Verifier
 
@@ -154,12 +146,8 @@ $\Oc(n \lg(n))$.
 \caption*{
   \textbf{Plonk Non-Interactive Verifier:}
 }
-\textbf{Inputs} \\
-  \Desc{PlonkCircuit}{} \\
-  \Desc{PlonkPublicInput}{} \\
-  \Desc{PlonkProof}{} \\
-\textbf{Output} \\
-  \Desc{$\Result(\top, \bot)$}{}
+\textbf{Inputs:} PlonkCircuit, PlonkPublicInput, PlonkProof \\
+\textbf{Output:} $\Result(\top, \bot)$
 \begin{algorithmic}[1]
   \Statex \hspace*{-20px} \textbf{Round 1:}
   \State $\Tc \from \vec{C_w}$
@@ -183,7 +171,7 @@ $\Oc(n \lg(n))$.
     \Statex \algind $\xi^n$ using iterative squaring, since $n$ is a power of 2 ($\lg(n)$ multiplications).
     \Statex \algind $L_1(\xi) = \frac{\o \cdot (\xi^n - 1)}{n \cdot (\xi - \o)}$
     \Statex \algind $z_H(\xi) = \xi^n - 1$
-    \Statex \algind $x(\xi) = \sum_{i=1}^{\ell_1 + \ell_2} L_i(\xi) \cdot (-x_i) \quad \text{where} \quad L_i(\xi) = \frac{\o^i \cdot (\xi^n - 1)}{n \cdot (\xi - \o^i)}$
+    \Statex \algind $x(\xi) = \sum_{i=1}^{\ell_1 + 2 + \ell_2} L_i(\xi) \cdot (-x_i) \quad \text{where} \quad L_i(\xi) = \frac{\o^i \cdot (\xi^n - 1)}{n \cdot (\xi - \o^i)}$
   \State Define $f_{CG}(\xi)$ to be all the constraints listed in the custom constraint
   section, using $[1, \zeta, \zeta^2, \dots]$ as the challenges required for the
   custom constraints, and the evaluations ($\vec{q^{(v)}}, \vec{r^{(v)}},
