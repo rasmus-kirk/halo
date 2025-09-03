@@ -1,11 +1,11 @@
-# \Surkal: Arithmetization
+# Plonk Arithmetization
 
 We now define the arithmetization pipeline[^notation]:
 
 $$
 \begin{array}{rl}
 (R,x,w) 
-&= \SurkalArithmetize(f,\vec{x}) \\ 
+&= \Arithmetize(f,\vec{x}) \\ 
 &= \mathrm{interpolate} \circ \mathrm{trace}(\vec{x}) \circ \mathrm{build}(f)
 \end{array}
 $$

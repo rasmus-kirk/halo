@@ -2,35 +2,6 @@
 \appendix
 
 # Appendix
-## \Surkal: Base spec defined operations
-
-TODO: ask which needs bool check
-
-TODO PI gadget
-
-TODO plonkup gadgets:
-
-- higher order: multi lookup, tbl
-- concrete: multi unary lookup, range check tbl
-
-
-| $g: \Ggt$                | $\text{eval}(g, \vec{x})$     | remarks                 |
-|:-------------------------:|:-----------------------------:|:------------------------|
-| Input$_i()$               | $(x_i)$                       | from trace              |
-| Const$_{s,p}()$           | $(s)$                         |                         |
-| Add$(x,y)$                | $(x+y)$                       |                         |
-| Mul$(x,y)$                | $(x \times y)$                |                         |
-| Inv$(x)$                  | $(x^{-1})$                    |                         |
-| Pow7$(x)$                 | $(x^7)$                       |                         |
-| If$(b,x,y)$               | $(b ? x : y)$                 |                         |
-| Lookup$_T(x,y)$           | $\maybe{(z)}{(x,y,z) \in T}$  |                         |
-| PtAdd$(x_P,y_P,x_Q,y_Q)$  | $(x_R, y_R)$                  | Arkworks point add      |
-| Poseidon$(a,b,c)$         | $(a',b',c')$                  | Mina poseidon 5 rounds  |
-| Public$(x)$               | $()$                          |                         |
-| Bit$(b)$                  | $()$                          |                         |
-| IsAdd$(x,y,z)$            | $()$                          |                         |
-| IsMul$(x,y,z)$            | $()$                          |                         |
-| IsLookup$_T(x,y,z)$       | $()$                          |                         |
 
 ## Notation
 
