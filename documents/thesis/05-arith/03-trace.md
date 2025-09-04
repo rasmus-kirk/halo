@@ -38,7 +38,7 @@ $$
   \end{algorithmic}
 \end{algorithm}
 
-The monotonic functions defined here are specific to the $\Surkal$ protocol, i.e. it can be different for a different \plonk-ish protocol. For each monotonic function, we notate $\dagger$ as a check if the state has saturated. $s$ are the initial states and $\iota$ a constructor of it. 
+The monotonic functions defined here are specific to the Plonk protocol, i.e. it can be different for a different \plonk-ish protocol. For each monotonic function, we notate $\dagger$ as a check if the state has saturated. $s$ are the initial states and $\iota$ a constructor of it. 
 
 ### Resolve
 
@@ -325,7 +325,7 @@ L & \otherwise
 \end{array}
 $$
 
-### Full $\Surkal$ Trace
+### Full Plonk Trace
 
 We conclude the full trace definition as follows:
 
@@ -372,7 +372,7 @@ The public variant for arithmetization only differs in trace. In $\Downarrow_R$,
 $$
 \begin{array}{rl}
 (R,x,w) 
-&= \SurkalArithmetize_{\text{public}}(f,\vec{x}') \\ 
+&= \Arithmetize_{\text{public}}(f,\vec{x}') \\ 
 &= \mathrm{interpolate} \circ \mathrm{trace}_{\text{public}}(\vec{x}') \circ \mathrm{build}(f)
 \end{array}
 $$

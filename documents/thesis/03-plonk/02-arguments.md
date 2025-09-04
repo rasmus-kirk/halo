@@ -269,11 +269,11 @@ for all $\o \in H$, it also holds for $\o^n$.
 
 ## Outline
 
-We now define the $\Surkal$ protocol using the above arguments.
+We now define the Plonk protocol using the above arguments.
 
 \begin{algorithm}[H]
 \caption*{
-  \textbf{Surkål:} The Ultra-\plonk-ish NARK protocol.
+  \textbf{Plonk:} The Ultra-Plonk-ish NARK protocol.
 }
 \textbf{Inputs} \\
   \Desc{$f: W[\vec{t_{in}}] \to W[\vec{t_{out}}]$}{NP problem / program.} \\
@@ -282,8 +282,8 @@ We now define the $\Surkal$ protocol using the above arguments.
   \Desc{$\Result(\top, \bot)$}{Either the verifier accepts with $\top$ or rejects with $\bot$}
 \begin{algorithmic}[1]
   \State $(R: \Circuit, x: \PublicInputs, w : \Witness) = \mathrm{relation} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})$ 
-  \State $\pi = \SurkalProver(R,x,w)$
-  \State \textbf{return} $\SurkalVerifier(R,x,\pi)$
+  \State $\pi = \PProver(R,x,w)$
+  \State \textbf{return} $\PVerifier(R,x,\pi)$
   \end{algorithmic}
 \end{algorithm}
 
