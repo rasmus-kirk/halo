@@ -5,7 +5,7 @@ Verifier, $\PCDLSuccinctCheck$, $\ASDLVerifier$, or whether it just bloats
 the report. The nice thing about having it is that it actually tells you how
 exactly the IVC-circuit is defined, which I feel is pretty important. The
 $\PlonkVerifier$ can be omitted since it will be the same as in the plonk
-section. Maybe appendix?
+section.
 
 ### Poseidon Sponges
 
@@ -140,6 +140,7 @@ enough values has been absorbed.
   }
 \begin{algorithmic}[1]
   \For{$x$ in $\vec{xs}$}
+    \State Input pass $x$.
     \If{$|\text{Scalar-Field}| < |\text{Base-Field}|$}
       \State $\text{InnerAbsorb}(\text{sponge\_state}, \vec{s}, x)$
     \Else
@@ -163,21 +164,15 @@ enough values has been absorbed.
     The sponge state condition and inner state after squeezing and the squeezed scalar. 
   }
 \begin{algorithmic}[1]
+    \State $\text{InnerSqueeze}(\text{sponge\_state}, \vec{s})$
     \If{$x < |\text{Base-Field}|$}
-      \State $\text{InnerSqueeze}(\text{sponge\_state}, \vec{x}, x)$
+      \State \Return $x$ input passed.
     \Else
-      \State $\text{InnerSqueeze}(\text{sponge\_state}, \vec{s}, 0)$
+      \State \Return $h$ input passed, where $h$ is the high 254 bits of $x$. 
     \EndIf
 \end{algorithmic}
 \end{algorithm}
 
-This gadget returns zero for values that are too large. This means that
-there is a bias for the value zero (in one of the curves). An attacker
-could try to target that seed, in order to predict the challenges produced
-by the weaker sponge. This would allow the attacker to mess with the result
-of the proofs. Previously the attacker's odds were $\frac{1}{q}$, now it's
-$\frac{q-p}{q}$. Since $lg(q-p) \approx 86$ and $lg(q) \approx 254$ the odds
-of a successful attack are still negligible, but we do lose some security.
-
-$$\frac{q - p}{q} \approx \frac{2^{86}}{2^{254}} = 2^{86 - 254} = 2^{-168}$$
-
+We lose a single bit of security if $x \geq |\text{Base-Field}|$, but this
+only increases the odds of an attack by a small constant amount, which is still
+negligible.

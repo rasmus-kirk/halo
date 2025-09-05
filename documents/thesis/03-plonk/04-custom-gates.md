@@ -97,7 +97,8 @@ then that simply means $w_1(X) \cdot w_1(X)$ as one would expect.
 #### Addition, Subtraction, Multiplication, Negation
 
 For completeness, we include the witness tables for field addition, subtraction,
-multiplication and negation even though they are part of vanilla-Plonk:
+multiplication and negation even though they are part of vanilla Plonk as
+originally defined in the Plonk paper[@plonk]:
 
 **Addition:**
 
@@ -204,7 +205,7 @@ is a bit:
 
 $$(b \cdot b) - b = 0$$
 
-This can be modelled using the native Plonk selector polynomials.
+This can be modelled using the vanilla Plonk selector polynomials.
 
 \begin{table}[H]
   \centering
@@ -531,14 +532,13 @@ gate with one input and zero outputs.
          be constrained to a zero constant value in the circuit! All other
          rows does not have any copy constraints associated with it.
 
-
 ### Poseidon
 
 We also create a special gate type for performing Poseidon[@poseidon]
 hashing. This gate type is inspired from an equivalent gate in Mina's
 Kimchi proof system. At the heart of the Poseidon hashing algorithm lies a
 cryptographic sponge construction, like the one seen in SHA3. This is very
-convenient for fiat-shamir transformations, since information sent to the
+convenient for Fiat-Shamir transformations, since information sent to the
 verifier can cleanly be modelled as sponge absorption, and queries made to
 the verifier can be modelled as sponge squeezing. Squeezing and absorbing
 from the sponge a certain number of times, triggers a permutation of the

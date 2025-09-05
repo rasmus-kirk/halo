@@ -388,19 +388,19 @@ $v^{(q)} \meq v^{(p)}$. But this won't work for IVC, since we can't check
 equality across circuits, in-circuit. Instead we compute the commitment to
 $v^{(q)}$ on the $R^{(q)}$-side.
 
-$$C^{(q)}_{\text{IP}} := v^{(q)} \cdot G_1^{(q)} \in \Eb_p(\Fb_q)$$
+$$C^{(q)}_\IP := v^{(q)} \cdot G_1^{(q)} \in \Eb_p(\Fb_q)$$
 
 The scalar operation may seem invalid, but since we know that $v^{(q)}
 \leq q - 1 < p - 1$, it can logically be computed by the usual double and
 add, since the bits of $v^{(q)}$ will correspond to the bits of $v^{(p)}$
-if $\text{lift}(v^{(q)}) = \text{lift}(v^{(p)})$. If $C^{(q)}$ is emitted in
-the public inputs of the circuit, then the verifier will know that $C^{(q)}$
+if $\text{lift}(v^{(q)}) = \text{lift}(v^{(p)})$. If $C^{(q)}_\IP$ is emitted in
+the public inputs of the circuit, then the verifier will know that $C^{(q)}_\IP$
 is a commitment to $v^{(q)}$. To convince the verifier of the desired relation
 that $\text{lift}(v^{(q)}) = \text{lift}(v^{(p)})$, it will now suffice to
-convince them that $v^{(p)}$ is a valid opening of $C^{(q)}$. So the verifier
+convince them that $v^{(p)}$ is a valid opening of $C^{(q)}_\IP$. So the verifier
 checks manually that:
 
-$$C^{(q)} \meq v^{(p)} \cdot G_1^{(q)}$$
+$$C^{(q)}_\IP \meq v^{(p)} \cdot G_1^{(q)}$$
 
 Which, given that the rest of the proof verifies correctly, will then imply
 that $v^{(q)} = v^{(p)}$. If the verifier is encoded as a circuit, then
@@ -426,17 +426,17 @@ of which are less than $q$. Which means we can pass the value to $R^{(q)}$.
 
 The constraints added to $R^{(p)}$ then becomes:
 
-- $C^{(p)}_{\text{PI}} \meq h \cdot G_1^{(p)} + l \cdot G_2^{(p)}$
+- $C^{(p)}_\IP \meq h \cdot G_1^{(p)} + l \cdot G_2^{(p)}$
 - $v = 2 h^{(p)} + l^{(p)}$
-- $h \in [0, 2^{\floor{\log{p}}}]$ (range check)
-- $l \in \Bb$ (simple boolean constraint)
+- $h \in [0, 2^{\floor{\log{p}}}]$ (Using the rangecheck gate, corresponding to a range proof)
+- $l \in \Bb$ (A Simple boolean constraint)
 
 **Combining Commitments:**
 
 We of course don't need to commit each time we pass inputs, we can create
 a standard vector pedersen commit, containing all the passed values:
 
-$$C^{(p)}_{\text{PI}} = h_{v_1}^{(p)} \cdot G_1^{(p)} + l_{v_1}^{(p)} \cdot G_2^{(p)} + h_{v_2}^{(p)} \cdot G_3^{(p)} + l_{v_2}^{(p)} \cdot G_4^{(p)} + \dots$$
+$$C^{(p)}_\IP = h_{v_1}^{(p)} \cdot G_1^{(p)} + l_{v_1}^{(p)} \cdot G_2^{(p)} + h_{v_2}^{(p)} \cdot G_3^{(p)} + l_{v_2}^{(p)} \cdot G_4^{(p)} + \dots$$
 
 Now, the $R_q$-verifier and $R_p$-verifier, would each also take in a
 single input pass vector, in addition to the standard public input vector:
@@ -449,7 +449,7 @@ $$\text{PublicInputs}^{(p)}_{\text{new}} := \text{PublicInputs}^{(p)} \cat \text
 
 For both the verifier and prover of course. Each of the $R^{(p)}$ and $R^{(q)}$
 verifier can then use $\text{InputPass}^{(q \to p)}, \text{InputPass}^{(p \to q)}$
-to verify $C^{(p)}, C^{(q)}$:
+to verify $C^{(p)}_\IP, C^{(q)}_\IP$:
 
 \begin{tcolorbox}[colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
 
@@ -475,14 +475,14 @@ constraints:
 \begin{itemize}
   \item $R^{(p)}$:
   \begin{itemize}
-    \item $C^{(p)}_{\text{IP}} := h_z^{(p)} \cdot G_1^{(p)} + l_z^{(p)} \cdot G_2^{(p)} + h_x^{(p)} \cdot G_3^{(p)} + l_x^{(p)} \cdot G_4^{(p)}$
+    \item $C^{(p)}_\IP := h_z^{(p)} \cdot G_1^{(p)} + l_z^{(p)} \cdot G_2^{(p)} + h_x^{(p)} \cdot G_3^{(p)} + l_x^{(p)} \cdot G_4^{(p)}$
     \item $z := 2 \cdot h_z^{(p)} + l_z^{(p)}$ (Decomposition correctness check)
     \item $h_z^{(p)} \in [0, 2^{\floor{\log{p}}}]$ (Range check)
     \item $l_z^{(p)} \in \Bb$ (Boolean check)
   \end{itemize}
   \item $R^{(q)}$:
   \begin{itemize}
-    \item $C^{(q)}_{\text{IP}} := \a^{(q)} \cdot G_1^{(q)}$
+    \item $C^{(q)}_\IP := \a^{(q)} \cdot G_1^{(q)}$
   \end{itemize}
 \end{itemize}
 
@@ -507,8 +507,8 @@ For both the verifier and prover of course. Now the verifier needs to verify
 what it otherwise would, but also that:
 $$
 \begin{aligned}
-  C^{(p)}_{\text{IP}} &\meq h_z^{(q)} \cdot G_1^{(p)} + l_z^{(q)} \cdot G_2^{(p)} + h_x^{(q)} \cdot G_3^{(p)} + l_x^{(q)} \cdot G_4^{(p)} \\
-  C^{(q)}_{\text{IP}} &\meq \a^{(p)} \cdot G_1^{(q)} \\
+  C^{(p)}_\IP &\meq h_z^{(q)} \cdot G_1^{(p)} + l_z^{(q)} \cdot G_2^{(p)} + h_x^{(q)} \cdot G_3^{(p)} + l_x^{(q)} \cdot G_4^{(p)} \\
+  C^{(q)}_\IP &\meq \a^{(p)} \cdot G_1^{(q)} \\
 \end{aligned}
 $$
 

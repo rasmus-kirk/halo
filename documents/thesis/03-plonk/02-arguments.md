@@ -37,8 +37,8 @@ using just $S$, might not be sound. For this purpose, we can construct the
     \Statex \algind $t(X) = \frac{f(X)}{z_S}, \quad z_S(X) = \prod_{s \in S}(X - s)$
   \State $P \to V:$ The prover then commits to $t(X)$ and sends the commitment to the verifier:
     \Statex \algind $C_t = \PCCommit(t(X), d, \bot)$
-  \State $V \to P:$ The verifier sends challenge $\xi$ to the prover
-  \State $P \to V:$ The prover sends $(f(\xi) = v_f, \pi_f, t(\xi) = v_t, \pi_t)$ to the verifier.
+  \State $V \to P:$ The verifier sends a challenge $\xi$ to the prover
+  \State $P \to V:$ The prover sends $(v_f = f(\xi), \pi_f = \PCOpen(f(X), C_f, d, \xi, \bot), t(\xi) = v_t, \pi_t)$ to the verifier.
   \State $V:$ The verifier then checks:
     \Statex \algind $v_f \meq v_t \cdot z_S(\xi)$
     \Statex \algind $\PCCheck(C_f, d, \xi, v_f, \pi_f) \meq \top \; \land$
@@ -65,20 +65,18 @@ $\qed$
 <!-- TODO(rasmus): The soundness argument doesn't limit the degree of p(X)! -->
 <!-- TODO(rasmus): Or maybe it does, should probably argue for it... -->
 
-Due to the factor theorem[^factor-theorem] $z_S(X)$ only divides
-$f(X)$ if and only if all of $s \in S : f(s) = 0$. The Schwartz-Zippel
-Lemma[^schwartz-zippel] states that evaluating a non-zero polynomial on
-an input chosen randomly from a large enough set is extremely unlikely to
-evaluate to zero. Specifically, it ensures that $Pr[p(\xi) = 0 \land p(X)
-\neq 0] \leq \frac{deg(p(X))}{|\Fb|}$. Clearly $\xi \in_R \Fb$ is sampled from
-a large enough set as $|\Fb| \gg d \geq \deg(p(X))$ and therefore $Pr[p(\xi)
-= 0 \mid P \neq 0]$ is negligible. Lastly, the evaluation checked depends on
+The factor theorem states that if $f(X)$ is a univariate polynomial,
+then $x - a$ is a factor of $f(X)$ if and only if $f(a) = 0$. This means
+$z_S(X)$ only divides $f(X)$ if and only if all of $s \in S : f(s) = 0$. The
+Schwartz-Zippel Lemma states that evaluating a non-zero polynomial on an input
+chosen randomly from a large enough set is extremely unlikely to evaluate
+to zero. Specifically, it ensures that $Pr[p(\xi) = 0 \land p(X) \neq 0]
+\leq \frac{deg(p(X))}{|\Fb|}$. Clearly $\xi \in_R \Fb$ is sampled from a
+large enough set as $|\Fb| \gg d \geq \deg(p(X))$ and therefore $Pr[p(\xi) =
+0 \mid P \neq 0]$ is negligible. Lastly, the evaluation checked depends on
 the soundness of the underlying PCS scheme used, but we assume that it has
 knowledge soundness and binding. From all this, we conclude that the above
 vanishing argument is sound.
-
-[^schwartz-zippel]: The wikipedia page for the Schwartz-Zippel Lemma: [https://en.wikipedia.org/wiki/Schwartz%E2%80%93Zippel_lemma](https://en.wikipedia.org/wiki/Schwartz%E2%80%93Zippel_lemma)
-[^factor-theorem]: The wikipedia page for the Factor Theorem: [https://en.wikipedia.org/wiki/Factor_theorem](https://en.wikipedia.org/wiki/Factor_theorem)
 
 **Extending to multiple $f$'s**
 

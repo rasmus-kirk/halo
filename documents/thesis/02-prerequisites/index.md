@@ -58,17 +58,18 @@ $X \in L$, with language $L$ in NP. The following properties must be true:
 - **Completeness:** $\forall \Pc \in ITM, X \in L \implies \Pr[\Vc_{out} = \bot] \leq \epsilon(X)$
 
   For all honest provers, $\Pc$, where $X$ is true, the probability that the
-  verifier remains unconvinced is negligible in the length of $X$.
+  verifier remains unconvinced ($\Vc_{out} = \bot$) is negligible in the
+  length of $X$.
 
 - **Soundness:** $\forall \Pc^* \in ITM, X \notin L \implies \Pr[\Vc_{out} = \top] \leq \epsilon(X)$
 
   For all provers, honest or otherwise, $\Pc^*$, that try to convince the
-  verifier of a claim, $X$, that is not true, the probability that the
-  verifier will be convinced is negligible in the length of $X$.
+  verifier of a claim, $X$, that is not true, the probability that the verifier
+  will be convinced ($\Vc_{out} = \top$) is negligible in the length of $X$.
 
 An Interactive Argument is very similar, but the honest and malicious prover
-are now polynomially bounded and receives a Private Auxiliary Input, $w$,
-not known by $\Vc$. This is such that $\Vc$ don't just compute the answer
+are now polynomially bounded and receive a Private Auxiliary Input, $w$,
+not known by $\Vc$. This is such that $\Vc$ can't just compute the answer
 themselves. Definitions follow:
 
 - **Completeness**: $\forall \Pc(w) \in PPT, X\in L \implies \Pr[\Vc_{out} = \bot] \leq \epsilon(X)$
@@ -114,6 +115,20 @@ verifier. There are three kinds of zero-knowledge:
   indistinguishable, i.e. no polynomially bounded adversary $\Ac$ can
   distinguish them.
 
+Where two distributions $D_1, D_2$ are:
+
+- _Perfectly indistinguishable_ if they are identical, meaning no observer,
+  even with unbounded power, can tell them apart:  
+  $\forall x : \Pr[D_1 = x] = \Pr[D_2 = x]$
+- _Statistically indistinguishable_ if their statistical distance is negligible,
+  meaning that they may differ, but the difference is vanishingly small,
+  even for an unbounded adversary:  
+  $\forall x : \Delta(D_1, D_2) := \tfrac{1}{2} \sum_x \big|\Pr[D_1 = x] - \Pr[D_2 = x]\big| \leq \text{negl}(\l)$
+- _Computationally indistinguishable_ if no probabilistic polynomial-time
+  distinguisher $\Ac$ can tell them apart with more than negligible advantage,
+  though an unbounded adversary might:  
+  $\forall x : | \Pr[\Ac(x) \to D_1] - \Pr[\Ac(x) = D_2] | \leq \negl(\l)$
+
 ## Fiat-Shamir Heuristic
 
 The Fiat-Shamir heuristic turns a public-coin (an interactive protocol where
@@ -127,29 +142,77 @@ proof system. In practice one can have a domain specifier, for example $0,
 1$, prepended to each message that is hashed using $\rho$:
 $$\rho_0(m) = \rho(0 \cat m), \quad \rho_1(m) = \rho(1 \cat m)$$
 
-## SNARKS
+## Pedersen Commitments
 
-SNARKs - Succinct Non-interactive Arguments of Knowledge -
-have seen increased usage due to their application in blockchains and
-cryptocurrencies. They also typically function as general-purpose proof
-schemes. This means that, given any solution to an NP-problem, the SNARK prover
-will produce a proof that they know the solution to said NP-problem. Most
-SNARKs also allow for zero-knowledge arguments, making them zk-SNARKs.
+A commitment scheme is a cryptographic primitive that allows one to commit
+to a chosen value while keeping it hidden to others, with the ability to
+reveal the committed value later. Commitment schemes are designed so that
+a the committing party cannot change the value after they have committed to
+it, i.e. it is _binding_. The fact that anyone that receives the commitment
+cannot compute the value from the it is called _hiding_.
 
-More concretely, imagine that Alice has today's Sudoku problem $X \in
-\text{NP}$: She claims to have a solution to this problem, her witness, $w$,
-and wants to convince Bob without having to reveal the entire solution. She
-could then use a SNARK to generate a proof for Bob. To do this she must first
-encode the Sudoku verifier as a circuit $R_X$, then let $x$ represent public
-inputs to the circuit, such as today's Sudoku values/positions, etc, and then
-give the SNARK prover the public inputs and her witness, $\SNARKProver(R_X,
-x, w) = \pi$. Finally she sends this proof, $\pi$, to Bob along with the
-public Sudoku verifying circuit, $R_X$, and he can check the proof and be
-convinced using the SNARK verifier ($\SNARKVerifier(R_X, x, \pi)$).
+To reveal a value one can simply send the value to a party that previously
+received the commitment, and the receiving party can compute the commitment
+themselves and compare to the previously received commitment. One such
+homomorphic commitment scheme is the _Pedersen commitment scheme_[@pedersen]:
 
-Importantly, the 'succinct' property means that the proof size and
-verification time must be sub-linear. This allows SNARKs to be directly used
-for _Incrementally Verifiable Computation_.
+\begin{algorithm}[H]
+\caption*{\textbf{Algorithm:} $\CMCommit$}
+\textbf{Inputs} \\
+  \Desc{$\vec{m}: \Fb^n$}{The vectors we wish to commit to.} \\
+  \Desc{$\pp_\CM$}{The public parameters for the commitment scheme.} \\
+  \Desc{$\o: \Option(\Fb)$}{Optional hiding factor for the commitment.} \\
+\textbf{Output} \\
+  \Desc{$C: \Eb(\Fb_q)$}{The Pedersen commitment.}
+\begin{algorithmic}[1]
+  \State Parse $\vec{G}: \Eb(\Fb)^n, S: \Eb(\Fb)$ from $\pp_\CM$.
+  \State Output $C := \ip{\vec{m}}{\vec{G}} + \o S$.
+\end{algorithmic}
+\end{algorithm}
+
+Notice, that the inputs is a vector of messages, not just a single
+message. Inclusion of a hiding factor makes the commitment _perfectly
+hiding_, but _computationally binding_. If the hiding factor is omitted, it
+is commonly called a _deterministic Pedersen commitment_ and the commitment
+will be perfectly binding and computationally hiding. For $C = \CMCommit(m, \vec{G}, \o)$
+
+- **Perfect Hiding:** Given $C$, it is impossible to determine $m$, no matter your computational power.
+- **Computational Hiding:** It is computationally infeasible to determine the value committed to, from the commitment
+- **Perfect Binding:** It is impossible to change the value committed to, no matter your computational power.
+- **Computational Binding:** It is computationally infeasible to change the value committed to.
+
+The corresponding setup algorithm is:
+
+\begin{algorithm}[H]
+\caption*{\textbf{Algorithm:} $\CMSetup^{\rho}$}
+\textbf{Inputs} \\
+  \Desc{$\l$}{The security parameter, in unary form.} \\
+  \Desc{$L$}{The maximum size vector that can be committed to.} \\
+\textbf{Output} \\
+  \Desc{$\pp_\CM$}{The public parameters to be used in $\CMCommit$}
+\begin{algorithmic}[1]
+  \State $(\Eb(\Fb_q), q, G) \from \text{SampleGroup}^{\rho}(1^\l)$
+  \State Choose independently uniformly-sampled generators in $\Eb(\Fb_q)$, $\vec{G} \in_R \Eb(\Fb_q)^L, S \in_R \Eb(\Fb_q)$ using $\rho_0$.
+  \State Output $\pp_\CM = ((\Eb(\Fb_q), q, G), \vec{G}, S)$
+\end{algorithmic}
+\end{algorithm}
+
+Pedersen commitments are an instance of a very useful type of commitment
+scheme for proof systems is that of a _homomorphic commitment scheme_, where:
+
+$$
+\begin{aligned}
+  C_1 &= \CMCommit(m_1, r_1) \\
+  C_2 &= \CMCommit(m_2, r_2) \\
+  C_3 &= \CMCommit(m_1 + m_2, r_1 + r_2) \\
+  C_3 &= C_1 + C_2
+\end{aligned}
+$$
+
+That is, you can add the commitments which corresponds to adding the committed
+inputs and then commititing. This lets a verifying party check the properties
+of committed values without needing to know them. Since the public parameters
+can be chosen uniformly randomly, this type of setup is _untrusted_.
 
 ## Trusted and Untrusted Setups
 
@@ -164,10 +227,11 @@ uses an _untrusted setup_.
 An untrusted setup, creates a _Uniform Random String_ of the form:
 $$\text{URS} = \{ a_1G, a_2G, \dots, a_DG \}$$
 Where $D$ represents the maximum degree bound of a polynomial (in a PCS
-context) and $G$ is a generator. The URS must consist solely of generators and
-all the scalars must be uniformly random. $\PCDL$ is then sound, provided that
-no adversary knows the scalars. Extracting $\vec{a}$ from the URS would require
-solving the Discrete Logarithm problem (DL), which is assumed to be hard.
+context) and $G$ is a generator of $\Eb(\Fb)$. The URS must consist solely
+of generators and all the scalars must be uniformly random. $\PCDL$ is then
+sound, provided that no adversary knows the scalars. Extracting $\vec{a}$
+from the URS would require solving the Discrete Logarithm problem (DL),
+which is assumed to be hard.
 
 To generate the URS transparently, a collision-resistant hash function
 $\Hc : \Bb^* \to \Eb(\Fb_q)$ can be used to produce the generators. The URS
@@ -187,15 +251,39 @@ Anyone can verify that the URS was generated from this string, and the
 probability that such a specific string, hashed, would lead to a known
 discrete log, should be negligible.
 
+## SNARKS
+
+SNARKs - Succinct Non-interactive Arguments of Knowledge - have seen increased
+usage due to their application in blockchains and cryptocurrencies. They
+also typically function as general-purpose proof schemes. This means that,
+given any solution to an NP-problem, the SNARK prover will produce a proof
+that they know the solution to said NP-problem. Most SNARKs also allow for
+zero-knowledge arguments, making them zk-SNARKs.
+
+More concretely, imagine that Alice has today's Sudoku problem $X \in
+\text{NP}$: She claims to have a solution to this problem, her witness, $w$,
+and wants to convince Bob without having to reveal the entire solution. She
+could then use a SNARK to generate a proof for Bob. To do this she must
+first encode the Sudoku verifier as a circuit $R_X$, then let $x$ represent
+public inputs to the circuit, such as today's Sudoku values/positions, etc,
+and then give the SNARK prover the public inputs and her witness, $\pi =
+\SNARKProver(R_X, x, w)$. Finally she sends this proof, $\pi$, to Bob along
+with the public Sudoku verifying circuit, $R_X$, and he can check the proof
+and be convinced using the SNARK verifier ($\SNARKVerifier(R_X, x, \pi)$).
+
+Importantly, the 'succinct' property means that the proof size and
+verification time must be sub-linear. This allows SNARKs to be directly used
+for _Incrementally Verifiable Computation_.
+
 ## Bulletproofs
 
-In 2017, the Bulletproofs paper[@bulletproofs] was released. Bulletproofs
-rely on the hardness of the Discrete Logarithm problem, and uses an untrusted
-setup. It has logarithmic proof size, linear verification time and lends
-itself well to efficient range proofs. It's also possible to generate proofs
-for arbitrary circuits, yielding a zk-NARK. It's a NARK since we lose the
-succinctness in terms of verification time, making bulletproofs less efficient
-than SNARKs.
+In 2017, the Bulletproofs paper[@bulletproofs] was
+released[^bulletproofs-intro]. Bulletproofs rely on the hardness of the
+Discrete Logarithm problem, and uses an untrusted setup. It has logarithmic
+proof size, linear verification time and lends itself well to efficient
+range proofs. It's also possible to generate proofs for arbitrary circuits,
+yielding a zk-NARK. It's a NARK since we lose the succinctness in terms of
+verification time, making Bulletproofs less efficient than SNARKs.
 
 At the heart of Bulletproofs lies the Inner Product Argument (IPA), wherein a
 prover demonstrates knowledge of two vectors, $\vec{a}, \vec{b} \in \Fb_q^n$,
@@ -204,7 +292,11 @@ $c = \ip{\vec{a}}{\vec{b}}$. It creates a non-interactive proof, with only
 $\lg(n)$ size, by compressing the point and vectors $\lg(n)$ times, halving
 the size of the vectors each iteration in the proof. Unfortunately, since the IPA,
 and by extension Bulletproofs, suffer from linear verification time,
-bulletproofs are unsuitable for IVC.
+Bulletproofs are unsuitable for IVC.
+
+[^bulletproofs-intro]: A gentle introduction can be found in "From Zero
+(Knowledge) to Bulletproofs"[@from0k2bp], which also describes Pedersen
+commitments and the concept of zero-knowledge.
 
 ## Incrementally Verifiable Computation
 
@@ -320,6 +412,10 @@ Thus, by induction $s_n = F^n(s_0)$
 [^ivc-blockchain]: In the blockchain setting, the transition function would
 also take an additional input representing new transactions, $F(x: S, T:
 \Pc(T))$.
+
+## The Schwarz-Zippel Lemma
+
+## Polynomial Interpolation
 
 ## Polynomial Commitment Schemes
 
@@ -467,26 +563,25 @@ I.e. The adversary cannot change the polynomial that he committed to.
 
 ## Accumulation Schemes
 
-The authors of a 2019 paper[@halo] presented _Halo,_ the first practical
-example of recursive proof composition without a trusted setup. Using a
-modified version of the Bulletproofs-style Inner Product Argument (IPA),
-they present a polynomial commitment scheme. Computing the evaluation of
-a polynomial $p(z)$ as $v = \ip{\vec{\vec{p}^{\text{(coeffs)}}}}{\vec{z}}$
-where $\vec{z} = (z^0, z^1, \dots, z^{d})$ and $\vec{p}^{\text{(coeffs)}}
-\in \Fb^{d+1}$ is the coefficient vector of $p(X)$, using the IPA. However,
-since the the vector $\vec{z}$ is not private, and has a certain structure, we
-can split the verification algorithm in two: A sub-linear $\PCDLSuccinctCheck$
-and linear $\PCDLCheck$. Using the $\PCDLSuccinctCheck$ we can accumulate $n$
+In 2019 _Halo_[@halo] was introduced, the first practical example of recursive
+proof composition without a trusted setup. Using a modified version of the
+Bulletproofs-style Inner Product Argument (IPA), they present a polynomial
+commitment scheme. Computing the evaluation of a polynomial $p(z)$ as
+$v = \ip{\vec{\vec{p}^{\text{(coeffs)}}}}{\vec{z}}$ where $\vec{z} =
+(z^0, z^1, \dots, z^{d})$ and $\vec{p}^{\text{(coeffs)}} \in \Fb^{d+1}$
+is the coefficient vector of $p(X)$, using the IPA. However, since the the
+vector $\vec{z}$ is not private, and has a certain structure, we can split
+the verification algorithm in two: A sub-linear $\PCDLSuccinctCheck$ and
+linear $\PCDLCheck$. Using the $\PCDLSuccinctCheck$ we can accumulate $n$
 instances, and only perform the expensive linear check (i.e. $\PCDLCheck$)
 at the end of accumulation.
 
-In the 2020 paper[@pcd] _"Proof-Carrying Data from Accumulation Schemes"_
-, the authors presented a generalized version of the previous accumulation
-structure of Halo that they coined _Accumulation Schemes_. Simply put, given
-a predicate $\Phi: \Instance \to \{ \top, \bot \}$, and $m$ representing
-the number of instances accumulated for each proof step and may vary for
-each time $\ASProver$ is called. An accumulation scheme then consists of
-the following functions:
+In 2020 a paper[@pcd] was released where the authors presented a generalized
+version of the previous accumulation structure of Halo that they coined
+_Accumulation Schemes_. Simply put, given a predicate $\Phi: \Instance \to
+\{ \top, \bot \}$, and $m$ representing the number of instances accumulated
+for each proof step and may vary for each time $\ASProver$ is called. An
+accumulation scheme then consists of the following functions:
 
 - $\ASSetup(\l) \to \pp_\AS$
 
@@ -573,16 +668,23 @@ and $\ASDecider(acc_i) = \top$.
 
 ## Cycles of Curves
 
-To simplify elliptic curve operations, a _Cycle of Curves_ can be used. Meaning
-that field operations can be handled natively in the scalar field circuit
-$\Fb_S$ and elliptic curve operations are handled natively in the basefield
-circuit $\Fb_B$. This improves performance drastically, since we never need
-to handle foreign field arithmetic. The Pallas and Vesta curves use the
-other's scalar field as their base field and vice-versa:
+To simplify elliptic curve operations, a _cycle of curves_ can be used. A cycle
+of curves use the other's scalar field as their base field and vice-versa. This
+means that field operations can be handled natively in the scalar field
+circuit $\Fb_S$ and elliptic curve operations are handled natively in the
+basefield circuit $\Fb_B$. This improves performance drastically, since the
+SNARK never need to handle foreign field arithmetic. The cycle of curves used
+in this project is the Pasta curves, Pallas and Vesta, both of which have
+the curve equation $y^2 = x^3 + 5$:
 
 - Pallas: $a \in \Fb_p, P \in \Eb_p(\Fb_q)$
 - Vesta:  $a \in \Fb_q, P \in \Eb_q(\Fb_p)$
-- $| \Fb_p | = p , | \Fb_q | = q, | \Eb_p(\Fb_q) | = p, p > q$
+
+Where:
+
+- $| \Fb_p | = p, | \Fb_q | = q, | \Eb_p(\Fb_q) | = p, | \Eb_p(\Fb_q) | = q, p > q$
+- $p = 2^{254} + 45560315531419706090280762371685220353$
+- $q = 2^{254} + 45560315531506369815346746415080538113$
 
 This is useful when creating proofs. Starting in the first proof in an
 IVC-setting, we need a proof that verifies some relation, the simplest
