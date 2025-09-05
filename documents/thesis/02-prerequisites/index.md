@@ -415,7 +415,11 @@ also take an additional input representing new transactions, $F(x: S, T:
 
 ## The Schwarz-Zippel Lemma
 
+**TODO**
+
 ## Polynomial Interpolation
+
+**TODO**
 
 ## Polynomial Commitment Schemes
 
