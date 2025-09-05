@@ -187,7 +187,7 @@ $$
 \begin{aligned}
   f'(X) &= f(X) + \gamma \\
   g'(X) &= g(X) + \gamma \\
-  \prod_{i \in n} f'(\o^i) &= \prod_{i \in n} g'(\o^i)
+  \prod_{i \in [n]} f'(\o^i) &= \prod_{i \in [n]} g'(\o^i)
 \end{aligned}
 $$
 
@@ -196,22 +196,49 @@ the equality as a polynomial variable in $\g$:
 
 $$
 \begin{aligned}
-  p(X) &= \prod_{i \in n} f(\o^i) + X \\
-  q(X) &= \prod_{i \in n} g(\o^i) + X \\
+  p(X) &= \prod_{i \in [n]} f(\o^i) + X \\
+  q(X) &= \prod_{i \in [n]} g(\o^i) + X \\
 \end{aligned}
 $$
 
-Then by Schwarz-Zippel, if we consider $r(X) = p(X) - q(X)$, if $r(\g) :
+Then by Schwarz-Zippel, if we consider $r(X) = p(X) - q(X)$, if $r(\g) = 0$ and $r(\g) :
 \g \in_R \Fb$ then $p(X) = q(X)$. Now, we just need to prove that $p(X) =
 q(X) \implies \{ a_1, \dots, a_n \} = \{ b_1, \dots, b_n \}$.
 
-Consider the roots of $p(X)$ and $q(X)$. These are clearly $\{ -a_1, -a_2,
-\dots, -a_n \}$ and $\{ -b_1, -b_2, \dots, -b_n \}$ respectively. Since $p(X)
-= q(X)$, the roots must also be the same and:
+Consider the roots of $p(X)$ and $q(X)$, starting with $p(X)$:
+
 $$
-  \{ -a_1, -a_2, \dots, -a_n \} = \{ -b_1, -b_2, \dots, -b_n \} \implies
-  \{ a_1, a_2, \dots, a_n \} = \{ b_1, b_2, \dots, b_n \}
+\begin{aligned}
+  p(X) &= \prod_{i \in [n]} f(\o^i) + X
+\end{aligned}
 $$
+
+This polynomial evaluates to zero only if one of the factors equals
+$f(\o^i)$. The same argument for $q(X)$ can also be applied:
+
+$$
+\begin{aligned}
+  \text{roots}(p(X)) &= \{ -f(\o^1), \dots, -f(\o^n) \} \\
+                     &= \{ -a_1, \dots, -a_n \} \\
+\end{aligned}
+$$
+$$
+\begin{aligned}
+  \text{roots}(q(X)) &= \{ -g(\o^1), \dots, -g(\o^n) \} \\
+                     &= \{ -b_1, \dots, -b_n \}
+\end{aligned}
+$$
+
+Since the two polynomials are equal, they must have the same roots. Thus:
+
+$$
+\begin{aligned}
+  \text{roots}(p(X)) &= \text{roots}(q(X)) \implies \\
+  \{ -a_1, \dots, -a_n \} &= \{ -b_1, \dots, -b_n \} \implies \\
+  \{ a_1, \dots, a_n \} &= \{ b_1, \dots, b_n \}
+\end{aligned}
+$$
+
 $\qed$
 
 We still need to convert $\prod_{i \in n} f'(\o^i) = \prod_{i \in n} g'(\o^i)$
@@ -264,27 +291,3 @@ $$
 
 And since, by the Vanishing Argument, $f_{CC_1}(X)$ and $f_{CC_2}(X)$ holds
 for all $\o \in H$, it also holds for $\o^n$.
-
-<!--
-
-## Outline
-
-We now define the Plonk protocol using the above arguments.
-
-\begin{algorithm}[H]
-\caption*{
-  \textbf{Plonk:} The Ultra-Plonk-ish NARK protocol.
-}
-\textbf{Inputs} \\
-  \Desc{$f: W[\vec{t_{in}}] \to W[\vec{t_{out}}]$}{NP problem / program.} \\
-  \Desc{$\vec{x} \in W[\vec{t_{in}}]$}{The possibly private input to the program $f$} \\
-\textbf{Output} \\
-  \Desc{$\Result(\top, \bot)$}{Either the verifier accepts with $\top$ or rejects with $\bot$}
-\begin{algorithmic}[1]
-  \State $(R: \Circuit, x: \PublicInputs, w : \Witness) = \mathrm{relation} \circ \mathrm{trace}(\mathrm{arithmetize}(f), \vec{x})$ 
-  \State $\pi = \PProver(R,x,w)$
-  \State \textbf{return} $\PVerifier(R,x,\pi)$
-  \end{algorithmic}
-\end{algorithm}
-
--->

@@ -84,6 +84,7 @@
       pandoc \
         "''${in[@]}" \
         -H ${self}/documents/thesis/header.tex \
+        --number-sections=true \
         --metadata-file ${self}/documents/thesis/metadata.yaml \
         --resource-path ${self}/documents/thesis \
         --citeproc \

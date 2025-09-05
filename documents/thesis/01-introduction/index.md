@@ -2,12 +2,40 @@
 
 # Introduction
 
-Incrementally Verifiable Computation (IVC) has seen increased practical usage,
-notably by the Mina[@mina] blockchain to achieve a succinct blockchain. This
-is enabled by increasingly efficient recursive proof systems, one of the
-most used in practice is based on [@halo], which includes Halo2 by the
-Electric Coin Company (to be used in Zcash) and Kimchi developed and used
-by Mina. Both can be broken down into the following main components:
+Valiant originally described IVC in his 2008 paper[@valiant] in the following
+way:
+
+\begin{quote}
+\color{GbGrey}
+
+\textit{Suppose humanity needs to conduct a very long computation which will span
+superpolynomially many generations. Each generation runs the computation
+until their deaths when they pass on the computational configuration to the
+next generation. This computation is so important that they also pass on a
+proof that the current configuration is correct, for fear that the following
+generations, without such a guarantee, might abandon the project. Can this
+be done?}
+
+\end{quote}
+
+If a computation runs for hundreds of years and ultimately outputs 42, how can
+we check its correctness without re-executing the entire process? In order
+to do this, the verification of the final output of the computation must be
+much smaller than simply running the computation again. Valiant creates the
+concept of IVC and argues that it can be used to achieve the above goal.
+
+Recently, IVC has seen renewed interest with cryptocurrencies, as this concept
+lends itself well to the structure of blockchains. It allows a blockchain node
+to omit all previous transaction history in favour of only a single state,
+for example, containing all current account balances. Each state-transition,
+where transactions are processed, can then be verified with a SNARK. This
+is commonly called a _succinct blockchain_.
+
+This has notably been used by the Mina[@mina] blockchain to achieve a succinct
+blockchain. This is enabled by increasingly efficient recursive proof systems,
+one of the most used in practice is based on [@halo], which includes Halo2
+by the Electric Coin Company (to be used in Zcash) and Kimchi developed and
+used by Mina. Both can be broken down into the following main components:
 
 - **Plonk**: A general-purpose, potentially zero-knowledge, SNARK.
 - **$\PCDL$**: A Polynomial Commitment Scheme in the Discrete Log setting.
@@ -15,69 +43,14 @@ by Mina. Both can be broken down into the following main components:
 - **Pasta**: A cycle of elliptic curves, Pallas and Vesta, collectively known as Pasta.
 
 A previous project by one of the authors of this thesis, analyzed and
-implemented the accumulation and polynomial commitment schemes. This project is
-focused on the Plonk component, including all additions and amendments needed
-to acheive an IVC-friendly SNARK. We also define an IVC-circuit for proving
-the validity of a Chain of Signatures, which can be used for near-instant
-blockchain catch-up. We also implement the IVC circuit for verifying a
-chain of signatures, to benchmark the performance. Both this document and
-the implementation can be found in the project's repository[@repo].
+implemented the accumulation and polynomial commitment schemes.
 
-## Chain of Signatures
-
-We aim to specify a recursive SNARK construction and instantiate it over
-a chain of signatures. This would allow safe catchup for light clients on
-BFT-style blockchains with committees, such as Concordium or Partesia, both
-of which are based on the HotStuff consensus. Taking Concordium as the main
-example; they elect a committee once a day and that committee is responsible
-for signing valid blocks. Concordium is a proof of stake blockchain so the
-committee is elected according to the size of thier staked tokens. They
-could create a parallel _IVC blockchain_, one where each block contains:
-$$B_i = \{ \s^{(pk)}_i, j_i = i, pk_i, ptr_i \in \Bb^{32}, \s^{(ptr)} \}$$
-
-- $\s^{(pk)}_i$: A signature on the current public key ($pk_i$), signed by the previous public key $pk_{i-1}$.
-- $j_i$: A block-id counter.
-- $pk_i$: The public key of the current committee.
-- $ptr_i$: A hash of the most recent block on the main blockchain.
-- $\s^{(ptr)}_i$: A signature on $ptr$, signed by the current public key.
-
-Traditionally, a blockchain would need the hash of the previous block to
-tie together blocks. We can omit that since we already have the signature
-$\s_i^{(pk)}$, linking together $pk_{i-1}$ and $pk_i$, thus also linking
-together $B_{i-1}$ and $B_i$. To verify this IVC blockchain, one would need
-all blocks from the genesis block $B_0$, until the most recent block $B_n$.
-Then they may verify the relation:
-$$\text{Verify}_{pk_{i-1}}(\s^{(pk)}, pk_i) \land \text{Verify}_{pk_i}(\s^{(ptr)}, ptr_i) \land j_i \meq j_{i-1} + 1$$
-Now we have a chain of signatures from the first genesis committee, all the
-way to the final committee at block $n$. Assuming that the first committee
-is honest, it should only sign the next honestly elected committee, which
-by the security of the blockchain should also be majority-honest. That
-committee will then also only sign the next honest committee. We can continue
-this argument until reaching committee $n$, which contains a pointer to the
-most recent block on the main blockchain. We can now trust that block, and
-trust the blockchain, given that we trust the genesis committee, and that
-the subsequent committees have been honest.
-
-This is of course not much of an improvement, to catch up on the main
-blockchain you need to catch up on some _other_ blockchain. The second
-blockchain is however constructed to be SNARK-friendly. There is only a
-single public key, representing each committee, the signature scheme can be
-Schnorr's with poseidon hashes, which works well for SNARK constructions.
-Importantly, this secondary blockchain can use Poseidon hashes, while the
-main blockchain may prefer Sha3 for security benefits, and the secondary
-blockchain may use schnorr signatures, while the main blockchain may prefer
-BLS signatures that natively support weighted signatures.
-
-The main committee still needs to generate and sign using the Schnorrr
-signature scheme, but for this they can use FROST[@frost] or, if weighted
-signatures are a hard requirement, WSTS[^wsts][@wsts]. In both schemes,
-signatures are checked using a single public key.
-
-To turn this into a SNARK, we need a Recursive SNARK construction to model
-this problem in terms of Incrementally Verifiable Computatiton. A Recursive
-SNARK construction that can prove the relation mentioned earlier while also
-verifying a previous proof. Then, when a blockchain node wants to catch up,
-they can simply download the latest IVC-block. Verify it using the SNARK and
-start participating in the main chain, with only negligible security overhead.
-
-[^wsts]: This paper is not published nor peer-reviewed.
+In this document we construct a recursive SNARK and use it to create a _Chain
+of Signatures_.  We argue that this chain of signatures can be used in modern
+BFT-based blockchains to acheive near-instant blockchain catch-up. We define
+a modified Plonk based on $\PCDL$ and $\ASDL$ with custom gates. We also
+define all custom gates needed to acheive an IVC-friendly SNARK. We then
+define an IVC-circuit for proving the validity of a Chain of Signatures.
+We also implement the IVC circuit for verifying a chain of signatures, to
+benchmark the performance. Both this document and the implementation can be
+found in the project's repository[@repo].

@@ -18,6 +18,36 @@ of IVC, the succinct proof systems that lead to its construction, and the
 role of accumulation schemes as an important cryptographic primitive with
 practical applications.
 
+## Notation
+
+The following table denotes the meaning of the notation used throughout
+the document:
+
+|                                                                                 |                                                                                                           |
+|:--------------------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------|
+| $[n]$                                                                           | Denotes the integers $\{ 1, ..., n \}$                                                                    |
+| $a \in \Fb_q$                                                                   | A field element of an unspecified field                                                                   |
+| $a \in \Fb_q$                                                                   | A field element in a prime field of order $q$                                                             |
+| $\vec{a} \in S^n_q$                                                             | A vector of length $n$ consisting of elements from set $S$                                                |
+| $G \in \Eb(\Fb_q)$                                                              | An elliptic Curve point, defined over field $\Fb_q$                                                       |
+| $G \in \Eb_p(\Fb_q)$                                                            | An elliptic Curve point, defined over field $\Fb_q$, where the curve has order $p$                        |
+| $(a_1, \dots, a_n) = [x_i]^n = [x_i]_{i=1}^n = \vec{a} \in S^n_q$               | A vector of length $n$                                                                                    |
+| $a \in_R S$                                                                     | $a$ is a uniformly randomly sampled element of $S$                                                        |
+| $(S_1, \dots, S_n)$                                                             | In the context of sets, the same as $S_1 \times \dots \times S_n$                                         |
+| $\vec{a} \cat \vec{b}$ where $\vec{a} \in \Fb^n_q, \vec{b} \in \Fb^m_q$         | Concatenate vectors to create $\vec{c} \in \Fb^{n+m}_q$.                                                  |
+| $a \cat b$ where $a \in \Fb_q$                                                  | Create vector $\vec{c} = (a, b)$.                                                                         |
+| I.K $w$                                                                         | "I Know", Used in the context of proof claims, meaning I have knowledge of the witness $w$                |
+| $\Bb$                                                                           | A boolean, i.e. $\{ \bot, \top \}$                                                                        |
+| $\Option(T)$                                                                    | $\{ T, \bot \}$                                                                                           |
+| $\Result(T, E)$                                                                 | $\{ T, E \}$                                                                                              |
+
+Note that the following are isomorphic $\{ \top, \bot \} \iso \Bb
+\iso \Option(\top) \iso \Result(\top, \bot)$, but they have different
+connotations. Generally for this report, $\Option(T)$ models optional
+arguments, where $\bot$ indicates an empty argument and $\Result(T, \bot)$
+models the result of a computation that may fail, especially used for
+rejecting verifiers.
+
 ## Proof Systems
 
 An Interactive Proof System consists of two Interactive Turing Machines:
@@ -177,35 +207,6 @@ and by extension Bulletproofs, suffer from linear verification time,
 bulletproofs are unsuitable for IVC.
 
 ## Incrementally Verifiable Computation
-
-Valiant originally described IVC in his 2008 paper[@valiant] in the following
-way:
-
-\begin{quote}
-\color{GbGrey}
-
-\textit{Suppose humanity needs to conduct a very long computation which will span
-superpolynomially many generations. Each generation runs the computation
-until their deaths when they pass on the computational configuration to the
-next generation. This computation is so important that they also pass on a
-proof that the current configuration is correct, for fear that the following
-generations, without such a guarantee, might abandon the project. Can this
-be done?}
-
-\end{quote}
-
-If a computation runs for hundreds of years and ultimately outputs 42, how can
-we check its correctness without re-executing the entire process? In order
-to do this, the verification of the final output of the computation must be
-much smaller than simply running the computation again. Valiant creates the
-concept of IVC and argues that it can be used to achieve the above goal.
-
-Recently, IVC has seen renewed interest with cryptocurrencies, as this concept
-lends itself well to the structure of blockchains. It allows a blockchain node
-to omit all previous transaction history in favour of only a single state,
-for example, containing all current account balances. Each state-transition,
-where transactions are processed, can then be verified with a SNARK. This
-is commonly called a _succinct blockchain_.
 
 In order to achieve IVC, you need a function $F(x) \in S \to S$ along with
 some initial state $s_0 \in S$. Then you can call $F(x)$ $n$ times

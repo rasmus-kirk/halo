@@ -12,5 +12,6 @@ citecolor: black
 linkcolor: black
 urlcolor: GbBlueDk
 toccolor: black
+number-sections: true
 citation-style: acm-siggraph
 bibliography: bibliography.bib

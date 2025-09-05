@@ -223,35 +223,78 @@ $$\prod_{\o \in H} f(\o) = \prod_{\o \in H} g(s)$$
 But this only proves there exists _some_ permutation between $f(X)$ and
 $g(X)$, not necessarily $\s(X)$. We can start by trying to model sets of
 pairs, rather than just sets:
-
 $$\{ (a_i, b_i) \mid i \in [1,n] \} = \{ (c_i, d_i) \mid i \in [1,n] \}$$
-
-Which can be modelled with $f(X) = a_i(X) + \beta b_i(X), g(X) = c_i(X) +
-d_i(X)$. To prove for the specific permutation $\s$, we can then model the
-indices as pairs.
+Which can be modelled with:
+$$
+  f(X) = a_i(X) + \beta b_i(X) g(X) = c_i(X) + \beta d_i(X)
+$$
+To prove for the specific permutation $\s$, we can then model a vector as
+a multiset of pairs of values and indices. We start by defining:
 
 $$
 \begin{aligned}
   \vec{\tilde{f}} &= [f(\o^i), \dots, f(\o^n)] \\
   \vec{\tilde{g}} &= \pi(\vec{\tilde{f}}) \\
+\end{aligned}
+$$
+
+The prover wants to prove that $\vec{\tilde{f}} = \vec{\tilde{g}} = \pi(\vec{\tilde{f}})$, for a specific permutation $\pi$:
+$$
+  \{ (\tilde{f}_i, i) \mid i \in [1,n] \} = \{ (\tilde{g}_i, i) \mid i \in [1,n] \} \implies \tilde{f}_i = \tilde{g}_i
+$$
+Rewriting using the definition of $\tilde{f}, \tilde{g}$:
+$$
+  \{ (f(\o^i), \id(\o^i)) \mid i \in [1,n] \} = \{ (f(\o^i), \s(\o^i)) \mid i \in [1,n] \} \implies \tilde{f}_i = \pi(\tilde{f}_i)
+$$
+
+$$
+\begin{aligned}
   \{ (\tilde{f}_i, i) \mid i \in [1,n] \} &= \{ (\tilde{g}_i, i) \mid i \in [1,n] \} \implies \tilde{f}_i = \tilde{g}_i \; \land \\
   \{ (f(\o^i), \id(\o^i)) \mid i \in [1,n] \} &= \{ (f(\o^i), \s(\o^i)) \mid i \in [1,n] \} \implies \\
   \vec{\tilde{f}} &= \pi(\vec{\tilde{f}})
 \end{aligned}
 $$
 
+Which means we get a protocol to prove the claim.
+
 **Correctness:**
 
-TODO
+Since the only modification made to the Grand Product Argument is the
+modelling of pairs, we need to prove that:
+
+$$(f(\o^i), \id(\o^i)) = (g(\o^i), \sigma(\o^i)) \implies f(\o^i) + \beta \id(\o^i) = g(\o^i) + \beta \sigma(\o^i)$$
+
+Which holds trivially, since we can just rewrite $g(\o^i) \to f(\o^i)$ and $\sigma(\o^i) \to \id(\o^i)$.
+
+$\qed$
 
 **Soundness:**
 
-TODO
+We need to prove that for a uniformly random $\b$:
+
+$$f(\o^i) + \b \id(\o^i) = g(\o^i) + \b \sigma(\o^i) \implies f(\o^i) = g(\o^i) \land \id(\o^i) = \sigma(\o^i)$$
+
+Assuming $f(\o^i) + \b \id(\o^i) \neq g(\o^i) + \b \sigma(\o^i) \land g(\o^i) \land \id(\o^i) = \sigma(\o^i)$:
+
+$$
+\begin{aligned}
+  f(\o^i) + \b \id(\o^i) &= g(\o^i) + \b \sigma(\o^i) \implies \\
+  f(\o^i) - g(\o^i) &= \b \sigma(\o^i) - \b \id(\o^i) \implies \\
+  f(\o^i) - g(\o^i) &= \b \cdot (\sigma(\o^i) - \id(\o^i)) \implies \\
+  \frac{f(\o^i) - g(\o^i)}{\sigma(\o^i) - \id(\o^i)} &= \b
+\end{aligned}
+$$
+
+Since all the left-hand sides are constant and $\b$ is uniformly random in
+$\Fb$, there is a $1 / |\Fb|$ probability that the claim doesn't hold. Thus,
+we have soundness.
+
+$\qed$
 
 \begin{tcolorbox}[colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
 
-To sanity check that this makes sense, consider the following example,
-that doesn't include soundness values:
+An example, without soundness values $\b, \g$, for why this approach to
+proving permutations is sensible:
 
 $$
   \begin{alignedat}{10}
@@ -264,7 +307,8 @@ $$
 \begin{aligned}
   \prod_{\o \in H} (f(\o) + \id(\o)) &= (f(\o^1) + 1)(f(\o^2) + 2)(f(\o^3) + 3)(f(\o^4) + 4)(f(\o^5) + 5)(f(\o^6) + 6) \\
   \prod_{\o \in H} (g(\o) + \s(\o))  &= (g(\o^{\s(1)}) + 1)(g(\o^{\s(2)}) + 4)(g(\o^{\s(3)}) + 5)(g(\o^{\s(4)}) + 6)(g(\o^{\s(5)}) + 3)(g(\o^{\s(6)}) + 2) \\
-                                     &= (f(\o^1) + 1)(f(\o^4) + 4)(f(\o^5) + 5)(f(\o^6) + 6)(f(\o^3) + 3)(f(\o^2) + 2)
+                                     &= (f(\o^1) + 1)(f(\o^4) + 4)(f(\o^5) + 5)(f(\o^6) + 6)(f(\o^3) + 3)(f(\o^2) + 2) \\
+                                     &= (f(\o^1) + 1)(f(\o^2) + 2)(f(\o^3) + 3)(f(\o^4) + 4)(f(\o^5) + 5)(f(\o^6) + 6)
 \end{aligned}
 $$
 \end{tcolorbox}
