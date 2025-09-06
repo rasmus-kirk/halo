@@ -447,7 +447,7 @@ $p(X)$, you can reconstruct the polynomial using lagrange interpolation:
 
 $$p(X) = \lagrange(\vec{p^{(e)}})$$
 
-With a worst-case runtime of $\Oc(n^2)$. However, if the evaluation points
+With a worst-case runtime of $\Oc(d^2)$. However, if the evaluation points
 are chosen to be the $n$-th roots of unity, i.e. the set:
 $$\{ \o^1, \o^2, \dots, \o^n \}$$
 where $\o$ is a primitive $n$-th root of unity, then interpolation can be

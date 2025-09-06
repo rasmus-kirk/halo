@@ -12,3 +12,7 @@ roots = [
 inlayHints.parameterHints.enable = false
 diagnostics.experimental.enable = true
 diagnostics.styleLints.enable = true
+
+[[language]]
+name = "bibtex"
+auto-format = true

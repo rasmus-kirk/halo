@@ -100,73 +100,51 @@ vanishing argument is sound.
 **Extending to multiple $f$'s**
 
 We can use a linear combination of $\a$ to generalize the **Single Polynomial
-Vanishing Argument**:
+Vanishing Argument**, creating a **Vanishing Argument Protocol**:
 
-\begin{algorithm}[H]
-\caption*{
-  \textbf{Vanishing Argument Protocol:} Checks queries of the form $\forall
-  s \in S : f(s) \meq 0$, with scalars from $\Fb \supseteq S$, for a list
-  of $\vec{f} \in \Fb^k_{\leq d}[X]$.
-}
-\textbf{Inputs} \\
-  \Desc{$\vec{f}: \Fb^k_{\leq d}[X]$}{The polynomial to check identity for.} \\
-\textbf{Output} \\
-  \Desc{$\Result(\top, \bot)$}{
-    Either the verifier accepts with $\top$ or rejects with $\bot$.
-  }
-\begin{algorithmic}[1]
-  \State $P \to V:$ The prover commits to each $f_i$ and the commitments to the verifier:
-    \Statex \algind $C_{f_i} = \PCCommit(f_i(X), d, \bot)$
-  \State $V:$ The verifier sends a random challenge $\a$ to the prover.
-  \State $P:$ The prover constructs $t(X)$:
-    \Statex \algind $t(X) = \sum_{i \in [k]} \frac{\a^i f_i(X)}{z_S}, \quad z_S(X) = \prod_{s \in S}(X - s)$
-  \State $P \to V:$ The prover then commits to $t(X)$ and sends the commitment to the verifier:
-    \Statex \algind $C_t = \PCCommit(t(X), d, \bot)$
-  \State $V \to P:$ The verifier sends challenge $\xi$ to the prover.
-  \State $P \to V:$ The prover sends $(f_i(\xi) = v_{f_i}, \pi_{f_i}, t(\xi) = v_t, \pi_f)$ to the verifier.
-  \State $V:$ The verifier then checks:
-    \Statex \algind $\sum \a^i v_{f_i} = v_t \cdot z_S(\xi)$
-    \Statex \algind $\forall i \in [k] : \PCCheck(C_{f_i}, d, \xi, v_{f_i}, \pi_{f_i}) \meq \top \; \land$
-    \Statex \algind $\PCCheck(C_t, d, \xi, v_t, \pi_t) \meq \top$
-  \end{algorithmic}
-\end{algorithm}
+$$
+\renewcommand{\arraystretch}{1.75}
+\begin{array}{>{\displaystyle}l >{\displaystyle}c >{\displaystyle}l}
+\textbf{Prover}(\vec{f} \in \Fb_{\leq d}^k[X]) &                                           & \textbf{Verifier}                                                           \\
+C_{f_i} = \PCCommit(f_i(X), d, \bot)           & \rarr{\vec{C_f}}                          & \a \in_R \Fb                                                                \\
+z_S(X) = \prod_{s \in S}(X - s)                & \larr{\a}                                 &                                                                             \\
+t(X) = \frac{f(X)}{z_S}                        &                                           &                                                                             \\
+C_t = \PCCommit(t(X), d, \bot)                 & \rarr{C_t}                                & \xi \in_R \Fb                                                               \\
+v_{f_i} = f_i(\xi)                             & \larr{\xi}                                &                                                                             \\
+\pi_{f_i} = \PCOpen(f_i(X), C_f, d, \xi, \bot) &                                           &                                                                             \\
+v_t = t(\xi)                                   &                                           &                                                                             \\
+\pi_t = \PCOpen(t(X), C_f, d, \xi, \bot)       & \rarr{\vec{v_f}, \vec{\pi_f}, v_t, \pi_t} & \sum \a^i v_{f_i} = v_t \cdot z_S(\xi)                                      \\
+                                               &                                           & \forall i \in [k] : \PCCheck(C_{f_i}, d, \xi, v_{f_i}, \pi_{f_i}) \meq \top \\
+                                               &                                           & \PCCheck(C_t, d, \xi, v_t, \pi_t) \meq \top                                 \\
+\end{array}
+$$
 
 Note that for the Plonk protocol specifically, $S = H = \{ 1, \o, \o^2,
 \dots, \o^{n-1} \}$ for the reason that the vanishing polynomial $z_S(X)$
 then becomes $z_S(X) = X^n - 1$ because $\o$ is a root of unity of order
 $n$. This is much more efficient to compute. The $\a$'s are used since we
-need a linearly independent combination of $f$.
+need a linearly independent combination of $\vec{f}$.
 
 ### Batched Evaluation Proofs
 
 If we have $m$ polynomials, $\vec{f}$, that all need to evaluate to
 zero at the same challenge $\xi$, normally, we could construct $m$ opening
 proofs, and verify these. We can, however, use the following protocol to
-only create a single opening proof:
+only create the **Batched Evaluations Proofs Protocol**:
 
-\begin{algorithm}[H]
-\caption*{
-  \textbf{Batched Evaluations Proofs Protocol:}
-}
-\textbf{Inputs} \\
-  \Desc{$\vec{f}: \Fb^k_{\leq d}[X]$}{The polynomials to check identity for.} \\
-\textbf{Output} \\
-  \Desc{$\Result(\top, \bot)$}{
-    Either the verifier accepts with $\top$ or rejects with $\bot$.
-  }
-\begin{algorithmic}[1]
-  \State $P \to V:$ The prover commits to each polynomial $C_{f_i}(X)$ and sends these to the verifier.
-  \State $V \to P:$ The verifier sends challenge $\xi$ to the prover.
-  \State $P \to V:$ The prover sends evaluations of all $f_i(X)$ ($v_{f_i} = f_i(\xi))$.
-  \State $V \to P:$ The verifier sends challenge $\alpha$ to the prover.
-  \State $P \to V:$ The prover finally sends a single opening proof $\pi_w$ for the batched polynomial $w(X) = \sum_{i = 0}^k \a^i f_i(X)$
-  \State $V:$ The verifier then constructs:
-    \Statex \algind $C_w = \sum_{i = 0}^k \a^i C_{f_i}$
-    \Statex \algind $v_w = \sum_{i = 0}^k \a^i v_{f_i}$
-  \State $V:$ The verifier checks:
-    \Statex \algind $\PCCheck(C_w, d, \xi, v_w, \pi_w) \meq \top$
-  \end{algorithmic}
-\end{algorithm}
+$$
+\renewcommand{\arraystretch}{1.75}
+\begin{array}{>{\displaystyle}l >{\displaystyle}c >{\displaystyle}l}
+\textbf{Prover}(\vec{f} \in \Fb_{\leq d}^k[X]) &                         & \textbf{Verifier}                           \\
+C_{f_i} = \PCCommit(f_i(X), d, \bot)           & \rarr{\vec{C_f}}        & \a, \xi \in_R \Fb                           \\
+w(X) = \sum_{i = 0}^k \a^i f_i(X)              & \larr{\a, \xi}          &                                             \\
+C_w(X) = \PCCommit(w(X), d, \bot)              &                         &                                             \\
+v_{f_i} = f_i(\xi)                             &                         &                                             \\
+\pi_w = \PCOpen(w(X), C_w, d, \xi, \bot)       & \rarr{\pi_w, \vec{v_f}} & C_w = \sum_{i = 0}^k \a^i C_{f_i}           \\
+                                               &                         & v_w = \sum_{i = 0}^k \a^i v_{f_i}           \\
+                                               &                         & \PCCheck(C_w, d, \xi, v_w, \pi_w) \meq \top \\
+\end{array}
+$$
 
 **Correctness:**
 
