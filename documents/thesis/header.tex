@@ -61,6 +61,7 @@
 }
 \usepackage{array}
 \usepackage{caption}
+\usepackage{nccmath}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage{stmaryrd}
@@ -80,6 +81,8 @@
 \newcolumntype{Y}{>{\centering\arraybackslash}X}
 
 \newcommand{\Desc}[2]{\hspace*{\algorithmicindent} \makebox[15.5em][l]{#1}\parbox[t]{32em}{#2}}
+\newcommand{\larr}[1]{\xleftarrow{\hspace{2em} #1 \hspace{2em}}}
+\newcommand{\rarr}[1]{\xrightarrow{\hspace{2em} #1 \hspace{2em}}}
 
 \usepackage[style=iso]{datetime2}
 

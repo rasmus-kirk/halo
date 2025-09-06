@@ -31,20 +31,39 @@ using just $S$, might not be sound. For this purpose, we can construct the
     Either the verifier accepts with $\top$ or rejects with $\bot$.
   }
 \begin{algorithmic}[1]
-  \State $P \to V:$ The prover commits to $f$ and the commitment to the verifier:
+  \State $P \to V:$ The prover commits to $f(X)$ and sends the commitment to the verifier:
     \Statex \algind $C_f = \PCCommit(f(X), d, \bot)$
   \State $P:$ The prover constructs $t(X)$:
     \Statex \algind $t(X) = \frac{f(X)}{z_S}, \quad z_S(X) = \prod_{s \in S}(X - s)$
   \State $P \to V:$ The prover then commits to $t(X)$ and sends the commitment to the verifier:
     \Statex \algind $C_t = \PCCommit(t(X), d, \bot)$
   \State $V \to P:$ The verifier sends a challenge $\xi$ to the prover
-  \State $P \to V:$ The prover sends $(v_f = f(\xi), \pi_f = \PCOpen(f(X), C_f, d, \xi, \bot), t(\xi) = v_t, \pi_t)$ to the verifier.
+  \State $P:$ The prover computes: $v_f = f(\xi), \pi_f = \PCOpen(f(X), C_f, d, \xi, \bot)$.
+  \State $P:$ The prover computes: $t_v = t(\xi), \pi_t = \PCOpen(t(X), C_t, d, \xi, \bot)$.
+  \State $P \to V:$ The prover sends $v_f, \pi_f, t_v, \pi_t$ to the verifier.
   \State $V:$ The verifier then checks:
     \Statex \algind $v_f \meq v_t \cdot z_S(\xi)$
     \Statex \algind $\PCCheck(C_f, d, \xi, v_f, \pi_f) \meq \top \; \land$
     \Statex \algind $\PCCheck(C_t, d, \xi, v_t, \pi_t) \meq \top$
   \end{algorithmic}
 \end{algorithm}
+
+$$
+\renewcommand{\arraystretch}{1.75}
+\begin{array}{>{\displaystyle}l >{\displaystyle}c >{\displaystyle}l}
+\textbf{Prover}(f \in \Fb_{\leq d}[X])    &                                 & \textbf{Verifier}                           \\
+C_f = \PCCommit(f(X), d, \bot)            &                                 &                                             \\
+z_S(X) = \prod_{s \in S}(X - s)           &                                 &                                             \\
+t(X) = \frac{f(X)}{z_S}                   &                                 &                                             \\
+C_t = \PCCommit(t(X), d, \bot)            & \rarr{C_f, C_t}                 & \xi \in_R \Fb                               \\
+v_f = f(\xi)                              & \larr{\xi}                      &                                             \\
+\pi_f = \PCOpen(f(X), C_f, d, \xi, \bot)  &                                 &                                             \\
+v_t = t(\xi)                              &                                 &                                             \\
+\pi_t = \PCOpen(t(X), C_f, d, \xi, \bot)  & \rarr{v_f, \pi_f, v_t, \pi_t}   & v_f \meq v_t \cdot z_S(\xi)                 \\
+                                          &                                 & \PCCheck(C_f, d, \xi, v_f, \pi_f) \meq \top \\
+                                          &                                 & \PCCheck(C_t, d, \xi, v_t, \pi_t) \meq \top \\
+\end{array}
+$$
 
 **Correctness**
 

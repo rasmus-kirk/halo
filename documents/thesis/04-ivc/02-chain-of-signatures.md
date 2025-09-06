@@ -53,18 +53,9 @@ Schnorr's using poseidon for the hashing of messages, which works well in
 SNARK constructions.  Importantly, this secondary blockchain can use Poseidon
 hashes, while the main blockchain may prefer Sha3 for security benefits,
 and the secondary blockchain may use Schnorr signatures, while the main
-blockchain may prefer BLS signatures that natively support weighted signatures.
+blockchain doesn't have to change their signature scheme.
 
 The main committee still needs to generate and sign using the Schnorr
-signature scheme, but for this they can use FROST[@frost] or, if weighted
-signatures are a hard requirement, WSTS[^wsts][@wsts]. In both schemes,
-signatures are checked using a single public key.
-
-To turn this into a SNARK, we need a Recursive SNARK construction to model
-this problem in terms of Incrementally Verifiable Computatiton. A Recursive
-SNARK construction that can prove the relation mentioned earlier while also
-verifying a previous proof. Then, when a blockchain node wants to catch up,
-they can simply download the latest IVC-block. Verify it using the SNARK and
-start participating in the main chain, with only negligible security overhead.
-
-[^wsts]: This paper is not published nor peer-reviewed.
+signature scheme, but for this they can use a multisignature scheme like
+FROST[@frost]. In the next section we define the IVC scheme that's able to
+support this.
