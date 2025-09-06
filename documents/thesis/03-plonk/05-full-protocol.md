@@ -31,7 +31,7 @@ circuit, witness and public inputs:
 
   Here, we use $e$ to denote that these are evaluations of the polynomials,
   which are computed by the arithmetizer. To get the actual polynomials,
-  the prover runs $\fft$ on each of these in round 0.
+  the prover runs $\ifft$ on each of these in round 0.
 - PlonkPublicInputs:
   - $\vec{x} \in \Fb^{\ell_1 + 2 + \ell_2}$: The public inputs for the trace
     table, containing both the vanilla public inputs ($\ell_2$), the inputs
@@ -71,12 +71,12 @@ circuit, witness and public inputs:
   \Statex \hspace*{-20px} \textbf{Round 0:}
     $$
     \begin{aligned}
-      &\vec{q} := [\fft(q^{(e)}_i)]^{10}_{i=1}, \quad
-      \vec{r} := [\fft(r^{(e)}_i)]^{15}_{i=1}, \quad
-      \vec{\id} := [\fft(\id^{(e)}_i)]^{4}_{i=1}, \quad
-      \vec{\s} := [\fft(\s_i^{(e)})]^{4}_{i=1}, \\
-      &\vec{w} := [\fft(w_i^{(e)})]^{16}_{i=1}, \quad
-      x(X) := \fft(-\vec{x})
+      &\vec{q} := [\ifft(q^{(e)}_i)]^{10}_{i=1}, \quad
+      \vec{r} := [\ifft(r^{(e)}_i)]^{15}_{i=1}, \quad
+      \vec{\id} := [\ifft(\id^{(e)}_i)]^{4}_{i=1}, \quad
+      \vec{\s} := [\ifft(\s_i^{(e)})]^{4}_{i=1}, \\
+      &\vec{w} := [\ifft(w_i^{(e)})]^{16}_{i=1}, \quad
+      x(X) := \ifft(-\vec{x})
     \end{aligned}
     $$
 
@@ -134,7 +134,7 @@ circuit, witness and public inputs:
 
 First note that _all_ polynomial multiplications can be modelled to run in
 $\Oc(n \lg(n))$ because they can be modelled as $c(X) = a(X) \cdot b(X) =
-\fft(\ifft(a(X)) \cdot \ifft(b(X)))$. The runtime of multiplication over
+\ifft(\fft(a(X)) \cdot \fft(b(X)))$. The runtime of multiplication over
 the evaluation domain is $\Oc(n)$ and the runtime of the $\fft$ and $\ifft$
 is $\Oc(n \lg(n))$. Polynomial addition is $\Oc(n)$. The $\PCDL$ functions
 $\PCDLCommit, \PCDLOpen$ have a runtime of $\Oc(n)$. Therefore the worst-case

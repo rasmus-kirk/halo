@@ -361,7 +361,7 @@ It might be useful to have public inputs for a circuit. This is not to be confus
 We have a vector of public inputs:
 $$\vec{x} : |\vec{x}| = \ell_2$$
 Naturally leading to a polynomial:
-$$x(X) = \fft(\vec{x})$$
+$$x(X) = \ifft(\vec{x})$$
 The number of public inputs, $\ell_2$, is embedded in the circuit
 specification. The first $\ell_2$ rows of the witness table is reserved for
 public inputs. For each $x_i \in \vec{x}$, we set $q_l(\o^i) = 1, a(\o^i) =
