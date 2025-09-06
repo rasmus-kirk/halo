@@ -238,7 +238,8 @@ $\Hc : \Bb^* \to \Eb(\Fb_q)$ can be used to produce the generators. The URS
 can then be derived using a genesis string $s$:
 $$\text{URS} = \{ \Hc(s \cat 1), \Hc(s \cat 2), \dots, \Hc(s \cat D) \}$$
 The genesis string can be any arbitrary string, that convinces outsiders
-that it's not maliciously chosen. We used:
+that it's not maliciously chosen. This is commonly refered to as
+nothing-up-my-sleeve numbers. We used the string:
 
 \begin{quote}
 \color{GbGrey}
@@ -415,11 +416,58 @@ also take an additional input representing new transactions, $F(x: S, T:
 
 ## The Schwarz-Zippel Lemma
 
-**TODO**
+The Schwarz-Zippel lemma is commonly used in succinct proof systems to test
+polynomial identities. Formally it states:
+
+$$\xi \in_R \Fb : \Pr[p(\xi) = 0 \mid p(X) \neq 0] = \frac{d}{\Fb}$$
+
+Meaning that if $p(X)$ is not the zero-polynomial, the evaluation at a
+uniformly random point from $\Fb$, will equal zero with at most $d \, / \, \Fb$
+probability. This can also be used to check equality between polynomials:
+
+$$
+\begin{aligned}
+  \xi &\in_R \Fb \\
+  r(X) &= p(X) - q(X) \\
+  r(\xi) &\meq 0
+\end{aligned}
+$$
+
+Or equivalently:
+
+$$p(\xi) \meq q(\xi)$$
+
+Meaning that $p(X) = q(X)$ with probability at least $d \, / \, \Fb$.
 
 ## Polynomial Interpolation
 
-**TODO**
+It is well known that given $d+1$ evaluations, an evaluation domain,
+$\vec{p^{(e)}} := [ p^{(e)}_1, \dots, p^{(e)}_{d+1} ]$, of a polynomial
+$p(X)$, you can reconstruct the polynomial using lagrange interpolation:
+
+$$p(X) = \lagrange(\vec{p^{(e)}})$$
+
+With a worst-case runtime of $\Oc(n^2)$. However, if the evaluation points
+are chosen to be the $n$-th roots of unity, i.e. the set:
+$$\{ \o^1, \o^2, \dots, \o^n \}$$
+where $\o$ is a primitive $n$-th root of unity, then interpolation can be
+reduced to applying a discrete Fourier transform. We can then choose $n \geq
+d+1$, and evaluate at all $n$ points of the domain. Setting $n$ to be the next
+power of 2 above $d+1$ allows us to use the very very efficient radix-2 FFT:
+
+$$
+\begin{aligned}
+  \vec{p^{(e)}} &:= [ p^{(e)}_1, \dots, p^{(e)}_{n} ] \\
+  p(X)          &= \ifft(\vec{p^{(e)}}) \\
+  \vec{p^{(e)}} &= \fft(p(X))
+\end{aligned}
+$$
+
+Where both the evaluation domain and polynomial can be computed efficiently
+using the Fast Fourier Transform in time $\Oc(n \log n)$. This approach can
+be used whenever the underlying field contains a primitive $n$-th root of
+unity and $n$ is invertible in the field, which is the case for many finite
+fields used in cryptography including the fields used in this project.
 
 ## Polynomial Commitment Schemes
 
@@ -672,14 +720,14 @@ and $\ASDecider(acc_i) = \top$.
 
 ## Cycles of Curves
 
-To simplify elliptic curve operations, a _cycle of curves_ can be used. A cycle
-of curves use the other's scalar field as their base field and vice-versa. This
-means that field operations can be handled natively in the scalar field
-circuit $\Fb_S$ and elliptic curve operations are handled natively in the
-basefield circuit $\Fb_B$. This improves performance drastically, since the
-SNARK never need to handle foreign field arithmetic. The cycle of curves used
-in this project is the Pasta curves, Pallas and Vesta, both of which have
-the curve equation $y^2 = x^3 + 5$:
+To simplify elliptic curve operations, a _cycle of curves_ can be used. A
+cycle of curves use the other's scalar field as their base field and
+vice-versa. This means that field operations can be handled natively in the
+scalar field circuit $\Fb_S$ and elliptic curve operations are handled natively
+in the basefield circuit $\Fb_B$. This improves performance drastically,
+since the SNARK never need to handle foreign field arithmetic. The cycle of
+curves used in this project is the Pasta curves[@pasta], Pallas and Vesta,
+both of which have the curve equation $y^2 = x^3 + 5$:
 
 - Pallas: $a \in \Fb_p, P \in \Eb_p(\Fb_q)$
 - Vesta:  $a \in \Fb_q, P \in \Eb_q(\Fb_p)$
