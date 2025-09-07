@@ -96,7 +96,7 @@ circuit, witness and public inputs:
   \State $\Tc \to \a, \zeta$
   \State Define $f_{CG}(X)$ to be all the constraints listed in the custom constraint section, using $[1, \zeta, \zeta^2, \dots]$ as the challenges required for the custom constraints. Define $f(X), t(X)$:
     \Statex \algind $f_{GC}(X) := w_1(X) q_1(X) + w_2(X) w_2(X) + w_3(X) q_3(X) + w_1(X) w_2(X) q_4(X) + q_5(X) + x(X) + f_{CG}(X)$
-    \Statex \algind $f_{CC_1}(X) := L_1(X) \cdot z(X) - 1$
+    \Statex \algind $f_{CC_1}(X) := l_1(X) \cdot z(X) - 1$
     \Statex \algind $f_{CC_2}(X) := z(X) \cdot f'(X) - z(X \cdot \o) \cdot g'(X)$
     \Statex \algind $f(X) := f_{GC}(X) + \a f_{CC_1}(X) + \a^2 f_{CC_2}(X)$
     \Statex \algind $t(X) := f(X) / z_H(X)$
@@ -169,9 +169,9 @@ runtime of the prover is $\Oc(n \lg(n))$.
   \State $\Tc \to \xi$
   \State Compute:
     \Statex \algind $\xi^n$ using iterative squaring, since $n$ is a power of 2 ($\lg(n)$ multiplications).
-    \Statex \algind $L_1(\xi) = \frac{\o \cdot (\xi^n - 1)}{n \cdot (\xi - \o)}$
+    \Statex \algind $l_1(\xi) = \frac{\o \cdot (\xi^n - 1)}{n \cdot (\xi - \o)}$
     \Statex \algind $z_H(\xi) = \xi^n - 1$
-    \Statex \algind $x(\xi) = \sum_{i=1}^{\ell_1 + 2 + \ell_2} L_i(\xi) \cdot (-x_i) \quad \text{where} \quad L_i(\xi) = \frac{\o^i \cdot (\xi^n - 1)}{n \cdot (\xi - \o^i)}$
+    \Statex \algind $x(\xi) = \sum_{i=1}^{\ell_1 + 2 + \ell_2} l_i(\xi) \cdot (-x_i) \quad \text{where} \quad l_i(\xi) = \frac{\o^i \cdot (\xi^n - 1)}{n \cdot (\xi - \o^i)}$
   \State Define $f_{CG}(\xi)$ to be all the constraints listed in the custom constraint
   section, using $[1, \zeta, \zeta^2, \dots]$ as the challenges required for the
   custom constraints, and the evaluations ($\vec{q^{(v)}}, \vec{r^{(v)}},
@@ -179,7 +179,7 @@ runtime of the prover is $\Oc(n \lg(n))$.
     \Statex \algind $f'(\xi) = \prod_{i = 1}^4 w^{(v)}_i + \b \cdot \id^{(v)}_i + \g$
     \Statex \algind $g'(\xi) = \prod_{i = 1}^4 w^{(v)}_i + \b \cdot \s^{(v)}_i + \g$
     \Statex \algind $f_{GC}(\xi) = w^{(v)}_1 q^{(v)}_1 + w^{(v)}_2 q^{(v)}_2 + w^{(v)}_3 q^{(v)}_3 + w^{(v)}_1 w^{(v)}_2 q^{(v)}_4 + q^{(v)}_5 + x(\xi) + f_{CG}(\xi)$
-    \Statex \algind $f_{CC_1}(\xi) = L_1(\xi) \cdot (z^{(v)} - 1)$
+    \Statex \algind $f_{CC_1}(\xi) = l_1(\xi) \cdot (z^{(v)} - 1)$
     \Statex \algind $f_{CC_2}(\xi) = z^{(v)} \cdot f'(\xi) - z_{\o}^{(v)} \cdot g'(\xi)$
     \Statex \algind $f(\xi) = f_{GC}(\xi) + \a \cdot f_{CC_1}(\xi) + \a^2 \cdot f_{CC_2}(\xi)$
     \Statex \algind $t(\xi) = \sum_{i=1}^{16} (\xi^n)^{i-1} \cdot t^{(v)}_i$

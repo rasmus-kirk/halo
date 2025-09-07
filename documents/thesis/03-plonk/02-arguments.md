@@ -263,7 +263,7 @@ While also proving that $z(\o^1) = 1$. This leads to the following polynomials:
 
 $$
 \begin{aligned}
-  f_{CC_1}(X) &= L_1(X)(Z(X) - 1) \\
+  f_{CC_1}(X) &= l_1(X)(z(X) - 1) \\
   f_{CC_2}(X) &= z(X) f'(X) - z(\o X) g'(X) \\
 \end{aligned}
 $$
@@ -286,3 +286,15 @@ $$
 
 And since, by the Vanishing Argument, $f_{CC_1}(X)$ and $f_{CC_2}(X)$ holds
 for all $\o \in H$, it also holds for $\o^n$.
+
+$$
+\renewcommand{\arraystretch}{1.75}
+\begin{array}{>{\displaystyle}l >{\displaystyle}c >{\displaystyle}l}
+\textbf{Prover}(f, g \in \Fb_{\leq d}[X])                        &                 & \textbf{Verifier}                                             \\
+C_f = \PCCommit(f(X), d, \bot)                                   &                 &                                                               \\
+C_g = \PCCommit(g(X), d, \bot)                                   & \rarr{C_f, C_g} & \a, \b \in_R \Fb                                              \\
+z(\o^1) = 1                                                      &                 &                                                               \\
+z(\o^i) = \prod_{1 \leq j < i} \frac{f(\o^j) + \g}{g(\o^j) + \g} & \lrarr{}        & \forall h \in H : f_{CC_1}(h) \meq l_1(h) (z(h) - 1)          \\ 
+                                                                 & \lrarr{}        & \forall h \in H : f_{CC_2}(h) \meq z(h) f'(h) - z(\o h) g'(h) \\
+\end{array}
+$$
