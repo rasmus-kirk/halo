@@ -105,25 +105,22 @@ Vanishing Argument**, creating a **Vanishing Argument Protocol**:
 $$
 \renewcommand{\arraystretch}{1.75}
 \begin{array}{>{\displaystyle}l >{\displaystyle}c >{\displaystyle}l}
-\textbf{Prover}(\vec{f} \in \Fb_{\leq d}^k[X]) &                                           & \textbf{Verifier}                                                           \\
-C_{f_i} = \PCCommit(f_i(X), d, \bot)           & \rarr{\vec{C_f}}                          & \a \in_R \Fb                                                                \\
-z_S(X) = \prod_{s \in S}(X - s)                & \larr{\a}                                 &                                                                             \\
-t(X) = \frac{f(X)}{z_S}                        &                                           &                                                                             \\
-C_t = \PCCommit(t(X), d, \bot)                 & \rarr{C_t}                                & \xi \in_R \Fb                                                               \\
-v_{f_i} = f_i(\xi)                             & \larr{\xi}                                &                                                                             \\
-\pi_{f_i} = \PCOpen(f_i(X), C_f, d, \xi, \bot) &                                           &                                                                             \\
-v_t = t(\xi)                                   &                                           &                                                                             \\
-\pi_t = \PCOpen(t(X), C_f, d, \xi, \bot)       & \rarr{\vec{v_f}, \vec{\pi_f}, v_t, \pi_t} & \sum \a^i v_{f_i} = v_t \cdot z_S(\xi)                                      \\
-                                               &                                           & \forall i \in [k] : \PCCheck(C_{f_i}, d, \xi, v_{f_i}, \pi_{f_i}) \meq \top \\
-                                               &                                           & \PCCheck(C_t, d, \xi, v_t, \pi_t) \meq \top                                 \\
+\textbf{Prover}(\vec{f} \in \Fb_{\leq d}^k[X])     &                                           & \textbf{Verifier}                                                           \\
+C_{f_i} = \PCCommit(f_i(X), d, \bot)               & \rarr{\vec{C_f}}                          & \a \in_R \Fb                                                                \\
+z_S(X) = \prod_{s \in S}(X - s)                    & \larr{\a}                                 &                                                                             \\
+t(X) = \frac{\sum_{i=1}^{k-1} \a^i f_i(X)}{z_S}    &                                           &                                                                             \\
+C_t = \PCCommit(t(X), d, \bot)                     & \rarr{C_t}                                & \xi \in_R \Fb                                                               \\
+v_{f_i} = f_i(\xi)                                 & \larr{\xi}                                &                                                                             \\
+\pi_{f_i} = \PCOpen(f_i(X), C_{f_i}, d, \xi, \bot) &                                           &                                                                             \\
+v_t = t(\xi)                                       &                                           &                                                                             \\
+\pi_t = \PCOpen(t(X), C_f, d, \xi, \bot)           & \rarr{\vec{v_f}, \vec{\pi_f}, v_t, \pi_t} & \sum_{i=0}^{k-1} \a^i v_{f_i} = v_t \cdot z_S(\xi)                          \\
+                                                   &                                           & \forall i \in [k] : \PCCheck(C_{f_i}, d, \xi, v_{f_i}, \pi_{f_i}) \meq \top \\
+                                                   &                                           & \PCCheck(C_t, d, \xi, v_t, \pi_t) \meq \top                                 \\
 \end{array}
 $$
 
-Note that for the Plonk protocol specifically, $S = H = \{ 1, \o, \o^2,
-\dots, \o^{n-1} \}$ for the reason that the vanishing polynomial $z_S(X)$
-then becomes $z_S(X) = X^n - 1$ because $\o$ is a root of unity of order
-$n$. This is much more efficient to compute. The $\a$'s are used since we
-need a linearly independent combination of $\vec{f}$.
+You can compress the $k+1$ evaluations proofs into a single evaluation proof
+using the **Batched Evaluations Proofs Protocol**.
 
 ### Batched Evaluation Proofs
 
@@ -137,11 +134,11 @@ $$
 \begin{array}{>{\displaystyle}l >{\displaystyle}c >{\displaystyle}l}
 \textbf{Prover}(\vec{f} \in \Fb_{\leq d}^k[X]) &                         & \textbf{Verifier}                           \\
 C_{f_i} = \PCCommit(f_i(X), d, \bot)           & \rarr{\vec{C_f}}        & \a, \xi \in_R \Fb                           \\
-w(X) = \sum_{i = 0}^k \a^i f_i(X)              & \larr{\a, \xi}          &                                             \\
+w(X) = \sum_{i = 0}^{k-1} \a^i f_i(X)          & \larr{\a, \xi}          &                                             \\
 C_w(X) = \PCCommit(w(X), d, \bot)              &                         &                                             \\
 v_{f_i} = f_i(\xi)                             &                         &                                             \\
-\pi_w = \PCOpen(w(X), C_w, d, \xi, \bot)       & \rarr{\pi_w, \vec{v_f}} & C_w = \sum_{i = 0}^k \a^i C_{f_i}           \\
-                                               &                         & v_w = \sum_{i = 0}^k \a^i v_{f_i}           \\
+\pi_w = \PCOpen(w(X), C_w, d, \xi, \bot)       & \rarr{\pi_w, \vec{v_f}} & C_w = \sum_{i = 0}^{k-1} \a^i C_{f_i}       \\
+                                               &                         & v_w = \sum_{i = 0}^{k-1} \a^i v_{f_i}       \\
                                                &                         & \PCCheck(C_w, d, \xi, v_w, \pi_w) \meq \top \\
 \end{array}
 $$
@@ -150,8 +147,8 @@ $$
 
 Since:
 
-- $C_w = \sum_{i = 0}^k \a^i C_{f_i} = \PCCommit(f(X), d, \bot)$ (Assuming a homomorphic commitment scheme)
-- $v_w = \sum_{i = 0}^k \a^i v_{f_i} = w(\xi)$ (By definition of $w(X)$)
+- $C_w = \sum_{i = 0}^{k-1} \a^i C_{f_i} = \PCCommit(f(X), d, \bot)$ (Assuming a homomorphic commitment scheme)
+- $v_w = \sum_{i = 0}^{k-1} \a^i v_{f_i} = w(\xi)$ (By definition of $w(X)$)
 
 The correctness of the protocol is derived from the correctness of the underlying PCS.
 
@@ -161,14 +158,14 @@ The correctness of the protocol is derived from the correctness of the underlyin
 
 Recall that:
 
-$$\sum \a^i f_i(\xi) = \sum \a^i v_i$$
+$$\sum_{i=0}^{k-1} \a^i f_i(\xi) = \sum_{i=0}^{k-1} \a^i v_i$$
 
 This can be recontextualized as a polynomial:
 
-$$p(\a) = \sum \a^i (f_i(\xi) - v_i) = 0$$
+$$p(\a) = \sum_{i=0}^{k-1} \a^i (f_i(\xi) - v_i) = 0$$
 
 Then from Schwartz-Zippel, we acheive soundness, since the probability that
-this polynomial evaluates to zero given that it's not the zero-polynomial
+this polynomial evaluates to zero given that it's not a zero-polynomial
 is $\frac{k}{|\Fb|}$.
 
 ### Grand Product Argument
