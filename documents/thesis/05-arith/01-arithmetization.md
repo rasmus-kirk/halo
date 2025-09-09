@@ -120,7 +120,7 @@ V& \PlonkVerifier(\pi) \circ \Arithmetize_{\text{pub}}(f, \vec{x}) &\stackrel{?}
 $$
 
 \begin{definition}[Arithmetization Pipeline]
-The arithmetization pipeline is a sequence of computations that transforms a program $f$ and its witness $\vec{w}$ or public input $\vec{x}$ into a circuit $(R,X,W)$ where $R$ is the circuit structure, $X$ are public values and $W$ are witness computed values that the core plonk protocol operates over, i.e. grand product arguments and vanishing arguments.
+The arithmetization pipeline is a sequence of computations that transforms a program $f$ and its witness $\vec{w}$ or public input $\vec{x}$ into a circuit $(R,X,W)$ where $R$ is the circuit structure, $X$ are public values and $W$ are witness computed values that the core plonk protocol operates over via the grand product argument and vanishing argument.
 \end{definition}
 
 $$

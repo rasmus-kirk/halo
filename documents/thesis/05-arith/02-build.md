@@ -60,6 +60,7 @@ $$
   - $\gpair{g}{\abst{y}} = (g, \abst{y})$ denotes that $\abst{y}$ is one of the output wires of gadget $g$.
   - $\abst{g}()$ denotes that the gadget has no input wires.
   - $\gpair{g}{\bot} = (g,\bot)$ denotes that the gadget has no output wires.
+  - underline may be omitted if the context is clear.
 
 \begin{notation}[Guarded value]
 It yields the value only if a predicate on it holds.
@@ -217,7 +218,7 @@ $$
   - $\build{f = \vec{y}}{}{}$ where $\vec{y}$ denotes the expected output values of the program $f$.
     - $\build{f=y}{}{s} \land \build{g(y)}{s}{} = \build{g(f(\ldots))}{}{}$ when used in another predicate, they bound the same wire.
   - $\build{f=y^*}{s}{s' \cat \abst{y}} = \build{f=y}{s}{s'}$ the final output wires can be declared by annotating values with $*$.
-  - $\build{\eval(\abst{g}, \vec{x}) =\vec{y}}{s}{s'} = \left(\text{get}(s,\abst{g}(\avec{x})) \stackrel{?}{=} (s', \avec{y})\right)$ the program is a canonical program of a properad
+  - $\build{\eval(\abst{g}, \vec{x}) =\vec{y}}{s}{s'} = \left(\aget(s,\abst{g}(\avec{x})) \stackrel{?}{=} (s', \avec{y})\right)$ the program is a canonical program of a properad
     - these are the base cases, i.e. a program is arithmetizable if it can be decomposed into canonical programs of the properads available to the user.
 - *motivation*: extending an abstract circuit when expressed as a predicate, can be used to express proofs about abstract circuit construction concisely.
 
@@ -252,10 +253,10 @@ $$
 \begin{example}{Build of $\build{x^2 + y = z^*}{}{}$}
 \end{example}
 
-Let $f: \Fb_q^2 \to \Fb_q^1$, thus $\pin = \Fb_q^2$ and $\pout = \Fb_q$ where $f(x,y) = x^2 + y$, then:
+Let $f: \Fb_q^2 \to \Fb_q^1$, thus $W[\pwit] = \Fb_q^2$ and $W[\pout] = \Fb_q$ where $f(x,y) = x^2 + y$, then:
 
 \begin{longtable}{@{}l@{}}
-Let $(\abst{f}, \avec{Y}) = \text{build}(f)= \maybe{\left(\abst{f}(s''), (\abst{z})\right)}{\build{x^2 + y = z^*}{s}{s''}}
+Let $(\abst{f}, \avec{Y}) = \text{build}(f)= \maybe{\left(\abst{f}(s''), \avec{Y}(s'')\right)}{\build{x^2 + y = z^*}{s}{s''}}
 $ \\
 where  
 $\build{x^2 + y = z^*}{s}{s''}
@@ -268,31 +269,29 @@ $ \\
 $= \build{x \times x = t}{s}{s'} \land \build{t + y = z^*}{s'}{s''}
 $ \\
 $= \left(\begin{array}{rll}
-  \text{get}(u(s), \abst{f}(s), (), \ggt{Mul}{x,x}) &= (u(s'), \abst{f}(s'), (), (\abst{t})) &\land \\
-  \text{get}(u(s'), \abst{f}(s'), (), \ggt{Add}{t,y}) &= (u(s''), \abst{f}(s''), (\abst{z}), (\abst{z}))
+  \aget(s, \ggt{Mul}{x,x}) &= (s', \abst{t}) &\land \\
+  \aget(s', \ggt{Add}{t,y}) &= (s'', \abst{z})
 \end{array}\right)
 $ \\
 $= \left(\begin{array}{rll}
-  (u(s)+1, \abst{f}_s \cup \set{\begin{array}{rl}\ggt{Mul}{x,x} & \wire{u(s)}{q}\end{array}}, (), (\wire{u(s)}{q})) &= (u(s'), \abst{f}(s'), (), (\abst{t})) & \land \\
-  \text{get}(u(s'), \abst{f}(s'), (), \ggt{Add}{t,y}) &= (u(s''), \abst{f}(s''), (\abst{z}), (\abst{z}))
+  (s \cat \astate{1}{\set{\begin{array}{rl}\ggt{Mul}{x,x} & \wire{u(s)}{q}\end{array}}}{()}, \wire{u(s)}{q}) &= (s', \abst{t}) & \land \\
+  \aget(s', \ggt{Add}{t,y}) &= (s'', \abst{z})
 \end{array}\right)
 $ \\
-$= \left(\text{get}(u(s)+1, \abst{f}(s) \cup \set{\begin{array}{rl}\ggt{Mul}{x,x} & \wire{u(s)}{q}\end{array}}, (), \ggtw{Add}{\wire{u(s)}{q},\abst{y}}) = (u(s''), \abst{f}(s''), (\abst{z}), (\abst{z}))\right)
+$= \left(\aget(s \cat \astate{1}{\set{\begin{array}{rl}\ggt{Mul}{x,x} & \wire{u(s)}{q}\end{array}}}{()}, \ggtw{Add}{\wire{u(s)}{q},\abst{y}}) = (s'', \abst{z})\right)
 $ \\
-$= \left(\left(u(s)+2, \abst{f}(s) \cup \set{\begin{array}{rl}
+$= \left(\left(s \cat \astate{2}{\set{\begin{array}{rl}
     \ggt{Mul}{x,x} & \wire{u(s)}{q} \\
     \ggtw{Add}{\wire{u(s)}{q},\abst{y}} & \wire{u(s)+1}{q}
-  \end{array}}, (\wire{u(s)+1}{q}), (\wire{u(s)+1}{q})\right) = (u(s''), \abst{f}(s''), (\abst{z}), (\abst{z}))\right)
+  \end{array}}}{\abst{z}}, \wire{u(s)+1}{q}\right) = (s'', \abst{z})\right)
 $ \\
-$\therefore (\abst{f}, \avec{Y}) = (\abst{f}(s''), (\abst{z})) = \left(\abst{f}(s) \cup \set{\begin{array}{rl}
+$\therefore (\abst{f}, \avec{Y}) = (\abst{f}(s''), \avec{Y}(s'')) = \left(\abst{f}(s) \cup \set{\begin{array}{rl}
     \ggt{Mul}{x,x} & \wire{u(s)}{q} \\
     \ggtw{Add}{\wire{u(s)}{q},\abst{y}} & \wire{u(s)+1}{q}
-  \end{array}}, (\wire{u(s)+1}{q})\right)
+  \end{array}}, \wire{u(s)+1}{q}\right)
 $ \\
 where
-$\astate{u(s)}{\abst{f}(s)}{()}
-$ \\
-$= \text{init}(\pin)
+$s=\astate{u(s)}{\abst{f}(s)}{()} = \text{init}(\pwit)
 $ \\ 
 $= \opcirc\limits_{i \in (1..3)}\aput(\Input^{{t_{in}}_{i}}_{i-1}) (\astate{0}{\emptyset}{()})
 $ \\
@@ -310,7 +309,7 @@ $\therefore \ (\abst{f}, \avec{Y}) = \left(\set{\begin{array}{rl}
   \Input^q_1 & \wire{1}{q} \\
   \ggtw{Mul}{\wire{0}{q},\wire{0}{q}} & \wire{2}{q} \\
   \ggtw{Add}{\wire{2}{q},\wire{1}{q}} & \wire{3}{q}
-\end{array}}, (\wire{3}{q})\right)
+\end{array}}, \wire{3}{q}\right)
 $
 \end{longtable}
 
