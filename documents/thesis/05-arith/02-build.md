@@ -214,7 +214,7 @@ $$
 - *notation*:
   - $\build{f}{}{}$ states and output values can be omitted if they are not relevant to the discussion.
   - $\build{f}{s_1}{s_{k+1}} = \bigwedge\limits_{i \in (1..k+1)} \build{f_i}{s_i}{s_{i+1}}$ abstract circuit composition is build predicate conjunction.
-  - $\build{f = \vec{y}}{}{}$ denotes the expected output values of the program, 
+  - $\build{f = \vec{y}}{}{}$ where $\vec{y}$ denotes the expected output values of the program $f$.
     - $\build{f=y}{}{s} \land \build{g(y)}{s}{} = \build{g(f(\ldots))}{}{}$ when used in another predicate, they bound the same wire.
   - $\build{f=y^*}{s}{s' \cat \abst{y}} = \build{f=y}{s}{s'}$ the final output wires can be declared by annotating values with $*$.
   - $\build{\eval(\abst{g}, \vec{x}) =\vec{y}}{s}{s'} = \left(\text{get}(s,\abst{g}(\avec{x})) \stackrel{?}{=} (s', \avec{y})\right)$ the program is a canonical program of a properad
@@ -228,11 +228,11 @@ $$
 \text{init} &: \Color^k \to \BuildState \\
 \text{init}(\vec{t}) &= \left(
   \opcirc\limits_{i \in [k+1]} \aput(\Input^{t_{i}}_{i-1})
-\right) \astate{0}{\emptyset}{()}
+\right) (\astate{0}{\emptyset}{()})
 \end{array}
 $$
 
-- *notation*: $\Input^t_i$ is a properad with no inputs, and its gadget simply outputs the witness value $w_{i+1}$
+- *notation*: $\Input^t_i$ is a properad with no inputs. Its gadget output is the wire for witness value $w_{i+1}$
   - $n(\Input^t_i) = 0$, $m(\Input^t_i) = 1$, $\pin(\Input^t_i) = ()$, $\pout(\Input^t_i)={t_{wit}}_{i+1}$, $\eval(\Input^t_i) = w_{i+1}$
 
 \begin{definition}[Build]
@@ -277,14 +277,14 @@ $= \left(\begin{array}{rll}
   \text{get}(u(s'), \abst{f}(s'), (), \ggt{Add}{t,y}) &= (u(s''), \abst{f}(s''), (\abst{z}), (\abst{z}))
 \end{array}\right)
 $ \\
-$= \text{get}(u(s)+1, \abst{f}(s) \cup \set{\begin{array}{rl}\ggt{Mul}{x,x} & \wire{u(s)}{q}\end{array}}, (), \ggtw{Add}{\wire{u(s)}{q},\abst{y}}) = (u(s''), \abst{f}(s''), (\abst{z}), (\abst{z}))
+$= \left(\text{get}(u(s)+1, \abst{f}(s) \cup \set{\begin{array}{rl}\ggt{Mul}{x,x} & \wire{u(s)}{q}\end{array}}, (), \ggtw{Add}{\wire{u(s)}{q},\abst{y}}) = (u(s''), \abst{f}(s''), (\abst{z}), (\abst{z}))\right)
 $ \\
-$= \left(u(s)+2, \abst{f}(s) \cup \set{\begin{array}{rl}
+$= \left(\left(u(s)+2, \abst{f}(s) \cup \set{\begin{array}{rl}
     \ggt{Mul}{x,x} & \wire{u(s)}{q} \\
     \ggtw{Add}{\wire{u(s)}{q},\abst{y}} & \wire{u(s)+1}{q}
-  \end{array}}, (\wire{u(s)+1}{q}), (\wire{u(s)+1}{q})\right) = (u(s''), \abst{f}(s''), (\abst{z}), (\abst{z}))
+  \end{array}}, (\wire{u(s)+1}{q}), (\wire{u(s)+1}{q})\right) = (u(s''), \abst{f}(s''), (\abst{z}), (\abst{z}))\right)
 $ \\
-$\therefore (\abst{f}, \avec{Y}) = \left(\abst{f}(s) \cup \set{\begin{array}{rl}
+$\therefore (\abst{f}, \avec{Y}) = (\abst{f}(s''), (\abst{z})) = \left(\abst{f}(s) \cup \set{\begin{array}{rl}
     \ggt{Mul}{x,x} & \wire{u(s)}{q} \\
     \ggtw{Add}{\wire{u(s)}{q},\abst{y}} & \wire{u(s)+1}{q}
   \end{array}}, (\wire{u(s)+1}{q})\right)
@@ -294,11 +294,11 @@ $\astate{u(s)}{\abst{f}(s)}{()}
 $ \\
 $= \text{init}(\pin)
 $ \\ 
-$= \opcirc\limits_{i \in (1..3)}\aput(\Input^{{t_{in}}_{i}}_{i-1}) \astate{0}{\emptyset}{()}
+$= \opcirc\limits_{i \in (1..3)}\aput(\Input^{{t_{in}}_{i}}_{i-1}) (\astate{0}{\emptyset}{()})
 $ \\
-$= \text{put}(\Input^q_1) \circ \text{put}(\Input^q_0)\astate{0}{\emptyset}{()}
+$= \text{put}(\Input^q_1) \circ \text{put}(\Input^q_0)(\astate{0}{\emptyset}{()})
 $ \\
-$= \text{put}(\Input^q_1)\astate{1}{\set{\begin{array}{rl} \Input^q_0 & \wire{0}{q} \end{array}}}{()}
+$= \text{put}(\Input^q_1, \astate{1}{\set{\begin{array}{rl} \Input^q_0 & \wire{0}{q} \end{array}}}{()})
 $ \\
 $= \astate{2}{\set{\begin{array}{rl}
   \Input^q_0 & \wire{0}{q} \\
