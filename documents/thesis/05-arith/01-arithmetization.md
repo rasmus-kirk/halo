@@ -76,20 +76,21 @@ f[\vec{x}] &= (f(x_1), \ldots, f(x_k))
 $$
 
 \begin{definition}[Program]
-A program is a function from a vector of values of some profile.
+A program is a function from a vector of values to another vector of some profiles.
 \end{definition}
 \newcommand{\pin}{\vec{t}_{in}}
 \newcommand{\pout}{\vec{t}_{out}}
 \newcommand{\Program}{\text{Program}}
 $$
-\Program = W[\pin] \to W[\pout]
+\Program(\pin, \pout) = W[\pin] \to W[\pout]
 $$
 
 \begin{definition}[Witness]
 A vector of values corresponding to the input of a program
 \end{definition}
+\newcommand{\pwit}{\vec{t}_{wit}}
 $$
-\vec{w}: W[\pin]
+\vec{w}: W[\pwit]
 $$
 
 \begin{definition}[Public Input]
@@ -113,13 +114,13 @@ $$
 $$
 \begin{array}{rll}
 \mathrm{communication} & \mathrm{computation}\\
-P \rightsquigarrow V& \PProver \circ \Arithmetize(f, \vec{w}) &= \pi \\
-V& \PVerifier(\pi) \circ \Arithmetize_{\text{pub}}(f, \vec{x}) &\stackrel{?}{=} \top
+P \rightsquigarrow V& \PlonkProver \circ \Arithmetize(f, \vec{w}) &= \pi \\
+V& \PlonkVerifier(\pi) \circ \Arithmetize_{\text{pub}}(f, \vec{x}) &\stackrel{?}{=} \top
 \end{array}
 $$
 
 \begin{definition}[Arithmetization Pipeline]
-The arithmetization pipeline is a sequence of computations that transforms a program $f$ and its witness $\vec{w}$ or public input $\vec{x}$ into a circuit $(R,X,W)$ where $R$ is the circuit structure, $X$ are public values and $W$ are witness computed values that the core plonk protocol operates over i.e. to perform grand product arguments and vanishing arguments.
+The arithmetization pipeline is a sequence of computations that transforms a program $f$ and its witness $\vec{w}$ or public input $\vec{x}$ into a circuit $(R,X,W)$ where $R$ is the circuit structure, $X$ are public values and $W$ are witness computed values that the core plonk protocol operates over, i.e. grand product arguments and vanishing arguments.
 \end{definition}
 
 $$
@@ -138,13 +139,13 @@ $$
 $$
 
 - *structural integrity*: $R$ and $X$ are guaranteed to be the same for both pipelines given the same $f$ if $(\vec{x}, \vec{w}) \in R_f$.
-- *motivation/features*:
-  - multiple types of values with wire type checking. (for cycle of curves)
-  - single source of truth. (avoids a class of arithmetizer implementation bugs)
-  - user extensible single source of truth; e.g. defining new gadgets, without modifying the arithmetization pipeline. (for user rapid prototyping)
-  - ability to cleanly express gadgets that depend on transcript values. (for lookup arguments)
-  - ability to have gates refer to the next row, invariant over order of gadget declaration. (reduce number of gates)
-  - ability for users to declare algebraic optimizations e.g. double negation elimination, double hashing elimination, associativity, user defined operation algebraic properties, etc. (reduce number of gates)
-  - optimization strategies are invariant over order of gadget declaration, clean composition of sub circuits. (avoids a class of user level bugs)
+- *motivation*:
+  - Type safety across multiple field types (for cycle of curves)
+  - Single source of truth (prevents arithmetizer implementation bugs)
+  - User-extensible architecture (enables rapid prototyping of new gadgets)
+  - Support for transcript dependent gadgets (enables lookup arguments)
+  - Next row referencing capability (reduces gate count; poseidon gadget)
+  - Declarative algebraic optimizations via gadget equivalence (reduces gate count)
+  - Order-invariant optimization (prevents circuit composition bugs)
 
 We now proceed to define $\text{interpolate}$, $\text{trace}$, $\text{trace}_{\text{pub}}$ and $\text{build}$.

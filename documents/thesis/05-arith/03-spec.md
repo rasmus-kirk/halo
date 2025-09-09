@@ -1,6 +1,6 @@
 ## Abstractions
 
-Before defining trace, we need to define the rest of the abstractions. 
+We now define the rest of the abstractions building up to the specification of the single source of truth for arithmetization which is used in $\text{trace}$.
 
 ### Equations
 
