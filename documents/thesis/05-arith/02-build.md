@@ -82,8 +82,8 @@ a & \phi(a) \\
 \end{array}
 $$
 
-- *notation*: If $\phi$ is a tautology; always true, we can coercse $(\maybe{a}{\phi(a)}): A$ without the option type.
-- *motivation*: Besides guarding values, we can declare variables in $\phi$ as tautological quantified formula(s) that computes the guarded value; naively $\mathtt{let}\ \phi\ \mathtt{in}\ a$
+- *notation*: If $\phi$ is a tautology; always true, we can coerce $(\maybe{a}{\phi(a)}): A$ without the option type.
+- *motivation*: Besides guarding values, we can declare variables in $\phi$ as tautological quantified formula(s) that computes the guarded value; naively, a model of $\mathtt{let}\ \phi\ \mathtt{in}\ a$
 
 \begin{notation}[Singleton vector]
 A value can be coerced automatically to a vector of length 1 and vice versa.

@@ -55,7 +55,7 @@ $$
   - join; $- \sqcup_{-} -: \IndexMap(X,Y_1) \to F(Y_1(t,s) \to Y_2(t,s) \to Y_3(t,s)) \to \IndexMap(X,Y_2) \to \IndexMap(X,Y_3)$
     - $(A \sqcup_f B)^t_x(c) = f(t,c,A^t_x(c),B^t_x(c))$
     - $A \cat B = A \sqcup_{\cat} B$ where $A: \IndexMap(X, T^k), B: \IndexMap(X,T^{k'})$ 
-- *motivation*: a succint way to store and compose values that depend on color, column, and arbitrary argument type depending on the column, e.g. managing multiple wire types for plookup columns in trace table / concrete circuits and values for equations.
+- *motivation*: a succinct way to store and compose values that depend on color, column, and arbitrary argument type depending on the column, e.g. managing multiple wire types for plookup columns in trace table, and data structure for values for equations.
 
 \begin{definition}[Equation]
 An equation is a grammar that expresses a polynomial like structure over columns. 
