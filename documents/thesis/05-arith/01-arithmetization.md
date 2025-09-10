@@ -1,4 +1,4 @@
-# Plonk Arithmetization
+# IVC-friendly Plonk Arithmetization
 
 We define the following and then describe the plonk protocol to highlight the role of the arithmetization pipeline.
 
@@ -19,16 +19,6 @@ $$
 x: A
 $$
 
-\begin{definition}[Color]
-A color can be thought of as a type tag for wires.
-\end{definition}
-\newcommand{\Color}{\text{Color}}
-$$
-\Color: \Uni = \set{p,q}
-$$
-
-- *motivation*: we need to account for value types that wires can represent, i.e. $\Fb_p$ and $\Fb_q$.
-
 \begin{notation}[Function Type]
 A set of all functions from set $A$ to set $B$.
 \end{notation}
@@ -44,17 +34,18 @@ $$
 - *composition*: If the domain of the first operand aligns with the codomain of the second operand, the composition is a pipeline between the two
   - e.g. if $- \circ - : (B \to C) \to (A \to B) \to (A \to C)$ then $g \circ f(a) = g(f(a))$
 
-\begin{definition}[Wire Type]
-A map from the color to the set of values a "wire" of that color represents.
+\begin{definition}[Color]
+A color can be thought of as a type tag for wires.
 \end{definition}
-\newcommand{\WireType}{\text{WireType}}
+\newcommand{\Color}{\text{Color}}
 $$
-\begin{array}{rl}
-W&: \text{Color} \to \Uni \\
-W(p) &= \Fb_p \\
-W(q) &= \Fb_q
-\end{array}
+\Color: \Uni = \set{p,q}
 $$
+
+- *projections*: - $W: \Color \to \Uni$ wire value type
+  - $W(p) = \Fb_p$
+  - $W(q) = \Fb_q$
+- *motivation*: we need to account for value types that wires can represent, i.e. $\Fb_p$ and $\Fb_q$.
 
 \begin{definition}[Profile]
 A vector of colors.
@@ -120,7 +111,7 @@ V& \PlonkVerifier(\pi) \circ \Arithmetize_{\text{pub}}(f, \vec{x}) &\stackrel{?}
 $$
 
 \begin{definition}[Arithmetization Pipeline]
-The arithmetization pipeline is a sequence of computations that transforms a program $f$ and its witness $\vec{w}$ or public input $\vec{x}$ into a circuit $(R,X,W)$ where $R$ is the circuit structure, $X$ are public values and $W$ are witness computed values that the core plonk protocol operates over via the grand product argument and vanishing argument.
+The arithmetization pipeline is a sequence of computations that transforms a program $f$ and its witness $\vec{w}$ or public input $\vec{x}$ into a circuit $(R,X,W)$ where $R$ is the public circuit structure, $X$ are public computed values and $W$ are witness computed values that the core plonk protocol operates over via the grand product argument and vanishing argument.
 \end{definition}
 
 $$
@@ -139,13 +130,13 @@ $$
 $$
 
 - *structural integrity*: $R$ and $X$ are guaranteed to be the same for both pipelines given the same $f$ if $(\vec{x}, \vec{w}) \in R_f$.
-- *motivation*:
+- *features*:
   - Type safety across multiple field types (for cycle of curves)
   - Single source of truth (prevents arithmetizer implementation bugs)
   - User-extensible architecture (enables rapid prototyping of new gadgets)
   - Support for transcript dependent gadgets (enables lookup arguments)
-  - Next row referencing capability (reduces gate count; poseidon gadget)
+  - Next row referencing capability (reduces gate count; used by poseidon gadget)
   - Declarative algebraic optimizations via gadget equivalence (reduces gate count)
-  - Order-invariant optimization (prevents circuit composition bugs)
+  - Gadget declaration order invariant (prevents circuit composition bugs)
 
 We now proceed to define $\text{interpolate}$, $\text{trace}$, $\text{trace}_{\text{pub}}$ and $\text{build}$.

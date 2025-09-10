@@ -1,6 +1,6 @@
 ## Build
 
-The build function describes the construction of an "abstract circuit" from a program $f$. Naively it can be thought of as a directed acyclic graph where gadgets are vertices and wires are edges, modelling the structure of the circuit without its concrete values.
+The build function describes the construction of an abstract circuit from a program $f$. Naively it can be thought of as a directed acyclic graph where gadgets are vertices and wires are edges, modelling the structure of the circuit without its concrete values.
 
 \begin{definition}[UUID]
 The set of unique identifiers for wires.
@@ -39,7 +39,7 @@ $$
   - $\pout(\abst{g}): \Color^{m(\abst{g})}$ - the profile for the outputs.
   - $\eval(\abst{g}): \Program(\pin(\abst{g}), \pout(\abst{g}))$ - the canonical program of the properad.
   - there are more projections defined later.
-- *notation*: the hat $\abst{g}$ indicates that it is an abstract gadget.
+- *notation*: the hat $\abst{g}$ indicates that properads are an abstract gadget.
 - *motivation*: Properads serve as a single source of truth for contributions to the gate constraint polynomial and templates for sub-tables / gates to the concrete circuit. Moreover, using properads makes circuit construction an expression of an algebraic theory which allows us to reason about circuits algebraically[^properad], facilitating opportunities for optimizations via rewriting / caching of existing wires.
 
 [^properad]: https://ncatlab.org/nlab/show/gebra+theory
@@ -188,6 +188,7 @@ $$
 $$
 
 - *motivation*: to facilitate reuse of output wires of equivalent gadgets to reduce the number of gates in the concrete circuit.
+- *future work*: Equality saturation techniques; [@egglog], are a candidate for defining gadget equivalence.
 
 \begin{definition}[Get output wires]
 A function that retrieves the output wires of a gadget from the current state's abstract circuit. If the gadget is not in the abstract circuit, it extends the abstract circuit with new entries for the gadget and yields new output wires.
@@ -197,7 +198,7 @@ $$
 \aget &: \BuildState \to (g: \Ggt) \to \BuildState \times \Wire^{m \circ \ty(g)} \\
 \aget(s, g)
 &= \begin{cases}
-  (s, \out(\abst{f}(s),h)) & h \in \Ggt^{\abst{f}(s)}_g \\
+  (s, \out(\abst{f}(s),h)) & \exists h \in \Ggt^{\abst{f}(s)}_g \\
   (s \cat \astate{(m \circ \ty(g))}{\entries(u(s),g)}{()}, \new(u(s),g)) & \otherwise
 \end{cases}
 \end{array}
@@ -215,12 +216,46 @@ $$
 - *notation*:
   - $\build{f}{}{}$ states and output values can be omitted if they are not relevant to the discussion.
   - $\build{f}{s_1}{s_{k+1}} = \bigwedge\limits_{i \in (1..k+1)} \build{f_i}{s_i}{s_{i+1}}$ abstract circuit composition is build predicate conjunction.
-  - $\build{f = \vec{y}}{}{}$ where $\vec{y}$ denotes the expected output values of the program $f$.
+  - $\build{f = \vec{y}}{}{}$ denotes that $\vec{y}$ are the expected output values of the program $f$.
     - $\build{f=y}{}{s} \land \build{g(y)}{s}{} = \build{g(f(\ldots))}{}{}$ when used in another predicate, they bound the same wire.
   - $\build{f=y^*}{s}{s' \cat \abst{y}} = \build{f=y}{s}{s'}$ the final output wires can be declared by annotating values with $*$.
   - $\build{\eval(\abst{g}, \vec{x}) =\vec{y}}{s}{s'} = \left(\aget(s,\abst{g}(\avec{x})) \stackrel{?}{=} (s', \avec{y})\right)$ the program is a canonical program of a properad
     - these are the base cases, i.e. a program is arithmetizable if it can be decomposed into canonical programs of the properads available to the user.
 - *motivation*: extending an abstract circuit when expressed as a predicate, can be used to express proofs about abstract circuit construction concisely.
+
+\begin{definition}[Input Properad]
+$\Input^t_i$ is a properad whose gadget output is the wire for witness value $w_{i+1}$
+\end{definition}
+
+\begin{center}
+\begin{tabular}{ c c }
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\node[minimum width=2cm, minimum height=1.5cm] (tab) {
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+\multicolumn{5}{|c|}{$\Input^t_i$} \\
+\hline
+$n$ & $m$ & $\pin$ & $\pout$ & $\eval()$ \\
+\hline
+$0$ & $1$ & $()$ & $t$ & $w_{i+1}$ \\
+\hline
+\end{tabular}
+};
+\end{tikzpicture}
+&
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\gate{inp}{(0,0)}{}{$\text{Input}^t_{i}$}{1}
+\draw[->,thick] (inp-out-1) -- ($(inp-out-1)+(0,-0.4)$);
+\node[anchor=north east] at (inp-out-1) {$\abst{w_{i-1}}$};
+\end{tikzpicture}
+\end{tabular}
+\end{center}
+
+- *public variant*: only in the private case is $\eval$ well-defined, in the public case, eval will fail to yield a value. But we can still have a wire to represent it as shown in the abstract circuit diagram. This is because the type information of the witness is public even when the value is not.
 
 \begin{definition}[Initial Build State]
 \end{definition}
@@ -232,9 +267,6 @@ $$
 \right) (\astate{0}{\emptyset}{()})
 \end{array}
 $$
-
-- *notation*: $\Input^t_i$ is a properad with no inputs. Its gadget output is the wire for witness value $w_{i+1}$
-  - $n(\Input^t_i) = 0$, $m(\Input^t_i) = 1$, $\pin(\Input^t_i) = ()$, $\pout(\Input^t_i)={t_{wit}}_{i+1}$, $\eval(\Input^t_i) = w_{i+1}$
 
 \begin{definition}[Build]
 Build models the user constructing an abstract circuit from the program $f$.
@@ -285,7 +317,7 @@ $= \left(\left(s \cat \astate{2}{\set{\begin{array}{rl}
     \ggtw{Add}{\wire{u(s)}{q},\abst{y}} & \wire{u(s)+1}{q}
   \end{array}}}{\abst{z}}, \wire{u(s)+1}{q}\right) = (s'', \abst{z})\right)
 $ \\
-$\therefore (\abst{f}, \avec{Y}) = (\abst{f}(s''), \avec{Y}(s'')) = \left(\abst{f}(s) \cup \set{\begin{array}{rl}
+$\therefore (\abst{f}(s''), \avec{Y}(s'')) = \left(\abst{f}(s) \cup \set{\begin{array}{rl}
     \ggt{Mul}{x,x} & \wire{u(s)}{q} \\
     \ggtw{Add}{\wire{u(s)}{q},\abst{y}} & \wire{u(s)+1}{q}
   \end{array}}, \wire{u(s)+1}{q}\right)
