@@ -67,6 +67,7 @@ $$
   - $\abst{g}()$ denotes that the gadget has no input wires.
   - $\gpair{g}{\bot} = (g,\bot)$ denotes that the gadget has no output wires.
   - underline may be omitted if the context is clear.
+- *motivation*: allows the abstract circuit to be defined as a relation with entries in the form of $\gpair{g}{\abst{y}}$ or $\gpair{g}{\bot}$.
 
 \begin{notation}[Guarded value]
 It yields the value only if a predicate on it holds.
@@ -165,6 +166,8 @@ $$
 \end{array}
 $$
 
+- *motivation*: concise notation for zipping two vectors.
+
 \begin{definition}[New Wires]
 A function that yields new output wires for a gadget from the current state's UUID.
 \end{definition}
@@ -174,6 +177,8 @@ $$
 \new(u,g) &= \wire{-}{-}[(u..u+m \circ \ty(g)) \odot (\pout \circ \ty(g))]
 \end{array}
 $$
+
+- *motivation*: helper function for build.
 
 \begin{definition}[New Entries]
 Create new entries for an abstract circuit relation from the current state's UUID and a gadget.
@@ -188,6 +193,8 @@ $$
 \end{cases}
 \end{array}
 $$
+
+- *motivation*: helper function for build.
 
 \begin{definition}[Gadget Quotient / Cache]
 An equivalence relation over gadgets induces a quotient over gadgets. If the user declares a gadget that is equivalent to an existing gadget in the abstract circuit, the output wires of the existing gadget is reused. This is where algebraic optimizations are defined.
@@ -215,6 +222,8 @@ $$
 \end{array}
 $$
 
+- *motivation*: helper function for build.
+
 \begin{definition}[Build Predicate]
 A predicate that models the declaration of a gadget or sub-circuit being extended from the current state's abstract circuit.
 \end{definition}
@@ -227,11 +236,9 @@ $$
 - *notation*:
   - $\build{f}{}{}$ states and output values can be omitted if they are not relevant to the discussion.
   - $\build{f}{s_1}{s_{k+1}} = \bigwedge\limits_{i \in (1..k+1)} \build{f_i}{s_i}{s_{i+1}}$ abstract circuit composition is build predicate conjunction.
-  - $\build{f = \vec{y}}{}{}$ denotes that $\vec{y}$ are the expected output values of the program $f$.
-    - $\build{f=y}{}{s} \land \build{g(y)}{s}{} = \build{g(f(\ldots))}{}{}$ when used in another predicate, they bound the same wire.
+  - $\build{f = \vec{y}}{}{}$ denotes that $\vec{y}$ are the expected output values of the program $f$. When used in another predicate, they bound the same wire. e.g. $\build{f=y}{}{s} \land \build{g(y)}{s}{} = \build{g(f(\ldots))}{}{}$
   - $\build{f=y^*}{s}{s' \cat \abst{y}} = \build{f=y}{s}{s'}$ the final output wires can be declared by annotating values with $*$.
-  - $\build{\eval(\abst{g}, \vec{x}) =\vec{y}}{s}{s'} = \left(\aget(s,\abst{g}(\avec{x})) \stackrel{?}{=} (s', \avec{y})\right)$ the program is a canonical program of a properad
-    - these are the base cases, i.e. a program is arithmetizable if it can be decomposed into canonical programs of the properads available to the user.
+  - $\build{\eval(\abst{g}, \vec{x}) =\vec{y}}{s}{s'} = \left(\aget(s,\abst{g}(\avec{x})) \stackrel{?}{=} (s', \avec{y})\right)$ the program is a canonical program of a properad. These are the base cases, i.e. a program is arithmetizable if it can be decomposed into canonical programs of the properads available to the user.
 - *motivation*: extending an abstract circuit when expressed as a predicate, can be used to express proofs about abstract circuit construction concisely.
 
 \begin{definition}[Input Properad]
@@ -267,6 +274,7 @@ $0$ & $1$ & $()$ & $t$ & $w_{i+1}$ \\
 \end{center}
 
 - *public variant*: only in the private case is $\eval$ well-defined, in the public case, eval will fail to yield a value. But we can still have a wire to represent it as shown in the abstract circuit diagram. This is because the type information of the witness is public even when the value is not.
+- *motivation*: Treating the global input as a gadget allows us to unify all values of the circuit as a consequence of properads, whose benefits have been discussed earlier.
 
 \begin{definition}[Initial Build State]
 \end{definition}
@@ -278,6 +286,8 @@ $$
 \right) (\astate{0}{\emptyset}{()})
 \end{array}
 $$
+
+- *motivation*: helper function for build.
 
 \begin{definition}[Build]
 Build models the user constructing an abstract circuit from the program $f$.

@@ -66,6 +66,8 @@ f[\vec{x}] &= (f(x_1), \ldots, f(x_k))
 \end{array}
 $$
 
+- *motivation*: concise notation whilst notationally distinct from a function that takes a vector as an argument.
+
 \begin{definition}[Program]
 A program is a function from a vector of values to another vector of some profiles.
 \end{definition}
@@ -110,6 +112,8 @@ V& \PlonkVerifier(\pi) \circ \Arithmetize_{\text{pub}}(f, \vec{x}) &\stackrel{?}
 \end{array}
 $$
 
+- *motivation*: We have seen the full plonk protocol before. Here, however, the role of arithmetization is clear.
+
 \begin{definition}[Arithmetization Pipeline]
 The arithmetization pipeline is a sequence of computations that transforms a program $f$ and its witness $\vec{w}$ or public input $\vec{x}$ into a circuit $(R,X,W)$ where $R$ is the public circuit structure, $X$ are public computed values and $W$ are witness computed values that the core plonk protocol operates over via the grand product argument and vanishing argument.
 \end{definition}
@@ -130,7 +134,7 @@ $$
 $$
 
 - *structural integrity*: $R$ and $X$ are guaranteed to be the same for both pipelines given the same $f$ if $(\vec{x}, \vec{w}) \in R_f$.
-- *features*:
+- *motivation & features*:
   - Type safety across multiple field types (for cycle of curves)
   - Single source of truth (prevents arithmetizer implementation bugs)
   - User-extensible architecture (enables rapid prototyping of new gadgets)
