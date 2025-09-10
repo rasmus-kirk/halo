@@ -6,8 +6,10 @@ The build function describes the construction of an abstract circuit from a prog
 The set of unique identifiers for wires.
 \end{definition}
 $$
-UUID = \Nb
+UUID: \Uni = \Nb
 $$
+
+- *motivation*: the total ordering of the naturals is necessary to determine acyclicity.
 
 \begin{definition}[Wire]
 A wire is an abstract representation of a value in the circuit.
@@ -25,7 +27,7 @@ $$
 - *motivation*: rather than eagerly constructing a concrete circuit, with wires we can construct an abstract circuit which allows reasoning about the circuit structure algebraically with properads.
 
 \begin{definition}[Colored Properad]
-A colored properad (hereafter simply "properad") defines a class of gadgets.
+Hereafter simply "properad". Naively, defines a class of gadgets.
 \end{definition}
 \newcommand{\Prpd}{\text{PrPd}}
 $$
@@ -40,7 +42,11 @@ $$
   - $\eval(\abst{g}): \Program(\pin(\abst{g}), \pout(\abst{g}))$ - the canonical program of the properad.
   - there are more projections defined later.
 - *notation*: the hat $\abst{g}$ indicates that properads are an abstract gadget.
-- *motivation*: Properads serve as a single source of truth for contributions to the gate constraint polynomial and templates for sub-tables / gates to the concrete circuit. Moreover, using properads makes circuit construction an expression of an algebraic theory which allows us to reason about circuits algebraically[^properad], facilitating opportunities for optimizations via rewriting / caching of existing wires.
+- *motivation*: 
+  - Single source of truth for contributions to the gate constraint polynomial and trace table / concrete circuit for gadgets of its kind.
+  - Circuit construction is an expression of an algebraic theory (pasting schemes) which allows us to reason about circuits algebraically[^properad], facilitating the following:
+    - Optimizations via rewriting / caching of existing wires
+    - Formal reasoning / writing proofs about the circuit structure of a program.
 
 [^properad]: https://ncatlab.org/nlab/show/gebra+theory
 
@@ -75,12 +81,17 @@ a & \phi(a) \\
 \end{array}
 $$
 
+- *notation*: If $\phi$ is a tautology; always true, we can coercse $(\maybe{a}{\phi(a)}): A$ without the option type.
+- *motivation*: Besides guarding values, we can declare variables in $\phi$ as tautological quantified formula(s) that computes the guarded value; naively $\mathtt{let}\ \phi\ \mathtt{in}\ a$
+
 \begin{notation}[Singleton vector]
 A value can be coerced automatically to a vector of length 1 and vice versa.
 \end{notation}
 $$
 a:A = (a) : A^1
 $$
+
+- *motivation*: Reduce the use of parentheses; decluttering formal notation.
 
 \begin{definition}[Abstract Circuit]
 An abstract circuit is a one-to-many-or-none relation between gadgets and output wires or none, that is guaranteed acyclic.
@@ -94,9 +105,9 @@ $$
 $$
 
 - *projections*:
-  - the output wires of gadget $g$ in abstract circuit $\abst{f}$ where their ids are sorted ascending.
+  - the output wires of gadget $g$ in abstract circuit $\abst{f}$ sorted ascending by UUID.
     - $\out(\abst{f}, g): \Wire^{m \circ \ty(g)} = \maybe{\avec{y}}{\gpair{g}{\abst{y}_i}\in \abst{f} \land \pout \circ \ty(g) = \ty[\avec{y}] \land \id(\abst{y}_{i>1}) > \id(\abst{y}_{i-1})}$
-- *motivation*: an abstract circuit as a relation contains less information than a directed acyclic graph (target vertex not known) yet is minimally sufficient to compute the concrete circuit; a simpler structure for proofs.
+- *motivation*: an abstract circuit is simpler than a directed acyclic graph; target vertex not explicitly inferrable. Yet it is minimally sufficient to compute the concrete circuit; a simpler structure for proofs. In the theory of properads, an abstract circuit is isomorphic to a colored pasting scheme[@yau2015-ssec8.2].
 - *notation*: if $\forall i. \gpair{\abst{g}(\abst{x}_1, \ldots, \abst{x}_{n(\abst{g})})}{\abst{y}_i} \in \abst{f}$ and $\gpair{\text{Add}(\abst{a}, \abst{b})}{\abst{c}} \in \abst{f}$, then we can visualize the gadgets as an abstract circuit diagram as follows:
 
 \begin{center}
@@ -182,7 +193,7 @@ $$
 An equivalence relation over gadgets induces a quotient over gadgets. If the user declares a gadget that is equivalent to an existing gadget in the abstract circuit, the output wires of the existing gadget is reused. This is where algebraic optimizations are defined.
 \end{definition}
 $$
-\Ggt^{\abst{f}}_g = \set{h \in \Ggt \middle\vert
+\Ggt^{\abst{f}}_g : \Uni = \set{h \in \Ggt \middle\vert
   (h, \_) \in \abst{f} \land h \equiv g
 }
 $$

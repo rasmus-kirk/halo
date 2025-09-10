@@ -3,7 +3,7 @@
 We define the following and then describe the plonk protocol to highlight the role of the arithmetization pipeline.
 
 \begin{notation}[Universe]
-Naively a set of all sets.
+Naively, a set of all sets.
 \end{notation}
 \newcommand{\Uni}{\mathcal{U}}
 $$
@@ -13,7 +13,7 @@ $$
 - *motivation*: to quantify over sets without defining them.
 
 \begin{notation}[Type Annotation]
-Naively an assertion that an element belongs strictly to a set; $\exists! A. x \in A$.
+Naively, an assertion that an element belongs strictly to a set; $\exists! A. x \in A$.
 \end{notation}
 $$
 x: A
@@ -35,17 +35,17 @@ $$
   - e.g. if $- \circ - : (B \to C) \to (A \to B) \to (A \to C)$ then $g \circ f(a) = g(f(a))$
 
 \begin{definition}[Color]
-A color can be thought of as a type tag for wires.
+Naively, a color is the type tag for wires.
 \end{definition}
 \newcommand{\Color}{\text{Color}}
 $$
 \Color: \Uni = \set{p,q}
 $$
 
-- *projections*: - $W: \Color \to \Uni$ wire value type
+- *projections*: $W: \Color \to \Uni$ - wire value type
   - $W(p) = \Fb_p$
   - $W(q) = \Fb_q$
-- *motivation*: we need to account for value types that wires can represent, i.e. $\Fb_p$ and $\Fb_q$.
+- *motivation*: we need to account for value types that wires can represent, i.e. $\Fb_p$ and $\Fb_q$. In the theory of properads (which in our context will be defined later), this is defined as a color[@yau2015-ssec1.1.1].
 
 \begin{definition}[Profile]
 A vector of colors.
@@ -54,7 +54,7 @@ $$
 \vec{t}: \Color^k
 $$
 
-- *motivation*: a clean way to represent the types for a vector of multi color wires.
+- *motivation*: a clean way to represent the types for a vector of multi color wires[@yau2015-ssec1.1.2].
 
 \begin{notation}[Mapping over a vector]
 Applies a function to each element of a vector.
