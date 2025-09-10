@@ -1,113 +1,116 @@
 ## Abstractions
 
-Before defining trace, we need to define the rest of the abstractions. 
+We now define the rest of the abstractions building up to the specification of the single source of truth for arithmetization which is used in $\text{trace}$.
 
-### Equations
+\begin{definition}[Column]
+A set of unique identifiers for the columns of the trace table / concrete circuit.
+\end{definition}
+$$
+c: \Column
+$$
+\newcommand{\pcol}{\text{priv}}
+\newcommand{\cccol}{\text{copy}}
 
-The *gate constraint polynomial* $F_{GC}$ is defined as an *abstract equation*; a well formed formula of a grammar. *Columns* are mapped to either scalars $\Fb_p$, polynomials $\Fb_p[X]$, curve points[^curve-mul] $E[\Fb]$ or wire and state $(\abst{w},s)$. Evaluation is tree traversal with combinators for each equational operation. Every operation $g$ declares a $\term_g$ of $F_{GC}$ it contributes.
+- *notation*: $\Column = \set{A,B,C,Q_l,Q_r,Q_o,Q_m,Q_c,PI, \ldots}$
+- *projections*:
+  - $\pcol(c): \Bb$ - is $c$ a private / witness relevant column
+  - $\cccol(c): \Bb$ - is $c$ a copy constraint relevant column
+  - $X(t: \Color,c): \Uni$ - the argument type that the column values depend on
+- *motivation*: a modular and user extendable way to define the structure of the trace table / concrete circuit. 
 
-[^curve-mul]: Curve point multiplication does not exist. Thus some $\Eqn$ aren't defined for curve points.
+\begin{notation}[Unit Type]
+A unit type is a type with a single value, denoted as $()$.
+\end{notation}
+$$
+() : \Unit
+$$
 
-\begin{center}
-\begin{multicols}{3}
-\begin{math}
+- *motivation*: Used as an identity / unital / nullary element.
+
+\begin{definition}[Index Map]
+A data structure that maps columns to thunks; functions of arbitrary type.
+\end{definition}
+$$
+\begin{array}{rl}
+F(T) &= \Color \to \Column \to T \\
+\IndexMap(X: F(\Uni), Y: F(\Uni)) &= F(X(t,s) \to Y(t,s))
+\end{array}
+$$
+
+- *notation*:
+  - Naively, think of a thunk as $f: X \to Y$
+    - $X$ is the thunk argument type.
+      - $X = \Unit$ if the value is not a thunk.
+    - $Y$ is the value type.
+      - $Y= \Option(T)$ if the index map is partially populated.
+    - Thus, index maps hold such $f$ where $X,Y$ vary per color and column.
+  - If $t,s$ appears free in $F$, then it is bound to the indices
+    - e.g. $F(T(t,s)) = (t: \Color) \to (s: \Column) \to T(t,s)$.
+- *projections*: if $A: \IndexMap(X,Y)$ then 
+  - $A^t_x(c) = A(t,c,x)$ for thunks
+  - $A^t(c) = A(t,c,())$ for non thunks
+- *operations*:
+  - map; $-[-]: F(Y_1(t,s) \to Y_2(t,s)) \to \IndexMap(X, Y_1) \to \IndexMap(X, Y_2)$
+    - $f[A]^t_x(c) = f(t,c,A^t_x(c))$
+  - join; $- \sqcup_{-} -: \IndexMap(X,Y_1) \to F(Y_1(t,s) \to Y_2(t,s) \to Y_3(t,s)) \to \IndexMap(X,Y_2) \to \IndexMap(X,Y_3)$
+    - $(A \sqcup_f B)^t_x(c) = f(t,c,A^t_x(c),B^t_x(c))$
+    - $A \cat B = A \sqcup_{\cat} B$ where $A: \IndexMap(X, T^k), B: \IndexMap(X,T^{k'})$ 
+- *motivation*: a succinct way to store and compose values that depend on color, column, and arbitrary argument type depending on the column, e.g. managing multiple wire types for plookup columns in trace table, and data structure for values for equations.
+
+\begin{definition}[Equation]
+An equation is a grammar that expresses a polynomial like structure over columns. 
+\end{definition}
+$$
+\begin{array}{ccc}
+& E: Eqn  \\
 \begin{array}{rl}
 \langle Eqn \rangle &::= - Eqn1 \\
 & |\ \mathtt{Scalar}\ \times \ Eqn1 \\
 & |\ \mathtt{(}\ Eqn1 \mathtt{)} \\
 & |\ \mathtt{Column} \\
-\\
+\end{array} &
+\begin{array}{rl}
 \langle Eqn1 \rangle &::= Eqn2\ Eqn1' \\
-\\
-\langle Eqn2 \rangle &::= Eqn\ Eqn2'
-\end{array}
-\end{math}
-
-\columnbreak
-
-\begin{math}
-\begin{array}{rl}
-g &:\Ops \\
-\Column_g &: \pset{\Column}\\
-\term_{g} &: \Eqn
-\end{array}
-\end{math}
-
-\begin{math}
-\begin{array}{rl}
 \langle Eqn1'\rangle &::= +\ Eqn1 \\
 & |\ -\ Eqn1\ | \epsilon \\
-\\
-\langle Eqn2'\rangle &::= \times Eqn2\ |\ \epsilon \\
-\end{array}
-\end{math}
-
-\columnbreak
-
-\begin{math}
-\begin{array}{rl}
-\text{foldEqn}_i &: (-: T \to T) \\
-&\to (+: T \to T \to T) \\
-&\to (\times: T \to T \to T) \\
-&\to (\times_\Fb: \Fb \to T \to T) \\
-&\to \Eqn \to (\Column \pto T) \\
-&\to T \\
-e(C) &= \text{foldEqn}(\cdots,e,C)
-\end{array}
-\end{math}
-\end{multicols}
-\end{center}
-
-### Index Map
-
-An *index map*[^index-map-notation] maps wire types and columns to thunks of $Y$ of argument $X$; most have no arguments except for $\plookup$ columns. We also define map $-[-]$ and join $\sqcup$ with $F(T)$ as a function type from the indices to $T$.[^free-F] If $Y(t,s)$ is a vector, then you can think of an index map as a table.
-
-[^free-F]: If $t,s$ appears free in $F$, then it is bound to the indices. i.e. $F(T(t,s)) = (t: \WireType) \to (s: \Column) \to T(t,s)$.
-
-
-[^index-map-notation]: Let $C:\IndexMap(X,Y)$, then $C^q(A)$ is short for $C(q,A,())$ and $C^q_\zeta(f)$ is short for $C(q,f,\zeta :W(q))$ if $X(q,f) = W(q)$
-
-$$
-\begin{array}{ccc}
-F(T) = \WireType \to \Column \to T &
-X_{s: \Spec}: F(\Uni)
-\end{array}
-$$
-$$
-\begin{array}{c}
-\IndexMap = (X,Y: F(\Uni)) \to F(\Option(X(t,s) \to Y(t,s))) 
-\end{array}
-$$
-$$
-\begin{array}{cc}
-\begin{array}{rl}
--[-] &: F(Y_1(t,s) \to Y_2(t,s)) \\
-&\to \IndexMap(X,Y_1) \to \IndexMap(X,Y_2) \\
-f[A] &= \lambda t. f(t)[A(t)] \\
-f[a] &= \begin{cases}
-& \exists s. a(s) \neq \bot \\
-& a' = f[a[s \mapsto \bot]] \\
-a'[s \mapsto y] & y = \lambda x. f(s,a(s,x)) \\
-\bot & \otherwise
-\end{cases}
 \end{array} &
-\begin{array}{c}
 \begin{array}{rl}
-\sqcup &: \IndexMap_s(X,Y_1) \to F(Y_1(t,s) \to Y_2(t,s) \to Y_3(t,s)) \\
-& \to \IndexMap_s(X,Y_2) \to \IndexMap_s(X,Y_3) \\
-A \sqcup_f B &= \lambda t. A(t) \sqcup_{f(t)} B(t) \\
-a \sqcup_f b &= \begin{cases}
-a \sqcup^s_f b [s \mapsto a f_s b] & \exists s. a(s) \neq \bot \land b(s) \neq \bot \\
-a \sqcup^s_f b [s \mapsto a(s)] & \exists s. a(s) \neq \bot \\
-a \sqcup^s_f b [s \mapsto b(s)] & \exists s. b(s) \neq \bot \\
-\bot & \otherwise
-\end{cases}\\
-a \sqcup^s_f b &= a[s \mapsto \bot] \sqcup_f b[s \mapsto \bot] \\
-a f_s b &= \lambda x. f(s,a(s,x), b(s,x))
-\end{array}
+\langle Eqn2 \rangle &::= Eqn\ Eqn2' \\
+\langle Eqn2'\rangle &::= \times Eqn2\ |\ \epsilon
 \end{array}
 \end{array}
 $$
+
+- *projection*: $\text{foldEqn}: (-: T \to T) \to (+: T \to T \to T) \to (\times: T \to T \to T) \to (\times_\Fb: \Fb \to T \to T) \to \Eqn \to (\Column \to T) \to T$
+  - when every operation of the grammar is specified for type $T$, we can evaluate the equation.
+  - curve points do not have multiplication defined, thus equations involving them cant be evaluated.
+- *notation*: if $X:\IndexMap(\Unit, T)$ and $X^t: \Column \to T$ then $E(X^t): T = \text{foldEqn}(\ldots, E, X^t)$
+- *motivation*: Single source of truth for equational definitions that vary over operand types, e.g. scalars, polynomials, curve points, wires and state via build. Examples are gate constraint polynomials, grand product polynomials, quotient polynomial, plookup compression equation, etc.
+- *implementation note*: it is possible to use traits and type variables / generics in rust to define a function over $T$, without having an explicit syntax tree construction of the $Eqn$'s grammar.
+
+TODO
+
+- gadget projection: cell wire; AWire
+- gadget projection: cell
+- column projection: default cell
+
+\begin{definition}[Pre-Constraints]
+The class of gates that a gadget of a specific properad contributes.
+\end{definition}
+
+- *motivation*: Pre-Constraints act as a template for a sub-table for gadgets of the properad. This makes the instantiations of gates in the concrete circuit derivable from the properads; a single source of truth.
+
+
+TODO
+
+- example
+- relative wires
+- gadget assert for relative
+- op projects term: Eqn, columns: pow(column)
+- spec
+- DONE
+
+\newcommand{\WireType}{\text{WireType}}
 
 ### Pre-Constraints
 
@@ -299,14 +302,6 @@ $A \times Q_l + B \times Q_r + C \times Q_o + A \times B \times Q_m$ \\
 \end{center}
 
 Using the terms, we have $-c + a \cdot b = 0$ enforcing the structure of $\text{Mul}_p$ and $c \cdot d \cdot e - r = 0$ enforcing the structure of $\text{CMul}_p$. Notice $C_1$ is a distinct column that refers to the same column $C$ but one row below current. In this case it is the row for $\ctrn_{\text{Mul}_p}$. Thus, $\build{a \times b \times d \times e = r}{}{}$ is expressed in two rows instead of of three, if we were to use all $\text{Mul}_p$.
-
-### Canonical Program
-
-$$
-\eval_g: W[\tin{g}] \to W[\tout{g}]
-$$
-
-*Canonical programs* are how the values of output wires are computed from the values of input wires. e.g. in $\eval_{\text{Mul}_p}(x,y) = x \times y$. Moreover, due to the way relative wires are defined as input wires, we have them in the canonical program too. e.g. $\eval_{\text{CMul}_p}(d,e,c) = d \times e \times c$.
 
 ### Spec
 

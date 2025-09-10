@@ -1,348 +1,146 @@
-# Plonk Arithmetization
+# IVC-friendly Plonk Arithmetization
 
-We now define the arithmetization pipeline[^notation]:
+We define the following and then describe the plonk protocol to highlight the role of the arithmetization pipeline.
 
+\begin{notation}[Universe]
+Naively, a set of all sets.
+\end{notation}
+\newcommand{\Uni}{\mathcal{U}}
+$$
+\Uni
+$$
+
+- *motivation*: to quantify over sets without defining them.
+
+\begin{notation}[Type Annotation]
+Naively, an assertion that an element belongs strictly to a set; $\exists! A. x \in A$.
+\end{notation}
+$$
+x: A
+$$
+
+\begin{notation}[Function Type]
+A set of all functions from set $A$ to set $B$.
+\end{notation}
+$$
+A \to B
+$$
+
+- *associative*: $(A \to B) \to C = A \to (B \to C)$
+- *partial application* Supplying some arguments returns a function that consumes the rest 
+  - e.g. if $f: A \to B \to C$ then $f(a): B \to C$
+- *currying*: A multi argument function can be partially applied. 
+  - e.g. if $A \times B \to C = A \to B \to C$ then $f(a,b) = f(a)(b)$
+- *composition*: If the domain of the first operand aligns with the codomain of the second operand, the composition is a pipeline between the two
+  - e.g. if $- \circ - : (B \to C) \to (A \to B) \to (A \to C)$ then $g \circ f(a) = g(f(a))$
+
+\begin{definition}[Color]
+Naively, a color is the type tag for wires.
+\end{definition}
+\newcommand{\Color}{\text{Color}}
+$$
+\Color: \Uni = \set{p,q}
+$$
+
+- *projections*: $W: \Color \to \Uni$ - wire value type
+  - $W(p) = \Fb_p$
+  - $W(q) = \Fb_q$
+- *motivation*: we need to account for value types that wires can represent, i.e. $\Fb_p$ and $\Fb_q$. In the theory of properads (which in our context will be defined later), this is defined as a color[@yau2015-ssec1.1.1].
+
+\begin{definition}[Profile]
+A vector of colors.
+\end{definition}
+$$
+\vec{t}: \Color^k
+$$
+
+- *motivation*: a clean way to represent the types for a vector of multi color wires[@yau2015-ssec1.1.2].
+
+\begin{notation}[Mapping over a vector]
+Applies a function to each element of a vector.
+\end{notation}
 $$
 \begin{array}{rl}
-(R,x,w) 
-&= \Arithmetize(f,\vec{x}) \\ 
-&= \mathrm{interpolate} \circ \mathrm{trace}(\vec{x}) \circ \mathrm{build}(f)
+-[-] &: (A \to B) \to A^k \to B^k \\
+f[\vec{x}] &= (f(x_1), \ldots, f(x_k))
 \end{array}
 $$
 
-[^notation]: refer to the appendix for the definition of notations used in this section.
+- *motivation*: concise notation whilst notationally distinct from a function that takes a vector as an argument.
 
-
-## Build
-
-We define the build computation[^user-build] as follows:
+\begin{definition}[Program]
+A program is a function from a vector of values to another vector of some profiles.
+\end{definition}
+\newcommand{\pin}{\vec{t}_{in}}
+\newcommand{\pout}{\vec{t}_{out}}
+\newcommand{\Program}{\text{Program}}
 $$
-(\abst{f}, \avec{Y}) = \mathrm{build}(f)
+\Program(\pin, \pout) = W[\pin] \to W[\pout]
 $$
 
-[^user-build]: Build is done by the user; writing circuits. However we will reason about it as an algorithm.
-
-### Build Primitives
-
-Build turns a program $f$ into an *abstract circuit* $\abst{f}$, which is a one-to-many-or-none relation between gadgets $g$ and output wire(s) $\abst{y}$ or $\bot$ for none, inducing an acyclic circuit. e.g. $\gpair{\ggt{Add}{a,b}}{\abst{c}} \in \abst{f}$ corresponds to $\build{a+b=c}{}{}$.
-
+\begin{definition}[Witness]
+A vector of values corresponding to the input of a program
+\end{definition}
+\newcommand{\pwit}{\vec{t}_{wit}}
 $$
-\begin{array}{rl}
-\gpair{g}{\abst{y}} = (g,\abst{y}) \ \ \ 
-\AbsCirc &= \set{
-  \abst{f} \middle\vert
-  \abst{f} \subset \Ggt \times \Option(\Wire) \land
-  \text{OneToManyOrNone}(\abst{f}) \land
-  \text{Acyclic}(\abst{f})
-} \\
-\text{OneToManyOrNone}(\abst{f}) &= \forall \gpair{g}{\abst{y}},\gpair{h}{\abst{y}} \in \abst{f}. \abst{y} \neq \bot \implies g = h \\
-\text{Acyclic}(\abst{f}) &= \forall \gpair{g}{\abst{y}} \in \abst{f}. \abst{y} \neq \bot \land |\text{in}(g)| > 0 \implies \max(\id[\gin(g)]) < \min \left(\id[\out(\abst{f},g)] \right)
+\vec{w}: W[\pwit]
+$$
+
+\begin{definition}[Public Input]
+A vector of values that is used by the plonk verifier as public inputs to the circuit.
+\end{definition}
+\newcommand{\ppub}{\vec{t}_{pub}}
+$$
+\vec{x}: W[\ppub]
+$$
+
+\begin{definition}[Language]
+The language for a program $f$ is the set of public inputs $\vec{x}$ for which there exists a witness $\vec{w}$ such that the circuit structure $R$ as a relation $R_f$ holds.
+\end{definition}
+$$
+(\vec{x}, \vec{w}) \in R_f
+$$
+
+\begin{definition}[PLONK protocol]
+\end{definition}
+\newcommand{\Arithmetizepub}{\Arithmetize_{\text{pub}}}
+$$
+\begin{array}{rll}
+\mathrm{communication} & \mathrm{computation}\\
+P \rightsquigarrow V& \PlonkProver \circ \Arithmetize(f, \vec{w}) &= \pi \\
+V& \PlonkVerifier(\pi) \circ \Arithmetize_{\text{pub}}(f, \vec{x}) &\stackrel{?}{=} \top
 \end{array}
 $$
 
-*Operations*; amongst other data, defines $n_g \geq 0$ number of fan-in wires typed $\tin{g}$ and $m_g \geq 0$ number of fan-out wires typed $\tout{g}$ that a gadget of its operation must have. Wires are checked when constructing a gadget e.g. $\ggt{Add}{a,b}$ type checks $\abst{a}, \abst{b}$ for the $\text{Add}$ operation.
+- *motivation*: We have seen the full plonk protocol before. Here, however, the role of arithmetization is clear.
+
+\begin{definition}[Arithmetization Pipeline]
+The arithmetization pipeline is a sequence of computations that transforms a program $f$ and its witness $\vec{w}$ or public input $\vec{x}$ into a circuit $(R,X,W)$ where $R$ is the public circuit structure, $X$ are public computed values and $W$ are witness computed values that the core plonk protocol operates over via the grand product argument and vanishing argument.
+\end{definition}
 
 $$
-\begin{array}{cc}
-\begin{array}{ccc}
-g: \Ops &
 \begin{array}{rl}
-n_g &: \Nb \\
-m_g &: \Nb
+\begin{array}{rl}
+(R,X,W) 
+&= \Arithmetize(f,\vec{w}) \\ 
+&= \mathrm{interpolate} \circ \mathrm{trace}(\vec{w}) \circ \mathrm{build}(f)
 \end{array} &
 \begin{array}{rl}
-\tin{g} &: \WireType^{n_g} \\
-\tout{g} &: \WireType^{m_g}
-\end{array}
-\end{array} &
-\begin{array}{rl}
-- ( - ) &: (g: \Ops) \to \Wire^{n_g} \to \Ggt \\
-g(\avec{x}) &= \maybe{g'}{
-\begin{array}{l}
-\ty(g') = g \land \gin(g') = \avec{x} \\
-\tin{g} = \ty[\avec{x}] \land \cdots
-\end{array}}
+(R,X,\bot)
+&= \Arithmetizepub(f,\vec{x}) \\
+&= \mathrm{interpolate} \circ \mathrm{trace}_{\text{pub}}(\vec{x}) \circ \mathrm{build}(f)
 \end{array}
 \end{array}
 $$
 
-*Gadget*[^short-hand-gadget] $g$ are operations $\ty(g)$ initialized with input wires $\gin(g)$. *Wires* $\abst{x}$; a unique identifier $\id(\abst{x})$ and *wire type tag* $\ty(\abst{x})$, are abstract representations of values $x: W(\ty(\abst{x}))$. $W$ maps the tag to the value's type e.g. $W(p) = \Fb_p$.
+- *structural integrity*: $R$ and $X$ are guaranteed to be the same for both pipelines given the same $f$ if $(\vec{x}, \vec{w}) \in R_f$.
+- *motivation & features*:
+  - Type safety across multiple field types (for cycle of curves)
+  - Single source of truth (prevents arithmetizer implementation bugs)
+  - User-extensible architecture (enables rapid prototyping of new gadgets)
+  - Support for transcript dependent gadgets (enables lookup arguments)
+  - Next row referencing capability (reduces gate count; used by poseidon gadget)
+  - Declarative algebraic optimizations via gadget equivalence (reduces gate count)
+  - Gadget declaration order invariant (prevents circuit composition bugs)
 
-[^short-hand-gadget]: As a notational shorthand, if $g:\Ggt$, we may omit $\ty$ e.g. $n_g := n_{\ty(g)}$. We notate $g$ as operation or gadget interchangably.
-
-
-$$
-\begin{array}{cc}
-\begin{array}{c}
-\begin{array}{ccc}
-g: \Ggt &
-\ty(g): \Ops &
-\gin(g): \Wire^{n_g}
-\end{array} \\
-\out(\abst{f},g): \Wire^{m_g} = \maybe{\avec{y}}{
-\begin{array}{l}
-\forall i \in [m_g+1]. \abst{y}_i \in \set{\abst{y} \middle\vert \gpair{g}{\abst{y}} \in \abst{f}} \\
-\id(\abst{y}_{i>1}) > \id(\abst{y}_{i-1})
-\end{array}}
-\end{array} &
-\begin{array}{c}
-\begin{array}{rl}
-\abst{w}: \Wire &
-W: \WireType \to \Uni \\
-\id(\abst{w}) : \Nb &
-\ty(\abst{w}) : \WireType
-\end{array} \\
-\text{wire}(i,t) = \wire{i}{t} = \maybe{\abst{w}}{\begin{array}{rl}
-\id(\abst{w}) &= i \\
-\ty(\abst{w}) &= t
-\end{array}}
-\end{array}
-\end{array}
-$$
-Gadgets in $\abst{f}$ can be visualized as an *abstract circuit diagram*
-\begin{center}
-\begin{tabular}{ c c c c }
-\begin{math}
-\begin{array}{rl}
-(\abst{x}_1, \ldots, \abst{x}_{n_g}) &= \gin(g) \\
-\set{\gpair{g}{\abst{y}_1}, \gpair{g}{\abst{y}_{m_g}}} &\subseteq \abst{f}
-\end{array}
-\end{math}
-&
-$\Longleftrightarrow$
-&
-\begin{tikzpicture}[
-  baseline={(current bounding box.center)}
-]
-\gate{id}{(0,0)}{$\abst{x}_1$,$\cdots$,$\abst{x}_{n_g}$}{$g$}{3}
-\draw[-,thick] ($(id-in-1)+(0,0.25)$) -- (id-in-1);
-\draw[-,thick] ($(id-in-3)+(0,0.25)$) -- (id-in-3);
-\draw[->,thick] (id-out-1) -- ($(id-out-1)+(0,-0.4)$);
-\node[anchor=north east] at (id-out-1) {$\abst{y}_1$};
-\node[anchor=north] at ($(id-out-2)+(0,-0.1)$) {$\cdots$};
-\draw[->,thick] (id-out-3) -- ($(id-out-3)+(0,-0.4)$);
-\node[anchor=north west] at (id-out-3) {$\abst{y}_{m_g}$};
-\end{tikzpicture}
-&
-e.g.
-\begin{tikzpicture}[
-  baseline={(current bounding box.center)}
-]
-\gate{add}{(0,0)}{$\abst{a}$,$\abst{b}$}{$\text{Add}$}{1}
-\draw[-,thick] ($(add-in-1)+(0,0.25)$) -- (add-in-1);
-\draw[-,thick] ($(add-in-2)+(0,0.25)$) -- (add-in-2);
-\draw[->,thick] (add-out-1) -- ($(add-out-1)+(0,-0.4)$);
-\node[anchor=north east] at (add-out-1) {$\abst{c}$};
-\end{tikzpicture}
-\end{tabular}
-\end{center}
-
-### Circuit Building
-
-We can also notate the abstract circuit $\abst{f}$ with *predicates* $\build{f = \vec{y}}{s}{s'}$, $\build{f = y}{s}{s'}$ or $\build{f}{s}{s'}$ which transits the *state* $s$ to $s'$ where $u_s$ is the current uuid. Abstract circuit compositions are conjunctions of predicates $\bigwedge \build{f}{}{}$. Wires annotated with $*$, i.e. $\build{f = y^*}{}{}$, are the final output and are appended to $\avec{Y}$. They, may be omitted notationally.
-
-$$
-\begin{array}{cc}
-\begin{array}{c}
-\begin{array}{cccc}
-s: \AState &
-u_s: \Nb &
-\abst{f}_s: \AbsCirc &
-\avec{Y}_s: \Wire^k
-\end{array} \\
-\begin{array}{rl}
-\state(u,\abst{f},\avec{Y}) = \astate{u}{\abst{f}}{\avec{Y}}
-&= \maybe{s}{\begin{array}{rl}
-u_{s} &= u \\
-\abst{f}_{s} &= \abst{f} \\
-\avec{Y}_{s} &= \avec{Y}
-\end{array}} \\
-s \sqcup s' &= \astate{u_s + u_{s'}}{\abst{f}_s \cup \abst{f}_{s'}}{\avec{Y}_s \cat \avec{Y}_{s'}} \\
-s \cat \abst{y} &= s \sqcup \astate{0}{\emptyset}{\abst{y}}
-\end{array}
-\end{array}
-&
-\begin{array}{rl}
-\build{-}{-}{-} &: (W[\tin{}] \to W[\tout{}]) \\
-&\to \AState \to \AState \to \Bb \\
-\build{g = \vec{y}}{s}{s'}
-&= \left(\text{get}(s,g) = (s', \avec{y})\right) \\
-\build{f=y^*}{s}{s' \cat \abst{y}}
-&= \build{f=y}{s}{s'} \\
-\build{f}{s_1}{s_{k+1}}
-&= \bigwedge\limits_{i \in (1..k+1)} \build{f_i}{s_i}{s_{i+1}}
-\end{array}
-\end{array}
-$$
-
-Operations have a *canonical program* that it corresponds to, e.g $\build{x + y=z}{s}{s'} = \left(\text{get}(s,\ggt{Add}{x,y}) = (s', \abst{z})\right)$, thus a program can be arithmetized iff it can be decomposed into these canonical programs. These get calls yield new wires. However, if $g \equiv h$ where $\gpair{h}{\_} \in \abst{f}_s$, then $\avec{y}= \out(\abst{f},h)$ in $\build{g=\vec{y}}{s}{s}$ leaving the state unchanged.[^egglog-eq] 
-
-[^egglog-eq]: Determining equivalence between gadgets is a sophisticated problem, a candidate is to use equality saturation such as @egglog, however we implement simpler ad hoc solutions that doesnt cover the full equivalence structure. We leave this definition open.
-
-
-$$
-\Ggt^{\abst{f}}_g = \set{h \in \Ggt \middle\vert
-  (h, \_) \in \abst{f} \land h \equiv g
-}
-$$
-$$
-\begin{array}{cc}
-\begin{array}{rl}
-\new &: \Nb \to \Ggt \to \Wire^{m_g} \\
-\new(u,g) &= \text{wire}[(u..u+m_g) \odot \tout{g}] \\
-\\
-\entries  &: \Nb \to \Ggt \to \AbsCirc \\
-\entries(u,g) &= \begin{cases}
-\set{\gpair{g}{\abst{y}} \middle\vert \abst{y} \in \new(u,g)}
-& m_g > 0 \\
-\set{\gpair{g}{\bot}} & \otherwise
-\end{cases} \\
-\\
-\text{init} &: \WireType^k \to \AState \\
-\text{init}(\vec{t}) &= \left(
-  \opcirc\limits_{i \in [k+1]} \aput(\Input^{t_{i}}_{i-1})
-\right) \astate{0}{\emptyset}{()}
-\end{array} &
-\begin{array}{rl}
-\aput &: \Ggt \to \AState \to \AState \\
-\aput(g, s) &= s \sqcup \astate{m_g}{\entries(u_s,g)}{\emptyset} \\
-\\
-\aget &: \AState \to (g: \Ggt) \to \AState \times \Wire^{m_g} \\
-\aget(s, g)
-&= \begin{cases}
-  (s, \out(\abst{f}_s,h)) & h \in \Ggt^{\abst{f}_s}_g \\
-  (\aput(g, s), \new(u_s,g)) & \otherwise
-\end{cases} \\
-\\
-\text{build} &: (W[\tin{}] \to W[\tout{}]) \to \AbsCirc \times \Wire^k \\
-\text{build}(f) &= \maybe{(\abst{f}_s, \avec{Y}_s)}{
-  \build{f}{\text{init}(\tin{})}{s}
-}
-\end{array}
-\end{array}
-$$
-
-
-**Build Correctness Example**
-
-Let $W(q)=\Fb_q$ and $f: \Fb_q^2 \to \Fb_q^1$ where $f(x,y) = x^2 + y$, then:
-
-\begin{longtable}{@{}l@{}}
-Let $(\abst{f}, \avec{Y}) = \text{build}(f)$
-\\
-$= \maybe{\left(\abst{f}_{s''}, (\abst{z})\right)}{
-  \build{x^2 + y = z}
-    {s}
-    {s''}
-}
-= \maybe{\left(\abst{f}_{s''}, (\abst{z})\right)}{\build{\begin{array}{l}
-  x \times x = t \\
-  t + y = z
-\end{array}}{s}{s''}}
-= \maybe{\left(\abst{f}_{s''}, (\abst{z})\right)}{\begin{array}{l}
-  \build{x \times x = t}{s}{s'} \\
-  \build{t + y = z^*}{s'}{s''}
-\end{array}}
-$ \\
-$= \maybe{\left(\abst{f}_{s''}, (\abst{z})\right)}{\begin{array}{rl}
-  \text{get}(u_s, \abst{f}_s, (), \ggt{Mul}{x,x}) &= (u_{s'}, \abst{f}_{s'}, (), (\abst{t})) \\
-  \text{get}(u_{s'}, \abst{f}_{s'}, (), \ggt{Add}{t,y}) &= (u_{s''}, \abst{f}_{s''}, (\abst{z}), (\abst{z}))
-\end{array}}
-$ \\
-$= \maybe{\left(\abst{f}_{s''}, (\abst{z})\right)}{\begin{array}{rl}
-  (u_s+1, \abst{f}_s \cup \set{\begin{array}{rl}\ggt{Mul}{x,x} & \wire{u_s}{q}\end{array}}, (), (\wire{u_s}{q})) &= (u_{s'}, \abst{f}_{s'}, (), (\abst{t})) \\
-  \text{get}(u_{s'}, \abst{f}_{s'}, (), \ggt{Add}{t,y}) &= (u_{s''}, \abst{f}_{s''}, (\abst{z}), (\abst{z}))
-\end{array}}
-$ \\
-$= \maybe{\left(\abst{f}_{s''}, (\abst{z})\right)}{
-  \text{get}(u_s+1, \abst{f}_s \cup \set{\begin{array}{rl}\ggt{Mul}{x,x} & \wire{u_s}{q}\end{array}}, (), \ggtw{Add}{\wire{u_s}{q},\abst{y}}) = (u_{s''}, \abst{f}_{s''}, (\abst{z}), (\abst{z}))
-}
-$ \\
-$= \maybe{\left(\abst{f}_{s''}, (\abst{z})\right)}{\left(u_s+2, \abst{f}_s \cup \set{\begin{array}{rl}
-    \ggt{Mul}{x,x} & \wire{u_s}{q} \\
-    \ggtw{Add}{\wire{u_s}{q},\abst{y}} & \wire{u_s+1}{q}
-  \end{array}}, (\wire{u_s+1}{q}), (\wire{u_s+1}{q})\right) = (u_{s''}, \abst{f}_{s''}, (\abst{z}), (\abst{z}))}
-$ \\
-$= \left(\abst{f}_s \cup \set{\begin{array}{rl}
-    \ggt{Mul}{x,x} & \wire{u_s}{q} \\
-    \ggtw{Add}{\wire{u_s}{q},\abst{y}} & \wire{u_s+1}{q}
-  \end{array}}, (\wire{u_s+1}{q})\right)
-$ \\
-where $\astate{u_s}{\abst{f}_s}{()} = \text{init}(\tin{})$
-\\ 
-$= \opcirc\limits_{i \in (1..3)}\aput(\Input^{t^{in}_{i}}_{i-1}) \astate{0}{\emptyset}{()}
-= \text{put}(\Input^q_1) \circ \text{put}(\Input^q_0)\astate{0}{\emptyset}{()}
-= \text{put}(\Input^q_1)\astate{1}{\set{\begin{array}{rl} \Input^q_0 & \wire{0}{q} \end{array}}}{()}$
-\\
-$= \astate{2}{\set{\begin{array}{rl}
-  \Input^q_0 & \wire{0}{q} \\
-  \Input^q_1 & \wire{1}{q}
-\end{array}}}{()}$
-\\
-$\therefore \ (\abst{f}, \avec{Y}) = \left(\set{\begin{array}{rl}
-  \Input^q_0 & \wire{0}{q} \\
-  \Input^q_1 & \wire{1}{q} \\
-  \ggtw{Mul}{\wire{0}{q},\wire{0}{q}} & \wire{2}{q} \\
-  \ggtw{Add}{\wire{2}{q},\wire{1}{q}} & \wire{3}{q}
-\end{array}}, (\wire{3}{q})\right)
-$
-\end{longtable}
-
-Thus $\abst{x} = \wire{0}{q}$, $\abst{y} = \wire{1}{q}$, $\abst{t} = \wire{2}{q}$ and $\abst{z} = \wire{3}{q}$. The resulting abstract circuit can be notated as follows:
-
-\begin{tabularx}{\textwidth}{@{} r c c Y Y @{}}
-\toprule
- & Variables & Predicate & One to Many or None Relation & Abstract Circuit Diagram
-\\\hline \\
-notation & $(\abst{f}, \avec{Y})$ &
-$\build{x^2+y=z^*}{}{}$ & 
-\begin{tikzpicture}[
-  baseline={(current bounding box.center)}
-]
-\node[anchor=center] (in1) at (0,0) {$\Input^q_0$};
-\node[anchor=center] (in2) at ($(in1.south)-(0,0.4)$) {$\Input^q_1$};
-\node[anchor=center] (mul) at ($(in2.south)-(0,0.4)$) {$\ggt{Mul}{x,x}$};
-\node[anchor=center] (add) at ($(mul.south)-(0,0.4)$) {$\ggt{Add}{t,y}$};
-
-\node[anchor=center] (x) at ($(in1.east)+(2,0)$) {$\abst{x}$};
-\node[anchor=center] (y) at ($(x |- in2)$) {$\abst{y}$};
-\node[anchor=center] (t) at ($(x |- mul)$) {$\abst{t}$};
-\node[anchor=center] (z) at ($(x |- add)$) {$\abst{z}$};
-\node[anchor=west] (outs) at ($(z.east)+(-0.125,0.075)$) {$\in \avec{Y}$};
-
-\node[] (g) at ($(in1.north)+(0,0.4)$) {$g$};
-\node[] (w) at ($(x |- g)$) {$\abst{w}$};
-\node[] (f) at ($($(g)!.5!(w)$)$) {$\abst{f}$};
-
-\draw[-, dashed] (in1.east) -- (x.west);
-\draw[-, dashed] (in2.east) -- (y.west);
-\draw[-, dashed] (mul.east) -- (t.west);
-\draw[-, dashed] (add.east) -- (z.west);
-\end{tikzpicture}
-&
-\begin{tikzpicture}[
-  baseline={(current bounding box.center)}
-]
-\gate{in0}{(0,0)}{}{$\Input^q_0$}{1}
-\gate{in1}{($(in0.north east)+(0.1,0)$)}{}{$\Input^q_1$}{1}
-\gate{mul}{($(in0.south west)+(0.1875,-0.5)$)}{$\abst{x}$,$\abst{x}$}{$\text{Mul}$}{1}
-\draw[-,thick] (in0-out-1) -- ($(in0-out-1)+(0,-0.25)$);
-\draw[-,thick] ($(mul-in-1)+(0,0.25)$) -- ($(mul-in-2)+(0,0.25)$);
-\draw[-,thick] ($(mul-in-1)+(0,0.25)$) -- (mul-in-1);
-\draw[-,thick] ($(mul-in-2)+(0,0.25)$) -- (mul-in-2);
-\gate{add}{($(mul.north east)+(0.5,0)$)}{$\abst{t}$,$\abst{y}$}{$\text{Add}$}{1}
-\draw[-,thick] (mul-out-1) -- ($(mul-out-1)+(0,-0.25)$);
-\draw[-,thick] ($(mul-out-1)+(0,-0.25)$) -- ($(mul.south east)+(0.25,-0.25)$);
-\draw[-,thick] ($(mul.south east)+(0.25,-0.25)$) -- ($(mul.north east)+(0.25,0.25)$);
-\draw[-,thick] ($(mul.north east)+(0.25,0.25)$) -- ($(add-in-1)+(0,0.25)$);
-\draw[-,thick] ($(add-in-1)+(0,0.25)$) -- (add-in-1);
-\draw[-,thick] (in1-out-1) -- ($(in1-out-1)+(0,-0.25)$);
-\draw[-,thick] ($(in1-out-1)+(0,-0.25)$) -- ($(add-in-2)+(0,0.25)$);
-\draw[-,thick] ($(add-in-2)+(0,0.25)$) -- (add-in-2);
-\draw[-,thick] (add-out-1) -- ($(add-out-1)+(0,-0.4)$);
-\node[draw, thick, circle, double, double distance=1pt, anchor=north] at ($(add-out-1)+(0,-0.4)$) {$\abst{z}$};
-\end{tikzpicture}
-\\ \hline
-use & object & proofs & implementation & readability
-\\\toprule
-\end{tabularx}
+We now proceed to define $\text{interpolate}$, $\text{trace}$, $\text{trace}_{\text{pub}}$ and $\text{build}$.
