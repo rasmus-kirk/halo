@@ -108,7 +108,7 @@ $$
 - *projections*:
   - the output wires of gadget $g$ in abstract circuit $\abst{f}$ sorted ascending by UUID.
     - $\out(\abst{f}, g): \Wire^{m \circ \ty(g)} = \maybe{\avec{y}}{\gpair{g}{\abst{y}_i}\in \abst{f} \land \pout \circ \ty(g) = \ty[\avec{y}] \land \id(\abst{y}_{i>1}) > \id(\abst{y}_{i-1})}$
-- *motivation*: an abstract circuit is simpler than a directed acyclic graph; target vertex not explicitly inferrable. Yet it is minimally sufficient to compute the concrete circuit; a simpler structure for proofs. In the theory of properads, an abstract circuit is isomorphic to a colored pasting scheme[@yau2015-ssec8.2].
+- *motivation*: an abstract circuit is simpler than a directed acyclic graph; target vertex not explicitly inferrable. Yet it is minimally sufficient to compute the concrete circuit; a simpler structure for proofs. In the theory of properads, an abstract circuit models a colored pasting scheme[@yau2015-ssec8.2].
 - *notation*: if $\forall i. \gpair{\abst{g}(\abst{x}_1, \ldots, \abst{x}_{n(\abst{g})})}{\abst{y}_i} \in \abst{f}$ and $\gpair{\text{Add}(\abst{a}, \abst{b})}{\abst{c}} \in \abst{f}$, then we can visualize the gadgets as an abstract circuit diagram as follows:
 
 \begin{center}
@@ -242,7 +242,7 @@ $$
 - *motivation*: extending an abstract circuit when expressed as a predicate, can be used to express proofs about abstract circuit construction concisely.
 
 \begin{definition}[Input Properad]
-$\Input^t_i$ is a properad whose gadget output is the wire for witness value $w_{i+1}$
+$\Input^t_i$ is a properad whose gadget output is the wire for witness value $w_{i}$
 \end{definition}
 
 \begin{center}
@@ -257,7 +257,7 @@ $\Input^t_i$ is a properad whose gadget output is the wire for witness value $w_
 \hline
 $n$ & $m$ & $\pin$ & $\pout$ & $\eval()$ \\
 \hline
-$0$ & $1$ & $()$ & $t$ & $w_{i+1}$ \\
+$0$ & $1$ & $()$ & $t$ & $w_{i}$ \\
 \hline
 \end{tabular}
 };
@@ -268,7 +268,7 @@ $0$ & $1$ & $()$ & $t$ & $w_{i+1}$ \\
 ]
 \gate{inp}{(0,0)}{}{$\text{Input}^t_{i}$}{1}
 \draw[->,thick] (inp-out-1) -- ($(inp-out-1)+(0,-0.4)$);
-\node[anchor=north east] at (inp-out-1) {$\abst{w_{i-1}}$};
+\node[anchor=north east] at (inp-out-1) {$\abst{w_{i}}$};
 \end{tikzpicture}
 \end{tabular}
 \end{center}
@@ -282,7 +282,7 @@ $$
 \begin{array}{rl}
 \text{init} &: \Color^k \to \BuildState \\
 \text{init}(\vec{t}) &= \left(
-  \opcirc\limits_{i \in [k+1]} \aput(\Input^{t_{i}}_{i-1})
+  \opcirc\limits_{i \in [k+1]} \aput(\Input^{t_{i}}_{i})
 \right) (\astate{0}{\emptyset}{()})
 \end{array}
 $$
@@ -306,9 +306,9 @@ $$
 \begin{example}{Build of $\build{x^2 + y = z^*}{}{}$}
 \end{example}
 
-Let $f: \Fb_q^2 \to \Fb_q^1$, thus $W[\pwit] = \Fb_q^2$ and $W[\pout] = \Fb_q$ where $f(x,y) = x^2 + y$, then:
-
 \begin{longtable}{@{}l@{}}
+Let $f: \Fb_q^2 \to \Fb_q^1$ where $f(x,y) = x^2 + y$ \\
+Thus $W[\pwit] = \Fb_q^2$, $\pwit = (q,q)$, $W[\pout] = \Fb_q$ and $\pout = q$ \\
 Let $(\abst{f}, \avec{Y}) = \text{build}(f)= \maybe{\left(\abst{f}(s''), \avec{Y}(s'')\right)}{\build{x^2 + y = z^*}{s}{s''}}
 $ \\
 where  
@@ -346,20 +346,20 @@ $ \\
 where
 $s=\astate{u(s)}{\abst{f}(s)}{()} = \text{init}(\pwit)
 $ \\ 
-$= \opcirc\limits_{i \in (1..3)}\aput(\Input^{{t_{in}}_{i}}_{i-1}) (\astate{0}{\emptyset}{()})
+$= \opcirc\limits_{i \in (1..3)}\aput(\Input^{{t_{in}}_{i}}_{i}) (\astate{0}{\emptyset}{()})
 $ \\
-$= \text{put}(\Input^q_1) \circ \text{put}(\Input^q_0)(\astate{0}{\emptyset}{()})
+$= \text{put}(\Input^q_2) \circ \text{put}(\Input^q_1)(\astate{0}{\emptyset}{()})
 $ \\
-$= \text{put}(\Input^q_1, \astate{1}{\set{\begin{array}{rl} \Input^q_0 & \wire{0}{q} \end{array}}}{()})
+$= \text{put}(\Input^q_2, \astate{1}{\set{\begin{array}{rl} \Input^q_1 & \wire{0}{q} \end{array}}}{()})
 $ \\
 $= \astate{2}{\set{\begin{array}{rl}
-  \Input^q_0 & \wire{0}{q} \\
-  \Input^q_1 & \wire{1}{q}
+  \Input^q_1 & \wire{0}{q} \\
+  \Input^q_2 & \wire{1}{q}
 \end{array}}}{()}$
 \\
 $\therefore \ (\abst{f}, \avec{Y}) = \left(\set{\begin{array}{rl}
-  \Input^q_0 & \wire{0}{q} \\
-  \Input^q_1 & \wire{1}{q} \\
+  \Input^q_1 & \wire{0}{q} \\
+  \Input^q_2 & \wire{1}{q} \\
   \ggtw{Mul}{\wire{0}{q},\wire{0}{q}} & \wire{2}{q} \\
   \ggtw{Add}{\wire{2}{q},\wire{1}{q}} & \wire{3}{q}
 \end{array}}, \wire{3}{q}\right)
@@ -377,8 +377,8 @@ $\build{x^2+y=z^*}{}{}$ &
 \begin{tikzpicture}[
   baseline={(current bounding box.center)}
 ]
-\node[anchor=center] (in1) at (0,0) {$\Input^q_0$};
-\node[anchor=center] (in2) at ($(in1.south)-(0,0.4)$) {$\Input^q_1$};
+\node[anchor=center] (in1) at (0,0) {$\Input^q_1$};
+\node[anchor=center] (in2) at ($(in1.south)-(0,0.4)$) {$\Input^q_2$};
 \node[anchor=center] (mul) at ($(in2.south)-(0,0.4)$) {$\ggt{Mul}{x,x}$};
 \node[anchor=center] (add) at ($(mul.south)-(0,0.4)$) {$\ggt{Add}{t,y}$};
 
@@ -401,8 +401,8 @@ $\build{x^2+y=z^*}{}{}$ &
 \begin{tikzpicture}[
   baseline={(current bounding box.center)}
 ]
-\gate{in0}{(0,0)}{}{$\Input^q_0$}{1}
-\gate{in1}{($(in0.north east)+(0.1,0)$)}{}{$\Input^q_1$}{1}
+\gate{in0}{(0,0)}{}{$\Input^q_1$}{1}
+\gate{in1}{($(in0.north east)+(0.1,0)$)}{}{$\Input^q_2$}{1}
 \gate{mul}{($(in0.south west)+(0.1875,-0.5)$)}{$\abst{x}$,$\abst{x}$}{$\text{Mul}$}{1}
 \draw[-,thick] (in0-out-1) -- ($(in0-out-1)+(0,-0.25)$);
 \draw[-,thick] ($(mul-in-1)+(0,0.25)$) -- ($(mul-in-2)+(0,0.25)$);
