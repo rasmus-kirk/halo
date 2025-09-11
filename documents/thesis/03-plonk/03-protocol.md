@@ -177,29 +177,29 @@ this we need _Copy Constraints._
 For example we want to show that $a(\o^1) = b(\o^1)$, first we concatinate
 the lists $\vec{a}, \vec{b}, \vec{c}$:
 
-$$\vec{d} = [ 2, 7, 3, 12 ] \cat [ 2, 5, 4, 35 ] \cat [ 4, 35, 12, 42 ] = [ 2, 7, 3, 12, 2, 5, 4, 35, 4, 35, 12, 42 ]$$
+$$\vec{f} = [ 2, 7, 3, 12 ] \cat [ 2, 5, 4, 35 ] \cat [ 4, 35, 12, 42 ] = [ 2, 7, 3, 12, 2, 5, 4, 35, 4, 35, 12, 42 ]$$
 
-Now, we wish to show, that for some permutation $\pi: \Fb^k \to \Fb^k$,
+Now, we wish to show, that for some permutation $\sigma: \Fb^k \to \Fb^k$,
 the list remains unchanged once permuted:
 
-$$\vec{d} = \pi(\vec{d})$$
+$$\vec{f} = \sigma(\vec{f})$$
 
 This permutation permutes the list according to what wires we wish to show are equal:
 
-$$\vec{d} = [ 2, 7, 3, 12 ] \cat [ 2, 5, 4, 35 ] \cat [ 4, 35, 12, 42 ]$$
+$$\vec{f} = [ 2, 7, 3, 12 ] \cat [ 2, 5, 4, 35 ] \cat [ 4, 35, 12, 42 ]$$
 
 From the circuit in Figure \ref{fig:example-circuit} we gather that the following wires
 must be equal:
 
 $$a_1 = b_1, \quad c_1 = b_3, \quad c_3 = a_4, \quad c_2 = b_4$$
 
-To highlight the values of $\vec{d}$ and $\pi(\vec{d})$, the specific values
+To highlight the values of $\vec{f}$ and $\sigma(\vec{f})$, the specific values
 have been subbed out for variables below:
 
 $$
 \begin{aligned}
-  \vec{d}      &= [ a_1, a_2, a_3, a_4 ] \cat [ b_1, b_2, b_3, b_4 ] \cat [ c_1, c_2, c_3, c_4 ] \\
-  \pi(\vec{d}) &= [ b_1, a_2, a_3, c_3 ] \cat [ a_1, b_2, c_1, c_2 ] \cat [ b_3, b_4, a_4, c_4 ]
+  \vec{f} &= [ a_1, a_2, a_3, a_4 ] \cat [ b_1, b_2, b_3, b_4 ] \cat [ c_1, c_2, c_3, c_4 ] \\
+  \sigma(\vec{f}) &= [ b_1, a_2, a_3, c_3 ] \cat [ a_1, b_2, c_1, c_2 ] \cat [ b_3, b_4, a_4, c_4 ]
 \end{aligned}
 $$
 
@@ -207,64 +207,33 @@ If the prover is honest, it's easy to see that these lists will match,
 in fact, that's why we have to use variables in the above list, otherwise
 the permutation _seems_ to do nothing. But as can also be seen above,
 if the prover tries to cheat by violating $a_1 = b_1$ then the permuted
-$\pi(\vec{d})$ will not be equal to the original $\vec{d}$. As in the above
-section we can model the vectors as polynomials using FFT, such that $d(\o^1)
-= d_1, d(\o^2) = d_2 \dots$.
+$\sigma(\vec{f})$ will not be equal to the original $\vec{f}$. As in the above
+section we can model the vectors as polynomials using FFT, such that $f(\o^1)
+= f_1, f(\o^2) = f_2 \dots$.
 
-Given two polynomials $f(X), g(X)$ we want to check whether:
+Then, given the polynomial $f(X)$ we want to check whether:
 
-$$\forall \o \in H : f(\o^i) \meq g(\o^{\s(i)})$$
+$$\forall i \in [n] : f(\o^i) \meq f(\o^{\s(i)})$$
 
-One approach is to use the **Grand Product Argument**, defined earlier,
-which would show:
+Where $n = |H|$. One approach is to use the **Grand Product Argument**,
+defined earlier, which would show:
 
-$$\prod_{\o \in H} f(\o) = \prod_{\o \in H} g(s)$$
+$$\prod_{i = 1}^n f(\o^i) = \prod_{i = 1}^n f(\o^{\s(i)})$$
 
 But this only proves there exists _some_ permutation between $f(X)$ and
-$g(X)$, not necessarily $\s(X)$. We can start by trying to model sets of
+itself, not necessarily $\s$. We can start by trying to model sets of
 pairs, rather than just sets:
 $$\{ (a_i, b_i) \mid i \in [1,n] \} = \{ (c_i, d_i) \mid i \in [1,n] \}$$
 Which can be modelled with:
-$$
-  f(X) = a_i(X) + \beta b_i(X) g(X) = c_i(X) + \beta d_i(X)
-$$
-To prove for the specific permutation $\s$, we can then model a vector as
-a multiset of pairs of values and indices. We start by defining:
-
-$$
-\begin{aligned}
-  \vec{\tilde{f}} &= [f(\o^i), \dots, f(\o^n)] \\
-  \vec{\tilde{g}} &= \pi(\vec{\tilde{f}}) \\
-\end{aligned}
-$$
-
-The prover wants to prove that $\vec{\tilde{f}} = \vec{\tilde{g}} = \pi(\vec{\tilde{f}})$, for a specific permutation $\pi$:
-$$
-  \{ (\tilde{f}_i, i) \mid i \in [1,n] \} = \{ (\tilde{g}_i, i) \mid i \in [1,n] \} \implies \tilde{f}_i = \tilde{g}_i
-$$
-Rewriting using the definition of $\tilde{f}, \tilde{g}$:
-$$
-  \{ (f(\o^i), \id(\o^i)) \mid i \in [1,n] \} = \{ (f(\o^i), \s(\o^i)) \mid i \in [1,n] \} \implies \tilde{f}_i = \pi(\tilde{f}_i)
-$$
-
-$$
-\begin{aligned}
-  \{ (\tilde{f}_i, i) \mid i \in [1,n] \} &= \{ (\tilde{g}_i, i) \mid i \in [1,n] \} \implies \tilde{f}_i = \tilde{g}_i \; \land \\
-  \{ (f(\o^i), \id(\o^i)) \mid i \in [1,n] \} &= \{ (f(\o^i), \s(\o^i)) \mid i \in [1,n] \} \implies \\
-  \vec{\tilde{f}} &= \pi(\vec{\tilde{f}})
-\end{aligned}
-$$
-
-Which means we get a protocol to prove the claim.
+$$f(X) = a_i(X) + \beta b_i(X), \quad g(X) = c_i(X) + \beta d_i(X)$$
 
 **Correctness:**
 
-Since the only modification made to the Grand Product Argument is the
-modelling of pairs, we need to prove that:
-
-$$(f(\o^i), \id(\o^i)) = (g(\o^i), \sigma(\o^i)) \implies f(\o^i) + \beta \id(\o^i) = g(\o^i) + \beta \sigma(\o^i)$$
-
-Which holds trivially, since we can just rewrite $g(\o^i) \to f(\o^i)$ and $\sigma(\o^i) \to \id(\o^i)$.
+We need to prove that:
+$$(a(\o^i), b(\o^i)) = (c(\o^i), d(\o^i)) \implies a(\o^i) + \beta b(\o^i) = c(\o^i) + \beta d(\o^i)$$
+Which holds trivially, since the LHS implies $a(\o^i) = c(\o^i), b(\o^i) = d(\o^i)$, meaning
+we can rewrite:
+$$a(\o^i) + \beta b(\o^i) = a(\o^i) + \beta b(\o^i)$$
 
 $\qed$
 
@@ -272,16 +241,17 @@ $\qed$
 
 We need to prove that for a uniformly random $\b$:
 
-$$f(\o^i) + \b \id(\o^i) = g(\o^i) + \b \sigma(\o^i) \implies f(\o^i) = g(\o^i) \land \id(\o^i) = \sigma(\o^i)$$
+$$a(\o^i) + \b b(\o^i) = c(\o^i) + \b d(\o^i) \implies a(\o^i) = c(\o^i) \land b(\o^i) = d(\o^i)$$
 
-Assuming $f(\o^i) + \b \id(\o^i) \neq g(\o^i) + \b \sigma(\o^i) \land g(\o^i) \land \id(\o^i) = \sigma(\o^i)$:
+Except with negligible probability. Assuming $a(\o^i) + \b b(\o^i) \neq
+c(\o^i) + \b d(\o^i) \land g(\o^i)$:
 
 $$
 \begin{aligned}
-  f(\o^i) + \b \id(\o^i) &= g(\o^i) + \b \sigma(\o^i) \implies \\
-  f(\o^i) - g(\o^i) &= \b \sigma(\o^i) - \b \id(\o^i) \implies \\
-  f(\o^i) - g(\o^i) &= \b \cdot (\sigma(\o^i) - \id(\o^i)) \implies \\
-  \frac{f(\o^i) - g(\o^i)}{\sigma(\o^i) - \id(\o^i)} &= \b
+  a(\o^i) + \b b(\o^i) &= c(\o^i) + \b d(\o^i) \implies \\
+  a(\o^i) - c(\o^i) &= \b d(\o^i) - \b b(\o^i) \implies \\
+  a(\o^i) - c(\o^i) &= \b \cdot (d(\o^i) - b(\o^i)) \implies \\
+  \b &= \frac{a(\o^i) - c(\o^i)}{d(\o^i) - b(\o^i)}
 \end{aligned}
 $$
 
@@ -291,10 +261,19 @@ we have soundness.
 
 $\qed$
 
+The prover then wants to prove that for $i \in [n] : f_i = f_{\s(i)}$,
+for a specific permutation $\s$:
+$$\{ (f_i, i) \mid i \in [1,n] \} = \{ (f_i, \s(i)) \mid i \in [1,n] \} \implies f_i = f_{\s_i} \implies \vec{f} = \s(\vec{f})$$
+Which for polynomials:
+$$\{ (f(\o^i), \id(\o^i)) \mid i \in [1,n] \} = \{ (f(\o^i), \s(\o^i)) \mid i \in [1,n] \} \implies f(\o^i) = f(\o^{\s(i)})$$
+So _now_ we can use the **Grand Product Argument** to prove
+that $\forall i \in [n] : f(\o^i) \meq f(\o^{\s(i)})$, with:
+$$f'(X) = f(X) + \beta \id(X), \quad g'(X) = f(X) + \beta \s(X)$$
+
 \begin{tcolorbox}[colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
 
 An example, without soundness values $\b, \g$, for why this approach to
-proving permutations is sensible:
+proving $\sigma(\vec{f}) = \vec{f}$ is sensible:
 
 $$
   \begin{alignedat}{10}
@@ -306,7 +285,7 @@ $$
 $$
 \begin{aligned}
   \prod_{\o \in H} (f(\o) + \id(\o)) &= (f(\o^1) + 1)(f(\o^2) + 2)(f(\o^3) + 3)(f(\o^4) + 4)(f(\o^5) + 5)(f(\o^6) + 6) \\
-  \prod_{\o \in H} (g(\o) + \s(\o))  &= (g(\o^{\s(1)}) + 1)(g(\o^{\s(2)}) + 4)(g(\o^{\s(3)}) + 5)(g(\o^{\s(4)}) + 6)(g(\o^{\s(5)}) + 3)(g(\o^{\s(6)}) + 2) \\
+  \prod_{\o \in H} (f(\o) + \s(\o))  &= (f(\o^1) + 1)(f(\o^2) + 4)(f(\o^3) + 5)(f(\o^4) + 6)(f(\o^5) + 3)(f(\o^6) + 2) \\
                                      &= (f(\o^1) + 1)(f(\o^4) + 4)(f(\o^5) + 5)(f(\o^6) + 6)(f(\o^3) + 3)(f(\o^2) + 2) \\
                                      &= (f(\o^1) + 1)(f(\o^2) + 2)(f(\o^3) + 3)(f(\o^4) + 4)(f(\o^5) + 5)(f(\o^6) + 6)
 \end{aligned}
