@@ -43,6 +43,7 @@ accumulation of some dummy instances. This gives us the following chain:
   \pi_{i-1}, \acc_{i-1}) = \pi_i$, $s_i = F(s_{i-1})$, $\acc_i =
   \ASProver(\vec{q}, \acc_{i-1})$.
 }
+\label{ivc-chain}
 \end{figure}
 
 Before describing the IVC protocol, we first describe the circuit for the
@@ -239,7 +240,7 @@ The verifier and prover for the IVC scheme can be seen below:
 \end{algorithmic}
 \end{algorithm}
 
-Consider the above chain run $n$ times. As in the "simple" SNARK IVC
+Consider the IVC-chain from Figure \ref{ivc-chain} run $n$ times. As in the "simple" SNARK IVC
 construction, if $\IVCVerifier$ accepts at the end, then we get a chain
 of implications:
 $$

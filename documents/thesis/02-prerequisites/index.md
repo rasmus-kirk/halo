@@ -3,8 +3,8 @@
 Basic knowledge of elliptic curves, groups and interactive arguments
 is assumed in the following text. Basic familiarity with SNARKs is also
 assumed. The polynomial commitment scheme and accumulation scheme used was
-implemented and analyzed in a previous paper[@halo-accumulation] by one of
-the authors of this paper.
+implemented and analyzed in a previous project[@halo-accumulation] by one of
+the authors of this dissertation.
 
 The following subsections introduce the concept of Incrementally Verifiable
 Computation (IVC) along with some background concepts. These concepts lead to
@@ -26,7 +26,7 @@ the document:
 |                                                                                 |                                                                                                           |
 |:--------------------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------|
 | $[n]$                                                                           | Denotes the integers $\{ 1, ..., n \}$                                                                    |
-| $a \in \Fb_q$                                                                   | A field element of an unspecified field                                                                   |
+| $a \in \Fb$                                                                     | A field element of an unspecified field                                                                   |
 | $a \in \Fb_q$                                                                   | A field element in a prime field of order $q$                                                             |
 | $\vec{a} \in S^n_q$                                                             | A vector of length $n$ consisting of elements from set $S$                                                |
 | $G \in \Eb(\Fb_q)$                                                              | An elliptic Curve point, defined over field $\Fb_q$                                                       |
@@ -38,15 +38,15 @@ the document:
 | $a \cat b$ where $a \in \Fb_q$                                                  | Create vector $\vec{c} = (a, b)$.                                                                         |
 | I.K $w$                                                                         | "I Know", Used in the context of proof claims, meaning I have knowledge of the witness $w$                |
 | $\Bb$                                                                           | A boolean, i.e. $\{ \bot, \top \}$                                                                        |
-| $\Option(T)$                                                                    | $\{ T, \bot \}$                                                                                           |
-| $\Result(T, E)$                                                                 | $\{ T, E \}$                                                                                              |
+| $\Option(T)$                                                                    | Either a value $T$ or $\bot$, i.e. $\{ T, \bot \}$                                                        |
+| $\Result(T, E)$                                                                 | Either a value $T$ or a value $E$, i.e. $\{ T, E \}$                                                      |
 
-Note that the following are isomorphic $\{ \top, \bot \} \iso \Bb
-\iso \Option(\top) \iso \Result(\top, \bot)$, but they have different
-connotations. Generally for this report, $\Option(T)$ models optional
-arguments, where $\bot$ indicates an empty argument and $\Result(T, \bot)$
-models the result of a computation that may fail, especially used for
-rejecting verifiers.
+We use additive notation for the elliptic curve group. Note that the following
+are isomorphic $\{ \top, \bot \} \iso \Bb \iso \Option(\top) \iso \Result(\top,
+\bot)$, but they have different connotations. Generally for this report,
+$\Option(T)$ models optional arguments, where $\bot$ indicates an empty
+argument and $\Result(T, \bot)$ models the result of a computation that may
+fail, especially used for rejecting verifiers.
 
 ## Proof Systems
 
@@ -147,14 +147,14 @@ $$\rho_0(m) = \rho(0 \cat m), \quad \rho_1(m) = \rho(1 \cat m)$$
 A commitment scheme is a cryptographic primitive that allows one to commit
 to a chosen value while keeping it hidden to others, with the ability to
 reveal the committed value later. Commitment schemes are designed so that
-a the committing party cannot change the value after they have committed to
+the committing party cannot change the value after they have committed to
 it, i.e. it is _binding_. The fact that anyone that receives the commitment
 cannot compute the value from the it is called _hiding_.
 
 To reveal a value one can simply send the value to a party that previously
 received the commitment, and the receiving party can compute the commitment
 themselves and compare to the previously received commitment. One such
-homomorphic commitment scheme is the _Pedersen commitment scheme_[@pedersen]:
+commitment scheme is the _Pedersen commitment scheme_[@pedersen]:
 
 \begin{algorithm}[H]
 \caption*{\textbf{Algorithm:} $\CMCommit$}
@@ -199,16 +199,9 @@ The corresponding setup algorithm is:
 
 Pedersen commitments are an instance of a very useful type of commitment
 scheme for proof systems is that of a _homomorphic commitment scheme_, where:
-
 $$
-\begin{aligned}
-  C_1 &= \CMCommit(m_1, r_1) \\
-  C_2 &= \CMCommit(m_2, r_2) \\
-  C_3 &= \CMCommit(m_1 + m_2, r_1 + r_2) \\
-  C_3 &= C_1 + C_2
-\end{aligned}
+  \CMCommit(m_1, r_1) + \CMCommit(m_2, r_2) = \CMCommit(m_1 + m_2, r_1 + r_2)
 $$
-
 That is, you can add the commitments which corresponds to adding the committed
 inputs and then commititing. This lets a verifying party check the properties
 of committed values without needing to know them. Since the public parameters
@@ -378,15 +371,15 @@ proof $\pi_{i-1}$ for the previous state is valid."}
 Or more formally, $\pi_i$ is a proof of the following claim, expressed as
 a circuit $R$:
 $$R := \text{I.K.} \; w = \{ \pi_{i-1}, s_{i-1} \} \; \text{ s.t. } \; s_i \meq F(s_{i-1}) \; \land \; (s_{i-1} \meq s_0 \lor \SNARKVerifier(R_F, x = \{ s_0, s_i \}, \pi_{i-1}) \meq \top))$$
-Note that $R_F, s_i, s_0$ are not quantified above, as they are public
-values. Each state, $s_i$, including the genesis state, $s_0$, must also
-contain the current iteration, $i$, for soundness to hold. The $\SNARKVerifier$
-represents the verification circuit in the proof system we're using. This
-means, that we're taking the verifier, representing it as a circuit, and then
-feeding it to the prover. This is not a trivial task in practice! Note also,
-that the verification time must be sub-linear to achieve an IVC scheme,
-otherwise the verifier could just have computed $F^n(s_0)$ themselves,
-as $s_0$ and $F(x)$ necessarily must be public.
+Where I.K. denotes "I Know". Note that $R_F, s_i, s_0$ are not quantified
+above, as they are public values. Each state, $s_i$, including the genesis
+state, $s_0$, must also contain the current iteration, $i$, for soundness to
+hold. The $\SNARKVerifier$ represents the verification circuit in the proof
+system we're using. This means, that we're taking the verifier, representing
+it as a circuit, and then feeding it to the prover. This is not a trivial
+task in practice! Note also, that the verification time must be sub-linear
+to achieve an IVC scheme, otherwise the verifier could just have computed
+$F^n(s_0)$ themselves, as $s_0$ and $F(x)$ necessarily must be public.
 
 To see that the above construction works, observe that $\pi_1, \dots,
 \pi_n$ proves:
@@ -443,7 +436,7 @@ Meaning that $p(X) = q(X)$ with probability at least $d \, / \, \Fb$.
 
 It is well known that given $d+1$ evaluations, an evaluation domain,
 $\vec{p^{(e)}} := [ p^{(e)}_1, \dots, p^{(e)}_{d+1} ]$, of a polynomial
-$p(X)$, you can reconstruct the polynomial using lagrange interpolation:
+$p(X)$, you can reconstruct the polynomial using Lagrange interpolation:
 
 $$p(X) = \lagrange(\vec{p^{(e)}})$$
 
@@ -453,7 +446,7 @@ $$\{ \o^1, \o^2, \dots, \o^n \}$$
 where $\o$ is a primitive $n$-th root of unity, then interpolation can be
 reduced to applying a discrete Fourier transform. We can then choose $n \geq
 d+1$, and evaluate at all $n$ points of the domain. Setting $n$ to be the next
-power of 2 above $d+1$ allows us to use the very very efficient radix-2 FFT:
+power of 2 above $d+1$ allows us to use the very efficient radix-2 FFT:
 
 $$
 \begin{aligned}
@@ -555,7 +548,7 @@ $$
   \end{array}
 \right] = 1.
 $$
-I.e. an honest prover will always convince an honest verifier.
+In other words, an honest prover will always convince an honest verifier.
 
 **Knowledge Soundness:** For every maximum degree bound $D = \poly(\l)
 \in \Nb$, polynomial-size adversary $\Ac$ and publicly agreed upon $d$,
@@ -579,7 +572,7 @@ $$
   \end{array}
 \right] \geq 1 - \negl(\lambda).
 $$
-I.e. for any adversary, $\Ac$, outputting an instance, the knowledge extractor
+In other words, for any adversary, $\Ac$, outputting an instance, the knowledge extractor
 can recover $p$ such that the following holds: $C$ is a commitment to $p$,
 $v = p(c)$, and the degree of $p$ is properly bounded. Note that for this
 protocol, we have _knowledge soundness_, meaning that $\Ac$, must actually
@@ -611,7 +604,7 @@ $$
 \right] \leq \negl(\lambda).
 $$
 
-I.e. The adversary cannot change the polynomial that he committed to.
+In other words, the adversary cannot change the polynomial that he committed to.
 
 ## Accumulation Schemes
 
@@ -621,7 +614,7 @@ Bulletproofs-style Inner Product Argument (IPA), they present a polynomial
 commitment scheme. Computing the evaluation of a polynomial $p(z)$ as
 $v = \ip{\vec{\vec{p}^{\text{(coeffs)}}}}{\vec{z}}$ where $\vec{z} =
 (z^0, z^1, \dots, z^{d})$ and $\vec{p}^{\text{(coeffs)}} \in \Fb^{d+1}$
-is the coefficient vector of $p(X)$, using the IPA. However, since the the
+is the coefficient vector of $p(X)$, using the IPA. However, since the
 vector $\vec{z}$ is not private, and has a certain structure, we can split
 the verification algorithm in two: A sub-linear $\PCDLSuccinctCheck$ and
 linear $\PCDLCheck$. Using the $\PCDLSuccinctCheck$ we can accumulate $n$
@@ -648,7 +641,7 @@ accumulation scheme then consists of the following functions:
 - $\ASVerifier(\vec{q}: \Instance^m, acc_{i-1}: \Option(\Acc), acc_i: \Acc) \to \Result(\top, \bot)$
 
     The verifier checks that the instances $\{ q_1, \dots, q_m \}$ in
-    $\vec{q}$ was correctly accumulated into the previous accumulator
+    $\vec{q}$ were correctly accumulated into the previous accumulator
     $acc_{i-1}$ to form the new accumulator $acc_i$. The second argument
     $acc_{i-1}$ is modelled as an $\Option$ since in the first accumulation,
     there will be no accumulator $acc_0$. In all other cases, the second
@@ -720,6 +713,16 @@ and $\ASDecider(acc_i) = \top$.
 
 ## Cycles of Curves
 
+When modelling scaling of elliptic curve points, we need two fields, a
+scalar-field $\Fb_\Sc$ and a base-field $\Fb_\Bc$. To see why, consider the
+operation $a P$, where $a \in \Fb_\Sc$ and $P \in \Eb_\Sc(\Fb_\Bc) =
+\Fb_\Bc \times \Fb_\Bc$, then the order of the scalar field must be equal
+to the order of the elliptic curve. Naively, one could choose the larger field
+of the two for a SNARK circuit and model computation over the smaller field,
+by using modulo operation in-circuit. With such an approach the circuit is
+modelling _foreign-field arithmetic_ which is very expensive per foreign
+field operation.
+
 To simplify elliptic curve operations, a _cycle of curves_ can be used. A
 cycle of curves use the other's scalar field as their base field and
 vice-versa. This means that field operations can be handled natively in the
@@ -766,7 +769,7 @@ in many SNARK circuits. The Poseidon[@poseidon] Hash specification aims to
 solve this. The specification defines a cryptographic sponge construction,
 with the state permutation only consisting of native field operations. This
 makes poseidon in SNARKs much more efficient. The cryptographic sponge
-structure, is also particularly well suited for Fiat-Shamir, as messages
+structure is also particularly well suited for Fiat-Shamir, as messages
 from the prover to the verifier can be modelled with sponge absorption and
 challenge messages from the verifier to the prover can be modelled with
 sponge squeezing. Poseidon is still a very new hash function though, and

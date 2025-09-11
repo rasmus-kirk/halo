@@ -38,7 +38,7 @@ that for this row $f_{GC}$ becomes:
 $$f_{GC} = q_l w_1 + q_r w_2 + q_o w_3 + \dots = 0 \implies w_1 + w_2 - w_3 = 0$$
 
 We also have a coefficient row for each gate, that can store constants
-for each gate. This is used in the scalar multiplication, poseidon and
+for each gate. This is used in the scalar multiplication, Poseidon and
 range-check gates. For all other gates they are set to zero. If they are
 not listed in a gate specification below, then all row-values are set to
 zero. This is also the case for our example add gate.
@@ -71,7 +71,7 @@ It's implicit that each constraint in the constraint tables should always be
 equal to zero. To translate this into the form expected by $f_{GC}(X)$, we
 start by multiplying each row by the relevant designated selector polynomial,
 in this case it's $q_{(=)}(X)$. This also explains why the degree is three, not
-two, in the table. The $x, y, b, \a$ can be read from the witness table from
+two, in the table. The values $x, y, b, \a$ can be read from the witness table from
 the equality gate, which in this case leads to $x = w_1(X), y = w_2(X), b =
 w_3(X), \a = w_4(X)$. Finally, a challenge (in this case $\zeta$) multiplied
 to each row, creating a geometric sum. Taken together, this leads to adding
@@ -567,13 +567,13 @@ convenient for Fiat-Shamir transformations, since information sent to the
 verifier can cleanly be modelled as sponge absorption, and queries made to
 the verifier can be modelled as sponge squeezing. Squeezing and absorbing
 from the sponge a certain number of times, triggers a permutation of the
-sponge state. The original poseidon paper provide several small veriations
+sponge state. The original Poseidon paper provide several small veriations
 on how this permutation can be performed, with a variable number of partial
 and full rounds of permutation. Kimchi's approach to this is to only perform
 the expensive full rounds, but conversely make a highly specialized gate
 for only these full rounds.
 
-A complete permutation of the poseidon sponge state of size 3, then consists
+A complete permutation of the Poseidon sponge state of size 3, then consists
 of 55 full rounds of the following computation:
 $$
 \begin{aligned}

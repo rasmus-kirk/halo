@@ -2,7 +2,7 @@
 
 We now describe the arguments used in Plonk. We can safely assume that the
 degree bound of any polynomial is always much smaller than the size of the
-field, $|\Fb| \gg d$.
+field, $d \ll |\Fb|$.
 
 ### Vanishing Argument
 
@@ -120,14 +120,14 @@ v_t = t(\xi)                                       &                            
 $$
 
 You can compress the $k+1$ evaluations proofs into a single evaluation proof
-using the **Batched Evaluations Proofs Protocol**.
+using the **Batched Evaluation Proofs Protocol**.
 
 ### Batched Evaluation Proofs
 
 If we have $m$ polynomials, $\vec{f}$, that all need to evaluate to
 zero at the same challenge $\xi$, normally, we could construct $m$ opening
 proofs, and verify these. We can, however, use the following protocol to
-only create the **Batched Evaluations Proofs Protocol**:
+only create the **Batched Evaluation Proofs Protocol**:
 
 $$
 \renewcommand{\arraystretch}{1.75}
@@ -164,7 +164,7 @@ This can be recontextualized as a polynomial:
 
 $$p(\a) = \sum_{i=0}^{k-1} \a^i (f_i(\xi) - v_i) = 0$$
 
-Then from Schwartz-Zippel, we acheive soundness, since the probability that
+Then from Schwartz-Zippel, we achieve soundness, since the probability that
 this polynomial evaluates to zero given that it's not a zero-polynomial
 is $\frac{k}{|\Fb|}$.
 

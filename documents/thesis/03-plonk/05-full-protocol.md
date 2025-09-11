@@ -1,6 +1,6 @@
 ## Full Plonk Protocol
 
-Combining all the previously discussed subprotocols we get the full plonk
+Combining all the previously discussed subprotocols we get the full Plonk
 protocol. Soundness and completeness should follow from the subprotocols, so
 we won't discuss those here, but we will do a short analysis and justification
 for the worst-case runtimes of both algorithms.

@@ -1,7 +1,7 @@
 ## Chain of Signatures
 
 Blockchains with consensuses based on HotStuff[@hotstuff], such as Concordium
-and Partesia, have elected committees sign blocks. The highest block signed
+and Partisia, have elected committees sign blocks. The highest block signed
 by the current committee is deemed the latest block. During catch-up, when a
 node has to sync with the blockchain, it has to download all previous blocks
 from the first block, the genesis block. This is also the case for light nodes

@@ -372,11 +372,13 @@ $$C^{(q)}_\IP := v^{(q)} \cdot G_1^{(q)} \in \Eb_p(\Fb_q)$$
 The scalar operation may seem invalid, but since we know that $v^{(q)}
 \leq q - 1 < p - 1$, it can logically be computed by the usual double and
 add, since the bits of $v^{(q)}$ will correspond to the bits of $v^{(p)}$
-if $\text{lift}(v^{(q)}) = \text{lift}(v^{(p)})$. If $C^{(q)}_\IP$ is emitted in
-the public inputs of the circuit, then the verifier will know that $C^{(q)}_\IP$
-is a commitment to $v^{(q)}$. To convince the verifier of the desired relation
-that $\text{lift}(v^{(q)}) = \text{lift}(v^{(p)})$, it will now suffice to
-convince them that $v^{(p)}$ is a valid opening of $C^{(q)}_\IP$. So the verifier
+if $\text{lift}(v^{(q)}) = \text{lift}(v^{(p)})$, where $\text{lift}
+\in \Fb \to \Zb$ is a function that returns the integer value of a finite
+field. If $C^{(q)}_\IP$ is emitted in the public inputs of the circuit, then
+the verifier will know that $C^{(q)}_\IP$ is a commitment to $v^{(q)}$. To
+convince the verifier of the desired relation that $\text{lift}(v^{(q)}) =
+\text{lift}(v^{(p)})$, it will now suffice to convince them that $v^{(p)}$
+is a valid opening of $C^{(q)}_\IP$. So the verifier
 checks manually that:
 
 $$C^{(q)}_\IP \meq v^{(p)} \cdot G_1^{(q)}$$
@@ -413,7 +415,7 @@ The constraints added to $R^{(p)}$ then becomes:
 **Combining Commitments:**
 
 We of course don't need to commit each time we pass inputs, we can create
-a standard vector pedersen commit, containing all the passed values:
+a standard vector Pedersen commit, containing all the passed values:
 
 $$C^{(p)}_\IP = h_{v_1}^{(p)} \cdot G_1^{(p)} + l_{v_1}^{(p)} \cdot G_2^{(p)} + h_{v_2}^{(p)} \cdot G_3^{(p)} + l_{v_2}^{(p)} \cdot G_4^{(p)} + \dots$$
 

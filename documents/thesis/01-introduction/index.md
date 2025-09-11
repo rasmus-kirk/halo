@@ -2,8 +2,8 @@
 
 # Introduction
 
-Valiant originally described IVC in his 2008 paper[@valiant] in the following
-way:
+Valiant originally described IVC - Incrementally Verifiable Computation -
+in his 2008 paper[@valiant]:
 
 \begin{quote}
 \color{GbGrey}
