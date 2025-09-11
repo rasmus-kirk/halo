@@ -3,7 +3,7 @@
 We now define the rest of the abstractions building up to the specification of the single source of truth for arithmetization which is used in $\text{trace}$.
 
 \begin{definition}[Column]
-A set of unique identifiers for the columns of the trace table / concrete circuit.
+A set of unique identifiers for the columns of the trace table.
 \end{definition}
 $$
 c: \Column
@@ -16,8 +16,10 @@ $$
   - $\pcol(c): \Bb$ - is $c$ a private / witness relevant column
   - $\cccol(c): \Bb$ - is $c$ a copy constraint relevant column
   - $X(t: \Color,c): \Uni$ - the argument type that the column values depend on
-  - $\text{default}(t: \Color,c,x): W(t)$ - the default value used to construct the trace table
-- *motivation*: a modular and user extendable way to define the structure of the trace table / concrete circuit. 
+  - $\text{default}(t,c,x: X(t,c)): W(t)$ - the default value for the column used by the trace table
+- *motivation*:
+  - A modular and user extendable way to define the structure of the trace table.
+  - More on arguments $X(t,c)$ later when when we define index maps.
 
 \begin{notation}[Unit Type]
 A unit type is a type with a single value, denoted as $()$.
@@ -26,10 +28,18 @@ $$
 () : \Unit
 $$
 
-- *unit for functions*: $1 \to T = T$ e.g. $f() = x$ then $f = x$
-- *omissible argument*: by currying $X \times 1 \to T = X \to 1 \to T = X \to T$ thus e.g. $f(x,()) = f(x)$
-- *unit vector*: $T^0 = 1$ i.e. $(): T^0 = () : \Unit$
 - *motivation*: Used as an identity / unital / nullary element.
+- *unit for functions*: $1 \to T = T$ e.g. $f() = x$ then $f = x$
+- *unit vector*: $T^0 = 1$ i.e. $(): T^0 = () : \Unit$
+- *omissible argument*: unit arguments can be omitted.
+$$
+\begin{array}{lll}
+\mathrm{type} & \mathrm{example} \\
+X \times 1 \to T & f(x,())  \\
+= X \to 1 \to T & = f(x)() & \text{by\ currying} \\
+= X \to T & = f(x) & \text{by\ unit\ for\ functions}
+\end{array}
+$$
 
 \begin{definition}[Index Map]
 A data structure that maps columns to thunks; functions of arbitrary type.
@@ -43,13 +53,10 @@ $$
 
 - *notation*:
   - Naively, think of a thunk as $f: X \to Y$
-    - $X$ is the thunk argument type.
-      - $X = \Unit$ if the value is not a thunk.
-    - $Y$ is the value type.
-      - $Y= \Option(T)$ if the index map is partially populated.
+    - $X$ is the thunk argument type; $X = \Unit$ if the value is not a thunk.
+    - $Y$ is the value type; $Y= \Option(T)$ if the index map is partially populated.
     - Thus, index maps hold such $f$ where $X,Y$ vary per color and column.
-  - If $t,c$ appears free in $F$, then it is bound to the indices
-    - e.g. $F(T(t,c)) = (t: \Color) \to (c: \Column) \to T(t,c)$.
+  - If $t,c$ appears free in $F$, then it is bound e.g. $F(T(t,c)) = (t: \Color) \to (c: \Column) \to T(t,c)$.
 - *projections*: if $A: \IndexMap(X,Y)$ then 
   - $A^t_x(c) = A(t,c,x)$ for thunks
   - $A^t(c) = A(t,c,())$ for non thunks
@@ -104,9 +111,10 @@ $$
 \end{array}
 $$
 
-- *notation*: $\bar{w}$ the bar denotes the cell wire is an abstraction of the wire $\abst{w}$; an abstraction of the value $w$.
-- *motivation*: For properads to be a single source of truth in constructing the concrete circuit, it needs a way to represent the wires that gadgets that instantiate the properad has.
-- *note*: This is a projection of a properad.
+- *notation*:
+  - $\bar{w}$ the bar denotes it is an abstract wire $\abst{w}$ thats an abstract value $w$.
+  - If $n(\abst{g})=2, m(\abst{g})=1$ and $\bar{w} \in \set{1,2}$ then $\abst{w} \in \gin(g)$ else if $\bar{w} = 3$ then $\gpair{g}{\abst{w}} \in \abst{f}$.
+- *motivation*: To be declarative, we needs a way to refer to the wires of a properad's gadget instances.
 
 \begin{notation}[Vector index function]
 A function that indexes a vector.
@@ -129,7 +137,8 @@ $$
 - *projections*:
   - $\vec{t}(\abst{g}) = \pin(\abst{g}) \cat \pout(\abst{g})$ - the full profile of the properad; input and output wire colors.
   - $\vec{t}(\abst{g}, \aavec{w}) = (\vec{t}(\abst{g}) @ -)[\aavec{w}]$ - the profile of a vector of cell wires.
-- *motivation*: Allows querying the profile of cell wires succinctly.
+  - We continue to define more projections as their own definitions to eventually define cells and pre-constraints
+- *motivation*: Allows us to define the single source of truth for values in the trace table.
 
 \begin{definition}[Cell Resolvers]
 Functions that reduce a cell to a value.
@@ -138,11 +147,10 @@ $$
 R(\abst{g}, \aavec{w}) = F(X(t,c) \to W [\vec{t}(\abst{g}, \aavec{w})] \to W(t))
 $$
 
-- *motivation*: Think of a cell as a projection of a properad defining the single source of truth of an abstract value in the concrete circuit. The resolver instantiates it to a concrete value.
-- *note*: This is a projection of a properad.
+- *motivation*: It's use will be clear in the concrete example of cells.
 
 \begin{definition}[Cell]
-Cells represent an abstract value in an index map modelling the trace table / concrete circuit. It contains the cell wires that it depends on, and a resolver that computes the value of the cell. 
+Cells represent an abstract value in an index map modelling the trace table. It contains the cell wires that it depends on, and a resolver that computes the value of the cell. 
 \end{definition}
 $$
 \begin{array}{rl}
@@ -153,7 +161,6 @@ $$
 
 - *notation*: $\boxdot$ a boxed symbol denotes a cell.
 - *motivation*: the following cell constructions will hopefully motivate the definitions above.
-- *note*: This is a projection of a properad.
 
 \begin{definition}[Constant Cell]
 A cell that does not depend on any wire nor thunk argument.
@@ -206,7 +213,7 @@ $$
 \end{array}
 $$
 
-- *motivation*: For notational brevity, columns irrelevant to a properad may be omitted, though vectors of a specific color must maintain uniform length. Default cells are padded for omitted columns. For most columns, the default value is $0$, while specialized columns such as those relevant to $\plookup$  use $\text{default}(t,c,t_{last}: X(t,c)) = t_{last}$, where $t_{last}$ denotes the last entry of the lookup table which can only be computed further in the protocol. This is yet another advantage of having thunk arguments in index maps.
+- *motivation*: For notational brevity, columns irrelevant to a properad may be omitted, though vectors of a specific color must maintain uniform length. Default cells are padded for omitted columns. For most columns, the default value is $0$, while specialized columns for $\plookup$  use $\text{default}(t,c,t_{last}) = t_{last}$, where $t_{last}$ is the last entry of the lookup table, which like $\zeta$ can only be computed further in the protocol. This is yet another advantage of having thunk arguments in index maps.
 - *notation*: Recall that $\text{default}(t,c,x): W(t)$ is a projection of a column, whose type signature conveniently matches that of the default cell resolver
 $$
 \begin{array}{ll}
@@ -229,7 +236,7 @@ $$
 $$
 
 - *notation*: note we use $k(t)$ to denote that the vectors are of uniform length per color.
-- *motivation*: Pre-Constraints act as a template for a sub-table for gadgets of the properad. This makes the instantiations of gates in the concrete circuit derivable from the properads; a single source of truth.
+- *motivation*: Pre-Constraints act as a template for a sub-table for gadgets of the properad. This makes the instantiations of gates in the trace table derivable from the properads; a single source of truth.
 
 \begin{example} Pre-constraints for $\build{a + b}{}{}$ and $\build{a \times b}{}{}$. Let $\text{Add}^t, \text{Mul}^t: \Prpd$
 \end{example}
@@ -351,7 +358,6 @@ $$
 - *motivation*:
   - A gate is a semantic group of resolved cells of the color $t'$, specifically a row of a trace table.
   - This generally corresponds to the operands of an equation typically the gate constraint polynomial.
-- *note*: This is a projection of a trace table.
 
 \begin{example}
 Trace table for $\build{w_1 + (w_2 \times w_3) = z^*}{}{}$ where $\pwit = (q,q,q)$.

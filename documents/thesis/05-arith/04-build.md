@@ -43,7 +43,7 @@ $$
   - there are more projections defined later.
 - *notation*: the hat $\abst{g}$ indicates that properads are an abstract gadget.
 - *motivation*: 
-  - Single source of truth for contributions to the gate constraint polynomial and trace table / concrete circuit for gadgets of its kind.
+  - Single source of truth for contributions to the gate constraint polynomial and trace table for gadgets of its kind.
   - Circuit construction is an expression of an algebraic theory (pasting schemes) which allows us to reason about circuits algebraically[^properad], facilitating the following:
     - Optimizations via rewriting / caching of existing wires
     - Formal reasoning / writing proofs about the circuit structure of a program.
