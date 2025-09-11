@@ -208,6 +208,18 @@ $$
 - *motivation*: to facilitate reuse of output wires of equivalent gadgets to reduce the number of gates in the concrete circuit.
 - *future work*: Equality saturation techniques; [@egglog], are a candidate for defining gadget equivalence.
 
+\begin{definition}[Put gadget]
+Add a gadget to the current abstract circuit.
+\end{definition}
+$$
+\begin{array}{rl}
+\aput &: \Ggt \to \BuildState \to \BuildState \\
+\aput(g,s) &= s \cat \astate{(m \circ \ty(g))}{\entries(u(s),g)}{()}
+\end{array}
+$$
+
+- *motivation*: helper function for build.
+
 \begin{definition}[Get output wires]
 A function that retrieves the output wires of a gadget from the current state's abstract circuit. If the gadget is not in the abstract circuit, it extends the abstract circuit with new entries for the gadget and yields new output wires.
 \end{definition}
@@ -217,7 +229,7 @@ $$
 \aget(s, g)
 &= \begin{cases}
   (s, \out(\abst{f}(s),h)) & \exists h \in \Ggt^{\abst{f}(s)}_g \\
-  (s \cat \astate{(m \circ \ty(g))}{\entries(u(s),g)}{()}, \new(u(s),g)) & \otherwise
+  (\aput(g,s), \new(u(s),g)) & \otherwise
 \end{cases}
 \end{array}
 $$
