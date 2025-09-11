@@ -88,26 +88,6 @@ $$
 - *motivation*: Single source of truth for equational definitions that vary over operand types, e.g. scalars, polynomials, curve points, wires and state via build. Examples are gate constraint polynomials, grand product polynomials, quotient polynomial, plookup compression equation, etc.
 - *implementation note*: it is possible to use traits and type variables / generics in rust to define a function over $T$, without having an explicit syntax tree construction of the $Eqn$'s grammar.
 
-\begin{definition}[More Gadget Projections]\end{definition}
-$$
-g: \Ggt = \abst{g}(\avec{x})
-$$
-
-- *projections*:
-  - $\text{wires}(\abst{f}, g) = \gin(g) \cat \out(\abst{f}, g)$ - all wires; input and output sorted by uuid
-
-\begin{notation}[Vector index function]
-A function that indexes a vector.
-\end{notation}
-$$
-\begin{array}{rl}
-- @ -&: T^k \to \Nb \to T \\
-\vec{x} @ i &= x_i
-\end{array}
-$$
-
-- *motivation*: Allows us to index vectors over a higher order function such as mapping over a vector.
-
 \begin{definition}[Cell Wire]
 Cell wires are natural numbers that represent the wires of a gadget in a properad. Naively, an abstract wire. It does exclude some wires which will be defined later.
 \end{definition}
@@ -123,6 +103,18 @@ $$
 - *motivation*: For properads to be a single source of truth in constructing the concrete circuit, it needs a way to represent the wires that gadgets that instantiate the properad has.
 - *note*: This is a projection of a properad.
 
+\begin{notation}[Vector index function]
+A function that indexes a vector.
+\end{notation}
+$$
+\begin{array}{rl}
+- @ -&: T^k \to \Nb \to T \\
+\vec{x} @ i &= x_i
+\end{array}
+$$
+
+- *motivation*: Allows us to index vectors over a higher order function such as mapping over a vector.
+
 \begin{definition}[More Properad Projections]\end{definition}
 $$
 \abst{g}: \Prpd
@@ -131,6 +123,7 @@ $$
 - *projections*:
   - $\vec{t}(\abst{g}) = \pin(\abst{g}) \cat \pout(\abst{g})$ - the full profile of the properad; input and output wire colors.
   - $\vec{t}(\abst{g}, \aavec{w}) = (\vec{t}(\abst{g}) @ -)[\aavec{w}]$ - the profile of a vector of cell wires.
+- *motivation*: Allows querying the profile of cell wires succinctly.
 
 \begin{definition}[Cell Resolvers]
 Functions that reduce a cell to a value.
@@ -140,6 +133,7 @@ R(\abst{g}, \aavec{w}) = F(X(t,c) \to W [\vec{t}(\abst{g}, \aavec{w})] \to W(t))
 $$
 
 - *motivation*: Think of a cell as a projection of a properad defining the single source of truth of an abstract value in the concrete circuit. The resolver instantiates it to a concrete value.
+- *note*: This is a projection of a properad.
 
 \begin{definition}[Cell]
 Cells represent an abstract value in an index map modelling the trace table / concrete circuit. It contains the thunk argument, the cell wires that it depends on, and a resolver that computes the value of the cell. 
@@ -204,7 +198,7 @@ f(x) &: W[t]
 \end{array}
 $$
 
-- *motivation*: For notational brevity, columns irrelevant to a properad may be omitted, though sub-tables; vectors of a specific color must maintain uniform length. Default cells are padded for omitted columns. For most columns, $f()= 0$, while specialized columns such as plookup use $f(t_{last}: X(t,c)) = t_{last}$, where $t_{last}$ denotes the last entry of the lookup table. This is yet another advantage of having thunk arguments in index maps.
+- *motivation*: For notational brevity, columns irrelevant to a properad may be omitted, though vectors of a specific color must maintain uniform length. Default cells are padded for omitted columns. For most columns, $f()= 0$, while specialized columns such as plookup use $f(t_{last}: X(t,c)) = t_{last}$, where $t_{last}$ denotes the last entry of the lookup table which can only be computed further in the protocol. This is yet another advantage of having thunk arguments in index maps.
 
 \begin{definition}[Pre-Constraints]
 The class of gates that a gadget of a specific properad contributes.
@@ -216,6 +210,7 @@ $$
 \end{array}
 $$
 
+- *notation*: note we use $k(t)$ to denote that the vectors are of uniform length per color.
 - *motivation*: Pre-Constraints act as a template for a sub-table for gadgets of the properad. This makes the instantiations of gates in the concrete circuit derivable from the properads; a single source of truth.
 
 \begin{definition}[Trace Table]
@@ -229,6 +224,8 @@ T &: \TraceTable
 \end{array}
 $$
 
+- *motivation*: This is the last intermediate data structure before we can interpolate them into polynomials and other data forming the concrete circuit $(R,X,W)$.
+
 \begin{definition}[Gate]
 A gate is the $i$th row of the trace table for color $t$.
 \end{definition}
@@ -238,7 +235,7 @@ $$
 $$
 
 - *notation*: We side step the issue of index out of bounds, this can be managed by wrapping the result in an option type.
-- *motivation*: A gate is a semantic group of cells, specifically a row of a trace table. This generally corresponds to the operands of an equation typically the gate constraint polynomial.
+- *motivation*: A gate is a semantic group of resolved cells, specifically a row of a trace table. This generally corresponds to the operands of an equation typically the gate constraint polynomial.
 - *note*: This is a projection of a trace table.
 
 \begin{example} Pre-constraints for $\build{a + b}{}{}$ and $\build{a \times b}{}{}$. Let $\text{Add}^t, \text{Mul}^t: \Prpd$
@@ -311,7 +308,7 @@ $a$ & $b$ & $c$ & $0$ & $0$ & $-1$ & $1$ & $0$ & $0$  \\
   - The pre-constraints only define a gate for the color $t$ wheras the rest of the colors is empty.
   - Recall that the length of the vector of cells must be uniform within a color, but not across colors.
 
-Let the trace table for $\build{w_1 + (w_2 \times w_3) = z^*}{}{}$ be the following:
+Let the trace table for $\build{w_1 + (w_2 \times w_3) = z^*}{}{}$ be the following (we will describe how this is computed when we define trace later):
 \begin{center}
 \begin{tabular}{ c c }
 \begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}
@@ -323,9 +320,9 @@ Let the trace table for $\build{w_1 + (w_2 \times w_3) = z^*}{}{}$ be the follow
 \hline
 $A$ & $B$ & $C$ & $Q_l$ & $Q_r$ & $Q_o$ & $Q_m$ & $Q_c$ & $PI$ & $\cdots$ \\
 \hline
-$w_2$ & $w_3$ & $t_1$ & $0$ & $0$ & $-1$ & $1$ & $0$ & $0$  \\
+$w_2$ & $w_3$ & $t$ & $0$ & $0$ & $-1$ & $1$ & $0$ & $0$  \\
 \cline{1-9}
-$w_1$ & $t_1$ & $z$ & $1$ & $1$ & $-1$ & $0$ & $0$ & $0$ \\
+$w_1$ & $t$ & $z$ & $1$ & $1$ & $-1$ & $0$ & $0$ & $0$ \\
 \cline{1-9}
 \end{tabular}
 &
@@ -336,14 +333,14 @@ $w_1$ & $t_1$ & $z$ & $1$ & $1$ & $-1$ & $0$ & $0$ & $0$ \\
 \gate{in1}{($(in0.north east)+(0.1,0)$)}{}{$\Input^q_2$}{1}
 \gate{in2}{($(in1.north east)+(0.1,0)$)}{}{$\Input^q_3$}{1}
 
-\gate{add}{($(in0.south west)+(0.1875,-0.5)$)}{$\abst{w_1}$, $\abst{t_1}$}{$\text{Add}^t$}{1}
+\gate{add}{($(in0.south west)+(0.1875,-0.5)$)}{$\abst{w_1}$, $\abst{t}$}{$\text{Add}^q$}{1}
 \draw[-,thick] ($(add-in-1)+(0,0.25)$) -- (add-in-1);
 \draw[-,thick] ($(add-in-2)+(0,0.25)$) -- (add-in-2);
 \draw[-,thick] (add-out-1) -- ($(add-out-1)+(0,-0.4)$);
 \node[draw, thick, circle, double, double distance=1pt, anchor=north] at ($(add-out-1)+(0,-0.4)$) {$\abst{z}$};
 
 
-\gate{mul}{($(add.north east)+(0.5,0)$)}{$\abst{w_2}$, $\abst{w_3}$}{$\text{Mul}^t$}{1}
+\gate{mul}{($(add.north east)+(0.5,0)$)}{$\abst{w_2}$, $\abst{w_3}$}{$\text{Mul}^q$}{1}
 \draw[-,thick] ($(mul-in-1)+(0,0.25)$) -- (mul-in-1);
 \draw[-,thick] ($(mul-in-2)+(0,0.25)$) -- (mul-in-2);
 \draw[-,thick] (mul-out-1) -- ($(mul-out-1)+(0,-0.4)$);
@@ -364,20 +361,21 @@ Let $F_{GC}^{\plonkm}: \Eqn = A \times Q_l + B \times Q_r + C \times Q_o + A \ti
 
 $$
 \begin{array}{rll}
-F_{GC}^{\plonkm}(\gatef(T,1,t)) &= w_2 + w_3 - t_1 &\stackrel{?}{=} 0 \\
-F_{GC}^{\plonkm}(\gatef(T,2,t)) &= -z + (w_1 \times t_1) &\stackrel{?}{=} 0 \\
+F_{GC}^{\plonkm}(\gatef(T,1,q)) &= w_2 + w_3 - t &\stackrel{?}{=} 0 \\
+F_{GC}^{\plonkm}(\gatef(T,2,q)) &= -z + (w_1 \times t) &\stackrel{?}{=} 0 \\
 \end{array}
 $$
 
-Thus $F_{GC}^{\plonkm}$ constraints the structural integrity of the gadgets when they evaluate to zero.
+Thus $F_{GC}^{\plonkm}$ implies the structural integrity of the gadgets when it evaluates to zero.
 
-At this point, we want to emphasize the power of index map as an abstraction. Pre-constraints, trace table and gates are all defined as an index map.
+At this point, we want to emphasize the expressivity of index map as an abstraction. Pre-constraints, trace table and gates are all defined as an index map. Subsequently, we will see that even the circuit $(R,X,W)$ are also index maps.
 
 TODO
 
 - relative wires
-- gadget assert for relative
-- op projects term: Eqn, columns: pow(column)
+- cell wire additional assertion
+- gadget additional assertion
+- properad projections; term: Eqn, columns: pow(column)
 - spec
 - DONE
 
