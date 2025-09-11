@@ -138,7 +138,7 @@ Graph - with the following kinds of nodes:
   \node[draw, rectangle, minimum size=15pt] (mp-pq) at (1.5, -6) {$p \to q$};
   \node[draw, rectangle, minimum size=15pt] (mp-qp) at (3, -6) {$q \to p$};
   \node[draw, rectangle, minimum size=15pt] (assert-eq) at (4.5, -6) {$=_{\text{Assert}}$};
-  \node[draw, rectangle, minimum size=15pt] (C) at (6, -6) {C};
+  \node[draw, rectangle, minimum size=15pt] (C) at (6, -6) {$\text{C}_x$};
 
   %%%%%%%%%% Arrows %%%%%%%%%%
   \node[minimum size=2pt, inner sep=1pt] (hash-in1) at (-0.3, -5.4) {\scriptsize $\Bc$};
@@ -179,7 +179,7 @@ Graph - with the following kinds of nodes:
 
 Wires can have two types $\Fb_p$ or $\Fb_q$. The other symbols denote:
 
-- $\Bb$: Either $\Fb_p$ or $\Fb_q$, but whatever the concrete field element, it is constrained to be either 0, or 1.
+- $\Bb$: Either $\Fb_p$ or $\Fb_q$, but whatever the concrete field element, it is constrained to be either 0, or 1, a bit.
 - $\Sc$: A scalar-field element, either $\Fb_p$ or $\Fb_q$, depending on if the whether you model the Pallas ($\Sc = \Fb_p$) or Vesta ($\Sc = \Fb_q$) curve.
 - $\Bc$: A base-field element, either $\Fb_p$ or $\Fb_q$, depending on if the whether you model the Pallas ($\Bc = \Fb_q$) or Vesta ($\Bc = \Fb_p$) curve.
 - $\Fb$: The gate works when instantiated with either $\Fb_p$ or $\Fb_q$.
@@ -221,6 +221,7 @@ the inputs and $\Bb = \Fb_q$ as the other.
   - $p \to q$: Message passes an $\Fb_p$ element to the $\Fb_q$ circuit.
   - $q \to p$: Message passes an $\Fb_q$ element to the $\Fb_p$ circuit.
   - $(=_{\text{Assert}})$: Asserts that the two field elements of the same type are equal.
+  - $\text{C}_x$: A constant gate, outputting a fixed value $x$ of either $\Fb_p$ or $\Fb_q$.
 
 We can represent our previous example circuit from Figure
 \ref{fig:example-circuit} using these nodes:
@@ -271,7 +272,7 @@ We can represent our previous example circuit from Figure
   \draw[arrow] (times-22) -- (mid) -- (6, -4.5) -- (times-41);
 
   %%%%%%%%%% Nodes %%%%%%%%%%
-  \node[draw, rectangle, minimum size=15pt] (assert-eq) at (5.75, -6) {$=_\text{CC}$};
+  \node[draw, rectangle, minimum size=15pt] (assert-eq) at (5.75, -6) {$=_\text{Assert}$};
 
   %%%%%%%%%% Arrows %%%%%%%%%%
   \node[minimum size=2pt, inner sep=1pt] (mid) at (3.5, -5.25) {\scriptsize $\Sc$};
@@ -282,21 +283,38 @@ We can represent our previous example circuit from Figure
 \caption{The example circuit from the Figure \ref{fig:example-circuit}, as a DAG, using the defined DAG nodes.}
 \end{figure}
 
+To arithmetize our program, yielding the polynomials required by the Plonk
+prover and verifier, we need to extract the necessary constraint table from
+the circuit and interpolate the columns to get the polynomials. We first
+define some useful objects:
+
 $$
-\begin{alignedat}{2}
-  &\textbf{WireId}   &&= \Nb, \\
-  &\textbf{SlotId}   &&= \Nb \times \Nb, \\
-  &\textbf{WireType} &&= \{ \Fb_p, \Fb_q \}, \\
-  &\textbf{GateType} &&= \{ \\
-  & &&"\text{W-}\Sc", "\text{P-}\Sc", "(-)", "(+)", "(\times)", "(x^{-1})", \\
-  & &&"\text{W-}\Bb", "\text{P-}\Sc", "(=)", "(\land)", "(\lor)", \\
-  & &&"\text{W-}P", "\text{P-}P", "(+_{\text{EC}})", "(\times_{\text{EC}})", \\
-  & &&"\Hc", "p \to q", "q \to p" \\
-  &\} && 
+\begin{alignedat}{3}
+  &\textbf{WireId}   &&= \Nb                &&\quad \text{(A unique sequential id for each wire)}, \\
+  &\textbf{SlotId}   &&= \Nb \times \Nb     &&\quad \text{(An entry in the constraint table, e.g. (4,3) refers to the fourth row, third column)}, \\
+  &\textbf{WireType} &&= \{ \Fb_p, \Fb_q \} &&\quad \text{(Wires have a type, because a wire value can either be } \Fb_p \text{ or } \Fb_q\text{)}, \\
 \end{alignedat}
 $$
 
-$$G = (V = \textbf{GateType} \times \textbf{WireId}^n \times \textbf{WireId}^m, E = \{\})$$
+And a $\textbf{GateType}$, describing what kind of gate a node is:
+
+$$
+\begin{alignedat}{2}
+  &\textbf{GateType} &&= \{ \\
+  & &&"\text{W-}\Sc", "\text{P-}\Sc", "(-)", "(+)", "(\times)", "(x^{-1})", \\
+  & &&"\text{W-}\Bb", "\text{P-}\Sc", "(=)", "(\land)", "(\lor)",           \\
+  & &&"\text{W-}P", "\text{P-}P", "(+_{\text{EC}})", "(\times_{\text{EC}})", \\
+  & &&"\Hc", "p \to q", "q \to p" \\
+  &\} &&
+\end{alignedat}
+$$
+
+The DAG can then be defined, with each vertex containing a $\textbf{GateType}$,
+$n$ $\textbf{WireId}$'s representing the id's of the incoming wires and $n$
+$\textbf{WireId}$'s representing the id's of the outgoing wires. The edges
+has no associated data:
+
+$$G = (V \in \textbf{GateType} \times \textbf{WireId}^n \times \textbf{WireId}^m, E \in \{\})$$
 
 We iterate through the DAG in topological order, processing each node such
 that all its predecessors, the nodes with edges pointing to it, are processed
@@ -324,12 +342,20 @@ $$\forall v \in V : v =  (t \in \textbf{GateType}, \, \vec{i} \in \textbf{WireId
    For example, for the addition gate, $\text{op}$ would be defined as:
    $\text{op}_{(+)}([\text{ev}^{(i)}_1, \text{ev}^{(i)}_2]) = \text{ev}^{(i)}_1 + \text{ev}^{(i)}_2$
 3. Now we can append a row to the constraint table with the computed values
-   according to the specification in the custom gates section.
-4. Finally, we can add the output wires to the copy constraint map:
-   $$\forall k \in [m] : \text{cc}(o_k) = o^{(\text{SlotId})}_k$$
+   according to the specification in the custom gates section. We also add
+   any relevant coefficient rows.
+4. Finally, we add the input and output wires to the copy constraint map:
+   $$
+   \begin{aligned}
+     \forall k \in [n] : \text{cc}(i_k) = i^{(\text{SlotId})}_k, \\
+     \forall k \in [m] : \text{cc}(o_k) = o^{(\text{SlotId})}_k
+   \end{aligned}
+   $$
 
 It is important that we designate the first $\ell_2$ rows for public inputs,
-but other than that, the above loop describes how to construct the trace table.
+but other than that, the above loop describes how to construct the trace
+table. From here we just interpolate each column to get the witness, selector,
+coefficient and copy constraint polynomials.
 
 \begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
 

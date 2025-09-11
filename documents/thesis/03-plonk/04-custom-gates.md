@@ -196,6 +196,31 @@ that $x \cdot x^{-1} = 1$:
   \end{tabu}
 \end{table}
 
+**Assert Equals:**
+
+We can also create a gate that asserts equality between two values $x$ and $y$:
+
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Field Inverse - Witness Row} \label{tab:assert-eq-witness} 
+  \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
+    \hline
+    $w_1$ & $w_2$  &  $w_3$ & $w_4$  & $w_5$  & $w_6$  & $w_7$  & $w_8$  & $w_9$  & $w_{10}$ & $w_{11}$  & $w_{12}$  & $w_{13}$  & $w_{14}$  & $w_{15}$  & $w_{16}$  \\\tabucline[1pt]{-}
+    $x$   & $y$    &  0     & 0      & 0      & 0      & 0      & 0      & 0      & 0        & 0         & 0         & 0         & 0         & 0         & 0         \\\hline
+    $I_1$ & $I_2$  & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$ & $\bot$   & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    & $\bot$    \\\hline
+  \end{tabu}
+\end{table}
+
+\begin{table}[H]
+  \centering
+  \captionof*{table}{Field Inverse - Selector Row} \label{tab:assert-eq-selector} 
+  \begin{tabu}{|c|c|c|c|c|c|c|c|c|c|c|}
+    \hline
+    $q_l$ & $q_r$ & $q_o$ & $q_m$ & $q_c$ & $q_\Hc$ & $q_P$ & $q_{(+)}$ & $q_{(\cdot)}$ & $q_{(=)}$ & $q_{R}$ \\\tabucline[1pt]{-}
+    1     & -1    & 0     & 0     & 0     & 0       & 0     & 0         & 0           & 0         & 0       \\\hline
+  \end{tabu}
+\end{table}
+
 ### Booleans
 
 #### Witness Boolean

@@ -1,4 +1,4 @@
-# IVC-friendly Plonk Arithmetization
+## Formal Specification
 
 We define the following and then describe the plonk protocol to highlight the role of the arithmetization pipeline.
 
