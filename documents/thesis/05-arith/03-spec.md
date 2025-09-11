@@ -33,7 +33,7 @@ A data structure that maps columns to thunks; functions of arbitrary type.
 $$
 \begin{array}{rl}
 F(T) &= \Color \to \Column \to T \\
-\IndexMap(X: F(\Uni), Y: F(\Uni)) &= F(X(t,s) \to Y(t,s))
+\IndexMap(X: F(\Uni), Y: F(\Uni)) &= F(X(t,c) \to Y(t,c))
 \end{array}
 $$
 
@@ -44,18 +44,18 @@ $$
     - $Y$ is the value type.
       - $Y= \Option(T)$ if the index map is partially populated.
     - Thus, index maps hold such $f$ where $X,Y$ vary per color and column.
-  - If $t,s$ appears free in $F$, then it is bound to the indices
-    - e.g. $F(T(t,s)) = (t: \Color) \to (s: \Column) \to T(t,s)$.
+  - If $t,c$ appears free in $F$, then it is bound to the indices
+    - e.g. $F(T(t,c)) = (t: \Color) \to (c: \Column) \to T(t,c)$.
 - *projections*: if $A: \IndexMap(X,Y)$ then 
   - $A^t_x(c) = A(t,c,x)$ for thunks
   - $A^t(c) = A(t,c,())$ for non thunks
 - *operations*:
-  - map; $-[-]: F(Y_1(t,s) \to Y_2(t,s)) \to \IndexMap(X, Y_1) \to \IndexMap(X, Y_2)$
+  - map; $-[-]: F(Y_1(t,c) \to Y_2(t,c)) \to \IndexMap(X, Y_1) \to \IndexMap(X, Y_2)$
     - $f[A]^t_x(c) = f(t,c,A^t_x(c))$
-  - join; $- \sqcup_{-} -: \IndexMap(X,Y_1) \to F(Y_1(t,s) \to Y_2(t,s) \to Y_3(t,s)) \to \IndexMap(X,Y_2) \to \IndexMap(X,Y_3)$
+  - join; $- \sqcup_{-} -: \IndexMap(X,Y_1) \to F(Y_1(t,c) \to Y_2(t,c) \to Y_3(t,c)) \to \IndexMap(X,Y_2) \to \IndexMap(X,Y_3)$
     - $(A \sqcup_f B)^t_x(c) = f(t,c,A^t_x(c),B^t_x(c))$
-    - $A \cat B = A \sqcup_{\cat} B$ where $A: \IndexMap(X, T^k), B: \IndexMap(X,T^{k'})$ 
-- *motivation*: a succinct way to store and compose values that depend on color, column, and arbitrary argument type depending on the column, e.g. managing multiple wire types for plookup columns in trace table, and data structure for values for equations.
+    - $A \cat B = A \sqcup_{f} B$ where $A: \IndexMap(X, T^k), B: \IndexMap(X,T^{k'})$ and $f(\_,\_,\vec{a},\vec{b}) = \vec{a} \cat \vec{b}$
+- *motivation*: a succinct way to store and compose values that depend on color, column, and an argument of arbitrary type, e.g. managing multiple wire types for plookup columns in trace table, and data structure for values for equations.
 
 \begin{definition}[Equation]
 An equation is a grammar that expresses a polynomial like structure over columns. 
@@ -88,22 +88,293 @@ $$
 - *motivation*: Single source of truth for equational definitions that vary over operand types, e.g. scalars, polynomials, curve points, wires and state via build. Examples are gate constraint polynomials, grand product polynomials, quotient polynomial, plookup compression equation, etc.
 - *implementation note*: it is possible to use traits and type variables / generics in rust to define a function over $T$, without having an explicit syntax tree construction of the $Eqn$'s grammar.
 
-TODO
+\begin{definition}[More Gadget Projections]\end{definition}
+$$
+g: \Ggt = \abst{g}(\avec{x})
+$$
 
-- gadget projection: cell wire; AWire
-- gadget projection: cell
-- column projection: default cell
+- *projections*:
+  - $\text{wires}(\abst{f}, g) = \gin(g) \cat \out(\abst{f}, g)$ - all wires; input and output sorted by uuid
+
+\begin{notation}[Vector index function]
+A function that indexes a vector.
+\end{notation}
+$$
+\begin{array}{rl}
+- @ -&: T^k \to \Nb \to T \\
+\vec{x} @ i &= x_i
+\end{array}
+$$
+
+- *motivation*: Allows us to index vectors over a higher order function such as mapping over a vector.
+
+\begin{definition}[Cell Wire]
+Cell wires are natural numbers that represent the wires of a gadget in a properad. Naively, an abstract wire. It does exclude some wires which will be defined later.
+\end{definition}
+\newcommand{\CWire}{\text{CellWire}}
+\newcommand{\aavec}[1]{\bar{\vec{#1}}}
+$$
+\begin{array}{rl}
+\CWire(\abst{g}) = [n(\abst{g}) + m(\abst{g}) + 1] \setminus \ldots
+\end{array}
+$$
+
+- *notation*: $\bar{w}$ the bar denotes the cell wire is an abstraction of the wire $\abst{w}$; an abstraction of the value $w$.
+- *motivation*: For properads to be a single source of truth in constructing the concrete circuit, it needs a way to represent the wires that gadgets that instantiate the properad has.
+- *note*: This is a projection of a properad.
+
+\begin{definition}[More Properad Projections]\end{definition}
+$$
+\abst{g}: \Prpd
+$$
+
+- *projections*:
+  - $\vec{t}(\abst{g}) = \pin(\abst{g}) \cat \pout(\abst{g})$ - the full profile of the properad; input and output wire colors.
+  - $\vec{t}(\abst{g}, \aavec{w}) = (\vec{t}(\abst{g}) @ -)[\aavec{w}]$ - the profile of a vector of cell wires.
+
+\begin{definition}[Cell Resolvers]
+Functions that reduce a cell to a value.
+\end{definition}
+$$
+R(\abst{g}, \aavec{w}) = F(X(t,c) \to W [\vec{t}(\abst{g}, \aavec{w})] \to W(t))
+$$
+
+- *motivation*: Think of a cell as a projection of a properad defining the single source of truth of an abstract value in the concrete circuit. The resolver instantiates it to a concrete value.
+
+\begin{definition}[Cell]
+Cells represent an abstract value in an index map modelling the trace table / concrete circuit. It contains the thunk argument, the cell wires that it depends on, and a resolver that computes the value of the cell. 
+\end{definition}
+$$
+\begin{array}{rl}
+\Cell(\abst{g}) &= F(X(t,c) \times (\aavec{w}: \CWire(\abst{g})) \times R(\abst{g}, \aavec{w},t,c)) \\
+\boxdot &: \Cell(\abst{g})
+\end{array}
+$$
+
+- *notation*: $\boxdot$ a boxed symbol denotes a cell.
+- *motivation*: the following cell constructions will hopefully motivate the definitions above.
+- *note*: This is a projection of a properad.
+
+\begin{definition}[Constant Cell]
+A cell that does not depend on any wire nor thunk argument.
+\end{definition}
+$$
+\begin{array}{rl}
+\boxed{c} &: \Cell(\abst{g}) = ((), (), f) \\
+f() &= c
+\end{array}
+$$
+
+- *motivation*: Concise notation for a cell that resolves to a constant value.
+
+\begin{definition}[Wire Cell]
+A wire cell that resolves to the value of a wire.
+\end{definition}
+$$
+\begin{array}{rl}
+\boxed{w} &: \Cell(\abst{g}) = ((), \bar{w}, f) \\
+f(w) &= w
+\end{array}
+$$
+
+- *motivation*: Concise notation for a cell that resolves to a wire value.
+
+\newcommand{\cw}{\text{cellWire}}
+- *projections*: $\cw((), \bar{w}, f) = \bar{w}$ - yields the cell wire of the wire cell. performing this operation on any other kind of cell will yield $\bot$. This is necessary for relative wires defined later.
+
+\begin{example}[Lookup Cell]
+The following is an example of a cell for a theoretical properad called $\text{Lookup}$ modelling plookup operations.
+\end{example}
+$$
+\begin{array}{rl}
+\boxed{\frak{p}(1,2,3)} &: \Cell(\text{Lookup}) = (\zeta, (1,2,3), f) \\
+f(\zeta, a,b,c) &= a + \zeta b + \zeta^2 c \\
+\end{array}
+$$
+
+- *motivation*: Notice how $\zeta: X(t,c)$ is a thunk argument, this is because we do not know $\zeta$ until the core plonk prover has sufficiently progressed in the transcript. But with our abstractions, we can account for it cleanly before the protocol even begins.
+
+\begin{definition}[Default Cell]
+A cell representing default values for a column.
+\end{definition}
+$$
+\begin{array}{rl}
+\boxed{-}&: \Cell(\abst{g}) = (x: X(t,c), (), f) \\
+f(x) &: W[t]
+\end{array}
+$$
+
+- *motivation*: For notational brevity, columns irrelevant to a properad may be omitted, though sub-tables; vectors of a specific color must maintain uniform length. Default cells are padded for omitted columns. For most columns, $f()= 0$, while specialized columns such as plookup use $f(t_{last}: X(t,c)) = t_{last}$, where $t_{last}$ denotes the last entry of the lookup table. This is yet another advantage of having thunk arguments in index maps.
 
 \begin{definition}[Pre-Constraints]
 The class of gates that a gadget of a specific properad contributes.
 \end{definition}
+$$
+\begin{array}{rl}
+\PreTable&: \Prpd \to \IndexMap(X, F(\Cell(\abst{g}, t,c)^{k(t)}))  \\
+\ctrn(\abst{g})&: \PreTable(\abst{g})
+\end{array}
+$$
 
 - *motivation*: Pre-Constraints act as a template for a sub-table for gadgets of the properad. This makes the instantiations of gates in the concrete circuit derivable from the properads; a single source of truth.
 
+\begin{definition}[Trace Table]
+When an index map is a composition of pre-constraints and all of the cells are resolved, we have a trace table.
+\end{definition}
+\newcommand{\TraceTable}{\text{TraceTable}}
+$$
+\begin{array}{rl}
+\TraceTable&: \IndexMap(X, F(W(t)^{k(t)})) \\
+T &: \TraceTable
+\end{array}
+$$
+
+\begin{definition}[Gate]
+A gate is the $i$th row of the trace table for color $t$.
+\end{definition}
+\newcommand{\gatef}{\text{gate}}
+$$
+\gatef(T, i) = (- @ i)[T]
+$$
+
+- *notation*: We side step the issue of index out of bounds, this can be managed by wrapping the result in an option type.
+- *motivation*: A gate is a semantic group of cells, specifically a row of a trace table. This generally corresponds to the operands of an equation typically the gate constraint polynomial.
+- *note*: This is a projection of a trace table.
+
+\begin{example} Pre-constraints for $\build{a + b}{}{}$ and $\build{a \times b}{}{}$. Let $\text{Add}^t, \text{Mul}^t: \Prpd$
+\end{example}
+
+\begin{center}
+\begin{tabular}{ c c }
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\node[minimum width=2cm, minimum height=1.5cm] (tab) {
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+$\abst{g}$ & $n$ & $m$ & $\pin$ & $\pout$ & $\eval(a,b)$ \\
+\hline
+$\text{Add}^t$ & $2$ & $1$ & $(t,t)$ & $t$ & $a + b$ \\
+\hline
+$\text{Mul}^t$ & $2$ & $1$ & $(t,t)$ & $t$ & $a \times b$ \\
+\hline
+\end{tabular}
+};
+\end{tikzpicture}
+&
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\gate{add}{(0,0)}{$\abst{a}$, $\abst{b}$}{$\text{Add}^t$}{1}
+\draw[-,thick] ($(add-in-1)+(0,0.25)$) -- (add-in-1);
+\draw[-,thick] ($(add-in-2)+(0,0.25)$) -- (add-in-2);
+\draw[->,thick] (add-out-1) -- ($(add-out-1)+(0,-0.4)$);
+\node[anchor=north east] at (add-out-1) {$\abst{c}$};
+
+\gate{mul}{($(add.north east)+(0.5,0)$)}{$\abst{a}$, $\abst{b}$}{$\text{Mul}^t$}{1}
+\draw[-,thick] ($(mul-in-1)+(0,0.25)$) -- (mul-in-1);
+\draw[-,thick] ($(mul-in-2)+(0,0.25)$) -- (mul-in-2);
+\draw[->,thick] (mul-out-1) -- ($(mul-out-1)+(0,-0.4)$);
+\node[anchor=north east] at (mul-out-1) {$\abst{c}$};
+\end{tikzpicture}
+\end{tabular}
+\end{center}
+\begin{center}
+\begin{tabular}{c c}
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}
+\hline
+\multicolumn{10}{|c|}{$\ctrn(\text{Add}^t)$} \\
+\hline
+\multicolumn{9}{|c|}{$t$} & $\cdots$ \\
+\hline
+$A$ & $B$ & $C$ & $Q_l$ & $Q_r$ & $Q_o$ & $Q_m$ & $Q_c$ & $PI$ & $\cdots$ \\
+\hline
+$a$ & $b$ & $c$ & $1$ & $1$ & $-1$ & $0$ & $0$ & $0$ \\
+\cline{1-9}
+\end{tabular}
+&
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}
+\hline
+\multicolumn{10}{|c|}{$\ctrn(\text{Mul}^t)$} \\
+\hline
+\multicolumn{9}{|c|}{$t$} & $\cdots$ \\
+\hline
+$A$ & $B$ & $C$ & $Q_l$ & $Q_r$ & $Q_o$ & $Q_m$ & $Q_c$ & $PI$ & $\cdots$ \\
+\hline
+$a$ & $b$ & $c$ & $0$ & $0$ & $-1$ & $1$ & $0$ & $0$  \\
+\cline{1-9}
+\end{tabular}
+\end{tabular}
+\end{center}
+
+- *note*:
+  - The pre-constraints only define a gate for the color $t$ wheras the rest of the colors is empty.
+  - Recall that the length of the vector of cells must be uniform within a color, but not across colors.
+
+Let the trace table for $\build{w_1 + (w_2 \times w_3) = z^*}{}{}$ be the following:
+\begin{center}
+\begin{tabular}{ c c }
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}
+\hline
+\multicolumn{10}{|c|}{$T$} \\
+\hline
+\multicolumn{9}{|c|}{$q$} & $\cdots$
+\\
+\hline
+$A$ & $B$ & $C$ & $Q_l$ & $Q_r$ & $Q_o$ & $Q_m$ & $Q_c$ & $PI$ & $\cdots$ \\
+\hline
+$w_2$ & $w_3$ & $t_1$ & $0$ & $0$ & $-1$ & $1$ & $0$ & $0$  \\
+\cline{1-9}
+$w_1$ & $t_1$ & $z$ & $1$ & $1$ & $-1$ & $0$ & $0$ & $0$ \\
+\cline{1-9}
+\end{tabular}
+&
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\gate{in0}{(0,0)}{}{$\Input^q_1$}{1}
+\gate{in1}{($(in0.north east)+(0.1,0)$)}{}{$\Input^q_2$}{1}
+\gate{in2}{($(in1.north east)+(0.1,0)$)}{}{$\Input^q_3$}{1}
+
+\gate{add}{($(in0.south west)+(0.1875,-0.5)$)}{$\abst{w_1}$, $\abst{t_1}$}{$\text{Add}^t$}{1}
+\draw[-,thick] ($(add-in-1)+(0,0.25)$) -- (add-in-1);
+\draw[-,thick] ($(add-in-2)+(0,0.25)$) -- (add-in-2);
+\draw[-,thick] (add-out-1) -- ($(add-out-1)+(0,-0.4)$);
+\node[draw, thick, circle, double, double distance=1pt, anchor=north] at ($(add-out-1)+(0,-0.4)$) {$\abst{z}$};
+
+
+\gate{mul}{($(add.north east)+(0.5,0)$)}{$\abst{w_2}$, $\abst{w_3}$}{$\text{Mul}^t$}{1}
+\draw[-,thick] ($(mul-in-1)+(0,0.25)$) -- (mul-in-1);
+\draw[-,thick] ($(mul-in-2)+(0,0.25)$) -- (mul-in-2);
+\draw[-,thick] (mul-out-1) -- ($(mul-out-1)+(0,-0.4)$);
+\draw[-,thick] ($(mul-out-1)+(0,-0.4)$) -- ($(mul-out-1)+(-0.85,-0.4)$);
+\draw[-,thick] ($(mul-out-1)+(-0.85,-0.4)$) -- ($(mul-out-1)+(-0.85,1.575)$);
+\draw[-,thick] ($(mul-out-1)+(-0.85,1.575)$) -- ($(add-in-2)+(0,0.25)$);
+
+\draw[-,thick] (in0-out-1) -- ($(in0-out-1)+(0,-0.25)$);
+\draw[-,thick] ($(in0-out-1)+(0,-0.25)$) -- ($(add-in-1)+(0,0.25)$);
+\draw[-,thick] (in1-out-1) -- ($(in1-out-1)+(0,-0.25)$);
+\draw[-,thick] ($(in1-out-1)+(0,-0.25)$) -- ($(mul-in-1)+(0,0.25)$);
+\draw[-,thick] (in2-out-1) -- ($(in2-out-1)+(0,-0.25)$);
+\draw[-,thick] ($(in2-out-1)+(0,-0.25)$) -- ($(mul-in-2)+(0,0.25)$);
+\end{tikzpicture}
+\end{tabular}
+\end{center}
+Let $F_{GC}^{\plonkm}: \Eqn = A \times Q_l + B \times Q_r + C \times Q_o + A \times B \times Q_m + Q_c + PI$, thus:
+
+$$
+\begin{array}{rll}
+F_{GC}^{\plonkm}(\gatef(T,1,t)) &= w_2 + w_3 - t_1 &\stackrel{?}{=} 0 \\
+F_{GC}^{\plonkm}(\gatef(T,2,t)) &= -z + (w_1 \times t_1) &\stackrel{?}{=} 0 \\
+\end{array}
+$$
+
+Thus $F_{GC}^{\plonkm}$ constraints the structural integrity of the gadgets when they evaluate to zero.
+
+At this point, we want to emphasize the power of index map as an abstraction. Pre-constraints, trace table and gates are all defined as an index map.
 
 TODO
 
-- example
 - relative wires
 - gadget assert for relative
 - op projects term: Eqn, columns: pow(column)
@@ -111,108 +382,6 @@ TODO
 - DONE
 
 \newcommand{\WireType}{\text{WireType}}
-
-### Pre-Constraints
-
-The *pre-constraints* $\ctrn_g$ of the operation $g$ is an index map of a vector of *cells*. Note that the vectors across different wire types $t$ need not be the same length, but within are length $k(t)$. Cells are defined in terms of a *reducer* type $R$ that computes a value for a wire type $W(t)$ given the thunk argument $X(t,s)$ and vector of concrete wire values selected from the input and output wires of the gadget[^sel-notation]. Columns irrelevant can be omitted and can be padded with default values from $D$. Cells have the forms tabulated below.
-
-[^sel-notation]: Although the selection is notated $\avec{w}$, it is a vector of naturals indexing the wire types. Trace can use this to recover the wires from $\abst{f}$.
-
-$$
-\begin{array}{c}
-\begin{array}{cccc}
-g: \Ops &
-\ctrn'_g: \PreTable_g &
-\PreTable_g = \IndexMap(X, F(\Cell_g(t,s)^{k(t)})) &
-\AWire_g = [n_g+m_g+1]\setminus \cdots
-\end{array} 
-\end{array}
-$$
-$$
-\begin{array}{cc}
-\begin{array}{rl}
-R_g(\avec{w}) &= F(X(t,s) \to W[\vec{t}^{g,\avec{w}}] \to W(t)) \\
-\Cell_g &= F(X(t,s) \times (\avec{w}: \AWire_g^k) \times R_g(\avec{w}_p,t,s)) \\
-\vec{t}^{g,\avec{w}} &= (\lambda i. (\tin{g} \cat \tout{g})_i)[\avec{w}] \\
-\text{wires}^{\abst{f}}_g(\avec{w}) &= (\lambda i. (\gin(g) \cat \out(\abst{f}, g))_i)[\avec{w}] \\
-\text{cw}&: \Cell_g \to \Nb \\
-\text{cw}&= \lambda (\_, \avec{w}, \_). \maybe{i}{\avec{w} = (i)}
-\end{array} &
-\begin{array}{rl}
-R_{\text{default}} &= F(X(t,s) \to W_s(t)) \\
-\Cell_{\text{default}} &= F(X(t,s) \times \Unit \times R_{\text{default}}) \\
-\text{Default} &= \IndexMap(X, \Cell_{\text{default}}) \\
-D &: \text{Default} \\
-D_k &= (\lambda t,\_, d. \text{repl}(d,k(t)))[D] \\
-\ctrn_g &= D_k \sqcup_{\lambda \_, d,c.c} \ctrn_g'
-\end{array}
-\end{array}
-$$
-
-cell | notation | $X$ | $\AWire_g^k$ | $R_g$
--|-|-|-|-
-constant | $c$ | $()$ | $()$ | $\lambda (). c$
-wire | $\abst{w}$ | $()$ | $(\abst{w})$ | $\lambda (),w. w$
-$\plookup \ \text{Tbl}_j$ | $\pcell(\avec{w})$ | $(d, \zeta)$ | $\avec{w}$ | $\lambda d,\zeta, \vec{w}. \pcell(\zeta, \vec{w}, j)$
-$\plookup$ default | $\bot$ | $(d, \zeta)$ | $()$ | $\lambda d, \zeta. d$
-
-**Pre-Constraint Example**
-
-Let the pre-constraints for the gadget $\gpair{\ggtu{\text{Add}_p}{\abst{a}, \abst{b}}}{\abst{c}}, \gpair{\ggtu{\text{Mul}_p}{\abst{d}, \abst{c}}}{\abst{e}} \in \abst{f}$ be as follows where $A \cat B = A \sqcup_{\lambda \_, \vec{a}, \vec{b}. \vec{a} \cat \vec{b}} B$:
-
-\begin{center}
-\begin{tabular}{c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
-\cline{2-19}
-& \multicolumn{18}{|c|}{$\ctrn_{\text{Add}_p} \cat \ctrn_{\text{Mul}_p}$} \\
-\cline{2-19}
-& \multicolumn{9}{|c|}{$p$} & \multicolumn{9}{|c|}{$q$} \\
-\cline{2-19}
-& $A$ & $B$ & $C$ & $Q_l$ & $Q_r$ & $Q_o$ & $Q_m$ & $Q_c$ & $PI$ & 
-$A$ & $B$ & $C$ & $Q_l$ & $Q_r$ & $Q_o$ & $Q_m$ & $Q_c$ & $PI$ \\
-\hline\hline
-$\text{Add}_p$ & $\abst{a}$ & $\abst{b}$ & $\abst{c}$ & 1 & 1 & -1 & 0 & 0 & 0 & \multicolumn{9}{|c}{} \\
-\cline{1-10}
-$\text{Mul}_p$ & $\abst{d}$ & $\abst{c}$ & $\abst{e}$ & 0 & 0 & -1 & 1 & 0 & 0 & \multicolumn{9}{|c}{} \\
-\cline{1-10}
-\end{tabular}
-\end{center}
-We notate $@_i \circ T^t$ as a *gate*; the row $i$ of wire type $t$ of the *trace table* $T$; resolved pre-constraints. Applying the gates to $F_{GC}^{\plonkm}$, we get zero iff the structure of the operation is respected.
-\begin{center}
-\begin{tabular}{c c}
-\begin{math}
-\begin{array}{c}
-\begin{array}{rl}
-F_{GC}^{\plonkm}: \Eqn &= A \times Q_l + B \times Q_r + C \times Q_o + A \times B \times Q_m + Q_c + PI
-\end{array} \\
-\begin{array}{ccc}
-\begin{array}{rl}
-@ &: \Nb \to T^k \to T \\
-@_i(\vec{y}) &= y_i
-\end{array}
-&
-F_{GC}^{\plonkm}(@_1 \circ T^p) = a + b - c &
-F_{GC}^{\plonkm}(@_2 \circ T^p) = -e + d \times c
-\end{array}
-\end{array}
-\end{math} &
-\begin{tikzpicture}[
-  baseline={(current bounding box.center)}
-]
-\gate{mul}{(0,0)}{$\abst{d}$,$\abst{c}$}{$\text{Mul}_p$}{1}
-\gate{add}{($(mul.north)+(1,0)$)}{$\abst{a}$,$\abst{b}$}{$\text{Add}_p$}{1}
-\draw[-,thick] ($(add-in-1)+(0,0.25)$) -- (add-in-1);
-\draw[-,thick] ($(add-in-2)+(0,0.25)$) -- (add-in-2);
-\draw[-,thick] ($(mul-in-1)+(0,0.25)$) -- (mul-in-1);
-\draw[-,thick] (add-out-1) -- ($(add-out-1)+(0,-0.4)$);
-\draw[-,thick] ($(add-out-1)+(0,-0.4)$) -- ($(add-out-1)+(-0.65,-0.4)$);
-\draw[-,thick] ($(add-out-1)+(-0.65,-0.4)$) -- ($(add-out-1)+(-0.65,1.75)$);
-\draw[-,thick] ($(add-out-1)+(-0.65,1.75)$) -- ($(mul-in-2)+(0,0.35)$);
-\draw[-,thick] ($(mul-in-2)+(0,0.35)$) -- (mul-in-2);
-\node[draw, thick, circle, double, double distance=1pt, anchor=north] at ($(mul-out-1)+(0,-0.4)$) {$\abst{e}$};
-\draw[-,thick] (mul-out-1) -- ($(mul-out-1)+(0,-0.4)$);
-\end{tikzpicture}
-\end{tabular}
-\end{center}
 
 ### Relative Wires
 
