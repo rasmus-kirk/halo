@@ -16,6 +16,7 @@ $$
   - $\pcol(c): \Bb$ - is $c$ a private / witness relevant column
   - $\cccol(c): \Bb$ - is $c$ a copy constraint relevant column
   - $X(t: \Color,c): \Uni$ - the argument type that the column values depend on
+  - $\text{default}(t: \Color,c,x): W(t)$ - the default value used to construct the trace table
 - *motivation*: a modular and user extendable way to define the structure of the trace table / concrete circuit. 
 
 \begin{notation}[Unit Type]
@@ -25,6 +26,9 @@ $$
 () : \Unit
 $$
 
+- *unit for functions*: $1 \to T = T$ e.g. $f() = x$ then $f = x$
+- *omissible argument*: by currying $X \times 1 \to T = X \to 1 \to T = X \to T$ thus e.g. $f(x,()) = f(x)$
+- *unit vector*: $T^0 = 1$ i.e. $(): T^0 = () : \Unit$
 - *motivation*: Used as an identity / unital / nullary element.
 
 \begin{definition}[Index Map]
@@ -50,12 +54,12 @@ $$
   - $A^t_x(c) = A(t,c,x)$ for thunks
   - $A^t(c) = A(t,c,())$ for non thunks
 - *operations*:
-  - map; $-[-]: F(Y_1(t,c) \to Y_2(t,c)) \to \IndexMap(X, Y_1) \to \IndexMap(X, Y_2)$
-    - $f[A]^t_x(c) = f(t,c,A^t_x(c))$
-  - join; $- \sqcup_{-} -: \IndexMap(X,Y_1) \to F(Y_1(t,c) \to Y_2(t,c) \to Y_3(t,c)) \to \IndexMap(X,Y_2) \to \IndexMap(X,Y_3)$
-    - $(A \sqcup_f B)^t_x(c) = f(t,c,A^t_x(c),B^t_x(c))$
-    - $A \cat B = A \sqcup_{f} B$ where $A: \IndexMap(X, T^k), B: \IndexMap(X,T^{k'})$ and $f(\_,\_,\vec{a},\vec{b}) = \vec{a} \cat \vec{b}$
-- *motivation*: a succinct way to store and compose values that depend on color, column, and an argument of arbitrary type, e.g. managing multiple wire types for plookup columns in trace table, and data structure for values for equations.
+  - map; $-[-]: F(X(t,c) \to Y_1(t,c) \to Y_2(t,c)) \to \IndexMap(X, Y_1) \to \IndexMap(X, Y_2)$
+    - $f[A]^t_x(c) = f(t,c,x,A^t_x(c))$
+  - join; $- \sqcup_{-} -: \IndexMap(X,Y_1) \to F(X(t,c) \to Y_1(t,c) \to Y_2(t,c) \to Y_3(t,c)) \to \IndexMap(X,Y_2) \to \IndexMap(X,Y_3)$
+    - $(A \sqcup_f B)^t_x(c) = f(t,c,x,A^t_x(c),B^t_x(c))$
+    - $A \cat B = A \sqcup_{f} B$ where $A: \IndexMap(X, T^k), B: \IndexMap(X,T^{k'})$ and $f(\_,\_, \_, \vec{a},\vec{b}) = \vec{a} \cat \vec{b}$
+- *motivation*: a succinct way to store and compose values that depend on color, column, and an argument of arbitrary type, e.g. managing multiple wire types for $\plookup$  columns in trace table, and data structure for values for equations.
 
 \begin{definition}[Equation]
 An equation is a grammar that expresses a polynomial like structure over columns. 
@@ -81,11 +85,11 @@ $$
 \end{array}
 $$
 
-- *projection*: $\text{foldEqn}: (-: T \to T) \to (+: T \to T \to T) \to (\times: T \to T \to T) \to (\times_\Fb: \Fb \to T \to T) \to \Eqn \to (\Column \to T) \to T$
+- *projections*: $\text{foldEqn}: (-: T \to T) \to (+: T \to T \to T) \to (\times: T \to T \to T) \to (\times_\Fb: \Fb \to T \to T) \to \Eqn \to (\Column \to T) \to T$
   - when every operation of the grammar is specified for type $T$, we can evaluate the equation.
   - curve points do not have multiplication defined, thus equations involving them cant be evaluated.
-- *notation*: if $X:\IndexMap(\Unit, T)$ and $X^t: \Column \to T$ then $E(X^t): T = \text{foldEqn}(\ldots, E, X^t)$
-- *motivation*: Single source of truth for equational definitions that vary over operand types, e.g. scalars, polynomials, curve points, wires and state via build. Examples are gate constraint polynomials, grand product polynomials, quotient polynomial, plookup compression equation, etc.
+  - if $X: \Column \to T$ then $E(X): T = \text{foldEqn}(\ldots, E, X)$
+- *motivation*: Single source of truth for equational definitions that vary over operand types, e.g. scalars, polynomials, curve points, wires and state via build. Examples are gate constraint polynomials, grand product polynomials, quotient polynomial, $\plookup$  compression equation, etc.
 - *implementation note*: it is possible to use traits and type variables / generics in rust to define a function over $T$, without having an explicit syntax tree construction of the $Eqn$'s grammar.
 
 \begin{definition}[Cell Wire]
@@ -95,7 +99,8 @@ Cell wires are natural numbers that represent the wires of a gadget in a propera
 \newcommand{\aavec}[1]{\bar{\vec{#1}}}
 $$
 \begin{array}{rl}
-\CWire(\abst{g}) = [n(\abst{g}) + m(\abst{g}) + 1] \setminus \ldots
+\CWire(\abst{g})&: \pset{\Nb} = [n(\abst{g}) + m(\abst{g}) + 1] \setminus \ldots \\
+\bar{w} &: \CWire(\abst{g})
 \end{array}
 $$
 
@@ -108,11 +113,12 @@ A function that indexes a vector.
 \end{notation}
 $$
 \begin{array}{rl}
-- @ -&: T^k \to \Nb \to T \\
+- @ -&: T^k \to [k+1] \to T \\
 \vec{x} @ i &= x_i
 \end{array}
 $$
 
+- *notation*: $[k+1]: \pset{\Nb}$ guarantees that $i$ is a valid index for the vector.
 - *motivation*: Allows us to index vectors over a higher order function such as mapping over a vector.
 
 \begin{definition}[More Properad Projections]\end{definition}
@@ -136,11 +142,11 @@ $$
 - *note*: This is a projection of a properad.
 
 \begin{definition}[Cell]
-Cells represent an abstract value in an index map modelling the trace table / concrete circuit. It contains the thunk argument, the cell wires that it depends on, and a resolver that computes the value of the cell. 
+Cells represent an abstract value in an index map modelling the trace table / concrete circuit. It contains the cell wires that it depends on, and a resolver that computes the value of the cell. 
 \end{definition}
 $$
 \begin{array}{rl}
-\Cell(\abst{g}) &= F(X(t,c) \times (\aavec{w}: \CWire(\abst{g})) \times R(\abst{g}, \aavec{w},t,c)) \\
+\Cell(\abst{g}) &= F((\aavec{w}: \CWire(\abst{g})) \times R(\abst{g}, \aavec{w},t,c)) \\
 \boxdot &: \Cell(\abst{g})
 \end{array}
 $$
@@ -153,36 +159,39 @@ $$
 A cell that does not depend on any wire nor thunk argument.
 \end{definition}
 $$
-\begin{array}{rl}
-\boxed{c} &: \Cell(\abst{g}) = ((), (), f) \\
-f() &= c
+\begin{array}{rll}
+\boxed{v} &: \Cell(\abst{g}, t, c) &= ((), f) \\
+f(t, c, x, ()) &: W(t) &= v
 \end{array}
 $$
 
+- *notation*: Recall that resolvers take $t: \Color, c: \Column$ from the definition of $F$ and $x: X(t,c)$ as the first three arguments, followed by the values of the cell wires. Thus $f(t,c,x,())$ is the resolved value.
 - *motivation*: Concise notation for a cell that resolves to a constant value.
 
 \begin{definition}[Wire Cell]
 A wire cell that resolves to the value of a wire.
 \end{definition}
 $$
-\begin{array}{rl}
-\boxed{w} &: \Cell(\abst{g}) = ((), \bar{w}, f) \\
-f(w) &= w
+\begin{array}{rll}
+\boxed{w} &: \Cell(\abst{g}, t, c) &= (\bar{w}, f) \\
+f(t, c, x, w) &: W(t) &= w
 \end{array}
 $$
 
 - *motivation*: Concise notation for a cell that resolves to a wire value.
 
 \newcommand{\cw}{\text{cellWire}}
-- *projections*: $\cw((), \bar{w}, f) = \bar{w}$ - yields the cell wire of the wire cell. performing this operation on any other kind of cell will yield $\bot$. This is necessary for relative wires defined later.
+- *projections*: $\cw(\bar{w}, f): \Option(\CWire(\abst{g})) = \bar{w}$ - yields the cell wire of the wire cell. 
+  - performing this operation on any other kind of cell will yield $\bot$.
+  - This is necessary for relative wires defined later.
 
 \begin{example}[Lookup Cell]
-The following is an example of a cell for a theoretical properad called $\text{Lookup}$ modelling plookup operations.
+The following is an example of a cell for a hypothetical properad called $\frak{P}$ modelling $\plookup$  operations.
 \end{example}
 $$
-\begin{array}{rl}
-\boxed{\frak{p}(1,2,3)} &: \Cell(\text{Lookup}) = (\zeta, (1,2,3), f) \\
-f(\zeta, a,b,c) &= a + \zeta b + \zeta^2 c \\
+\begin{array}{rll}
+\boxed{\frak{p}(\aavec{w})} &: \Cell(\frak{P}, t, c) &= (\aavec{w}, f) \\
+f(t, c, \zeta, \aavec{w}) &: W(t) &= \bar{w}_1 + \zeta \bar{w}_2 + \zeta^2 \bar{w}_3 \\
 \end{array}
 $$
 
@@ -192,13 +201,22 @@ $$
 A cell representing default values for a column.
 \end{definition}
 $$
-\begin{array}{rl}
-\boxed{-}&: \Cell(\abst{g}) = (x: X(t,c), (), f) \\
-f(x) &: W[t]
+\begin{array}{rll}
+\boxed{-}&: \Cell(\abst{g}, t, c) &= ((), \text{default})
 \end{array}
 $$
 
-- *motivation*: For notational brevity, columns irrelevant to a properad may be omitted, though vectors of a specific color must maintain uniform length. Default cells are padded for omitted columns. For most columns, $f()= 0$, while specialized columns such as plookup use $f(t_{last}: X(t,c)) = t_{last}$, where $t_{last}$ denotes the last entry of the lookup table which can only be computed further in the protocol. This is yet another advantage of having thunk arguments in index maps.
+- *motivation*: For notational brevity, columns irrelevant to a properad may be omitted, though vectors of a specific color must maintain uniform length. Default cells are padded for omitted columns. For most columns, the default value is $0$, while specialized columns such as those relevant to $\plookup$  use $\text{default}(t,c,t_{last}: X(t,c)) = t_{last}$, where $t_{last}$ denotes the last entry of the lookup table which can only be computed further in the protocol. This is yet another advantage of having thunk arguments in index maps.
+- *notation*: Recall that $\text{default}(t,c,x): W(t)$ is a projection of a column, whose type signature conveniently matches that of the default cell resolver
+$$
+\begin{array}{ll}
+R(\abst{g},()) & \text{resolver\ type\ notation} \\
+= F(X(t,c) \to W[()] \to W(t)) & \text{defn\ of\ resolver}\\
+= (t: \Color) \to (c: \Column) \to X(t,c) \to W[()] \to W(t) & \text{defn\ of\ } F \\
+= (t: \Color) \to (c: \Column) \to X(t,c) \to \Uni^0 \to W(t) & \text{mapping\ zero\ length\ vector} \\
+= (t: \Color) \to (c: \Column) \to X(t,c) \to W(t) & \text{zero\ length\ is\ unit\ thats\ omissible}
+\end{array}
+$$
 
 \begin{definition}[Pre-Constraints]
 The class of gates that a gadget of a specific properad contributes.
@@ -212,31 +230,6 @@ $$
 
 - *notation*: note we use $k(t)$ to denote that the vectors are of uniform length per color.
 - *motivation*: Pre-Constraints act as a template for a sub-table for gadgets of the properad. This makes the instantiations of gates in the concrete circuit derivable from the properads; a single source of truth.
-
-\begin{definition}[Trace Table]
-When an index map is a composition of pre-constraints and all of the cells are resolved, we have a trace table.
-\end{definition}
-\newcommand{\TraceTable}{\text{TraceTable}}
-$$
-\begin{array}{rl}
-\TraceTable&: \IndexMap(X, F(W(t)^{k(t)})) \\
-T &: \TraceTable
-\end{array}
-$$
-
-- *motivation*: This is the last intermediate data structure before we can interpolate them into polynomials and other data forming the concrete circuit $(R,X,W)$.
-
-\begin{definition}[Gate]
-A gate is the $i$th row of the trace table for color $t$.
-\end{definition}
-\newcommand{\gatef}{\text{gate}}
-$$
-\gatef(T, i) = (- @ i)[T]
-$$
-
-- *notation*: We side step the issue of index out of bounds, this can be managed by wrapping the result in an option type.
-- *motivation*: A gate is a semantic group of resolved cells, specifically a row of a trace table. This generally corresponds to the operands of an equation typically the gate constraint polynomial.
-- *note*: This is a projection of a trace table.
 
 \begin{example} Pre-constraints for $\build{a + b}{}{}$ and $\build{a \times b}{}{}$. Let $\text{Add}^t, \text{Mul}^t: \Prpd$
 \end{example}
@@ -305,10 +298,65 @@ $a$ & $b$ & $c$ & $0$ & $0$ & $-1$ & $1$ & $0$ & $0$  \\
 \end{center}
 
 - *note*:
-  - The pre-constraints only define a gate for the color $t$ wheras the rest of the colors is empty.
+  - The pre-constraints only define a gate for the color $t$ wheras the rest of the colors are empty.
   - Recall that the length of the vector of cells must be uniform within a color, but not across colors.
 
-Let the trace table for $\build{w_1 + (w_2 \times w_3) = z^*}{}{}$ be the following (we will describe how this is computed when we define trace later):
+\begin{definition}[Trace Table]
+When an index map is a composition of pre-constraints and all of the cells are resolved, we have a trace table.
+\end{definition}
+\newcommand{\TraceTable}{\text{TraceTable}}
+$$
+\begin{array}{rl}
+\TraceTable&: \IndexMap(X, F(W(t)^{k(t)})) \\
+T &: \TraceTable
+\end{array}
+$$
+
+- *motivation*: This is the last intermediate data structure before we can interpolate them into polynomials and other data forming the concrete circuit $(R,X,W)$.
+
+\begin{notation}[Drop function]
+A function that drops the first argument and returns the rest.
+\end{notation}
+\newcommand{\drop}{\text{drop}}
+$$
+\begin{array}{rl}
+\drop &: (A \times \Uni^k) \to \Uni^k \\
+\drop(a, \vec{x}) &= \vec{x}
+\end{array}
+$$
+
+- *motivation*: Used in higher-order functions to simplify argument passing.
+
+\begin{definition}[Gate]
+A gate is the $i$th row of the trace table for a specific color.
+\end{definition}
+\newcommand{\gatef}{\text{gate}}
+$$
+\begin{array}{rl}
+\gatef &: \IndexMap(X, F(W(t)^{k(t)})) \to (t': \Color) \to [k(t')] \to ((c:\Column) \to X(t',c) \to W(t')) \\
+\gatef(T, t', i) &= ((- @ i) \circ \drop^3 [T])(t')
+\end{array}
+$$
+
+- *notation*:
+  - Recall $\TraceTable = \IndexMap(X, F(W(t)^{k(t)}))$, we exploded it to bind $k$ to construct the type for $i$.
+  - $[k(t')]: \pset{\Nb}$ guarantees that $i$ is a valid index for the color $t'$.
+  - Recall mapping an index map expects a function of type $F(X(t,c) \to Y_1(t,c) \to Y_2(t,c))$
+    - The three drops ignore $t,c,x$ arguments but only keep $Y_1(t,c)$
+    - In this context, $Y_1(t,c) = W(t)^{k(t)}$; the vector / column of wire values.
+    - $(- @ i)$ maps the vector to the value at index $i$.
+  - The resulting index map then is partially applied to $t'$
+    - This returns a function of type $\Column \to X(t',c) \to W(t')$
+    - Conveniently, this matches the last argument type for $\text{foldEqn}$.
+- *motivation*:
+  - A gate is a semantic group of resolved cells of the color $t'$, specifically a row of a trace table.
+  - This generally corresponds to the operands of an equation typically the gate constraint polynomial.
+- *note*: This is a projection of a trace table.
+
+\begin{example}
+Trace table for $\build{w_1 + (w_2 \times w_3) = z^*}{}{}$ where $\pwit = (q,q,q)$.
+\end{example}
+Let the trace table be the following (we will describe how this is computed when we define trace later):
 \begin{center}
 \begin{tabular}{ c c }
 \begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}
@@ -361,21 +409,25 @@ Let $F_{GC}^{\plonkm}: \Eqn = A \times Q_l + B \times Q_r + C \times Q_o + A \ti
 
 $$
 \begin{array}{rll}
-F_{GC}^{\plonkm}(\gatef(T,1,q)) &= w_2 + w_3 - t &\stackrel{?}{=} 0 \\
-F_{GC}^{\plonkm}(\gatef(T,2,q)) &= -z + (w_1 \times t) &\stackrel{?}{=} 0 \\
+F_{GC}^{\plonkm}(\gatef(T,q,1)) &= w_2 + w_3 - t &\stackrel{?}{=} 0 \\
+F_{GC}^{\plonkm}(\gatef(T,q,2)) &= -z + (w_1 \times t) &\stackrel{?}{=} 0 \\
 \end{array}
 $$
 
 Thus $F_{GC}^{\plonkm}$ implies the structural integrity of the gadgets when it evaluates to zero.
 
-At this point, we want to emphasize the expressivity of index map as an abstraction. Pre-constraints, trace table and gates are all defined as an index map. Subsequently, we will see that even the circuit $(R,X,W)$ are also index maps.
+- *note*: At this point, we want to emphasize the expressivity of index map as an abstraction. Pre-constraints, trace table and gates are all defined as / from an index map. Index maps also interface nicely with equations. Subsequently, we will see that even the circuit $(R,X,W)$ are also index maps.
 
 TODO
 
 - relative wires
-- cell wire additional assertion
-- gadget additional assertion
-- properad projections; term: Eqn, columns: pow(column)
+  - properad projections continued
+    - non relative wires; b
+    - CellWire fully exclusion defined
+    - Columns it uses
+    - term; eqn it contributes to fgc
+- base gadget; query base gadget of a gadget with relative wires
+- gadget additional assertion; g(x++r)
 - spec
 - DONE
 

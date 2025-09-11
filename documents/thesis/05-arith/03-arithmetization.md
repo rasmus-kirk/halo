@@ -10,7 +10,7 @@ $$
 \Uni
 $$
 
-- *motivation*: to quantify over sets without defining them.
+- *motivation*: Quantify over sets without defining them.
 
 \begin{notation}[Type Annotation]
 Naively, an assertion that an element belongs strictly to a set; $\exists! A. x \in A$.
@@ -45,7 +45,7 @@ $$
 - *projections*: $W: \Color \to \Uni$ - wire value type
   - $W(p) = \Fb_p$
   - $W(q) = \Fb_q$
-- *motivation*: we need to account for value types that wires can represent, i.e. $\Fb_p$ and $\Fb_q$. In the theory of properads (which in our context will be defined later), this is defined as a color[@yau2015-ssec1.1.1].
+- *motivation*: We need to account for value types that wires can represent, i.e. $\Fb_p$ and $\Fb_q$. In the theory of properads (which in our context will be defined later), this is defined as a color[@yau2015-ssec1.1.1].
 
 \begin{definition}[Profile]
 A vector of colors.
@@ -54,7 +54,7 @@ $$
 \vec{t}: \Color^k
 $$
 
-- *motivation*: a clean way to represent the types for a vector of multi color wires[@yau2015-ssec1.1.2].
+- *motivation*: A clean way to represent the types for a vector of multi color wires[@yau2015-ssec1.1.2].
 
 \begin{notation}[Mapping over a vector]
 Applies a function to each element of a vector.
@@ -66,10 +66,19 @@ f[\vec{x}] &= (f(x_1), \ldots, f(x_k))
 \end{array}
 $$
 
-- *motivation*: concise notation whilst notationally distinct from a function that takes a vector as an argument.
+- *motivation*: Concise notation whilst notationally distinct from a function that takes a vector as an argument.
+
+\begin{notation}[Vector Product Isomorphism]
+A vector is coercable into a product
+\end{notation}
+$$
+(t_1, \ldots, t_k): T^k = (t_1, \ldots, t_k): \underbrace{T \times \ldots \times T}_{k}
+$$
+
+- *motivation*: Intuitive way to reason about $W[\vec{t}]$ as multiple value types rather than a vector of sum type of the codomain of $W$.
 
 \begin{definition}[Program]
-A program is a function from a vector of values to another vector of some profiles.
+A program is a function from multiple values to multiple values.
 \end{definition}
 \newcommand{\pin}{\vec{t}_{in}}
 \newcommand{\pout}{\vec{t}_{out}}
@@ -138,8 +147,8 @@ $$
   - Type safety across multiple field types (for cycle of curves)
   - Single source of truth (prevents arithmetizer implementation bugs)
   - User-extensible architecture (enables rapid prototyping of new gadgets)
-  - Support for transcript dependent gadgets (enables lookup arguments)
-  - Next row referencing capability (reduces gate count; used by poseidon gadget)
+  - Support for transcript dependent gadgets (enables $\plookup$)
+  - Next row referencing capability (reduces gate count; used by poseidon gadgets)
   - Declarative algebraic optimizations via gadget equivalence (reduces gate count)
   - Gadget declaration order invariant (prevents circuit composition bugs)
 
