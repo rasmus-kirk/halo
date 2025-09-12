@@ -1,6 +1,8 @@
-### Abstractions
+## Abstractions
 
 We now define the rest of the abstractions building up to the specification of the single source of truth for arithmetization which is used in $\text{trace}$.
+
+### Pre-Constraints and Trace Table
 
 \begin{definition}[Column]
 A set of unique identifiers for the columns of the trace table.
@@ -434,8 +436,10 @@ Thus $F_{GC}^{\plonkm}$ implies the structural integrity of the gadgets when it 
 
 - *note*: At this point, we want to emphasize the expressivity of index map as an abstraction. Pre-constraints, trace table and gates are all defined as / from an index map. Index maps also interface nicely with equations. Subsequently, we will see that even the circuit $(R,X,W)$ are also index maps. All whilst accounting for incomplete protocol specific information via thunk arguments.
 
+### Relative Wires
+
 \begin{definition}[Relative Wires]
-Relative wires, are wires that are the last $b(\abst{g})$ input wires that do not exist in the gadget's pre-constraints. We call the gadget of a relative wire, the relative gadget. The gadget whose pre-constraints first row contains the relative wire is called the base gadget. Wheras the last row of the relative gadget's pre-constraints when fed to its term equation can refer to the relative wire.Thus, the base gadget's pre-constraints must appear immediately after the relative gadget's pre-constraints in the trace table. We now continue defining more projections for properads and gadgets to define relative wires.
+Relative wires, are wires that are the last $b(\abst{g})$ input wires that do not exist in the gadget's pre-constraints. We call the gadget of a relative wire, the relative gadget. The gadget whose pre-constraints first row contains the relative wire is called the base gadget. Wheras the last row of the relative gadget's pre-constraints when fed to its term equation can refer to the relative wire in the next row. Thus, the base gadget's pre-constraints must appear immediately after the relative gadget's pre-constraints in the trace table. We now continue defining more projections for properads and gadgets to define relative wires.
 \end{definition}
 $$
 \begin{array}{cc}
@@ -484,7 +488,7 @@ $$
 \end{array}
 $$
 
-- *intterpretation*: Given a gadget $g$, the base gadget $g'$ should exist in the abstract circuit $\abst{f}$, such that it holds wire cells of all of the relative wires of $g$ in the first row of its pre-constraints.
+- *interpretation*: Given a gadget $g$, the base gadget $g'$ should exist in the abstract circuit $\abst{f}$, such that it holds wire cells of all of the relative wires of $g$ in the first row of its pre-constraints.
 - *motivation*: Succinct way to get the base gadget of a relative gadget.
 
 TODO
@@ -492,12 +496,12 @@ TODO
 - relative wires have columns assigned to them
 - relative gadget insists on the properads of its base gadget.
 - complete assertion for gadget construction:
-  - $\abst{g}(\avec{x} \cat \avec{r})$ where $|\avec{r}| = b(\abst{g})$ and $b(\abst{g}) > 0$ denotes that $\ty[\avec{x} \cat \avec{r}] = \pin(\abst{g})$ and ... (use base to check it exists)
+  - $g = \abst{g}(\avec{x} \cat \avec{r})$ denotes that $\ty[\avec{x} \cat \avec{r}] = \pin(\abst{g})$ and if $|\avec{r}| = b(\abst{g})$ and $b(\abst{g}) > 0$  then $\base(\abst{f}, g) \neq \bot$
 
 TODO
 
 - Column + to refer to next row in eqn
-- relGate: index i and next where next can loop back to zero at last,
+- relGate: index i and next where next can loop back to first row at last,
 - relative wire example
 - spec
 - DONE

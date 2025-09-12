@@ -1,4 +1,4 @@
-### Build
+## Build
 
 The build function describes the construction of an abstract circuit from a program $f$. Naively it can be thought of as a directed acyclic graph where gadgets are vertices and wires are edges, modelling the structure of the circuit without its concrete values.
 

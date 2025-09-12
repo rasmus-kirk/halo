@@ -1,4 +1,4 @@
-## Formal Specification
+## Introduction to the Formal Specification
 
 We define the following and then describe the plonk protocol to highlight the role of the arithmetization pipeline.
 

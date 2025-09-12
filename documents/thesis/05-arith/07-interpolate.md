@@ -1,4 +1,4 @@
-### Interpolate
+## Interpolate
 
 At a high level, the interpolation algorithm performs copy constraint and $\plookup$ prep for each wire type.
 
