@@ -5,6 +5,5 @@ members = [
     "group",
     "poseidon",
     "schnorr",
-    "00-kirk/arith"
 ]
 resolver = "2"
