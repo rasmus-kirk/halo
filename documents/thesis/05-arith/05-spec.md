@@ -10,16 +10,16 @@ c: \Column
 $$
 \newcommand{\pcol}{\text{priv}}
 \newcommand{\cccol}{\text{copy}}
+\newcommand{\rcol}{\text{rel}}
 
 - *notation*: $\Column = \set{A,B,C,Q_l,Q_r,Q_o,Q_m,Q_c,PI, \ldots}$
 - *projections*:
-  - $\pcol(c): \Bb$ - is $c$ a private / witness relevant column
-  - $\cccol(c): \Bb$ - is $c$ a copy constraint relevant column
-  - $X(t: \Color,c): \Uni$ - the argument type that the column values depend on
-  - $\text{default}(t,c,x: X(t,c)): W(t)$ - the default value for the column used by the trace table
-- *motivation*:
-  - A modular and user extendable way to define the structure of the trace table.
-  - More on arguments $X(t,c)$ later when when we define index maps.
+  - $\pcol(c): \Bb$ - determines column of $X$ or $W$ of final circuit.
+  - $\cccol(c): \Bb$ - is $c$ a copy constraint relevant column.
+  - $\rcol(c): \Bb$ - is $c$ a relative wire relevant column (will be motivated when defining relative wires).
+  - $X(t: \Color,c): \Uni$ - the column thunk argument type (will be motivated when defining index maps).
+  - $\text{default}(t,c,x: X(t,c)): W(t)$ - the column default value (will be motivated when defining pre-constraints).
+- *motivation*: A modular and user extensible way to define the structure of the trace table.
 
 \begin{notation}[Unit Type]
 A unit type is a type with a single value, denoted as $()$.
@@ -51,7 +51,7 @@ F(T) &= \Color \to \Column \to T \\
 \end{array}
 $$
 
-- *notation*:
+- *interpretation*:
   - Naively, think of a thunk as $f: X \to Y$
     - $X$ is the thunk argument type; $X = \Unit$ if the value is not a thunk.
     - $Y$ is the value type; $Y= \Option(T)$ if the index map is partially populated.
@@ -106,15 +106,19 @@ Cell wires are natural numbers that represent the wires of a gadget in a propera
 \newcommand{\aavec}[1]{\bar{\vec{#1}}}
 $$
 \begin{array}{rl}
-\CWire(\abst{g})&: \pset{\Nb} = [n(\abst{g}) + m(\abst{g}) + 1] \setminus \ldots \\
-\bar{w} &: \CWire(\abst{g})
+\CWire(c, \abst{g})&: \pset{\Nb} = \begin{cases}
+  [n(\abst{g}) + m(\abst{g}) + 1] \setminus \ldots & \pcol(c) \lor c = \text{PI} \\
+  \emptyset & \otherwise
+\end{cases} \\
+\bar{w} &: \CWire(c, \abst{g})
 \end{array}
 $$
 
 - *notation*:
+  - A public column should not be able to reference wires, as they are private values. With the exception of the public input column.
   - $\bar{w}$ the bar denotes it is an abstract wire $\abst{w}$ thats an abstract value $w$.
   - If $n(\abst{g})=2, m(\abst{g})=1$ and $\bar{w} \in \set{1,2}$ then $\abst{w} \in \gin(g)$ else if $\bar{w} = 3$ then $\gpair{g}{\abst{w}} \in \abst{f}$.
-- *motivation*: To be declarative, we needs a way to refer to the wires of a properad's gadget instances.
+- *motivation*: To be declarative, we need a way to refer to the wires of a properad's gadget instances.
 
 \begin{notation}[Vector index function]
 A function that indexes a vector.
@@ -126,7 +130,7 @@ $$
 \end{array}
 $$
 
-- *notation*: $[k+1]: \pset{\Nb}$ guarantees that $i$ is a valid index for the vector.
+- *interpretation*: $[k+1]: \pset{\Nb}$ guarantees that $i$ is a valid index for the vector.
 - *motivation*: Allows us to index vectors over a higher order function such as mapping over a vector.
 
 \begin{definition}[More Properad Projections]\end{definition}
@@ -137,6 +141,7 @@ $$
 - *projections*:
   - $\vec{t}(\abst{g}) = \pin(\abst{g}) \cat \pout(\abst{g})$ - the full profile of the properad; input and output wire colors.
   - $\vec{t}(\abst{g}, \aavec{w}) = (\vec{t}(\abst{g}) @ -)[\aavec{w}]$ - the profile of a vector of cell wires.
+  - $\term(\abst{g}): \Eqn$ - the equation term that the properad contributes to the gate constraint polynomial.
   - We continue to define more projections as their own definitions to eventually define cells and pre-constraints
 - *motivation*: Allows us to define the single source of truth for values in the trace table.
 
@@ -154,7 +159,7 @@ Cells represent an abstract value in an index map modelling the trace table. It 
 \end{definition}
 $$
 \begin{array}{rl}
-\Cell(\abst{g}) &= F((\aavec{w}: \CWire(\abst{g})) \times R(\abst{g}, \aavec{w},t,c)) \\
+\Cell(\abst{g}) &= F((\aavec{w}: \CWire(c, \abst{g})^k) \times R(\abst{g}, \aavec{w},t,c)) \\
 \boxdot &: \Cell(\abst{g})
 \end{array}
 $$
@@ -172,7 +177,7 @@ f(t, c, x, ()) &: W(t) &= v
 \end{array}
 $$
 
-- *notation*: Recall that resolvers take $t: \Color, c: \Column$ from the definition of $F$ and $x: X(t,c)$ as the first three arguments, followed by the values of the cell wires. Thus $f(t,c,x,())$ is the resolved value.
+- *interpretation*: Recall that resolvers take $t: \Color, c: \Column$ from the definition of $F$ and $x: X(t,c)$ as the first three arguments, followed by the values of the cell wires. Thus $f(t,c,x,())$ is the resolved value.
 - *motivation*: Concise notation for a cell that resolves to a constant value.
 
 \begin{definition}[Wire Cell]
@@ -214,7 +219,7 @@ $$
 $$
 
 - *motivation*: For notational brevity, columns irrelevant to a properad may be omitted, though vectors of a specific color must maintain uniform length. Default cells are padded for omitted columns. For most columns, the default value is $0$, while specialized columns for $\plookup$  use $\text{default}(t,c,t_{last}) = t_{last}$, where $t_{last}$ is the last entry of the lookup table, which like $\zeta$ can only be computed further in the protocol. This is yet another advantage of having thunk arguments in index maps.
-- *notation*: Recall that $\text{default}(t,c,x): W(t)$ is a projection of a column, whose type signature conveniently matches that of the default cell resolver
+- *interpretation*: Recall that $\text{default}(t,c,x): W(t)$ is a projection of a column, whose type signature conveniently matches that of the default cell resolver
 $$
 \begin{array}{ll}
 R(\abst{g},()) & \text{resolver\ type\ notation} \\
@@ -247,13 +252,13 @@ $$
   baseline={(current bounding box.center)}
 ]
 \node[minimum width=2cm, minimum height=1.5cm] (tab) {
-\begin{tabular}{|c|c|c|c|c|c|}
+\begin{tabular}{|c|c|c|c|c|c|c|}
 \hline
-$\abst{g}$ & $n$ & $m$ & $\pin$ & $\pout$ & $\eval(a,b)$ \\
+$\abst{g}$ & $n$ & $m$ & $\pin$ & $\pout$ & $\eval(a,b)$ & $\term$\\
 \hline
-$\text{Add}^t$ & $2$ & $1$ & $(t,t)$ & $t$ & $a + b$ \\
+$\text{Add}^t$ & $2$ & $1$ & $(t,t)$ & $t$ & $a + b$ & $F_{GC}^{\plonkm}$ \\
 \hline
-$\text{Mul}^t$ & $2$ & $1$ & $(t,t)$ & $t$ & $a \times b$ \\
+$\text{Mul}^t$ & $2$ & $1$ & $(t,t)$ & $t$ & $a \times b$ & $F_{GC}^{\plonkm}$ \\
 \hline
 \end{tabular}
 };
@@ -302,9 +307,13 @@ $a$ & $b$ & $c$ & $0$ & $0$ & $-1$ & $1$ & $0$ & $0$  \\
 \cline{1-9}
 \end{tabular}
 \end{tabular}
+$$
+F_{GC}^{\plonkm}: \Eqn = A \times Q_l + B \times Q_r + C \times Q_o + A \times B \times Q_m + Q_c + PI
+$$
 \end{center}
 
 - *note*:
+  - $\boxed{a}, \boxed{b}, \boxed{c}$ are wire cells and $\boxed{1}, \boxed{-1}, \boxed{0}$ are constant cells.
   - The pre-constraints only define a gate for the color $t$ wheras the rest of the colors are empty.
   - Recall that the length of the vector of cells must be uniform within a color, but not across colors.
 
@@ -321,40 +330,38 @@ $$
 
 - *motivation*: This is the last intermediate data structure before we can interpolate them into polynomials and other data forming the concrete circuit $(R,X,W)$.
 
-\begin{notation}[Drop function]
-A function that drops the first argument and returns the rest.
-\end{notation}
-\newcommand{\drop}{\text{drop}}
-$$
-\begin{array}{rl}
-\drop &: (A \times \Uni^k) \to \Uni^k \\
-\drop(a, \vec{x}) &= \vec{x}
-\end{array}
-$$
-
-- *motivation*: Used in higher-order functions to simplify argument passing.
-
-\begin{definition}[Gate]
-A gate is the $i$th row of the trace table for a specific color.
+\begin{definition}[Row]
+Get the $i$th row of the table: index map of vectors, for a specific color.
 \end{definition}
+\newcommand{\row}{\text{row}}
 \newcommand{\gatef}{\text{gate}}
 $$
 \begin{array}{rl}
-\gatef &: \IndexMap(X, F(W(t)^{k(t)})) \to (t': \Color) \to [k(t')] \to ((c:\Column) \to X(t',c) \to W(t')) \\
-\gatef(T, t', i) &= ((- @ i) \circ \drop^3 [T])(t')
+\row &: \IndexMap(X, F(Y^{k(t)})) \to (t': \Color) \to [k(t')+1] \to ((c:\Column) \to X(t',c) \to Y)\\
+\row(A, t', i) &= f[A](t') \\
+f(t,c,x,\vec{y}) &= y_i
 \end{array}
 $$
 
-- *notation*:
-  - Recall $\TraceTable = \IndexMap(X, F(W(t)^{k(t)}))$, we exploded it to bind $k$ to construct the type for $i$.
-  - $[k(t')]: \pset{\Nb}$ guarantees that $i$ is a valid index for the color $t'$.
+- *interpretation*:
+  - An index map of vectors / table has the type $\IndexMap(X, F(Y^{k(t)}))$.
+  - We bind $k$ to construct the type for $i$ where $[k(t')+1]: \pset{\Nb}$ guarantees that $i$ is a valid index in color $t'$.
   - Recall mapping an index map expects a function of type $F(X(t,c) \to Y_1(t,c) \to Y_2(t,c))$
-    - The three drops ignore $t,c,x$ arguments but only keep $Y_1(t,c)$
-    - In this context, $Y_1(t,c) = W(t)^{k(t)}$; the vector / column of wire values.
-    - $(- @ i)$ maps the vector to the value at index $i$.
-  - The resulting index map then is partially applied to $t'$
-    - This returns a function of type $\Column \to X(t',c) \to W(t')$
-    - Conveniently, this matches the last argument type for $\text{foldEqn}$.
+  - $f$ ignores $t,c,x$ arguments and simply indexes the vector typed $Y^{k(t)}=Y_1(t,c)$ at $i$.
+  - The resulting index map then is partially applied to $t'$; a function of type $(c: \Column) \to X(t',c) \to Y$
+  - Conveniently, this matches the last argument type for $\text{foldEqn}$.
+- *motivation*: Concise notation for extracting rows from a table / index map of vectors.
+
+\begin{definition}[Gate]
+Similar to the row function, but specialized for $Y= W(t')$.
+\end{definition}
+$$
+\begin{array}{rl}
+\gatef &: \IndexMap(X, F(W(t)^{k(t)})) \to (t': \Color) \to [k(t')+1] \to ((c:\Column) \to X(t',c) \to W(t')) \\
+\gatef &= \row
+\end{array}
+$$
+
 - *motivation*:
   - A gate is a semantic group of resolved cells of the color $t'$, specifically a row of a trace table.
   - This generally corresponds to the operands of an equation typically the gate constraint polynomial.
@@ -411,7 +418,10 @@ $w_1$ & $t$ & $z$ & $1$ & $1$ & $-1$ & $0$ & $0$ & $0$ \\
 \end{tikzpicture}
 \end{tabular}
 \end{center}
-Let $F_{GC}^{\plonkm}: \Eqn = A \times Q_l + B \times Q_r + C \times Q_o + A \times B \times Q_m + Q_c + PI$, thus:
+
+- *note*: The table entries are not cells, these are values; $W(q)$, since it is a trace table and not pre-constraints.
+
+Recall $\term(\text{Add}^t) = \term(\text{Mul}^t) = F_{GC}^{\plonkm}: \Eqn = A \times Q_l + B \times Q_r + C \times Q_o + A \times B \times Q_m + Q_c + PI$, thus:
 
 $$
 \begin{array}{rll}
@@ -420,72 +430,79 @@ F_{GC}^{\plonkm}(\gatef(T,q,2)) &= -z + (w_1 \times t) &\stackrel{?}{=} 0 \\
 \end{array}
 $$
 
-Thus $F_{GC}^{\plonkm}$ implies the structural integrity of the gadgets when it evaluates to zero.
+Thus $F_{GC}^{\plonkm}$ implies the structural integrity of the gadgets when it evaluates to zero given its gates.
 
-- *note*: At this point, we want to emphasize the expressivity of index map as an abstraction. Pre-constraints, trace table and gates are all defined as / from an index map. Index maps also interface nicely with equations. Subsequently, we will see that even the circuit $(R,X,W)$ are also index maps.
+- *note*: At this point, we want to emphasize the expressivity of index map as an abstraction. Pre-constraints, trace table and gates are all defined as / from an index map. Index maps also interface nicely with equations. Subsequently, we will see that even the circuit $(R,X,W)$ are also index maps. All whilst accounting for incomplete protocol specific information via thunk arguments.
+
+\begin{definition}[Relative Wires]
+Relative wires, are wires that are the last $b(\abst{g})$ input wires that do not exist in the gadget's pre-constraints. We call the gadget of a relative wire, the relative gadget. The gadget whose pre-constraints first row contains the relative wire is called the base gadget. Wheras the last row of the relative gadget's pre-constraints when fed to its term equation can refer to the relative wire.Thus, the base gadget's pre-constraints must appear immediately after the relative gadget's pre-constraints in the trace table. We now continue defining more projections for properads and gadgets to define relative wires.
+\end{definition}
+$$
+\begin{array}{cc}
+\abst{g}: \Prpd &
+g: \Ggt
+\end{array}
+$$
+
+\newcommand{\rel}{\text{rel}}
+- *projections*:
+  - $b(\abst{g}): \Nb$ - the number of relative wires a properad has.
+  - $\CWire(c, \abst{g}) = [n(\abst{g}) + m(\abst{g}) + 1] \setminus [n(\abst{g}) - b(\abst{g}) + 1 .. n(\abst{g}) + 1]$ - In the case of private columns, cell wires exclude the last $b(\abst{g})$ input wires. These are the relative wires.
+  - $\rel(g): \Wire^{b \circ \ty(g)} = \maybe{\avec{r}}{\gin(g) = \avec{x} \cat \avec{r} \land |\avec{r}| = b(\abst{g})}$ - get the relative wires from a gadget.
+  - We continue with more projections as its own definitions below.
+- *motivation*: Relative wires allows us to "reuse" cells in the trace table. This could potentially reduce the number of rows in the trace table whilst still being able to express the same computation. This is especially useful for gadgets that have a large number of inputs, such as the poseidon gadget.
+
+\begin{definition}[Get relative wire position]
+Given a gadget and a relative wire, query the gadget's first row of pre-constraints for the columns where the relative wire exists. i.e. we are assuming the gadget is a base gadget.
+\end{definition}
+$$
+\begin{array}{rl}
+\text{pos} &: \AbsCirc \to \Ggt \to \Wire \to \pset{\Column} \\
+\text{pos}(\abst{f}, g, \abst{w}) &= \set{c \middle\vert \begin{array}{l}
+\exists \bar{w}: \CWire(c, \ty(g)). \text{wires}(\abst{f}, g) @ \bar{w} = \abst{w} \land \rcol(c) \land \\
+\cw \circ \row(\ctrn \circ \ty(g), \ty(\abst{w}), 1)(c) = \bar{w} 
+\end{array}}
+\end{array}
+$$
+
+- *interpretation*:
+  - Given a gadget $g$ and wire $\abst{w}$, get its cell wire representation $\bar{w}$ by comparing it with the gadget's wires.
+  - For some column $c$ that is relative.
+  - Check the first row of $g$'s pre-constraints at the color of $\abst{w}$ that the cell in that column is $\boxed{w}$.
+  - Collect all such columns into a set.
+- *motivation*: Knowing the set of columns where a relative wire exists allows us to determine if the gadget is a candidate for a relative gadget's base gadget.
+
+\begin{definition}[Get base gadget]
+Get the base gadget given a relative gadget
+\end{definition}
+$$
+\begin{array}{rl}
+\base &: \AbsCirc \to \Ggt \to \Option(\Ggt) \\
+\base(\abst{f}, g) &= \maybe{g'}{\begin{array}{l}
+\exists \gpair{g'}{\abst{y}} \in \abst{f}. \bigcup\limits_{\abst{w} \in \rel(g)}\text{pos}(\abst{f}, g', \abst{w}) \neq \emptyset
+\end{array}}
+\end{array}
+$$
+
+- *intterpretation*: Given a gadget $g$, the base gadget $g'$ should exist in the abstract circuit $\abst{f}$, such that it holds wire cells of all of the relative wires of $g$ in the first row of its pre-constraints.
+- *motivation*: Succinct way to get the base gadget of a relative gadget.
 
 TODO
 
-- relative wires
-  - properad projections continued
-    - non relative wires; b
-    - CellWire fully exclusion defined
-    - Columns it uses
-    - term; eqn it contributes to fgc
-- base gadget; query base gadget of a gadget with relative wires
-- gadget additional assertion; g(x++r)
+- relative wires have columns assigned to them
+- relative gadget insists on the properads of its base gadget.
+- complete assertion for gadget construction:
+  - $\abst{g}(\avec{x} \cat \avec{r})$ where $|\avec{r}| = b(\abst{g})$ and $b(\abst{g}) > 0$ denotes that $\ty[\avec{x} \cat \avec{r}] = \pin(\abst{g})$ and ... (use base to check it exists)
+
+TODO
+
+- Column + to refer to next row in eqn
+- relGate: index i and next where next can loop back to zero at last,
+- relative wire example
 - spec
 - DONE
 
 \newcommand{\WireType}{\text{WireType}}
-
-### Relative Wires
-
-An operation is called *relative* if it has $b_g > 0$. The last $b_g$ input wires are *relative wires* which are wires from another gadget called the *base gadget*. Thus, they are excluded in $\ctrn_g$ via $\AWire_g$. A base gadget's constraints will appear immediately after its relative gadget[^dupe]. $\Rel_g$ declares the columns that, the relative gadget can reference from its base gadget. Thus, constructing a relative gadget checks that the relative wires must exist in the first row of the base gadget's constraints in the declared positions in $\Rel_g$.
-
-[^dupe]: If different relative gadgets have the same base gadget, there will be duplicate rows of the base.
-
-
-$$
-\begin{array}{cc}
-\begin{array}{rl}
-g &: \Ops \\
-b_g &: \set{x : \Nb \middle\vert x \leq n_g} \\
-\AWire_g &= [n_g+m_g+1]\setminus[n_g-b_g+1..n_g+1] \\
-\Rel_g &: \pset{\Column}
-\end{array} &
-\begin{array}{rl}
-\base &: \AbsCirc \to \Ggt \to \Ggt \\
-\base^{\abst{f}}_g &= \base(\abst{f}, \gin(g)[n_g-b_g+1..n_g+1]) \\
-\base(\abst{f}, \avec{w}) &= \maybe{g}{
-\begin{array}{l}
-  \exists i. \gpair{g}{\abst{w}_i} \in \abst{f} \\
-  \bigwedge(\lambda \abst{w}. \abst{w} \in \gin(g) \cup \out(\abst{f},g))[\avec{w}] \\
-  \bigwedge(\lambda \abst{w}. \text{pos}(\abst{f}, g, \abst{w}) \neq \emptyset)[\avec{w}]
-\end{array}} 
-\end{array}
-\end{array}
-$$
-$$
-\begin{array}{cc} 
-\begin{array}{rl}
-\text{pos} &: \AbsCirc \to \Ggt \to \Wire \to \pset{\Column} \\
-\text{pos}(\abst{f}, g,\abst{w}) &= \maybe{s \in \Rel_g}{
-\begin{array}{l}
-\avec{v} = \gin(g) \cat \out(\abst{f},g) \\
-\abst{v}_{\text{cw}\circ @_1 \circ \ctrn_g^{\ty(\abst{w})}(s)} = \abst{w}
-\end{array}}
-\end{array} &
-\begin{array}{rl}
-- ( - ) &: (g: \Ops) \to \Wire^{n_g} \to (\abst{f}: \AbsCirc) \to \Ggt \\
-g(\avec{x} \cat \avec{r})_{\abst{f}} &= \maybe{g'}{
-\begin{array}{l}
-\cdots \land |\avec{r}| = b_g \\
-b_g > 0 \implies \base(\abst{f}, \avec{r}) \neq \bot \\
-\end{array}}
-\end{array}
-\end{array}
-$$
 
 **Relative Wires Example**
 
