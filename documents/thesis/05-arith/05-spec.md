@@ -540,19 +540,28 @@ $$
 
 \motivdef as mentioned before, relative wires are supposed to be found in the base gate, not the relative gate itself, thus we exclude them from being mentioned in the relative gate's pre-constraints.
 
-\begin{definition}[More on Columns]
-We define the following projection and notation for columns to define relative wires.
+\begin{definition}[Check is Relative Column]
+This projection of a column determines if it is a relative wire relevant column.
+\end{definition}
+\newcommand{\rcol}{\text{rel}}
+$$
+\rcol(c): \Bb
+$$
+
+\motivdef it allows the user to mark columns that can host relative wires.
+
+\begin{definition}[Pseudo Columns]
+A pseudo column is used to refer to the next row of a column that is relative wire relevant.
 \end{definition}
 $$
-c: \Column
+\text{pseudo}(c^+): \Bb
 $$
 
-\newcommand{\rcol}{\text{rel}}
 - \projs
-  - $\rcol(c): \Bb$ - is $c$ a relative wire relevant column.
-  - $\text{pseudo}(c^+): \Bb$ - the column $c^+$ is a pseudo column of $c$ referring to the next row.
+  - $\text{unpseudo}(c^+): \Column = c$ - get the original column from the pseudo column.
+- **Notation**: the plus in $c^+$ denotes it is the pseudo column of $c$.
 
-\motivdef it allows us to refer to the next row of the column $c$. For example if our column is $Q_x$, we refer to the next row of the same column as $Q_x^+$. In the context of the last row, this refers to the first row. Pre-constraints are banned from defining any such $c^+$ columns, via $\text{pseudo}(c)$ check. We can thus construct a constraint like index map that also includes the relative cells to be fed as an argument to an equation.
+\motivdef it allows us to refer to the next row of the column $c$ when dealing with index maps. For example if our column is $Q_x$, we refer to the next row of the same column as $Q_x^+$. In the context of the last row, this refers to the first row. Pre-constraints are banned from defining any such $c^+$ columns, via a $\text{pseudo}(c)$ check. We can thus construct a constraint from an index map that also includes the relative cells; values from next row. We can then query it with the pseudo columns. This will be made formal in the definition of relative constraints defined later.
 
 \begin{definition}[Get relative wire position]
 Given a gate, column and a relative wire, verify that the gate's first row of pre-constraints contains the relative wire in the column specified. i.e. we are assuming the gate is a base gate.
@@ -576,7 +585,7 @@ Lets break down the definition:
 
 \motivdef knowing if a relative wire exists in a valid pre-constraint allows us to determine if the gate is a candidate for a relative gate's base gate. We need to know this to verify if the relative gate can be structurally sound in the circuit.
 
-In future work, it is possible to precompute and cache the set of properads that can make base gates for every relative gate. Thus, we simply have to check for $\ty(g)$.
+In future work, it is possible to precompute and cache the set of properads that can make base gates for every relative gate. Thus, we simply have to check $\ty(g)$ and if the relative wires are in $\text{wires}(\abst{f}, g)$ to determine if $g$ is a candidate base gate.
 
 \begin{definition}[Get base gate]
 Get the base gate given a relative gate
@@ -614,7 +623,7 @@ $$
 \cctrn &: \IndexMap(X, F(W(t')^{k(t')})) \to (t': \Color) \to [k(t')+1] \to ((c:\Column) \to X(t',c) \to W(t')) \\
 \cctrn(T,t',i) &= f(T,i)[A](t') \\
 f(T,i,t,c,x,\vec{y}) &= \begin{cases} 
-  \text{nextRow}(T,i,t,x)(c) & \text{pseudo}(c) \\
+  \text{nextRow}(T,i,t,x) \circ \text{unpseudo}(c) & \text{pseudo}(c) \\
   y_i & \otherwise
 \end{cases} \\
 \text{nextRow}(T,i,t,x) &= \row(T,t,i+1 \mod (k(t)+1))(x) \\
@@ -627,6 +636,8 @@ Let's break down the definition:
 - We use modulo to wrap around to the first row if we are at the last row.
 - The last row is supplied with the thunk argument $x$, thus we are guaranteed to get the non thunk value.
 - If the column is marked as a pseudo column, we use the next row's value for that column.
+
+The following example illustrates the use case of relative wires in reducing the number of constraints. In our IVC implementation, this feature is exploited heavily by the poseidon gate for the feasibility of the IVC circuit.
 
 \begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
 We introduce a hypothetical relative gate of the properad $\text{CMul}$.
@@ -699,8 +710,6 @@ Notice how the relative wire in the first row for the pseudo column $C^+$ maps t
 
 Thus, the structural integrity of the gates hold if the equations evaluate to zero. If we were to use three multiplication gates instead, it will take three constraints instead of two.
 \end{tcolorbox}
-
-The example illustrates its use case in reducing the number of constraints. In our IVC implementation, this feature is exploited heavily by the poseidon gate.
 
 We now conclude this section on abstractions by defining $\Spec$, the penultimate single source of truth object.
 
