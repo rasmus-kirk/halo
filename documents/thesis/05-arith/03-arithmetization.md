@@ -1,4 +1,4 @@
-## Formal Specification
+## Introduction to the Formal Specification
 
 We define the following and then describe the plonk protocol to highlight the role of the arithmetization pipeline.
 
@@ -42,7 +42,7 @@ $$
 \Color: \Uni = \set{p,q}
 $$
 
-- *projections*: $W: \Color \to \Uni$ - wire value type
+- *projections*: $W: \Color \to \Uni$ - wire type
   - $W(p) = \Fb_p$
   - $W(q) = \Fb_q$
 - *motivation*: We need to account for value types that wires can represent, i.e. $\Fb_p$ and $\Fb_q$. In the theory of properads (which in our context will be defined later), this is defined as a color[@yau2015-ssec1.1.1].
@@ -146,10 +146,10 @@ $$
 - *motivation & features*:
   - Type safety across multiple field types (for cycle of curves)
   - Single source of truth (prevents arithmetizer implementation bugs)
-  - User-extensible architecture (enables rapid prototyping of new gadgets)
-  - Support for transcript dependent gadgets (enables $\plookup$)
-  - Next row referencing capability (reduces gate count; used by poseidon gadgets)
-  - Declarative algebraic optimizations via gadget equivalence (reduces gate count)
-  - Gadget declaration order invariant (prevents circuit composition bugs)
+  - User-extensible architecture (enables rapid prototyping of new gates)
+  - Support for transcript dependent gates (enables $\plookup$)
+  - Next row referencing capability (reduces constraint count; used by poseidon gate)
+  - Declarative algebraic optimizations via gate equivalence (reduces constraint count)
+  - Gate declaration order invariant (prevents circuit composition bugs)
 
 We now proceed to define $\text{interpolate}$, $\text{trace}$, $\text{trace}_{\text{pub}}$ and $\text{build}$.

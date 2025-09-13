@@ -1,4 +1,4 @@
-### Trace
+## Trace
 
 The trace computation is defined as follows:
 $$
