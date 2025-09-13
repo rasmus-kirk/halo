@@ -15,7 +15,7 @@ $$
 
 - **Notation**: $\Column = \set{A,B,C,Q_l,Q_r,Q_o,Q_m,Q_c,PI, \ldots}$
 - \projs
-  - $\pcol(c): \Bb$ - determines column of $X$ or $W$ of the circuit.
+  - $\pcol(c): \Bb$ - determines if the column belongs to $X$ or $W$ of the circuit $(R, X, W)$; private or public.
   - $\cccol(c): \Bb$ - is $c$ a copy constraint relevant column.
 
   - $X(t: \Color,c): \Uni$ - the column thunk argument type (will be motivated when defining thunk and index maps below).
@@ -58,9 +58,9 @@ F(T) &= \Color \to \Column \to T \\
 \end{array}
 $$
 
-- \subdefinition{thunk} Informally, think of a thunk as a function $f: X \to Y$
-  - $X$ is the thunk argument type; $X = \Unit$ if the value is not a thunk.
-  - $Y$ is the value type; $Y= \Option(T)$ if the index map is partially populated.
+- \subdefinition{thunk} Informally, a thunk is a function $f: X \to Y$
+  - $X$ is the thunk argument type. If $X = \Unit$ then it is not a thunk but a value of $Y$ by omissible argument.
+  - $Y$ is the value type. If $Y= \Option(T)$, then informally the index map is partially populated.
   - Thus, index maps hold such $f$ where $X,Y$ vary per color and column. i.e. $f: X(t,c) \to Y(t,c)$
   - To bind $t$ and $c$ to the index map indices we use $F$.
   - Thus we get $F(X(t,c) \to Y(t,c))$ the type for index maps.
@@ -81,6 +81,82 @@ $$
 
 \motivdef it is a succinct way to store and compose values that depend on color, column, and an argument of arbitrary type, e.g. managing multiple wire types for $\plookup$  columns in trace table, and data structure for values for equations.
 
+\begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
+As an example to see index map concretely, we define colors $p,q$ and columns $A,B,C$ such that $C$ is a thunk column that depends on a natural number argument. We then define two index maps $T_1$ and $T_2$.
+
+\vspace{1em}
+
+Let $\forall t \in \set{p,q}.X(t,A) = X(t,B) = \Unit \land X(t,C) = \Nb$
+
+Let $Y(\_,\_) = \Nb, T_1, T_2: \IndexMap(X, Y)$
+
+\vspace{1em}
+
+\begin{center}
+\begin{tabular}{ c c c}
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}
+\hline
+\multicolumn{6}{|c|}{$T_1$} \\
+\hline
+\multicolumn{3}{|c|}{$q$} & \multicolumn{3}{|c|}{$p$} \\
+\hline
+$A$ & $B$ & $C$ & $A$ & $B$ & $C$ \\
+\hline
+1 & 2 & $x+3$ & 4 & 5 & $x-6$ \\
+\hline
+0 & 0 & $x$ \\
+\cline{1-3}
+\end{tabular}
+&
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}
+\hline
+\multicolumn{6}{|c|}{$T_2$} \\
+\hline
+\multicolumn{3}{|c|}{$q$} & \multicolumn{3}{|c|}{$p$} \\
+\hline
+$A$ & $B$ & $C$ & $A$ & $B$ & $C$ \\
+\hline
+7 & 8 & $x-9$ & 10 & 11 & $x \times 12$ \\
+\hline
+\end{tabular}
+\end{tabular}
+
+\vspace{1em}
+
+Concatenating the index maps results in the following index map:
+
+\vspace{1em}
+
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}
+\hline
+\multicolumn{6}{|c|}{$T_1 \cat T_2$} \\
+\hline
+\multicolumn{3}{|c|}{$q$} & \multicolumn{3}{|c|}{$p$} \\
+\hline
+$A$ & $B$ & $C$ & $A$ & $B$ & $C$ \\
+\hline
+1 & 2 & $x+3$ & 4 & 5 & $x-6$ \\
+\hline
+0 & 0 & $x$ & 10 & 11 & $x \times 12$ \\
+\hline
+7 & 8 & $x-9$ \\
+\cline{1-3}
+\end{tabular}
+
+\vspace{1em}
+
+Thus, if we query column $A$ of color $q$, we get:
+$$
+(T_1 \cat T_2)^q(A) = (1,0,7)
+$$
+
+If we supply the thunk $42$ to the $C$ column of color $p$, we get:
+$$
+(T_1 \cat T_2)^p_{42}(C) = (42-6, 42\times 12) = (36,504)
+$$
+\end{center}
+\end{tcolorbox}
+
 \begin{definition}[Equation]
 An equation is a grammar that expresses a polynomial structure; a tree where leaf vertices are columns or coefficient scalars and intermediate vertices are operations of the grammar.
 \end{definition}
@@ -88,19 +164,19 @@ $$
 \begin{array}{ccc}
 & E: Eqn  \\
 \begin{array}{rl}
-\langle Eqn \rangle &::= - Eqn1 \\
-& |\ \mathtt{Scalar}\ \times \ Eqn1 \\
-& |\ \mathtt{(}\ Eqn1 \mathtt{)} \\
-& |\ \mathtt{Column} \\
+\langle Eqn \rangle &::= Eqn1\ Eqn' \\
+\langle Eqn'\rangle &::= +\ Eqn \\
+& |\ -\ Eqn\ | \epsilon \\
 \end{array} &
 \begin{array}{rl}
 \langle Eqn1 \rangle &::= Eqn2\ Eqn1' \\
-\langle Eqn1'\rangle &::= +\ Eqn1 \\
-& |\ -\ Eqn1\ | \epsilon \\
+\langle Eqn1'\rangle &::= \times Eqn1\ |\ \epsilon
 \end{array} &
 \begin{array}{rl}
-\langle Eqn2 \rangle &::= Eqn\ Eqn2' \\
-\langle Eqn2'\rangle &::= \times Eqn2\ |\ \epsilon
+\langle Eqn2 \rangle &::= - Eqn \\
+& |\ \mathtt{Scalar}\ \times \ Eqn \\
+& |\ \mathtt{(}\ Eqn\ \mathtt{)} \\
+& |\ \mathtt{Column} \\
 \end{array}
 \end{array}
 $$
@@ -112,7 +188,20 @@ $$
   - when every operation of the grammar is specified for type $T$, we can evaluate the equation.
   - curve points do not have multiplication defined, thus equations involving them cant be evaluated.
 
-\motivdef it is the single source of truth for an equational definitions that can vary over operand types: scalars, polynomials, curve points, wires and state via build. Examples of equations are gate constraint polynomials, grand product polynomials, quotient polynomial, $\plookup$  compression equation, etc. When implementing in a programming language such as rust, it is possible to use type variables / generics to define a function over $T$, without having an explicit syntax tree data structure of the $Eqn$'s grammar.
+
+\begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
+Let $f: Eqn = A + B \times -C$
+
+Let $X: \Column \to \Nb$
+
+Let $X(A) = 1, X(B) = 2, X(C) = 3$
+
+Then $f(X) = 1 + 2 \times -3 = -5$
+\end{tcolorbox}
+
+\motivdef it is the single source of truth for an equational definitions that can vary over operand types: scalars, polynomials, curve points, wires and state via build. Examples of equations are gate constraint polynomials, grand product polynomials, quotient polynomial, $\plookup$  compression equation, etc.
+
+When implemented in a programming language such as rust, it is possible to use type variables / generics to define a function over $T$, without having an explicit syntax tree data structure of the $Eqn$'s grammar.
 
 \begin{definition}[Cell Wire]
 Cell wires are natural numbers that represent the wires of a gate in a properad. Intuitively, an abstract wire. It does exclude some wires which will be defined later.
@@ -122,7 +211,7 @@ Cell wires are natural numbers that represent the wires of a gate in a properad.
 $$
 \begin{array}{rl}
 \CWire(c, \abst{g})&: \pset{\Nb} = \begin{cases}
-  [n(\abst{g}) + m(\abst{g}) + 1] \setminus \ldots & \pcol(c) \lor c = \text{PI} \\
+  [n(\abst{g}) + m(\abst{g}) + 1] \setminus \cdots & \pcol(c) \lor c = \text{PI} \\
   \emptyset & \otherwise
 \end{cases} \\
 \bar{w} &: \CWire(c, \abst{g})
@@ -149,7 +238,15 @@ $$
 
 $[k+1]: \pset{\Nb}$ guarantees that $i$ is a valid index for the vector.
 
-\motivnot it allows us to index vectors over a higher order function such as mapping over a vector.
+\motivnot it allows us to index vectors over a higher order function such as mapping over a vector. Moreover if a function call returns a vector and we wish to index it immediately, this notation is more legible.
+
+\begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
+If $f(a,b,c,d): T^k$ is a vector and $g(t,c): [k+1]$ is a natural number that is a valid index.
+
+Then $f(a,b,c,d) @ g(t,c)$ is more legible than $f(a,b,c,d)_{g(t,c)}$.
+
+And we can use it in higher order functions such as $(f(a,b,c,d) @ -)\circ g(t) [\vec{c}]$
+\end{tcolorbox}
 
 \begin{definition}[More Properad Projections]\end{definition}
 $$
@@ -233,9 +330,7 @@ f(t, c, \zeta, \aavec{w}) &: W(t) &= \bar{w}_1 + \zeta \bar{w}_2 + \zeta^2 \bar{
 \end{array}
 $$
 
-\begin{itemize}
-  \item \textit{motivation}: Notice how $\zeta: X(t,c)$ is a thunk argument, this is because we do not know $\zeta$ until the core $\Plonk$ prover has sufficiently progressed in the transcript. But with our abstractions, we can account for it cleanly before the protocol even begins.
-\end{itemize}
+Notice how $\zeta: X(t,c)$ is a thunk argument, this is because we do not know $\zeta$ until the core $\Plonk$ prover has sufficiently progressed in the protocol; $\zeta$ is a transcript hash at some point of the protocol. But with our abstractions, we can account for it cleanly before the protocol even begins.
 \end{tcolorbox}
 
 \begin{definition}[Default Cell]
@@ -257,8 +352,8 @@ Recall that $\text{default}(t,c,x): W(t)$ is a projection of a column, whose typ
 \begin{math}
 \begin{array}{ll}
 R(\abst{g},()) & \text{resolver\ type\ notation} \\
-= F(X(t,c) \to W[()] \to W(t)) & \text{defn\ of\ resolver}\\
-= (t: \Color) \to (c: \Column) \to X(t,c) \to W[()] \to W(t) & \text{defn\ of\ } F \\
+= F(X(t,c) \to W[()] \to W(t)) & \text{definition\ of\ resolver}\\
+= (t: \Color) \to (c: \Column) \to X(t,c) \to W[()] \to W(t) & \text{definition\ of\ } F \\
 = (t: \Color) \to (c: \Column) \to X(t,c) \to \Uni^0 \to W(t) & \text{mapping\ zero\ length\ vector} \\
 = (t: \Color) \to (c: \Column) \to X(t,c) \to W(t) & \text{zero\ length\ is\ unit\ thats\ omissible}
 \end{array}
@@ -354,7 +449,9 @@ $$
 
 Notice that $\boxed{a}, \boxed{b}, \boxed{c}$ are wire cells and $\boxed{1}, \boxed{-1}, \boxed{0}$ are constant cells. Our notation conveniently aligns with drawing tables.
 
-The pre-constraints in this example only define a gate for the color $t$ wheras the rest of the colors are empty. Recall that the length of the vector of cells must be uniform within a color, but not across colors. So this definition is fine.
+\vspace{1em}
+
+The pre-constraints in this example only define a row for the color $t$ wheras the rest of the colors are empty. Recall that the length of the vector of cells must be uniform within a color, but not across colors. So these pre-constraints type checks / are valid.
 \end{tcolorbox}
 
 In the above example, we use the notation $F_{GC}^{\plonkm}$ for the gate constraint polynomial from [@plonk], the gate constraint in our $\Plonk$ protocol is dependent on the properads that the user defines which we will see later when we define $\Spec$.
@@ -392,9 +489,10 @@ Let's break down the type signature and definition:
 - We bind $k$ to construct the type for $i$ where $[k(t')+1]: \pset{\Nb}$ guarantees that $i$ is a valid index in color $t'$.
 - Recall mapping an index map expects a function of type $F(X(t,c) \to Y_1(t,c) \to Y_2(t,c))$
 - $f$ ignores $t,c,x$ arguments and simply indexes the vector typed $Y^{k(t)}$ i.e. $Y_1(t,c)$, at $i$.
-- The resulting index map then is partially applied to $t'$; a function of type $(c: \Column) \to X(t',c) \to Y$
-- Conveniently, this matches the last argument type for $\text{foldEqn}$ where $T = X(t',c) \to Y$.
-- If $X(t',c) = \Unit$ then $T = Y$, this motivates the use of this function on trace tables.
+- The index map then is partially applied with $t'$. This returns $(c: \Column) \to X(t',c) \to Y$
+- Conveniently, this is the type of the last argument of $\text{foldEqn}$ when the equation operands are $T = X(t',c) \to Y$.
+- If $X(t',c) = \Unit$ then $T = Y$ by omissible argument.
+- This motivates its use on trace tables to project rows that can be used to evaluate equations.
 
 \begin{definition}[Constraint]
 Similar to the row function, but specialized for $Y= W(t')$.
@@ -402,14 +500,16 @@ Similar to the row function, but specialized for $Y= W(t')$.
 \newcommand{\cctrn}{\text{constraint}}
 $$
 \begin{array}{rl}
-\cctrn &: \IndexMap(X, F(W(t')^{k(t')})) \to (t': \Color) \to [k(t')+1] \to ((c:\Column) \to X(t',c) \to W(t')) \\
+\cctrn &: \IndexMap(X, F(W(t)^{k(t)})) \to (t': \Color) \to [k(t')+1] \to ((c:\Column) \to X(t',c) \to W(t')) \\
 \cctrn &= \row
 \end{array}
 $$
 
-\motivdef it allows us to extract rows from the table of a specific color which can be used to evaluate equations. Typically, the gate constraint polynomial.
+\motivdef it allows us to extract rows from the table of a specific color which can be used to evaluate equations. Typically, the gate constraint polynomial. We can see its use in the following example:
 
 \begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
+Assume the definition of the properads $\text{Add}^t, \text{Mul}^t$ from the previous example.
+
 Let the trace table for $\build{w_1 + (w_2 \times w_3) = z^*}{}{}$ where $\pwit = (q,q,q)$ be the following (we will describe how this is computed when we define trace later):
 \begin{center}
 \begin{tabular}{ c c }
@@ -466,8 +566,8 @@ Recall $\term(\text{Add}^t) = \term(\text{Mul}^t) = F_{GC}^{\plonkm}: \Eqn = A \
 
 $$
 \begin{array}{rll}
-F_{GC}^{\plonkm}(\cctrn(T,q,1)) &= w_2 + w_3 - t &\stackrel{?}{=} 0 \\
-F_{GC}^{\plonkm}(\cctrn(T,q,2)) &= -z + (w_1 \times t) &\stackrel{?}{=} 0 \\
+F_{GC}^{\plonkm}(\cctrn(T,q,1)) &= -t + w_2 \times w_3 &\stackrel{?}{=} 0 \\
+F_{GC}^{\plonkm}(\cctrn(T,q,2)) &= w_1 + t -z &\stackrel{?}{=} 0 \\
 \end{array}
 $$
 
@@ -494,7 +594,7 @@ The last row of the relative gate's pre-constraints when fed to its term equatio
 
 The motivation for these definitions is that relative wires allows us to "reuse" cells in the trace table. This could potentially reduce the number of constraints in the trace table whilst still being able to express the same computation. This is especially useful for gates that have a large number of inputs, such as the poseidon gate.
 
-We now continue defining more projections for properads and gates to define relative wires.
+We now continue defining more projections for properads and gates to complete the formal specification of relative wires.
 
 $$
 \begin{array}{cc}
@@ -551,41 +651,50 @@ $$
 \motivdef it allows the user to mark columns that can host relative wires.
 
 \begin{definition}[Pseudo Columns]
-A pseudo column is used to refer to the next row of a column that is relative wire relevant.
+A pseudo column is used to refer to the next row of a column that is relative wire relevant. The plus in $c^+$ denotes it is the pseudo column of $c$.
 \end{definition}
 $$
 \text{pseudo}(c^+): \Bb
 $$
 
-- \projs
-  - $\text{unpseudo}(c^+): \Column = c$ - get the original column from the pseudo column.
-- **Notation**: the plus in $c^+$ denotes it is the pseudo column of $c$.
+\begin{definition}[Un-pseudo a column]
+Get the original column from a pseudo column. If the column is not pseudo, it returns itself.
+\end{definition}
+$$
+\text{unpseudo}(c^+): \Column = c
+$$
 
-\motivdef it allows us to refer to the next row of the column $c$ when dealing with index maps. For example if our column is $Q_x$, we refer to the next row of the same column as $Q_x^+$. In the context of the last row, this refers to the first row. Pre-constraints are banned from defining any such $c^+$ columns, via a $\text{pseudo}(c)$ check. We can thus construct a constraint from an index map that also includes the relative cells; values from next row. We can then query it with the pseudo columns. This will be made formal in the definition of relative constraints defined later.
+\motivdef it allows us to refer to the next row of the column $c$ when dealing with index maps. In the context of the last row, the pseudo column refers to the first row.
+
+\begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
+If our column is $Q_x$, we refer to the next row of the same column as $Q_x^+$.
+\end{tcolorbox}
+
+Pre-constraints are banned from defining any such $c^+$ columns, via a $\text{pseudo}(c)$ check. But it is not excluded as an argument for index maps. We can thus construct a constraint from an index map that also includes the relative cells; values from next row. This will be made formal in the definition of relative constraints defined later.
 
 \begin{definition}[Get relative wire position]
-Given a gate, column and a relative wire, verify that the gate's first row of pre-constraints contains the relative wire in the column specified. i.e. we are assuming the gate is a base gate.
+Given a gate, column and a relative wire, verify that the gate's first row of pre-constraints contains the relative wire in the column specified. Intuitively, the function corroborates if the gate is a base gate.
 \end{definition}
 $$
 \begin{array}{rl}
 \text{pos} &: \AbsCirc \to \Ggt \to \Column \to \Wire \to \Bb \\
-\text{pos}(\abst{f}, g, c, \abst{w}) &= \begin{array}{ll}
+\text{pos}(\abst{f}, g, c, \abst{w}) &= \left(\begin{array}{ll}
 \rcol(c) &\land \\
 \exists \bar{w}: \CWire(c, \ty(g)). \text{wires}(\abst{f}, g) @ \bar{w} = \abst{w} &\land \\
 \cw \circ \row(\ctrn \circ \ty(g), \ty(\abst{w}), 1)(c) = \bar{w} 
-\end{array}
+\end{array}\right)
 \end{array}
 $$
 
 Lets break down the definition:
 
+- Verify that the column is marked as a relative wire relevant column via $\rcol(c)$.
 - Given a gate $g$ and wire $\abst{w}$, get its cell wire representation $\bar{w}$ by comparing it with the gate's wires.
-- Recall $\rcol(c)$ is a projection of columns; it checks if the column is marked as a candidate to host relative wires.
 - Check the first row of $g$'s pre-constraints at the color of $\abst{w}$ that the cell in that column is indeed $\boxed{w}$.
 
 \motivdef knowing if a relative wire exists in a valid pre-constraint allows us to determine if the gate is a candidate for a relative gate's base gate. We need to know this to verify if the relative gate can be structurally sound in the circuit.
 
-In future work, it is possible to precompute and cache the set of properads that can make base gates for every relative gate. Thus, we simply have to check $\ty(g)$ and if the relative wires are in $\text{wires}(\abst{f}, g)$ to determine if $g$ is a candidate base gate.
+In future work, it is possible to precompute and cache the set of properads that can make base gates for every relative gate. Thus, we simply have to check $\ty(g)$ and if the relative wires are in $\text{wires}(\abst{f}, g)$ not as relative wires in $g$ to determine if $g$ is a candidate base gate.
 
 \begin{definition}[Get base gate]
 Get the base gate given a relative gate
@@ -599,9 +708,14 @@ $$
 \end{array}
 $$
 
-Given a gate $g$, the base gate $g'$ should exist in the abstract circuit $\abst{f}$, such that it holds wire cells of all of the relative wires of $g$ in the first row of its pre-constraints, in the expected columns.
+Let's break down the definition:
+
+- We find any gate $g'$ in the abstract circuit $\abst{f}$; ignoring its output wire $\abst{y}$.
+- For each relative wire in $\grcol(g)$, run $\text{pos}$ to verify with their respective expected column in $\rel(g)$. 
 
 \motivdef it succinctly expresses the base gate of a relative gate if it exists.
+
+In future work, we can seek to find the base gate with the minimum cost, i.e. least amount of rows / constraints.
 
 \begin{notation}[Full assertion for gate construction]
 Recall before that constructing a gate, will type check its inputs and we mentioned an assertion to be defined later. Here it is.
