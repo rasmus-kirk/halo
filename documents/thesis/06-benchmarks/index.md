@@ -64,10 +64,10 @@ Finality layer) and some hashes. For this comparison we just focus on the
 signatures. We can now present the benchmarks which ran on a 20 thread
 Thinkpad P50:
 
-- **IVC-Prover:** Parallel: ~300 s. Single Threaded: ~0 s.
-- **IVC-Verifier:** Parallel: ~3 s. Single Threaded: ~0 s.
+- **IVC-Prover:** Parallel: ~300 s. Single Threaded: ~900 s.
+- **IVC-Verifier:** Parallel: ~3 s. Single Threaded: ~9 s.
 - **Naive Signature Verification:** Parallel: ~1300 signatures per
-  second. Single Threaded: ~0 signatures per second.
+  second. Single Threaded: ~310 signatures per second.
 
 Assuming that the only bottleneck in this process is processing power would
 mean that for a multithreaded verifier, it would take $1300 \cdot 3 \; / \;
@@ -92,12 +92,12 @@ claim. Obviously, if the committee changes more ofter (say once an hour),
 the IVC approach will much more quickly become economical.
 
 If the use-case is to create a single proof for a new blockchain committee
-once a day, ~5 minutes on a modern laptop is not at all unreasonable,
-especially considering that further optimization should be possible. As
+once a day, ~5 minutes on a modern laptop is not at all unreasonable. As
 for the verifier, it takes ~3 s, which isn't ideal, but will be better than
 the naive solution after 1950 days. The proof size is okay comparatively
 though, as the IVC proof will be smaller than the naive solution after only
-87 days.
+87 days. These results are pretty promising, especially considering that
+further optimization should be possible.
 
 [^loc]: The Plonk crate is 17,116 LOC, the accumulation crate is 2,940 LOC,
 the group crate is 4,240 LOC, the Poseidon crate is 948 LOC and the Schnorr

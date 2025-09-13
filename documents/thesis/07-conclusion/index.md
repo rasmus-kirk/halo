@@ -2,12 +2,13 @@
 
 The core goal for this thesis was to implement, benchmark, analyze and
 understand Incrementally Verifiable Computation in its entirety, using the
-ideas put forward in the Halo paper[@halo]. We also wished to show whether
-an IVC chain of signatures could be practically useful in the blockchain
-industry with currently known recursive SNARK technology, which the benchmarks
-support. Given that our results indicate that it's viable using our simplified
-recursive SNARK, then it should definitely be feasible for the more optimized
-Kimchi and Halo2 protocols.
+ideas put forward in the Halo paper[@halo]. We also wished to show whether an
+IVC chain of signatures could be practically useful in the blockchain industry
+with currently known recursive SNARK technology. The benchmarks show that
+IVC may be a decent solution, but they do not definitively show that the IVC
+solution is markedly better than the naive solution. Given that our results
+indicate that it's viable using our simplified recursive SNARK, then it should
+definitely be feasible for the more optimized Kimchi and Halo2 protocols.
 
 There are plenty of remaining optimizations and improvements. This SNARK is not
 quantum-safe, but if instantiated with FRI and a corresponding accumulation
