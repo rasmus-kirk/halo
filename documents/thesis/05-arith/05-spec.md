@@ -88,19 +88,19 @@ $$
 \begin{array}{ccc}
 & E: Eqn  \\
 \begin{array}{rl}
-\langle Eqn \rangle &::= - Eqn1 \\
-& |\ \mathtt{Scalar}\ \times \ Eqn1 \\
-& |\ \mathtt{(}\ Eqn1 \mathtt{)} \\
-& |\ \mathtt{Column} \\
+\langle Eqn \rangle &::= Eqn1\ Eqn' \\
+\langle Eqn'\rangle &::= +\ Eqn \\
+& |\ -\ Eqn\ | \epsilon \\
 \end{array} &
 \begin{array}{rl}
 \langle Eqn1 \rangle &::= Eqn2\ Eqn1' \\
-\langle Eqn1'\rangle &::= +\ Eqn1 \\
-& |\ -\ Eqn1\ | \epsilon \\
+\langle Eqn1'\rangle &::= \times Eqn1\ |\ \epsilon
 \end{array} &
 \begin{array}{rl}
-\langle Eqn2 \rangle &::= Eqn\ Eqn2' \\
-\langle Eqn2'\rangle &::= \times Eqn2\ |\ \epsilon
+\langle Eqn2 \rangle &::= - Eqn \\
+& |\ \mathtt{Scalar}\ \times \ Eqn \\
+& |\ \mathtt{(}\ Eqn\ \mathtt{)} \\
+& |\ \mathtt{Column} \\
 \end{array}
 \end{array}
 $$
@@ -111,6 +111,17 @@ $$
 - **Notation**: If $X: \Column \to T$ then $E(X): T = \text{foldEqn}(\ldots, E, X)$ 
   - when every operation of the grammar is specified for type $T$, we can evaluate the equation.
   - curve points do not have multiplication defined, thus equations involving them cant be evaluated.
+
+
+\begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
+Let $f: Eqn = A + B \times -C$
+
+Let $X: \Column \to \Nb$
+
+Let $X(A) = 1, X(B) = 2, X(C) = 3$
+
+Then $f(X) = 1 + 2 \times -3 = -5$
+\end{tcolorbox}
 
 \motivdef it is the single source of truth for an equational definitions that can vary over operand types: scalars, polynomials, curve points, wires and state via build. Examples of equations are gate constraint polynomials, grand product polynomials, quotient polynomial, $\plookup$  compression equation, etc.
 
@@ -151,7 +162,15 @@ $$
 
 $[k+1]: \pset{\Nb}$ guarantees that $i$ is a valid index for the vector.
 
-\motivnot it allows us to index vectors over a higher order function such as mapping over a vector.
+\motivnot it allows us to index vectors over a higher order function such as mapping over a vector. Moreover if a function call returns a vector and we wish to index it immediately, this notation is more legible.
+
+\begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
+If $f(a,b,c,d): T^k$ is a vector and $g(t,c): [k+1]$ is a natural number that is a valid index.
+
+Then $f(a,b,c,d) @ g(t,c)$ is more legible than $f(a,b,c,d)_{g(t,c)}$.
+
+And we can use it in higher order functions such as $(f(a,b,c,d) @ -)\circ g(t) [\vec{c}]$
+\end{tcolorbox}
 
 \begin{definition}[More Properad Projections]\end{definition}
 $$
@@ -499,7 +518,7 @@ The last row of the relative gate's pre-constraints when fed to its term equatio
 
 The motivation for these definitions is that relative wires allows us to "reuse" cells in the trace table. This could potentially reduce the number of constraints in the trace table whilst still being able to express the same computation. This is especially useful for gates that have a large number of inputs, such as the poseidon gate.
 
-We now continue defining more projections for properads and gates to define relative wires.
+We now continue defining more projections for properads and gates to complete the formal specification of relative wires.
 
 $$
 \begin{array}{cc}
@@ -556,41 +575,50 @@ $$
 \motivdef it allows the user to mark columns that can host relative wires.
 
 \begin{definition}[Pseudo Columns]
-A pseudo column is used to refer to the next row of a column that is relative wire relevant.
+A pseudo column is used to refer to the next row of a column that is relative wire relevant. The plus in $c^+$ denotes it is the pseudo column of $c$.
 \end{definition}
 $$
 \text{pseudo}(c^+): \Bb
 $$
 
-- \projs
-  - $\text{unpseudo}(c^+): \Column = c$ - get the original column from the pseudo column.
-- **Notation**: the plus in $c^+$ denotes it is the pseudo column of $c$.
+\begin{definition}[Un-pseudo a column]
+Get the original column from a pseudo column. If the column is not pseudo, it returns itself.
+\end{definition}
+$$
+\text{unpseudo}(c^+): \Column = c
+$$
 
-\motivdef it allows us to refer to the next row of the column $c$ when dealing with index maps. For example if our column is $Q_x$, we refer to the next row of the same column as $Q_x^+$. In the context of the last row, this refers to the first row. Pre-constraints are banned from defining any such $c^+$ columns, via a $\text{pseudo}(c)$ check. We can thus construct a constraint from an index map that also includes the relative cells; values from next row. We can then query it with the pseudo columns. This will be made formal in the definition of relative constraints defined later.
+\motivdef it allows us to refer to the next row of the column $c$ when dealing with index maps. In the context of the last row, the pseudo column refers to the first row.
+
+\begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
+If our column is $Q_x$, we refer to the next row of the same column as $Q_x^+$.
+\end{tcolorbox}
+
+Pre-constraints are banned from defining any such $c^+$ columns, via a $\text{pseudo}(c)$ check. But it is not excluded as an argument for index maps. We can thus construct a constraint from an index map that also includes the relative cells; values from next row. This will be made formal in the definition of relative constraints defined later.
 
 \begin{definition}[Get relative wire position]
-Given a gate, column and a relative wire, verify that the gate's first row of pre-constraints contains the relative wire in the column specified. i.e. we are assuming the gate is a base gate.
+Given a gate, column and a relative wire, verify that the gate's first row of pre-constraints contains the relative wire in the column specified. Intuitively, the function corroborates if the gate is a base gate.
 \end{definition}
 $$
 \begin{array}{rl}
 \text{pos} &: \AbsCirc \to \Ggt \to \Column \to \Wire \to \Bb \\
-\text{pos}(\abst{f}, g, c, \abst{w}) &= \begin{array}{ll}
+\text{pos}(\abst{f}, g, c, \abst{w}) &= \left(\begin{array}{ll}
 \rcol(c) &\land \\
 \exists \bar{w}: \CWire(c, \ty(g)). \text{wires}(\abst{f}, g) @ \bar{w} = \abst{w} &\land \\
 \cw \circ \row(\ctrn \circ \ty(g), \ty(\abst{w}), 1)(c) = \bar{w} 
-\end{array}
+\end{array}\right)
 \end{array}
 $$
 
 Lets break down the definition:
 
+- Verify that the column is marked as a relative wire relevant column via $\rcol(c)$.
 - Given a gate $g$ and wire $\abst{w}$, get its cell wire representation $\bar{w}$ by comparing it with the gate's wires.
-- Recall $\rcol(c)$ is a projection of columns; it checks if the column is marked as a candidate to host relative wires.
 - Check the first row of $g$'s pre-constraints at the color of $\abst{w}$ that the cell in that column is indeed $\boxed{w}$.
 
 \motivdef knowing if a relative wire exists in a valid pre-constraint allows us to determine if the gate is a candidate for a relative gate's base gate. We need to know this to verify if the relative gate can be structurally sound in the circuit.
 
-In future work, it is possible to precompute and cache the set of properads that can make base gates for every relative gate. Thus, we simply have to check $\ty(g)$ and if the relative wires are in $\text{wires}(\abst{f}, g)$ to determine if $g$ is a candidate base gate.
+In future work, it is possible to precompute and cache the set of properads that can make base gates for every relative gate. Thus, we simply have to check $\ty(g)$ and if the relative wires are in $\text{wires}(\abst{f}, g)$ not as relative wires in $g$ to determine if $g$ is a candidate base gate.
 
 \begin{definition}[Get base gate]
 Get the base gate given a relative gate
@@ -604,9 +632,14 @@ $$
 \end{array}
 $$
 
-Given a gate $g$, the base gate $g'$ should exist in the abstract circuit $\abst{f}$, such that it holds wire cells of all of the relative wires of $g$ in the first row of its pre-constraints, in the expected columns.
+Let's break down the definition:
+
+- We find any gate $g'$ in the abstract circuit $\abst{f}$; ignoring its output wire $\abst{y}$.
+- For each relative wire in $\grcol(g)$, run $\text{pos}$ to verify with their respective expected column in $\rel(g)$. 
 
 \motivdef it succinctly expresses the base gate of a relative gate if it exists.
+
+In future work, we can seek to find the base gate with the minimum cost, i.e. least amount of rows / constraints.
 
 \begin{notation}[Full assertion for gate construction]
 Recall before that constructing a gate, will type check its inputs and we mentioned an assertion to be defined later. Here it is.
