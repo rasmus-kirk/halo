@@ -18,13 +18,12 @@ $$
 \abst{w}: \Wire = \wire{i}{t}
 $$
 
-- *projections*:
+- \projs
   - $\id(\abst{w}): UUID$ - the unique identifier of the wire.
   - $\ty(\abst{w}): \Color$ - the color of the wire.
-- *notation*:
-  - the hat $\abst{w}$ indicates that it is an abstract value, not a concrete value.
-  - $\abst{w} = \wire{i}{t}$ denotes that $\id(\abst{w}) = i$ and $\ty(\abst{w}) = t$.
-- *motivation*: rather than eagerly constructing a circuit, with wires we can construct an abstract circuit which allows reasoning about the circuit structure algebraically with properads.
+- \subnotation{hat} the hat $\abst{w}$ indicates that it is an abstract value, not a concrete value. i.e. $\abst{w} = \wire{i}{t}$ denotes that $\id(\abst{w}) = i$ and $\ty(\abst{w}) = t$.
+
+\motivdef rather than eagerly constructing a circuit, with wires we can construct an abstract circuit which allows reasoning about the circuit structure algebraically with colored properads defined below.
 
 \begin{definition}[Colored Properad / Operations]
 Hereafter simply "properad". Naively, defines a class of gates.
@@ -34,19 +33,19 @@ $$
 \abst{g}: \Prpd
 $$
 
-- *projections*:
+- \projs
   - $n(\abst{g}): \Nb$ - the number of inputs.
   - $m(\abst{g}): \Nb$ - the number of outputs.
   - $\pin(\abst{g}): \Color^{n(\abst{g})}$ - the profile for the inputs.
   - $\pout(\abst{g}): \Color^{m(\abst{g})}$ - the profile for the outputs.
   - $\eval(\abst{g}): \Program(\pin(\abst{g}), \pout(\abst{g}))$ - the canonical program of the properad.
   - there are more projections defined later.
-- *notation*: the hat $\abst{g}$ indicates that properads are an abstract gates.
-- *motivation*: 
-  - Single source of truth for contributions to the gate constraint polynomial and circuit for gates of its kind.
-  - Circuit construction is an expression of an algebraic theory[^properad] which allows us to reason about circuits algebraically, facilitating the following:
-    - Optimizations via rewriting / caching of existing wires
-    - Formal reasoning / writing proofs about the circuit structure of a program.
+- \subnotation{hat} the hat $\abst{g}$ indicates that properads are abstract gates.
+
+\motivdef it acts as single source of truth for contributions to the gate constraint polynomial and circuit for gates of its kind. Moreover, circuit construction with it is an expression of an algebraic theory[^properad] which allows us to reason about circuits algebraically, facilitating the following:
+
+- Optimizations via rewriting / caching of existing wires
+- Formal reasoning / writing proofs about the circuit structure of a program.
 
 [^properad]: https://ncatlab.org/nlab/show/gebra+theory
 
@@ -58,16 +57,17 @@ $$
 g: \Ggt = \abst{g}(\avec{x})
 $$
 
-- *projections*:
+- \projs
   - $\ty(g): \Prpd$ - the properad of the gate.
   - $\gin(g): \Wire^{n \circ \ty(g)}$ - the input wires of the gate.
-- *notation*:
+- **Notation**:
   - $\abst{g}(\avec{x})$ denotes that $\ty[\avec{x}] = \pin(\abst{g})$ and other assertions defined later.
   - $\gpair{g}{\abst{y}} = (g, \abst{y})$ denotes that $\abst{y}$ is one of the output wires of gate $g$.
   - $\abst{g}()$ denotes that the gate has no input wires.
   - $\gpair{g}{\bot} = (g,\bot)$ denotes that the gate has no output wires.
   - underline may be omitted if the context is clear.
-- *motivation*: allows the circuit to be defined as a relation with entries in the form of $\gpair{g}{\abst{y}}$ or $\gpair{g}{\bot}$.
+
+\motivdef it allows the circuit to be defined as a relation with entries in the form of $\gpair{g}{\abst{y}}$ or $\gpair{g}{\bot}$.
 
 \begin{notation}[Guarded value]
 It yields the value only if a predicate on it holds.
@@ -82,8 +82,9 @@ a & \phi(a) \\
 \end{array}
 $$
 
-- *notation*: If $\phi$ is a tautology; always true, we can coerce $(\maybe{a}{\phi(a)}): A$ without the option type.
-- *motivation*: Besides guarding values, we can declare variables in $\phi$ as tautological quantified formula(s) that computes the guarded value; naively, a model of $\mathtt{let}\ \phi\ \mathtt{in}\ a$
+If $\phi$ is a tautology; always true, we can coerce $(\maybe{a}{\phi(a)}): A$ without the option type.
+
+\motivnot besides guarding values, we can declare variables in $\phi$ as tautological quantified formula(s) that computes the guarded value; naively, a model of $\mathtt{let}\ \phi\ \mathtt{in}\ a$
 
 \begin{notation}[Singleton vector]
 A value can be coerced automatically to a vector of length 1 and vice versa.
@@ -92,7 +93,7 @@ $$
 a:A = (a) : A^1
 $$
 
-- *motivation*: Reduce the use of parentheses; decluttering formal notation.
+\motivnot it reduces the use of parentheses; decluttering formal notation.
 
 \begin{definition}[Abstract Circuit]
 An abstract circuit is a one-to-many-or-none relation between gadgets and output wires or none, that is guaranteed acyclic.
@@ -105,11 +106,10 @@ $$
 \end{array}
 $$
 
-- *projections*:
+- \projs
   - $\out(\abst{f}, g): \Wire^{m \circ \ty(g)} = \maybe{\avec{y}}{\gpair{g}{\abst{y}_i}\in \abst{f} \land \pout \circ \ty(g) = \ty[\avec{y}] \land \id(\abst{y}_{i>1}) > \id(\abst{y}_{i-1})}$ - the output wires of gate $g$ in abstract circuit $\abst{f}$ sorted ascending by UUID.
   - $\text{wires}(\abst{f}, g) = \gin(g) \cat \out(\abst{f}, g)$ - all wires; inputs and outputs.
-- *motivation*: an abstract circuit is simpler than a directed acyclic graph; target vertex not immediately inferrable. Yet it is minimally sufficient to compute the circuit; a simpler structure for proofs. In the theory of properads, an abstract circuit models a colored pasting scheme[@yau2015-ssec8.2].
-- *notation*: if $\forall i. \gpair{\abst{g}(\abst{x}_1, \ldots, \abst{x}_{n(\abst{g})})}{\abst{y}_i} \in \abst{f}$ and $\gpair{\text{Add}(\abst{a}, \abst{b})}{\abst{c}} \in \abst{f}$, then we can visualize the gates as an abstract circuit diagram as follows:
+- \subnotation{abstract circuit diagram} if $\forall i. \gpair{\abst{g}(\abst{x}_1, \ldots, \abst{x}_{n(\abst{g})})}{\abst{y}_i} \in \abst{f}$ and $\gpair{\text{Add}(\abst{a}, \abst{b})}{\abst{c}} \in \abst{f}$, then we can visualize the gates as an abstract circuit diagram as follows:
 
 \begin{center}
 \begin{tabular}{ c c }
@@ -138,10 +138,13 @@ $$
 \end{tabular}
 \end{center}
 
-- *naming convention*: A gadget is a composition of gates (we will define notation for composition later). Thus an abstract circuit is a gadget as well. However when we say circuit, we may refer to the following:
-  - *abstract circuit* - The top level / global gadget; for program $f$, in the context of some discussion.
-  - *trace table* - The concatenation of all constraints as a table. (we will define this later).
-  - *arguments to core plonk* - The values $(R,X,W)$ or $(R,X,\bot)$.
+\motivdef an abstract circuit is simpler than a directed acyclic graph; target vertex; gate, of a given wire is not immediately extractable from the relation. Yet it is minimally sufficient to compute the circuit; a simpler structure for proofs. In the theory of properads, an abstract circuit models a colored pasting scheme[@yau2015-ssec8.2].
+
+It is worth clarifying the naming conventions. A gadget is a composition of gates (we will define notation for gate and gadget composition as the build predicate later). Thus an abstract circuit is a gadget as well. However when we say circuit, we may refer to the following:
+
+- *abstract circuit* - The top level / global gadget; for program $f$, in the context of some discussion.
+- *trace table* - The concatenation of all constraints as a table. (we will define this later).
+- *arguments to core plonk* - The values $(R,X,W)$ or $(R,X,\bot)$.
 
 
 \begin{definition}[Build State]
@@ -152,15 +155,16 @@ $$
 s: \BuildState = \astate{u}{\abst{f}}{\avec{Y}}
 $$
 
-- *projections*:
+- \projs
   - $u(s): UUID$ - the current UUID.
   - $\abst{f}(s): \AbsCirc$ - the current abstract circuit.
   - $\avec{Y}(s): \Wire^k$ - the current global output wires.
-- *notation*: $s = \astate{u}{\abst{f}}{\avec{Y}}$ denotes that $u(s) = u$, $\abst{f}(s) = \abst{f}$ and $\avec{Y}(s) = \avec{Y}$.
-- *operations*:
+- **Notation**: $s = \astate{u}{\abst{f}}{\avec{Y}}$ denotes that $u(s) = u$, $\abst{f}(s) = \abst{f}$ and $\avec{Y}(s) = \avec{Y}$.
+- \opers
   - $(\astate{u}{\abst{f}}{\avec{Y}} \cat \astate{u'}{\abst{f}'}{\avec{Y}'}) = \astate{u + u'}{\abst{f} \cup \abst{f}'}{\avec{Y} \cat \avec{Y}'}$ - extending the state
   - $(s \cat \abst{y}) = (s \cat \astate{0}{\emptyset}{\abst{y}})$ - appending output wires to the state
-- *motivation*: keep track of stateful data whilst the user constructs the abstract circuits / declares gate.
+
+\motivdef it represents stateful data at a point in time whilst the user constructs the abstract circuits by declaring gates.
 
 \begin{notation}[Hadamard Product / Zip vectors]
 Element wise product of two vectors of the same length.
@@ -172,7 +176,7 @@ $$
 \end{array}
 $$
 
-- *motivation*: concise notation for zipping two vectors.
+\motivnot it is a concise notation for zipping two vectors.
 
 \begin{definition}[New Wires]
 A function that yields new output wires for a gate from the current state's UUID.
@@ -184,7 +188,7 @@ $$
 \end{array}
 $$
 
-- *motivation*: helper function for build.
+\motivdef it is a helper function for build.
 
 \begin{definition}[New Entries]
 Create new entries for an abstract circuit relation from the current state's UUID and a gate.
@@ -200,7 +204,7 @@ $$
 \end{array}
 $$
 
-- *motivation*: helper function for build.
+\motivdef it is a helper function for build.
 
 \begin{definition}[Gate Quotient / Cache]
 An equivalence relation over gates induces a quotient over gates. If the user declares a gate that is equivalent to an existing gate in the abstract circuit, the output wires of the existing gate is reused. This is where algebraic optimizations are defined.
@@ -211,8 +215,7 @@ $$
 }
 $$
 
-- *motivation*: to facilitate reuse of output wires of equivalent gates to reduce the number of constraints in the circuit whilst preserving the same semantics.
-- *future work*: Equality saturation techniques; [@egglog], are a candidate for defining gates equivalence.
+\motivdef it facilitates reuse of output wires of equivalent gates to reduce the number of constraints in the circuit whilst preserving the same semantics. In future work, we could explore equality saturation techniques; [@egglog], as a candidate for defining gate equivalence.
 
 \begin{definition}[Put gate]
 Add a gate to the current abstract circuit.
@@ -224,7 +227,7 @@ $$
 \end{array}
 $$
 
-- *motivation*: helper function for build.
+\motivdef it is a helper function for build.
 
 \begin{definition}[Get output wires]
 A function that retrieves the output wires of a gate from the current state's abstract circuit. If the gate is not in the abstract circuit, it extends the abstract circuit with new entries for the gate and yields new output wires.
@@ -240,7 +243,7 @@ $$
 \end{array}
 $$
 
-- *motivation*: helper function for build.
+\motivdef it is a helper function for build.
 
 \begin{definition}[Build Predicate]
 A predicate that models the declaration of a gate or gadget being extended from the current state's abstract circuit.
@@ -251,15 +254,16 @@ $$
 \end{array}
 $$
 
-- *notation*:
+- **Notation**:
   - $\build{f}{}{}$ states and output values can be omitted if they are not relevant to the discussion.
   - $\build{f}{s_1}{s_{k+1}} = \bigwedge\limits_{i \in (1..k+1)} \build{f_i}{s_i}{s_{i+1}}$ abstract circuit composition is build predicate conjunction.
   - $\build{f = \vec{y}}{}{}$ denotes that $\vec{y}$ are the expected output values of the program $f$. When used in another predicate, they bound the same wire. e.g. $\build{f=y}{}{s} \land \build{g(y)}{s}{} = \build{g(f(\ldots))}{}{}$
-  - $\build{f=y^*}{s}{s' \cat \abst{y}} = \build{f=y}{s}{s'}$ the final output wires can be declared by annotating values with $*$.
-  - $\build{\eval(\abst{g}, \vec{x}) =\vec{y}}{s}{s'} = \left(\aget(s,\abst{g}(\avec{x})) \stackrel{?}{=} (s', \avec{y})\right)$ the program is a canonical program of a properad.
-    - A program is arithmetizable if it can be decomposed into canonical programs; base cases.
-    - e.g. $\build{x + y = z}{}{} =  \left(\aget(s,\text{Add}(\abst{x},\abst{y})) \stackrel{?}{=} (s', \abst{z})\right)$ is the canonical program for the $\text{Add}$ properad.
-- *motivation*: extending an abstract circuit when expressed as a predicate, can be used to express proofs about abstract circuit construction concisely.
+- \subnotation{Declare circuit output wire(s)} $\build{f=y^*}{s}{s' \cat \abst{y}} = \build{f=y}{s}{s'}$ the final output wires can be declared by annotating values with $*$.
+- \subdefinition{Canonical Program in the build predicate} $\build{\eval(\abst{g}, \vec{x}) =\vec{y}}{s}{s'} = \left(\aget(s,\abst{g}(\avec{x})) \stackrel{?}{=} (s', \avec{y})\right)$
+  - A program is arithmetizable if it can be decomposed into canonical programs; base cases.
+  - e.g. $\build{x + y = z}{}{} =  \left(\aget(s,\text{Add}(\abst{x},\abst{y})) \stackrel{?}{=} (s', \abst{z})\right)$ is the canonical program for the $\text{Add}$ properad.
+
+\motivdef extending an abstract circuit when expressed as a predicate, can be used to express proofs about abstract circuit construction concisely.
 
 \begin{definition}[Input Properad]
 $\Input^t_i$ is a properad whose gadget output is the wire for witness value $w_{i}$
@@ -293,8 +297,9 @@ $0$ & $1$ & $()$ & $t$ & $w_{i}$ \\
 \end{tabular}
 \end{center}
 
-- *public variant*: only in the private case is $\eval$ well-defined, in the public case, eval will fail to yield a value. But we can still have a wire to represent it as shown in the abstract circuit diagram. This is because the type information of the witness is public even when the value is not.
-- *motivation*: Treating the global input as a gadget allows us to unify all values of the circuit as a consequence of properads, whose benefits have been discussed earlier.
+Only in the private case is $\eval$ well-defined, in the public case, eval will fail to yield a value. But we can still have a wire to represent it as shown in the abstract circuit diagram. This is because the type information of the witness is public even when the value is not.
+
+\motivdef when treating the global input as a gadget, it allows us to unify all values of the circuit as a consequence of properads, whose benefits have been discussed earlier.
 
 \begin{definition}[Initial Build State]
 \end{definition}
@@ -307,7 +312,7 @@ $$
 \end{array}
 $$
 
-- *motivation*: helper function for build.
+\motivdef it is a helper function for build.
 
 \begin{definition}[Build]
 Build models the user constructing an abstract circuit from the program $f$.
@@ -321,7 +326,7 @@ $$
 \end{array}
 $$
 
-- *motivation*: modelling the user process of constructing an abstract circuit as an algorithm allows us to reason about the process formally.
+\motivdef when modelling the user process of constructing an abstract circuit as an algorithm, it allows us to reason about the process formally.
 
 \begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
 
@@ -377,6 +382,7 @@ $= \astate{2}{\set{\begin{array}{rl}
   \Input^q_1 & \wire{0}{q} \\
   \Input^q_2 & \wire{1}{q}
 \end{array}}}{()}$
+\textit{by definition of $\text{put}$}
 \\
 $\therefore \ (\abst{f}, \avec{Y}) = \left(\set{\begin{array}{rl}
   \Input^q_1 & \wire{0}{q} \\
@@ -384,7 +390,7 @@ $\therefore \ (\abst{f}, \avec{Y}) = \left(\set{\begin{array}{rl}
   \ggtw{Mul}{\wire{0}{q},\wire{0}{q}} & \wire{2}{q} \\
   \ggtw{Add}{\wire{2}{q},\wire{1}{q}} & \wire{3}{q}
 \end{array}}, \wire{3}{q}\right)
-$
+$ \textit{by substituting $s$ in $s''$ and simplifying}
 \end{longtable}
 
 Thus $\abst{x} = \wire{0}{q}$, $\abst{y} = \wire{1}{q}$, $\abst{t} = \wire{2}{q}$ and $\abst{z} = \wire{3}{q}$. The resulting abstract circuit can be notated as follows:
@@ -448,7 +454,7 @@ notational use cases:
 
 \begin{itemize}
   \item \textbf{variables}: to represent an abstract circuit succinctly as variables.
-  \item \textbf{predicate}: to model the composition of gadgets in proofs.
+  \item \textbf{predicate}: to model the composition of gadgets in proofs like the one above.
   \item \textbf{one to many or none relation}: as a clear data structure for implementation.
   \item \textbf{abstract circuit diagram}: to visualize the structure of the abstract circuit.
 \end{itemize}
