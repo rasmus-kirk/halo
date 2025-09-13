@@ -24,10 +24,10 @@ $$
 - *notation*:
   - the hat $\abst{w}$ indicates that it is an abstract value, not a concrete value.
   - $\abst{w} = \wire{i}{t}$ denotes that $\id(\abst{w}) = i$ and $\ty(\abst{w}) = t$.
-- *motivation*: rather than eagerly constructing a concrete circuit, with wires we can construct an abstract circuit which allows reasoning about the circuit structure algebraically with properads.
+- *motivation*: rather than eagerly constructing a circuit, with wires we can construct an abstract circuit which allows reasoning about the circuit structure algebraically with properads.
 
-\begin{definition}[Colored Properad]
-Hereafter simply "properad". Naively, defines a class of gadgets.
+\begin{definition}[Colored Properad / Operations]
+Hereafter simply "properad". Naively, defines a class of gates.
 \end{definition}
 \newcommand{\Prpd}{\text{PrPd}}
 $$
@@ -41,33 +41,33 @@ $$
   - $\pout(\abst{g}): \Color^{m(\abst{g})}$ - the profile for the outputs.
   - $\eval(\abst{g}): \Program(\pin(\abst{g}), \pout(\abst{g}))$ - the canonical program of the properad.
   - there are more projections defined later.
-- *notation*: the hat $\abst{g}$ indicates that properads are an abstract gadget.
+- *notation*: the hat $\abst{g}$ indicates that properads are an abstract gates.
 - *motivation*: 
-  - Single source of truth for contributions to the gate constraint polynomial and trace table for gadgets of its kind.
-  - Circuit construction is an expression of an algebraic theory (pasting schemes) which allows us to reason about circuits algebraically[^properad], facilitating the following:
+  - Single source of truth for contributions to the gate constraint polynomial and circuit for gates of its kind.
+  - Circuit construction is an expression of an algebraic theory[^properad] which allows us to reason about circuits algebraically, facilitating the following:
     - Optimizations via rewriting / caching of existing wires
     - Formal reasoning / writing proofs about the circuit structure of a program.
 
 [^properad]: https://ncatlab.org/nlab/show/gebra+theory
 
 
-\begin{definition}[Gadget]
-A gadget is an instantiation of a properad with input wires.
+\begin{definition}[Gate]
+A gate is an instantiation of a properad with input wires.
 \end{definition}
 $$
 g: \Ggt = \abst{g}(\avec{x})
 $$
 
 - *projections*:
-  - $\ty(g): \Prpd$ - the properad of the gadget.
-  - $\gin(g): \Wire^{n \circ \ty(g)}$ - the input wires of the gadget.
+  - $\ty(g): \Prpd$ - the properad of the gate.
+  - $\gin(g): \Wire^{n \circ \ty(g)}$ - the input wires of the gate.
 - *notation*:
   - $\abst{g}(\avec{x})$ denotes that $\ty[\avec{x}] = \pin(\abst{g})$ and other assertions defined later.
-  - $\gpair{g}{\abst{y}} = (g, \abst{y})$ denotes that $\abst{y}$ is one of the output wires of gadget $g$.
-  - $\abst{g}()$ denotes that the gadget has no input wires.
-  - $\gpair{g}{\bot} = (g,\bot)$ denotes that the gadget has no output wires.
+  - $\gpair{g}{\abst{y}} = (g, \abst{y})$ denotes that $\abst{y}$ is one of the output wires of gate $g$.
+  - $\abst{g}()$ denotes that the gate has no input wires.
+  - $\gpair{g}{\bot} = (g,\bot)$ denotes that the gate has no output wires.
   - underline may be omitted if the context is clear.
-- *motivation*: allows the abstract circuit to be defined as a relation with entries in the form of $\gpair{g}{\abst{y}}$ or $\gpair{g}{\bot}$.
+- *motivation*: allows the circuit to be defined as a relation with entries in the form of $\gpair{g}{\abst{y}}$ or $\gpair{g}{\bot}$.
 
 \begin{notation}[Guarded value]
 It yields the value only if a predicate on it holds.
@@ -106,10 +106,10 @@ $$
 $$
 
 - *projections*:
-  - $\out(\abst{f}, g): \Wire^{m \circ \ty(g)} = \maybe{\avec{y}}{\gpair{g}{\abst{y}_i}\in \abst{f} \land \pout \circ \ty(g) = \ty[\avec{y}] \land \id(\abst{y}_{i>1}) > \id(\abst{y}_{i-1})}$ - the output wires of gadget $g$ in abstract circuit $\abst{f}$ sorted ascending by UUID.
+  - $\out(\abst{f}, g): \Wire^{m \circ \ty(g)} = \maybe{\avec{y}}{\gpair{g}{\abst{y}_i}\in \abst{f} \land \pout \circ \ty(g) = \ty[\avec{y}] \land \id(\abst{y}_{i>1}) > \id(\abst{y}_{i-1})}$ - the output wires of gate $g$ in abstract circuit $\abst{f}$ sorted ascending by UUID.
   - $\text{wires}(\abst{f}, g) = \gin(g) \cat \out(\abst{f}, g)$ - all wires; inputs and outputs.
-- *motivation*: an abstract circuit is simpler than a directed acyclic graph; target vertex not explicitly inferrable. Yet it is minimally sufficient to compute the concrete circuit; a simpler structure for proofs. In the theory of properads, an abstract circuit models a colored pasting scheme[@yau2015-ssec8.2].
-- *notation*: if $\forall i. \gpair{\abst{g}(\abst{x}_1, \ldots, \abst{x}_{n(\abst{g})})}{\abst{y}_i} \in \abst{f}$ and $\gpair{\text{Add}(\abst{a}, \abst{b})}{\abst{c}} \in \abst{f}$, then we can visualize the gadgets as an abstract circuit diagram as follows:
+- *motivation*: an abstract circuit is simpler than a directed acyclic graph; target vertex not immediately inferrable. Yet it is minimally sufficient to compute the circuit; a simpler structure for proofs. In the theory of properads, an abstract circuit models a colored pasting scheme[@yau2015-ssec8.2].
+- *notation*: if $\forall i. \gpair{\abst{g}(\abst{x}_1, \ldots, \abst{x}_{n(\abst{g})})}{\abst{y}_i} \in \abst{f}$ and $\gpair{\text{Add}(\abst{a}, \abst{b})}{\abst{c}} \in \abst{f}$, then we can visualize the gates as an abstract circuit diagram as follows:
 
 \begin{center}
 \begin{tabular}{ c c }
@@ -138,6 +138,12 @@ $$
 \end{tabular}
 \end{center}
 
+- *naming convention*: A gadget is a composition of gates (we will define notation for composition later). Thus an abstract circuit is a gadget as well. However when we say circuit, we may refer to the following:
+  - *abstract circuit* - The top level / global gadget; for program $f$, in the context of some discussion.
+  - *trace table* - The concatenation of all constraints as a table. (we will define this later).
+  - *arguments to core plonk* - The values $(R,X,W)$ or $(R,X,\bot)$.
+
+
 \begin{definition}[Build State]
 A triple of current UUID, abstract circuit and vector of global output wires.
 \end{definition}
@@ -154,7 +160,7 @@ $$
 - *operations*:
   - $(\astate{u}{\abst{f}}{\avec{Y}} \cat \astate{u'}{\abst{f}'}{\avec{Y}'}) = \astate{u + u'}{\abst{f} \cup \abst{f}'}{\avec{Y} \cat \avec{Y}'}$ - extending the state
   - $(s \cat \abst{y}) = (s \cat \astate{0}{\emptyset}{\abst{y}})$ - appending output wires to the state
-- *motivation*: keep track of stateful data whilst the user constructs the abstract circuits / declares gadgets.
+- *motivation*: keep track of stateful data whilst the user constructs the abstract circuits / declares gate.
 
 \begin{notation}[Hadamard Product / Zip vectors]
 Element wise product of two vectors of the same length.
@@ -169,7 +175,7 @@ $$
 - *motivation*: concise notation for zipping two vectors.
 
 \begin{definition}[New Wires]
-A function that yields new output wires for a gadget from the current state's UUID.
+A function that yields new output wires for a gate from the current state's UUID.
 \end{definition}
 $$
 \begin{array}{rl}
@@ -181,7 +187,7 @@ $$
 - *motivation*: helper function for build.
 
 \begin{definition}[New Entries]
-Create new entries for an abstract circuit relation from the current state's UUID and a gadget.
+Create new entries for an abstract circuit relation from the current state's UUID and a gate.
 \end{definition}
 $$
 \begin{array}{rl}
@@ -196,8 +202,8 @@ $$
 
 - *motivation*: helper function for build.
 
-\begin{definition}[Gadget Quotient / Cache]
-An equivalence relation over gadgets induces a quotient over gadgets. If the user declares a gadget that is equivalent to an existing gadget in the abstract circuit, the output wires of the existing gadget is reused. This is where algebraic optimizations are defined.
+\begin{definition}[Gate Quotient / Cache]
+An equivalence relation over gates induces a quotient over gates. If the user declares a gate that is equivalent to an existing gate in the abstract circuit, the output wires of the existing gate is reused. This is where algebraic optimizations are defined.
 \end{definition}
 $$
 \Ggt^{\abst{f}}_g : \Uni = \set{h \in \Ggt \middle\vert
@@ -205,11 +211,11 @@ $$
 }
 $$
 
-- *motivation*: to facilitate reuse of output wires of equivalent gadgets to reduce the number of gates in the concrete circuit.
-- *future work*: Equality saturation techniques; [@egglog], are a candidate for defining gadget equivalence.
+- *motivation*: to facilitate reuse of output wires of equivalent gates to reduce the number of constraints in the circuit whilst preserving the same semantics.
+- *future work*: Equality saturation techniques; [@egglog], are a candidate for defining gates equivalence.
 
-\begin{definition}[Put gadget]
-Add a gadget to the current abstract circuit.
+\begin{definition}[Put gate]
+Add a gate to the current abstract circuit.
 \end{definition}
 $$
 \begin{array}{rl}
@@ -221,7 +227,7 @@ $$
 - *motivation*: helper function for build.
 
 \begin{definition}[Get output wires]
-A function that retrieves the output wires of a gadget from the current state's abstract circuit. If the gadget is not in the abstract circuit, it extends the abstract circuit with new entries for the gadget and yields new output wires.
+A function that retrieves the output wires of a gate from the current state's abstract circuit. If the gate is not in the abstract circuit, it extends the abstract circuit with new entries for the gate and yields new output wires.
 \end{definition}
 $$
 \begin{array}{rl}
@@ -237,7 +243,7 @@ $$
 - *motivation*: helper function for build.
 
 \begin{definition}[Build Predicate]
-A predicate that models the declaration of a gadget or sub-circuit being extended from the current state's abstract circuit.
+A predicate that models the declaration of a gate or gadget being extended from the current state's abstract circuit.
 \end{definition}
 $$
 \begin{array}{rl}
@@ -250,7 +256,9 @@ $$
   - $\build{f}{s_1}{s_{k+1}} = \bigwedge\limits_{i \in (1..k+1)} \build{f_i}{s_i}{s_{i+1}}$ abstract circuit composition is build predicate conjunction.
   - $\build{f = \vec{y}}{}{}$ denotes that $\vec{y}$ are the expected output values of the program $f$. When used in another predicate, they bound the same wire. e.g. $\build{f=y}{}{s} \land \build{g(y)}{s}{} = \build{g(f(\ldots))}{}{}$
   - $\build{f=y^*}{s}{s' \cat \abst{y}} = \build{f=y}{s}{s'}$ the final output wires can be declared by annotating values with $*$.
-  - $\build{\eval(\abst{g}, \vec{x}) =\vec{y}}{s}{s'} = \left(\aget(s,\abst{g}(\avec{x})) \stackrel{?}{=} (s', \avec{y})\right)$ the program is a canonical program of a properad. These are the base cases, i.e. a program is arithmetizable if it can be decomposed into canonical programs of the properads available to the user.
+  - $\build{\eval(\abst{g}, \vec{x}) =\vec{y}}{s}{s'} = \left(\aget(s,\abst{g}(\avec{x})) \stackrel{?}{=} (s', \avec{y})\right)$ the program is a canonical program of a properad.
+    - A program is arithmetizable if it can be decomposed into canonical programs; base cases.
+    - e.g. $\build{x + y = z}{}{} =  \left(\aget(s,\text{Add}(\abst{x},\abst{y})) \stackrel{?}{=} (s', \abst{z})\right)$ is the canonical program for the $\text{Add}$ properad.
 - *motivation*: extending an abstract circuit when expressed as a predicate, can be used to express proofs about abstract circuit construction concisely.
 
 \begin{definition}[Input Properad]
@@ -315,8 +323,9 @@ $$
 
 - *motivation*: modelling the user process of constructing an abstract circuit as an algorithm allows us to reason about the process formally.
 
-\begin{example}{Build of $\build{x^2 + y = z^*}{}{}$}
-\end{example}
+\begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
+
+Build of $\build{x^2 + y = z^*}{}{}$
 
 \begin{longtable}{@{}l@{}}
 Let $f: \Fb_q^2 \to \Fb_q^1$ where $f(x,y) = x^2 + y$ \\
@@ -330,40 +339,40 @@ $= \build{\begin{array}{l}
   x \times x = t \\
   t + y = z^*
 \end{array}}{s}{s''}
-$ \\
+$ \textit{rewriting the program to an equivalent form} \\
 $= \build{x \times x = t}{s}{s'} \land \build{t + y = z^*}{s'}{s''}
-$ \\
+$ \textit{by build predicate conjunction as gadget / gate composition}\\
 $= \left(\begin{array}{rll}
   \aget(s, \ggt{Mul}{x,x}) &= (s', \abst{t}) &\land \\
   \aget(s', \ggt{Add}{t,y}) &= (s'', \abst{z})
 \end{array}\right)
-$ \\
+$ \textit{by build predicate on canonical programs of properads} \\
 $= \left(\begin{array}{rll}
   (s \cat \astate{1}{\set{\begin{array}{rl}\ggt{Mul}{x,x} & \wire{u(s)}{q}\end{array}}}{()}, \wire{u(s)}{q}) &= (s', \abst{t}) & \land \\
   \aget(s', \ggt{Add}{t,y}) &= (s'', \abst{z})
 \end{array}\right)
-$ \\
+$ \textit{by definition of $\aget$, $\times$} \\
 $= \left(\aget(s \cat \astate{1}{\set{\begin{array}{rl}\ggt{Mul}{x,x} & \wire{u(s)}{q}\end{array}}}{()}, \ggtw{Add}{\wire{u(s)}{q},\abst{y}}) = (s'', \abst{z})\right)
-$ \\
+$ \textit{by substituting $s'$ and $\abst{t}$} \\
 $= \left(\left(s \cat \astate{2}{\set{\begin{array}{rl}
     \ggt{Mul}{x,x} & \wire{u(s)}{q} \\
     \ggtw{Add}{\wire{u(s)}{q},\abst{y}} & \wire{u(s)+1}{q}
   \end{array}}}{\abst{z}}, \wire{u(s)+1}{q}\right) = (s'', \abst{z})\right)
-$ \\
+$ \textit{by definition of $\aget$, $+$} \\
 $\therefore (\abst{f}(s''), \avec{Y}(s'')) = \left(\abst{f}(s) \cup \set{\begin{array}{rl}
     \ggt{Mul}{x,x} & \wire{u(s)}{q} \\
     \ggtw{Add}{\wire{u(s)}{q},\abst{y}} & \wire{u(s)+1}{q}
   \end{array}}, \wire{u(s)+1}{q}\right)
-$ \\
+$ \textit{by build state extension; $\cat$} \\
 where
 $s=\astate{u(s)}{\abst{f}(s)}{()} = \text{init}(\pwit)
 $ \\ 
 $= \opcirc\limits_{i \in (1..3)}\aput(\Input^{{t_{in}}_{i}}_{i}) (\astate{0}{\emptyset}{()})
-$ \\
+$ \textit{by definition of initial build state} \\
 $= \text{put}(\Input^q_2) \circ \text{put}(\Input^q_1)(\astate{0}{\emptyset}{()})
-$ \\
+$ \textit{by unfolding the function composition} \\
 $= \text{put}(\Input^q_2, \astate{1}{\set{\begin{array}{rl} \Input^q_1 & \wire{0}{q} \end{array}}}{()})
-$ \\
+$ \textit{by definition of $\text{put}$} \\
 $= \astate{2}{\set{\begin{array}{rl}
   \Input^q_1 & \wire{0}{q} \\
   \Input^q_2 & \wire{1}{q}
@@ -380,11 +389,11 @@ $
 
 Thus $\abst{x} = \wire{0}{q}$, $\abst{y} = \wire{1}{q}$, $\abst{t} = \wire{2}{q}$ and $\abst{z} = \wire{3}{q}$. The resulting abstract circuit can be notated as follows:
 
-\begin{tabularx}{\textwidth}{@{} r c c Y Y @{}}
+\begin{tabularx}{\textwidth}{@{} c c Y Y @{}}
 \toprule
- & Variables & Predicate & One to Many or None Relation & Abstract Circuit Diagram
+Variables & Predicate & One to Many or None Relation & Abstract Circuit Diagram
 \\\hline \\
-notation & $(\abst{f}, \avec{Y})$ &
+$(\abst{f}, \avec{Y})$ &
 $\build{x^2+y=z^*}{}{}$ & 
 \begin{tikzpicture}[
   baseline={(current bounding box.center)}
@@ -432,7 +441,16 @@ $\build{x^2+y=z^*}{}{}$ &
 \draw[-,thick] (add-out-1) -- ($(add-out-1)+(0,-0.4)$);
 \node[draw, thick, circle, double, double distance=1pt, anchor=north] at ($(add-out-1)+(0,-0.4)$) {$\abst{z}$};
 \end{tikzpicture}
-\\ \hline
-use & object & proofs & implementation & readability
 \\\toprule
 \end{tabularx}
+
+notational use cases:
+
+\begin{itemize}
+  \item \textbf{variables}: to represent an abstract circuit succinctly as variables.
+  \item \textbf{predicate}: to model the composition of gadgets in proofs.
+  \item \textbf{one to many or none relation}: as a clear data structure for implementation.
+  \item \textbf{abstract circuit diagram}: to visualize the structure of the abstract circuit.
+\end{itemize}
+
+\end{tcolorbox}
