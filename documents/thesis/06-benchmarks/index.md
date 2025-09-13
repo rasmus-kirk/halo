@@ -43,17 +43,61 @@ As the purpose of the code is to prototype the ideas presented, and get some
 benchmarks on the performance of the scheme, there are a few known soundness
 bugs in the implementation (and probably more unknown ones!). Obviously,
 the code should not be used in production. However, none of the soundness
-bugs should affect performance to any significant degree. The benchmarks
-ran multithreaded on a 20 thread Thinkpad P50:
+bugs should affect performance to any significant degree. 
 
-- **IVC-Prover:** ~300 s
-- **IVC-Verifier:** ~3 s
+Before presenting the benchmarks, we first briefly discuss what performance
+is needed for our IVC approach to be preferred. If Concordium created a light
+node implementation, there are several available ways to catch-up to the
+current block and trust that the block is correct:
 
-Which is not all that bad, if the use-case is to create a single proof for
-a new blockchain committee once a day, ~5 minutes on a modern laptop is not
-at all unreasonable, especially considering that further optimization should
-be possible. As for the verifier, it only takes ~3 s, which is much faster
-than if traditional catch-up methods are used.
+- Catch up as a full node would, validating each block, which would take days.
+- Simply trust a full node, which is very insecure.
+- Ask a lot of full nodes and if a quorum agrees that a given block is the
+  current one, then use it. This is more secure, but requires a lot of network
+  traffic from previously unconnected peers.
+- Verify only the blocks where the committee changes, which is one block per day.
+
+The last option is definitely the preferred one, and thus our chain of
+signatures SNARK should compete with that solution. Here we would need to
+verify 2 signatures per day (the other signature arises from Concordium's
+Finality layer) and some hashes. For this comparison we just focus on the
+signatures. We can now present the benchmarks which ran on a 20 thread
+Thinkpad P50:
+
+- **IVC-Prover:** Parallel: ~300 s. Single Threaded: ~0 s.
+- **IVC-Verifier:** Parallel: ~3 s. Single Threaded: ~0 s.
+- **Naive Signature Verification:** Parallel: ~1300 signatures per
+  second. Single Threaded: ~0 signatures per second.
+
+Assuming that the only bottleneck in this process is processing power would
+mean that for a multithreaded verifier, it would take $1300 \cdot 3 \; / \;
+2 = 1950$ days before the IVC solution was faster. Which is not ideal given
+the complexity of the IVC construction, but it's not far from being viable.
+If we instead look at the size of each "proof" involved, starting with the
+IVC proof:
+
+- Signature: 1 point, 1 scalar.
+- EvalProof: $1 + 2 \lg(n) = 1 + 16 = 17$ points, 1 scalar.
+- PlonkProof: 2 EvalProofs, 33 commitments (points), 74 polynomial evaluations
+  (scalars). 67 points, 76 scalars.
+- Accumulator: 1 EvalProof, 1 point, 3 scalars. 18 points, 4 scalars.
+- IVC-Proof: 2 Accumulators, 2 PlonkProofs, 2 signatures, 2 public-keys
+  (2 points), 2 $j$ scalars. 174 points, 164 scalars,
+
+Modelling each scalar as 256 bits and each point as 256 bits (255 bit field
+element and 1 additional sign bit), gives us ~10 kB for a single IVC
+proof. Comparing to just verifying the signatures, after 87 days the IVC
+proof will be smaller than the 174 signatures needed to verify the same
+claim. Obviously, if the committee changes more ofter (say once an hour),
+the IVC approach will much more quickly become economical.
+
+If the use-case is to create a single proof for a new blockchain committee
+once a day, ~5 minutes on a modern laptop is not at all unreasonable,
+especially considering that further optimization should be possible. As
+for the verifier, it takes ~3 s, which isn't ideal, but will be better than
+the naive solution after 1950 days. The proof size is okay comparatively
+though, as the IVC proof will be smaller than the naive solution after only
+87 days.
 
 [^loc]: The Plonk crate is 17,116 LOC, the accumulation crate is 2,940 LOC,
 the group crate is 4,240 LOC, the Poseidon crate is 948 LOC and the Schnorr

@@ -1,23 +1,23 @@
 ## Chain of Signatures
 
-Blockchains with consensuses based on HotStuff[@hotstuff], such as Concordium
-and Partisia, have elected committees sign blocks. The highest block signed
-by the current committee is deemed the latest block. During catch-up, when a
-node has to sync with the blockchain, it has to download all previous blocks
-from the first block, the genesis block. This is also the case for light nodes
+BFT-style blockchains with committees[^hotstuff], such as Concordium and
+Partisia, have elected committees sign blocks. The highest block signed by
+the current committee is deemed the latest block. During catch-up, when a node
+has to sync with the blockchain, it has to download all previous blocks from
+the first block, the genesis block. This is also the case for light nodes
 that require less resources, with slightly inferior security guarantees. We
-want to enable near-instant catchup for light clients in blockchains based
-on HotStuff with only minimal security slackening compared to traditional
-light client catchup.
+want to enable near-instant catchup for light clients in blockchains based on
+BFT-style blockchains with committees with only minimal security slackening
+compared to traditional light client catchup.
 
-We specify a recursive SNARK construction and instantiate it over a chain of
-signatures, which would allow safe catchup for light clients on blockchains
-based on the HotStuff consensus. Taking Concordium as the main example; they
-elect a committee once a day and that committee is responsible for signing
-valid blocks. Concordium is a proof of stake blockchain so the committee is
-elected according to the size of thier staked tokens. They could create a
-parallel _IVC blockchain_, one where each block contains:
-$$B_i = \{ \s^{(pk)}_i, j_i = i, pk_i, ptr_i \in \Bb^{32}, \s^{(ptr)}_i \}$$
+We specify a recursive SNARK construction and instantiate it over a chain
+of signatures, which would allow safe catchup for light clients on the
+forementioned blockchains. Taking Concordium as the main example; they elect
+a committee once a day and that committee is responsible for signing valid
+blocks. Concordium is a proof of stake blockchain so the committee is elected
+according to the size of thier staked tokens. They could create a parallel
+_IVC blockchain_, one where each block contains:
+$$B_i = \{ \s^{(pk)}_i, j_i = i, pk_i, ptr_i \in \Bb^{256}, \s^{(ptr)}_i \}$$
 
 - $\s^{(pk)}_i$: A signature on the public key of the current committee
   ($pk_i$), signed by the previous committee identified by the public key
@@ -59,3 +59,6 @@ The main committee still needs to generate and sign using the Schnorr
 signature scheme, but for this they can use a multisignature scheme like
 FROST[@frost]. In the next section we define the IVC scheme that's able to
 support this.
+
+[^hotstuff]: An example is any blockchain based on the HotStuff[@hotstuff]
+consensus, which includes Concordium and Partesia.

@@ -18,36 +18,6 @@ $S$ is set to be the set of roots of unity ($S = H = \{ \o^1, \o^2, \dots,
 using just $S$, might not be sound. For this purpose, we can construct the
 **Single Polynomial Vanishing Argument Protocol**:
 
-\begin{algorithm}[H]
-\caption*{
-  \textbf{Single Polynomial Vanishing Argument Protocol:} Checks queries
-  of the form $\forall a \in S : f(a) \meq 0$, but with scalars from $\Fb
-  \supseteq S$.
-}
-\textbf{Inputs} \\
-  \Desc{$f: \Fb_{\leq d}[X]$}{The polynomial to check identity for.} \\
-\textbf{Output} \\
-  \Desc{$\Result(\top, \bot)$}{
-    Either the verifier accepts with $\top$ or rejects with $\bot$.
-  }
-\begin{algorithmic}[1]
-  \State $P \to V:$ The prover commits to $f(X)$ and sends the commitment to the verifier:
-    \Statex \algind $C_f = \PCCommit(f(X), d, \bot)$
-  \State $P:$ The prover constructs $t(X)$:
-    \Statex \algind $t(X) = \frac{f(X)}{z_S}, \quad z_S(X) = \prod_{s \in S}(X - s)$
-  \State $P \to V:$ The prover then commits to $t(X)$ and sends the commitment to the verifier:
-    \Statex \algind $C_t = \PCCommit(t(X), d, \bot)$
-  \State $V \to P:$ The verifier sends a challenge $\xi$ to the prover
-  \State $P:$ The prover computes: $v_f = f(\xi), \pi_f = \PCOpen(f(X), C_f, d, \xi, \bot)$.
-  \State $P:$ The prover computes: $t_v = t(\xi), \pi_t = \PCOpen(t(X), C_t, d, \xi, \bot)$.
-  \State $P \to V:$ The prover sends $v_f, \pi_f, t_v, \pi_t$ to the verifier.
-  \State $V:$ The verifier then checks:
-    \Statex \algind $v_f \meq v_t \cdot z_S(\xi)$
-    \Statex \algind $\PCCheck(C_f, d, \xi, v_f, \pi_f) \meq \top \; \land$
-    \Statex \algind $\PCCheck(C_t, d, \xi, v_t, \pi_t) \meq \top$
-  \end{algorithmic}
-\end{algorithm}
-
 $$
 \renewcommand{\arraystretch}{1.75}
 \begin{array}{>{\displaystyle}l >{\displaystyle}c >{\displaystyle}l}

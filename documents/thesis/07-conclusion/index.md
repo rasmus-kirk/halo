@@ -18,5 +18,5 @@ might not be particularly useful for IVC, but adding it would be useful if
 the Plonk construction is also used as a general-purpose ZK-SNARK. Lookups
 can also be very useful, for certain operations like XOR, which would be
 especially important if the SNARK should be able to model SHA3 efficiently. We
-investigated Plookup for this, but ultimately deemed it unnecessary to
-acheive primary goal of IVC.
+investigated Plonkup[@plonkup] for this, but ultimately deemed it unnecessary
+to acheive primary goal of IVC.

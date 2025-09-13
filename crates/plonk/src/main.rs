@@ -32,21 +32,19 @@ fn main() -> Result<()> {
     env_logger::init();
     let rng = &mut thread_rng();
 
-    // let (sk, pk) = generate_keypair::<PallasConfig>();
+    let (sk, pk) = generate_keypair::<PallasConfig>();
 
+    let N = 40000;
     let now = Instant::now();
     let msg = [Fq::rand(rng); 10];
     let signature = sk.sign(&msg);
-    // for i in 0..40000 {
-    //     if i % 1000 == 0 {
-    //         println!("{i}: {:?}", now.elapsed().as_secs_f32())
-    //     }
-    //     let _ = pk.verify(&msg, signature.clone());
-    // }
-    (0..40000).into_par_iter().for_each(|_| {
+    (0..N).into_par_iter().for_each(|_| {
         let _ = pk.verify(&msg, signature.clone());
     });
-    println!("{:?}", 40000 / now.elapsed().as_secs_f32());
+    println!(
+        "Verified {:?} signatures per second",
+        (N as f32) / now.elapsed().as_secs_f32()
+    );
 
     // IVCState::print_ivc_circuit()?;
     // Init 0

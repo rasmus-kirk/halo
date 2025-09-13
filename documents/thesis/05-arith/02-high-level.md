@@ -177,7 +177,7 @@ Graph - with the following kinds of nodes:
 \caption{The gates available as DAG nodes.}
 \end{figure}
 
-Wires can have two types $\Fb_p$ or $\Fb_q$. The other symbols denote:
+Wires can have two types: $\Fb_p$ or $\Fb_q$. The other symbols denote:
 
 - $\Bb$: Either $\Fb_p$ or $\Fb_q$, but whatever the concrete field element, it is constrained to be either 0, or 1, a bit.
 - $\Sc$: A scalar-field element, either $\Fb_p$ or $\Fb_q$, depending on if the whether you model the Pallas ($\Sc = \Fb_p$) or Vesta ($\Sc = \Fb_q$) curve.
@@ -195,16 +195,16 @@ the inputs and $\Bb = \Fb_q$ as the other.
   - $(\times)$: Multiply two scalars.
   - $(x^{-1})$: Compute the inverse of $x$.
 - **Booleans:**
-  - $\text{W-}\Bb$: Witness boolean, of either $\Fb_p$ or $\Fb_q$.
-  - $\text{P-}\Bb$: Public input boolean, of either $\Fb_p$ or $\Fb_q$.
+  - $\text{W-}\Bb$: Witness Boolean, of either $\Fb_p$ or $\Fb_q$.
+  - $\text{P-}\Bb$: Public input Boolean, of either $\Fb_p$ or $\Fb_q$.
   - $(=)$: Equality gate, taking two inputs of the same type, of either
     $\Fb_p$ or $\Fb_q$. If two $\Fb_p$ elements are inputted, the resulting
-    boolean element will be an $\Fb_p$ element constrained to be either 0
+    Boolean element will be an $\Fb_p$ element constrained to be either 0
     or 1, with the converse being true if both inputs are $\Fb_q$ elements.
-  - $(\land)$: And gate, taking two boolean-constrained inputs of the same
+  - $(\land)$: AND gate, taking two Boolean-constrained inputs of the same
     type, of either $\Fb_p$ or $\Fb_q$. As with the equality gate, the output
     has the same type as the input.
-  - $(\lor)$: Or gate, taking two boolean-constrained inputs of the same
+  - $(\lor)$: OR gate, taking two Boolean-constrained inputs of the same
     type, of either $\Fb_p$ or $\Fb_q$. As with the equality gate, the output
     has the same type as the input.
 - **Elliptic Curves:**
@@ -312,50 +312,55 @@ $$
 The DAG can then be defined, with each vertex containing a $\textbf{GateType}$,
 $n$ $\textbf{WireId}$'s representing the id's of the incoming wires and $n$
 $\textbf{WireId}$'s representing the id's of the outgoing wires. The edges
-has no associated data:
+have no associated data:
 
 $$G = (V \in \textbf{GateType} \times \textbf{WireId}^n \times \textbf{WireId}^m, E \in \{\})$$
 
-We iterate through the DAG in topological order, processing each node such
-that all its predecessors, the nodes with edges pointing to it, are processed
-before it. Throughout the iteration we store and get values from two maps,
-$\text{ev}$, mapping each wire to a value, and $\text{cc}$, mapping each
-wire to a set of slot-ids:
+We describe an algorithm, trace, that generally takes a circuit and processes
+it into the constraint table. We iterate through the DAG in topological
+order, processing each node such that all its predecessors, the nodes with
+edges pointing to it, are processed before it. Throughout the iteration we
+store and get values from two maps, $ev$, mapping each wire to a value,
+and $cc$, mapping each wire to a set of slot-ids:
 
-$$\text{ev} \in \textbf{WireId} \to \{ \Fb_p, \Fb_q \}, \; \text{cc} \in \textbf{WireId} \to \{ \textbf{SlotId}\}$$
+$$ev \in \textbf{WireId} \to \{ \Fb_p, \Fb_q \}, \; cc \in \textbf{WireId} \to \{ \textbf{SlotId}\}$$
 
-$\text{ev}$ represents the evaluated values of each wire, and $\text{cc}$
+The map $ev$ represents the evaluated values of each wire, and $cc$
 represents the slot-ids, the entries of the constraint table, that should
 be copy constrained to be equal. Then for each node in this iteration we
 have a node:
 
 $$\forall v \in V : v =  (t \in \textbf{GateType}, \, \vec{i} \in \textbf{WireId}^n, \, \vec{o} \in \textbf{WireId}^m)$$
 
-1. We look up all inputs for the current node $v$, in the $\text{ev}$
+1. We look up all inputs for the current node $v$, in the $ev$
    map. These lookups will always yield a value since the value has been written
    in a previous iteration, due to the topological iteration order:
-   $$\vec{\mathrm{ev}^{(i)}} = [\text{ev}(i_1), \dots, \text{ev}(i_n)]$$
+   $$\vec{ev^{(i)}} = [ev(i_1), \dots, ev(i_n)]$$
 2. We compute the evaluation of the operation applied to the input values. The
-   gate type $t$ decides what operation, $\text{op} \in \Fb^n \to \Fb^m$, shall be
+   gate type $t$ decides what operation, $op \in \Fb^n \to \Fb^m$, shall be
    performed:
-   $$\vec{\mathrm{ev}^{(o)}} = \text{op}(\vec{\mathrm{ev}^{(i)}}), \quad \forall k \in [n] : \text{ev}(o_k) = \text{ev}^{(i)}_k$$
-   For example, for the addition gate, $\text{op}$ would be defined as:
-   $\text{op}_{(+)}([\text{ev}^{(i)}_1, \text{ev}^{(i)}_2]) = \text{ev}^{(i)}_1 + \text{ev}^{(i)}_2$
+   $$\vec{ev^{(o)}} = op(\vec{ev^{(i)}}), \quad \forall k \in [n] : ev(o_k) = ev^{(i)}_k$$
+   For example, for the addition gate, $op$ would be defined as:
+   $op_{(+)}([ev^{(i)}_1, ev^{(i)}_2]) = ev^{(i)}_1 + ev^{(i)}_2$
 3. Now we can append a row to the constraint table with the computed values
    according to the specification in the custom gates section. We also add
    any relevant coefficient rows.
 4. Finally, we add the input and output wires to the copy constraint map:
    $$
    \begin{aligned}
-     \forall k \in [n] : \text{cc}(i_k) = i^{(\text{SlotId})}_k, \\
-     \forall k \in [m] : \text{cc}(o_k) = o^{(\text{SlotId})}_k
+     \forall k \in [n] : cc(i_k) = i^{(\text{SlotId})}_k, \\
+     \forall k \in [m] : cc(o_k) = o^{(\text{SlotId})}_k
    \end{aligned}
    $$
 
 It is important that we designate the first $\ell_2$ rows for public inputs,
-but other than that, the above loop describes how to construct the trace
-table. From here we just interpolate each column to get the witness, selector,
-coefficient and copy constraint polynomials.
+but other than that, the above loop describes how to construct the constraint
+table as defined in the custom gate section. From here we just interpolate
+each column to get the witness, selector, coefficient and copy constraint
+polynomials. To run this trace algorithm as a verifier, that doesn't have
+access to a valid witness, the verifier can run it with a fake witness and
+omit the private witness table, getting the same selector, coefficient and
+copy constraint polynomials as the prover.
 
 \begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
 
@@ -382,7 +387,7 @@ Consider the following small example circuit:
 
   % Third Layer
   %%%%%%%%%% Nodes %%%%%%%%%%
-  \node[draw, rectangle, minimum size=15pt] (eq) at (2, -3) {$=_{\text{CC}}$};
+  \node[draw, rectangle, minimum size=15pt] (eq) at (2, -3) {$=_{CC}$};
 
   %%%%%%%%%% Arrows %%%%%%%%%%
   \node[minimum size=2pt, inner sep=1pt] (mid) at (1, -2.25) {\scriptsize $\Sc, \texttt{wire\_id} = 3$};
@@ -401,14 +406,14 @@ x_2 = 3$, but we leave them as variables in the following description:
   \item $\text{Node}_1 = ("\text{W-}\Sc_{x_1}", \vec{i} = [ \; ], \vec{o} = [ 1 ])$:
   \begin{enumerate}
     \item There are no inputs.
-    \item There is no computation so: $\text{op}_{\text{W-}\Sc_{x_1}}([ \; ]) = \vec{\mathrm{ev}^{(o)}} = [x_1], \quad \text{ev}(o_1) = \text{ev}_1^{(o)} = x_1$.
+    \item There is no computation so: $op_{\text{W-}\Sc_{x_1}}([ \; ]) = \vec{ev^{(o)}} = [x_1], \quad ev(o_1) = ev_1^{(o)} = x_1$.
     \item For private inputs, there is no rows added to the constraint table.
     \item Since there is no row, there is no \textbf{SlotId} to add to the copy constraints.
   \end{enumerate}
   \item $\text{Node}_2 = ("\text{P-}\Sc_{x_2}", \vec{i} = [ \; ], \vec{o} = [ 2 ])$:
   \begin{enumerate}
     \item There are no inputs.
-    \item There is no computation so: $\text{op}_{\text{P-}\Sc_{x_2}}([ \; ]) = \vec{\mathrm{ev}^{(o)}} = [x_2], \quad \text{ev}(o_1) = \text{ev}_1^{(o)} = x_2$.
+    \item There is no computation so: $op_{\text{P-}\Sc_{x_2}}([ \; ]) = \vec{ev^{(o)}} = [x_2], \quad ev(o_1) = ev_1^{(o)} = x_2$.
     \item For public inputs, we add the following witnesses and selector polynomials:
     \begin{table}[H]
       \centering
@@ -421,13 +426,13 @@ x_2 = 3$, but we leave them as variables in the following description:
       \end{tabu}
     \end{table}
     \item We add the slot-id of $x_2$ $(1, 1)$ to the copy constraints of the output wire with id $2$:
-      $$\text{cc}(o_1 = 2) = \text{cc}(o_1) \cup \{ \, o_1^{\text{SlotId}} = (1,1) \, \}$$
+      $$cc(o_1 = 2) = cc(o_1) \cup \{ \, o_1^{\text{SlotId}} = (1,1) \, \}$$
   \end{enumerate}
   \item $\text{Node}_3 = ("(+)", \vec{i} = [ 1, 2 ], \vec{o} = [ 3 ])$:
   \begin{enumerate}
-    \item We lookup the two inputs: $\vec{\mathrm{ev}^{(i)}} = [\text{ev}(i_1 = 1) = x_1, \text{ev}(i_2 = 2) = x_2]$.
+    \item We lookup the two inputs: $\vec{ev^{(i)}} = [ev(i_1 = 1) = x_1, ev(i_2 = 2) = x_2]$.
     \item Perform the computation:
-      $$\text{op}_{(+)}(\vec{\mathrm{ev}^{(i)}}) = \vec{\mathrm{ev}^{(o)}} = [\text{ev}^{(i)}_1 + \text{ev}^{(i)}_2] = [x_1 + x_2] = [x_3], \quad \text{ev}(o_1) = \text{ev}_1^{(i)} = x_3$$
+      $$op_{(+)}(\vec{ev^{(i)}}) = \vec{ev^{(o)}} = [ev^{(i)}_1 + ev^{(i)}_2] = [x_1 + x_2] = [x_3], \quad ev(o_1) = ev_1^{(i)} = x_3$$
     \item For addition, we add the following witnesses and selector polynomials:
     \begin{table}[H]
       \centering
@@ -442,9 +447,9 @@ x_2 = 3$, but we leave them as variables in the following description:
     \item We add the slot-ids to the copy constraints:
       $$
       \begin{aligned}
-        \text{cc}(i_1 = 1) &= \text{cc}(i_1) \cup \{ \, i_1^{\text{SlotId}} = (2,1) \, \} \\
-        \text{cc}(i_2 = 2) &= \text{cc}(i_2) \cup \{ \, i_2^{\text{SlotId}} = (2,2) \, \} \\
-        \text{cc}(o_1 = 3) &= \text{cc}(o_1) \cup \{ \, o_1^{\text{SlotId}} = (2,3) \, \}
+        cc(i_1 = 1) &= cc(i_1) \cup \{ \, i_1^{\text{SlotId}} = (2,1) \, \} \\
+        cc(i_2 = 2) &= cc(i_2) \cup \{ \, i_2^{\text{SlotId}} = (2,2) \, \} \\
+        cc(o_1 = 3) &= cc(o_1) \cup \{ \, o_1^{\text{SlotId}} = (2,3) \, \}
       \end{aligned}
       $$
   \end{enumerate}
@@ -452,7 +457,7 @@ x_2 = 3$, but we leave them as variables in the following description:
   \begin{enumerate}
     \item There are no inputs.
     \item There is no computation so:
-       $$\text{op}_{\text{C}_5}([ \; ]) = 5, \quad \vec{\mathrm{ev}} = [ \text{ev}^{(i)}_1 = 5 ], \quad \text{ev}(o_1) = \text{ev}_1^{(i)} = 5$$
+       $$op_{\text{C}_5}([ \; ]) = 5, \quad \vec{ev} = [ ev^{(i)}_1 = 5 ], \quad ev(o_1) = ev_1^{(i)} = 5$$
     \item For a constant gate, we add the following witnesses and selector polynomials:
     \begin{table}[H]
       \centering
@@ -465,11 +470,11 @@ x_2 = 3$, but we leave them as variables in the following description:
       \end{tabu}
     \end{table}
     \item We add the slot-id to the copy constraints:
-      $$\text{cc}(o_1 = 4) = \text{cc}(o_1) \cup \{ \, o_1^{\text{SlotId}} = (3,1) \, \}$$
+      $$cc(o_1 = 4) = cc(o_1) \cup \{ \, o_1^{\text{SlotId}} = (3,1) \, \}$$
   \end{enumerate}
-  \item $\text{Node}_5 = ("(=_{\text{CC}})", \vec{i} = [ 3, 4 ], \vec{o} = [ \; ])$:
+  \item $\text{Node}_5 = ("(=_{CC})", \vec{i} = [ 3, 4 ], \vec{o} = [ \; ])$:
   \begin{enumerate}
-    \item We lookup the two inputs: $\vec{\mathrm{ev}^{(i)}} = [\text{ev}(i_1 = 3) = x_3, \text{ev}(i_2 = 4) = 5]$
+    \item We lookup the two inputs: $\vec{ev^{(i)}} = [ev(i_1 = 3) = x_3, ev(i_2 = 4) = 5]$
     \item There is no output, so no computation.
     \item For a constant gate, we add the following witnesses and selector polynomials:
     \begin{table}[H]
@@ -485,8 +490,8 @@ x_2 = 3$, but we leave them as variables in the following description:
     \item We add the slot-id to the copy constraints:
       $$
       \begin{aligned}
-        \text{cc}(i_1 = 3) &= \text{cc}(i_1) \cup \{ \, i_1^{\text{SlotId}} = (4,1) \, \} \\
-        \text{cc}(i_2 = 4) &= \text{cc}(i_2) \cup \{ \, i_2^{\text{SlotId}} = (4,2) \, \}
+        cc(i_1 = 3) &= cc(i_1) \cup \{ \, i_1^{\text{SlotId}} = (4,1) \, \} \\
+        cc(i_2 = 4) &= cc(i_2) \cup \{ \, i_2^{\text{SlotId}} = (4,2) \, \}
       \end{aligned}
       $$
   \end{enumerate}
@@ -516,10 +521,10 @@ The copy constraints were defined as:
 
 $$
 \begin{aligned}
-  \text{cc}(1) &= \{ \, (2,1) \, \} \\
-  \text{cc}(2) &= \{ \, (1,1), (2,2) \, \} \\
-  \text{cc}(3) &= \{ \, (2,3), (4,1) \, \} \\
-  \text{cc}(4) &= \{ \, (3,1), (4,2) \, \} \\
+  cc(1) &= \{ \, (2,1) \, \} \\
+  cc(2) &= \{ \, (1,1), (2,2) \, \} \\
+  cc(3) &= \{ \, (2,3), (4,1) \, \} \\
+  cc(4) &= \{ \, (3,1), (4,2) \, \} \\
 \end{aligned}
 $$
 

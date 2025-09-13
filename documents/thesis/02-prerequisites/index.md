@@ -713,21 +713,106 @@ and $\ASDecider(acc_i) = \top$.
 
 ## Cycles of Curves
 
-When modelling scaling of elliptic curve points, we need two fields, a
-scalar-field $\Fb_\Sc$ and a base-field $\Fb_\Bc$. To see why, consider the
-operation $a P$, where $a \in \Fb_\Sc$ and $P \in \Eb_\Sc(\Fb_\Bc) =
-\Fb_\Bc \times \Fb_\Bc$, then the order of the scalar field must be equal
-to the order of the elliptic curve. Naively, one could choose the larger field
-of the two for a SNARK circuit and model computation over the smaller field,
-by using modulo operation in-circuit. With such an approach the circuit is
-modelling _foreign-field arithmetic_ which is very expensive per foreign
-field operation.
+An elliptic curve over a finite field $\Fb$ is defined by an equation of
+the form:
+$$y^2 = x^3 + ax + b$$
+The set of points $\Eb(\Fb) = \Fb \times \Fb$ forms an abelian group under
+point addition, where adding two points $R = P + Q$ is given by simple
+algebraic formulas in $\Fb$, and each point has an inverse given by reflection
+across the $x$-axis. There is an additional point $\Oc$, the point at infinity,
+for which it holds that $P + \Oc = \Oc + P = P$.
+
+\begin{figure}
+\centering
+\begin{subfigure}{0.45\textwidth}
+\centering
+\begin{tikzpicture}
+  \begin{axis}[
+      axis lines=middle,
+      xlabel={$x$}, ylabel={$y$},
+      xmin=-3, xmax=3,
+      ymin=-4, ymax=4,
+      axis equal image,
+      samples=400,
+      domain=-1.5:2.5,
+      xtick=\empty, ytick=\empty
+    ]
+    % Curve y^2 = x^3 - x + 1
+    \addplot[black, thick] ({x},{sqrt(x^3 - x + 1)});
+    \addplot[black, thick] ({x},{-sqrt(x^3 - x + 1)});
+
+    % Points P, Q, R
+    \node[circle,fill,inner sep=1.5pt] at (axis cs:-1.2,0.6870225615) {};
+    \node at (axis cs:-1.4,1) {$P$};
+
+    \node[circle,fill,inner sep=1.5pt] at (axis cs:0,1) {};
+    \node at (axis cs:0.3,1.4) {$Q$};
+
+    \node[circle,fill,inner sep=1.5pt] at (axis cs:1.268,-1.331) {};
+    \node at (axis cs:1.568,-1.1) {$R$};
+
+    % Line through P and Q
+    \addplot[dashed, domain=-3:3] {0.2608145320833333*x + 1};
+
+    % Vertical dashed line through R
+    \addplot[dashed] coordinates {(1.268,-4) (1.268,4)};
+  \end{axis}
+\end{tikzpicture}
+\caption{Elliptic curve $y^2 = x^3 - x + 1$ with points $P$, $Q$, and $R = P + Q$.}
+\end{subfigure}
+\hspace{0.05\textwidth}
+\begin{subfigure}{0.45\textwidth}
+\centering
+\begin{tikzpicture}
+  \begin{axis}[
+      axis lines=middle,
+      xlabel={$x$}, ylabel={$y$},
+      xmin=-3, xmax=3,
+      ymin=-4, ymax=4,
+      axis equal image,
+      samples=400,
+      domain=-1.5:2.5,
+      xtick=\empty, ytick=\empty
+    ]
+    % Curve y^2 = x^3 - x + 1
+    \addplot[black, thick] ({x},{sqrt(x^3 - x + 1)});
+    \addplot[black, thick] ({x},{-sqrt(x^3 - x + 1)});
+
+    % Point P
+    \node[circle,fill,inner sep=1pt] (P) at (axis cs:-0.5,1.17260394) {};
+    \node at (axis cs:-0.5,1.5) {$P$};
+
+    % Point R
+    \node[circle,fill,inner sep=1pt] (R) at (axis cs:1.011,-1.012) {};
+    \node at (axis cs:1.3,-1.1) {$R$};
+
+    % Tangent line at P
+    \addplot[dashed, domain=-3:3] {-0.106599868*x + 1.119304006};
+
+    % Vertical line through R
+    \addplot[dashed] coordinates {(1.011,-4) (1.011,4)};
+  \end{axis}
+\end{tikzpicture}
+\caption{Elliptic curve $y^2 = x^3 - x + 1$ with point $P$ point $R = 2P$.}
+\end{subfigure}
+\caption{Two representations of the elliptic curve $y^2 = x^3 - x + 1$ showing point addition and doubling operations.}
+\end{figure}
+
+Repeated addition defines scalar multiplication. When modelling scalar
+multiplication, we need two fields, a scalar-field $\Fb_\Sc$ and a base-field
+$\Fb_\Bc$. To see why, consider the operation $a P$, where $a \in \Fb_\Sc$
+and $P \in \Eb_\Sc(\Fb_\Bc)$, then the order of the scalar field must be
+equal to the order of the elliptic curve. Naively, one could choose the
+larger field of the two for a SNARK circuit and model computation over the
+smaller field, by using modulo operation in-circuit. With such an approach
+the circuit is modelling _foreign-field arithmetic_ which is very expensive
+per foreign field operation.
 
 To simplify elliptic curve operations, a _cycle of curves_ can be used. A
 cycle of curves use the other's scalar field as their base field and
 vice-versa. This means that field operations can be handled natively in the
-scalar field circuit $\Fb_S$ and elliptic curve operations are handled natively
-in the basefield circuit $\Fb_B$. This improves performance drastically,
+scalar field circuit $\Fb_\Sc$ and elliptic curve operations are handled natively
+in the basefield circuit $\Fb_\Bc$. This improves performance drastically,
 since the SNARK never need to handle foreign field arithmetic. The cycle of
 curves used in this project is the Pasta curves[@pasta], Pallas and Vesta,
 both of which have the curve equation $y^2 = x^3 + 5$:
@@ -743,12 +828,12 @@ Where:
 
 This is useful when creating proofs. Starting in the first proof in an
 IVC-setting, we need a proof that verifies some relation, the simplest
-minimal example would be $R := a \cdot P \meq \Oc$. This then creates two
-constraint tables and two proofs, one over $\Fb_S = \Fb_p$ and one over
-$\Fb_B = \Fb_q$. Then, in the next IVC-step, we need to verify both proofs,
+minimal example would be $R_{(aP)} := a P \meq \Oc$. This then creates two
+constraint tables and two proofs, one over $\Fb_\Sc = \Fb_p$ and one over
+$\Fb_\Bc = \Fb_q$. Then, in the next IVC-step, we need to verify both proofs,
 but the proof over $\Fb_p$ produces scalars over $\Fb_p$ and points over
 $\Eb_p(\Fb_q)$ and the proof over $\Fb_q$ produces scalars over $\Fb_q$ and
-points over $\Eb_p(\Fb_q)$. This is because a proof of $R$ needs to contain
+points over $\Eb_p(\Fb_q)$. This is because a proof of $R_{(aP)}$ needs to contain
 both scalars and points. If we did _not_ have a cycle of curves this pattern
 would result in a chain:
 
