@@ -1,6 +1,6 @@
 ## Build
 
-The build function describes the construction of an abstract circuit from a program $f$. Naively it can be thought of as a directed acyclic graph where gadgets are vertices and wires are edges, modelling the structure of the circuit without its concrete values.
+The build function describes the construction of an abstract circuit from a program $f$. Intuitively it can be thought of as a directed acyclic graph where gadgets are vertices and wires are edges, modelling the structure of the circuit without its concrete values.
 
 \begin{definition}[UUID]
 The set of unique identifiers for wires.
@@ -26,7 +26,7 @@ $$
 \motivdef rather than eagerly constructing a circuit, with wires we can construct an abstract circuit which allows reasoning about the circuit structure algebraically with colored properads defined below.
 
 \begin{definition}[Colored Properad / Operations]
-Hereafter simply "properad". Naively, defines a class of gates.
+Hereafter simply "properad". Intuitively, defines a class of gates.
 \end{definition}
 \newcommand{\Prpd}{\text{PrPd}}
 $$

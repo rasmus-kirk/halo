@@ -115,7 +115,7 @@ $$
 \motivdef it is the single source of truth for an equational definitions that can vary over operand types: scalars, polynomials, curve points, wires and state via build. Examples of equations are gate constraint polynomials, grand product polynomials, quotient polynomial, $\plookup$  compression equation, etc. When implementing in a programming language such as rust, it is possible to use type variables / generics to define a function over $T$, without having an explicit syntax tree data structure of the $Eqn$'s grammar.
 
 \begin{definition}[Cell Wire]
-Cell wires are natural numbers that represent the wires of a gate in a properad. Naively, an abstract wire. It does exclude some wires which will be defined later.
+Cell wires are natural numbers that represent the wires of a gate in a properad. Intuitively, an abstract wire. It does exclude some wires which will be defined later.
 \end{definition}
 \newcommand{\CWire}{\text{CellWire}}
 \newcommand{\aavec}[1]{\bar{\vec{#1}}}
@@ -268,7 +268,7 @@ This results in the same type for '$\text{default}$'.
 \end{tcolorbox}
 
 \begin{definition}[Pre-Constraints]
-The class of constraints of a specific properad. Naively, a template for a sub-table in the trace table.
+The class of constraints of a specific properad. Intuitively, a template for a sub-table in the trace table.
 \end{definition}
 $$
 \begin{array}{rl}

@@ -135,7 +135,7 @@ V& \PlonkVerifier(\pi) \circ \Arithmetize_{\text{pub}}(f, \vec{x}) &\stackrel{?}
 \end{array}
 $$
 
-\motivdef we have seen the full \Plonk protocol before. Here, however, the role of arithmetization is clear.
+\motivdef we can see the role of arithmetization clearly when presented in this manner, even when we have seen the full \Plonk protocol before.
 
 \begin{definition}[Arithmetization Pipeline]
 The arithmetization pipeline is a sequence of computations that transforms a program $f$ and its witness $\vec{w}$ or public input $\vec{x}$ into a circuit $(R,X,W)$ where $R$ is the public circuit structure, $X$ are public computed values and $W$ are witness computed values that the core \Plonk protocol operates over via the grand product argument and vanishing argument.
@@ -163,7 +163,7 @@ $$
   - Type safety across multiple field types (for cycle of curves)
   - Single source of truth (prevents arithmetizer implementation bugs)
   - User-extensible architecture (enables rapid prototyping of new gates)
-  - Support for transcript dependent gates (enables $\plookup$ like gates)
+  - Support for transcript dependent gates (enables defining $\plookup$-like gates)
   - Next row referencing capability (reduces constraint count; used by poseidon gate)
   - Declarative algebraic optimizations via gate equivalence (reduces constraint count)
   - Gate declaration order invariant (prevents circuit composition bugs)
