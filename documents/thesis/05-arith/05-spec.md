@@ -81,6 +81,82 @@ $$
 
 \motivdef it is a succinct way to store and compose values that depend on color, column, and an argument of arbitrary type, e.g. managing multiple wire types for $\plookup$  columns in trace table, and data structure for values for equations.
 
+\begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
+As an example to see index map concretely, we define colors $p,q$ and columns $A,B,C$ such that $C$ is a thunk column that depends on a natural number argument. We then define two index maps $T_1$ and $T_2$.
+
+\vspace{1em}
+
+Let $\forall t \in \set{p,q}.X(t,A) = X(t,B) = \Unit \land X(t,C) = \Nb$
+
+Let $Y(\_,\_) = \Nb, T_1, T_2: \IndexMap(X, Y)$
+
+\vspace{1em}
+
+\begin{center}
+\begin{tabular}{ c c c}
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}
+\hline
+\multicolumn{6}{|c|}{$T_1$} \\
+\hline
+\multicolumn{3}{|c|}{$q$} & \multicolumn{3}{|c|}{$p$} \\
+\hline
+$A$ & $B$ & $C$ & $A$ & $B$ & $C$ \\
+\hline
+1 & 2 & $x+3$ & 4 & 5 & $x-6$ \\
+\hline
+0 & 0 & $x$ \\
+\cline{1-3}
+\end{tabular}
+&
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}
+\hline
+\multicolumn{6}{|c|}{$T_2$} \\
+\hline
+\multicolumn{3}{|c|}{$q$} & \multicolumn{3}{|c|}{$p$} \\
+\hline
+$A$ & $B$ & $C$ & $A$ & $B$ & $C$ \\
+\hline
+7 & 8 & $x-9$ & 10 & 11 & $x \times 12$ \\
+\hline
+\end{tabular}
+\end{tabular}
+
+\vspace{1em}
+
+Concatenating the index maps results in the following index map:
+
+\vspace{1em}
+
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}
+\hline
+\multicolumn{6}{|c|}{$T_1 \cat T_2$} \\
+\hline
+\multicolumn{3}{|c|}{$q$} & \multicolumn{3}{|c|}{$p$} \\
+\hline
+$A$ & $B$ & $C$ & $A$ & $B$ & $C$ \\
+\hline
+1 & 2 & $x+3$ & 4 & 5 & $x-6$ \\
+\hline
+0 & 0 & $x$ & 10 & 11 & $x \times 12$ \\
+\hline
+7 & 8 & $x-9$ \\
+\cline{1-3}
+\end{tabular}
+
+\vspace{1em}
+
+Thus, if we query column $A$ of color $q$, we get:
+$$
+(T_1 \cat T_2)^q(A) = (1,0,7)
+$$
+
+If we supply the thunk $42$ to the $C$ column of color $p$, we get:
+$$
+(T_1 \cat T_2)^p_{42}(C) = (42-6, 42\times 12) = (36,504)
+$$
+\end{center}
+\end{tcolorbox}
+
 \begin{definition}[Equation]
 An equation is a grammar that expresses a polynomial structure; a tree where leaf vertices are columns or coefficient scalars and intermediate vertices are operations of the grammar.
 \end{definition}
