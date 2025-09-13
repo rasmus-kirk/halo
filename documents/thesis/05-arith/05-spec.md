@@ -15,7 +15,7 @@ $$
 
 - **Notation**: $\Column = \set{A,B,C,Q_l,Q_r,Q_o,Q_m,Q_c,PI, \ldots}$
 - \projs
-  - $\pcol(c): \Bb$ - determines column of $X$ or $W$ of the circuit.
+  - $\pcol(c): \Bb$ - determines if the column belongs to $X$ or $W$ of the circuit $(R, X, W)$; private or public.
   - $\cccol(c): \Bb$ - is $c$ a copy constraint relevant column.
 
   - $X(t: \Color,c): \Uni$ - the column thunk argument type (will be motivated when defining thunk and index maps below).
@@ -58,9 +58,9 @@ F(T) &= \Color \to \Column \to T \\
 \end{array}
 $$
 
-- \subdefinition{thunk} Informally, think of a thunk as a function $f: X \to Y$
-  - $X$ is the thunk argument type; $X = \Unit$ if the value is not a thunk.
-  - $Y$ is the value type; $Y= \Option(T)$ if the index map is partially populated.
+- \subdefinition{thunk} Informally, a thunk is a function $f: X \to Y$
+  - $X$ is the thunk argument type. If $X = \Unit$ then it is not a thunk but a value of $Y$ by omissible argument.
+  - $Y$ is the value type. If $Y= \Option(T)$, then informally the index map is partially populated.
   - Thus, index maps hold such $f$ where $X,Y$ vary per color and column. i.e. $f: X(t,c) \to Y(t,c)$
   - To bind $t$ and $c$ to the index map indices we use $F$.
   - Thus we get $F(X(t,c) \to Y(t,c))$ the type for index maps.
@@ -112,7 +112,9 @@ $$
   - when every operation of the grammar is specified for type $T$, we can evaluate the equation.
   - curve points do not have multiplication defined, thus equations involving them cant be evaluated.
 
-\motivdef it is the single source of truth for an equational definitions that can vary over operand types: scalars, polynomials, curve points, wires and state via build. Examples of equations are gate constraint polynomials, grand product polynomials, quotient polynomial, $\plookup$  compression equation, etc. When implementing in a programming language such as rust, it is possible to use type variables / generics to define a function over $T$, without having an explicit syntax tree data structure of the $Eqn$'s grammar.
+\motivdef it is the single source of truth for an equational definitions that can vary over operand types: scalars, polynomials, curve points, wires and state via build. Examples of equations are gate constraint polynomials, grand product polynomials, quotient polynomial, $\plookup$  compression equation, etc.
+
+When implemented in a programming language such as rust, it is possible to use type variables / generics to define a function over $T$, without having an explicit syntax tree data structure of the $Eqn$'s grammar.
 
 \begin{definition}[Cell Wire]
 Cell wires are natural numbers that represent the wires of a gate in a properad. Intuitively, an abstract wire. It does exclude some wires which will be defined later.
@@ -122,7 +124,7 @@ Cell wires are natural numbers that represent the wires of a gate in a properad.
 $$
 \begin{array}{rl}
 \CWire(c, \abst{g})&: \pset{\Nb} = \begin{cases}
-  [n(\abst{g}) + m(\abst{g}) + 1] \setminus \ldots & \pcol(c) \lor c = \text{PI} \\
+  [n(\abst{g}) + m(\abst{g}) + 1] \setminus \cdots & \pcol(c) \lor c = \text{PI} \\
   \emptyset & \otherwise
 \end{cases} \\
 \bar{w} &: \CWire(c, \abst{g})
@@ -233,9 +235,7 @@ f(t, c, \zeta, \aavec{w}) &: W(t) &= \bar{w}_1 + \zeta \bar{w}_2 + \zeta^2 \bar{
 \end{array}
 $$
 
-\begin{itemize}
-  \item \textit{motivation}: Notice how $\zeta: X(t,c)$ is a thunk argument, this is because we do not know $\zeta$ until the core $\Plonk$ prover has sufficiently progressed in the transcript. But with our abstractions, we can account for it cleanly before the protocol even begins.
-\end{itemize}
+Notice how $\zeta: X(t,c)$ is a thunk argument, this is because we do not know $\zeta$ until the core $\Plonk$ prover has sufficiently progressed in the protocol; $\zeta$ is a transcript hash at some point of the protocol. But with our abstractions, we can account for it cleanly before the protocol even begins.
 \end{tcolorbox}
 
 \begin{definition}[Default Cell]
@@ -257,8 +257,8 @@ Recall that $\text{default}(t,c,x): W(t)$ is a projection of a column, whose typ
 \begin{math}
 \begin{array}{ll}
 R(\abst{g},()) & \text{resolver\ type\ notation} \\
-= F(X(t,c) \to W[()] \to W(t)) & \text{defn\ of\ resolver}\\
-= (t: \Color) \to (c: \Column) \to X(t,c) \to W[()] \to W(t) & \text{defn\ of\ } F \\
+= F(X(t,c) \to W[()] \to W(t)) & \text{definition\ of\ resolver}\\
+= (t: \Color) \to (c: \Column) \to X(t,c) \to W[()] \to W(t) & \text{definition\ of\ } F \\
 = (t: \Color) \to (c: \Column) \to X(t,c) \to \Uni^0 \to W(t) & \text{mapping\ zero\ length\ vector} \\
 = (t: \Color) \to (c: \Column) \to X(t,c) \to W(t) & \text{zero\ length\ is\ unit\ thats\ omissible}
 \end{array}
@@ -354,7 +354,9 @@ $$
 
 Notice that $\boxed{a}, \boxed{b}, \boxed{c}$ are wire cells and $\boxed{1}, \boxed{-1}, \boxed{0}$ are constant cells. Our notation conveniently aligns with drawing tables.
 
-The pre-constraints in this example only define a gate for the color $t$ wheras the rest of the colors are empty. Recall that the length of the vector of cells must be uniform within a color, but not across colors. So this definition is fine.
+\vspace{1em}
+
+The pre-constraints in this example only define a row for the color $t$ wheras the rest of the colors are empty. Recall that the length of the vector of cells must be uniform within a color, but not across colors. So these pre-constraints type checks / are valid.
 \end{tcolorbox}
 
 In the above example, we use the notation $F_{GC}^{\plonkm}$ for the gate constraint polynomial from [@plonk], the gate constraint in our $\Plonk$ protocol is dependent on the properads that the user defines which we will see later when we define $\Spec$.
@@ -392,9 +394,10 @@ Let's break down the type signature and definition:
 - We bind $k$ to construct the type for $i$ where $[k(t')+1]: \pset{\Nb}$ guarantees that $i$ is a valid index in color $t'$.
 - Recall mapping an index map expects a function of type $F(X(t,c) \to Y_1(t,c) \to Y_2(t,c))$
 - $f$ ignores $t,c,x$ arguments and simply indexes the vector typed $Y^{k(t)}$ i.e. $Y_1(t,c)$, at $i$.
-- The resulting index map then is partially applied to $t'$; a function of type $(c: \Column) \to X(t',c) \to Y$
-- Conveniently, this matches the last argument type for $\text{foldEqn}$ where $T = X(t',c) \to Y$.
-- If $X(t',c) = \Unit$ then $T = Y$, this motivates the use of this function on trace tables.
+- The index map then is partially applied with $t'$. This returns $(c: \Column) \to X(t',c) \to Y$
+- Conveniently, this is the type of the last argument of $\text{foldEqn}$ when the equation operands are $T = X(t',c) \to Y$.
+- If $X(t',c) = \Unit$ then $T = Y$ by omissible argument.
+- This motivates its use on trace tables to project rows that can be used to evaluate equations.
 
 \begin{definition}[Constraint]
 Similar to the row function, but specialized for $Y= W(t')$.
@@ -402,14 +405,16 @@ Similar to the row function, but specialized for $Y= W(t')$.
 \newcommand{\cctrn}{\text{constraint}}
 $$
 \begin{array}{rl}
-\cctrn &: \IndexMap(X, F(W(t')^{k(t')})) \to (t': \Color) \to [k(t')+1] \to ((c:\Column) \to X(t',c) \to W(t')) \\
+\cctrn &: \IndexMap(X, F(W(t)^{k(t)})) \to (t': \Color) \to [k(t')+1] \to ((c:\Column) \to X(t',c) \to W(t')) \\
 \cctrn &= \row
 \end{array}
 $$
 
-\motivdef it allows us to extract rows from the table of a specific color which can be used to evaluate equations. Typically, the gate constraint polynomial.
+\motivdef it allows us to extract rows from the table of a specific color which can be used to evaluate equations. Typically, the gate constraint polynomial. We can see its use in the following example:
 
 \begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
+Assume the definition of the properads $\text{Add}^t, \text{Mul}^t$ from the previous example.
+
 Let the trace table for $\build{w_1 + (w_2 \times w_3) = z^*}{}{}$ where $\pwit = (q,q,q)$ be the following (we will describe how this is computed when we define trace later):
 \begin{center}
 \begin{tabular}{ c c }
@@ -466,8 +471,8 @@ Recall $\term(\text{Add}^t) = \term(\text{Mul}^t) = F_{GC}^{\plonkm}: \Eqn = A \
 
 $$
 \begin{array}{rll}
-F_{GC}^{\plonkm}(\cctrn(T,q,1)) &= w_2 + w_3 - t &\stackrel{?}{=} 0 \\
-F_{GC}^{\plonkm}(\cctrn(T,q,2)) &= -z + (w_1 \times t) &\stackrel{?}{=} 0 \\
+F_{GC}^{\plonkm}(\cctrn(T,q,1)) &= -t + w_2 \times w_3 &\stackrel{?}{=} 0 \\
+F_{GC}^{\plonkm}(\cctrn(T,q,2)) &= w_1 + t -z &\stackrel{?}{=} 0 \\
 \end{array}
 $$
 
