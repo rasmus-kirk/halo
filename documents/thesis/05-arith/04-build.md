@@ -3,13 +3,11 @@
 The build function describes the construction of an abstract circuit from a program $f$. Intuitively it can be thought of as a directed acyclic graph where gadgets are vertices and wires are edges, modelling the structure of the circuit without its concrete values.
 
 \begin{definition}[UUID]
-The set of unique identifiers for wires.
+The set of unique identifiers for wires. The total ordering of the naturals is necessary to determine acyclicity.
 \end{definition}
 $$
 UUID: \Uni = \Nb
 $$
-
-- *motivation*: the total ordering of the naturals is necessary to determine acyclicity.
 
 \begin{definition}[Wire]
 A wire is an abstract representation of a value in the circuit.
