@@ -813,6 +813,8 @@ $\text{Mul}^q(\abst{a}, \abst{b})$ & $a$ & $b$ & $c$ & 0 & 0 & -1 & 1 & 0 \\
 \end{tabular}
 \end{center}
 
+Thus, $\text{Mul}^q(\abst{a}, \abst{b})$ is the base gate to $\text{CMul}^q(\abst{d}, \abst{e}, \abst{c})$ where $\abst{c}$ is the relative wire expected to be in column $C$.
+
 $$
 \begin{array}{rll}
 \term(\text{CMul}^t)(\cctrn(T,q,1)) &= c \times d \times e - r &\stackrel{?}{=} 0 \\
