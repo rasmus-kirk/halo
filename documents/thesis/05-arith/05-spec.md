@@ -620,7 +620,7 @@ $$
 Get the relative wires of a gate.
 \end{definition}
 $$
-\rel(g): \Wire^{b \circ \ty(g)} = \maybe{\avec{r}}{\gin(g) = \avec{x} \cat \avec{r} \land |\avec{r}| = b(\abst{g})}
+\rel(g): \Wire^{b \circ \ty(g)} = \maybe{\avec{r}}{\gin(g) = \avec{x} \cat \avec{r} \land |\avec{r}| = b \circ \ty (g)}
 $$
 
 \begin{definition}[Get relative columns]
@@ -674,7 +674,13 @@ $$
 If our column is $Q_x$, we refer to the next row of the same column as $Q_x^+$.
 \end{tcolorbox}
 
-Pre-constraints are banned from defining any such $c^+$ columns, via a $\text{pseudo}(c)$ check. But it is not excluded as an argument for index maps. We can thus construct a constraint from an index map that also includes the relative cells; values from next row. This will be made formal in the definition of relative constraints defined later.
+Pre-constraints are banned from defining any such $c^+$ pseudo columns. We can make this precise using dependent sum types[^dep-sum] and a subtype[^subtype] of non pseudo columns as a witness via the $\text{pseudo}(c)$ check, but we opt to leave this informal.
+
+[^dep-sum]: https://ncatlab.org/nlab/show/dependent+sum+type
+[^subtype]: https://ncatlab.org/nlab/show/subtype
+
+
+Despite exclusion from pre-constraints, it is not excluded as an argument for index maps in general. We can thus construct a constraint from an index map that also includes the relative cells; values from next row. This will be made formal in the definition of relative constraints defined later.
 
 \begin{definition}[Get relative wire position]
 Given a gate, column and a relative wire, verify that the gate's first row of pre-constraints contains the relative wire in the column specified. Intuitively, the function corroborates if the gate is a base gate.
