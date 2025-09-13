@@ -125,7 +125,7 @@ $A$ & $B$ & $C$ & $A$ & $B$ & $C$ \\
 
 \vspace{1em}
 
-Notice that $k(q) = 2$ for $T_1$ but for every other column is $1$.
+Notice that $k(q) = 2$ for $T_1$ but for every other color and $T_2$ is $1$.
 
 Concatenating the index maps results in the following index map:
 
@@ -200,7 +200,7 @@ Let $X: \Column \to \Nb$
 
 Let $X(A) = 1, X(B) = 2, X(C) = 3$
 
-Then $f(X) = 1 + 2 \times -3 = -5$
+Then $f(X) = 1 + 2 \times -3 = -5$ since the operators required by $\text{foldEqn}$ are well defined for $\Nb$.
 \end{tcolorbox}
 
 \motivdef it is the single source of truth for an equational definitions that can vary over operand types: scalars, polynomials, curve points, wires and state via build. Examples of equations are gate constraint polynomials, grand product polynomials, quotient polynomial, $\plookup$  compression equation, etc.
