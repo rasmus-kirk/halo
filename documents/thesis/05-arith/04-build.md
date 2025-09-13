@@ -109,7 +109,11 @@ $$
 - \projs
   - $\out(\abst{f}, g): \Wire^{m \circ \ty(g)} = \maybe{\avec{y}}{\gpair{g}{\abst{y}_i}\in \abst{f} \land \pout \circ \ty(g) = \ty[\avec{y}] \land \id(\abst{y}_{i>1}) > \id(\abst{y}_{i-1})}$ - the output wires of gate $g$ in abstract circuit $\abst{f}$ sorted ascending by UUID.
   - $\text{wires}(\abst{f}, g) = \gin(g) \cat \out(\abst{f}, g)$ - all wires; inputs and outputs.
-- \subnotation{abstract circuit diagram} if $\forall i. \gpair{\abst{g}(\abst{x}_1, \ldots, \abst{x}_{n(\abst{g})})}{\abst{y}_i} \in \abst{f}$ and $\gpair{\text{Add}(\abst{a}, \abst{b})}{\abst{c}} \in \abst{f}$, then we can visualize the gates as an abstract circuit diagram as follows:
+
+
+\begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Notation (\textit{abstract circuit diagram}) example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
+
+If $\forall i. \gpair{\abst{g}(\abst{x}_1, \ldots, \abst{x}_{n(\abst{g})})}{\abst{y}_i} \in \abst{f}$ and $\gpair{\text{Add}(\abst{a}, \abst{b})}{\abst{c}} \in \abst{f}$, then we can visualize the gates as an abstract circuit diagram as follows:
 
 \begin{center}
 \begin{tabular}{ c c }
@@ -137,6 +141,7 @@ $$
 \end{tikzpicture}
 \end{tabular}
 \end{center}
+\end{tcolorbox}
 
 \motivdef an abstract circuit is simpler than a directed acyclic graph. The target vertex; a gate, of a given wire is not immediately extractable from the relation. Yet it is minimally sufficient to compute the circuit. A simpler structure for proofs. In the theory of properads, an abstract circuit models a colored pasting scheme[@yau2015-ssec8.2].
 
