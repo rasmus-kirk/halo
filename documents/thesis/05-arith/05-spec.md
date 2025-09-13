@@ -203,7 +203,7 @@ Let $X(A) = 1, X(B) = 2, X(C) = 3$
 Then $f(X) = 1 + 2 \times -3 = -5$ since the operators required by $\text{foldEqn}$ are well defined for $\Nb$.
 \end{tcolorbox}
 
-\motivdef it is the single source of truth for an equational definitions that can vary over operand types: scalars, polynomials, curve points, wires and state via build. Examples of equations are gate constraint polynomials, grand product polynomials, quotient polynomial, $\plookup$  compression equation, etc.
+\motivdef it is the single source of truth for an equational definition that can vary over operand types: scalars, polynomials, curve points, wires and state via build. Examples of equations are gate constraint polynomials, grand product polynomials, quotient polynomial, $\plookup$  compression equation, etc.
 
 When implemented in a programming language such as rust, it is possible to use type variables / generics to define a function over $T$, without having an explicit syntax tree data structure of the $Eqn$'s grammar.
 
@@ -355,11 +355,11 @@ Recall that $\text{default}(t,c,x): W(t)$ is a projection of a column, whose typ
 
 \begin{math}
 \begin{array}{ll}
-R(\abst{g},()) & \text{resolver\ type\ notation} \\
-= F(X(t,c) \to W[()] \to W(t)) & \text{definition\ of\ resolver}\\
-= (t: \Color) \to (c: \Column) \to X(t,c) \to W[()] \to W(t) & \text{definition\ of\ } F \\
-= (t: \Color) \to (c: \Column) \to X(t,c) \to \Uni^0 \to W(t) & \text{mapping\ zero\ length\ vector} \\
-= (t: \Color) \to (c: \Column) \to X(t,c) \to W(t) & \text{zero\ length\ is\ unit\ thats\ omissible}
+R(\abst{g},()) & \text{from\ resolver\ type\ notation} \\
+= F(X(t,c) \to W[()] \to W(t)) & \text{by\ definition\ of\ resolver}\\
+= (t: \Color) \to (c: \Column) \to X(t,c) \to W[()] \to W(t) & \text{by\ definition\ of\ } F \\
+= (t: \Color) \to (c: \Column) \to X(t,c) \to \Uni^0 \to W(t) & \text{by\ mapping\ zero\ length\ vector} \\
+= (t: \Color) \to (c: \Column) \to X(t,c) \to W(t) & \text{by\ zero\ length\ is\ unit\ thats\ omissible}
 \end{array}
 \end{math}
 
@@ -380,7 +380,7 @@ We use $k(t)$ to denote that the vectors are of uniform length per color.
 
 - **Notation**: the hat denotes that it is a pre-constraint, not a constraint; an abstract constraint.
 
-\motivdef pre-Constraints act as a template for a sub-table for gates of the properad. This makes the constraints in the trace table derivable from the properads; a single source of truth.
+\motivdef pre-constraints act as a template for a sub-table for gates of the properad. This makes the constraints in the trace table derivable from the properads; a single source of truth.
 
 \begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
 Let the pre-constraints for $\build{a + b}{}{}$ and $\build{a \times b}{}{}$ where $\text{Add}^t, \text{Mul}^t: \Prpd$ be defined as follows:
@@ -704,7 +704,7 @@ Lets break down the definition:
 
 \motivdef knowing if a relative wire exists in a valid pre-constraint allows us to determine if the gate is a candidate for a relative gate's base gate. We need to know this to verify if the relative gate can be structurally sound in the circuit.
 
-In future work, it is possible to precompute and cache the set of properads that can make base gates for every relative gate. Thus, we simply have to check $\ty(g)$ and if the relative wires are in $\text{wires}(\abst{f}, g)$ not as relative wires in $g$ to determine if $g$ is a candidate base gate.
+In future work, it is possible to precompute and cache the set of properads that can make base gates for every relative gate. Thus, we simply have to check $\ty(g)$ and that $g$ has $\abst{w}$ as a non relative wire.
 
 \begin{definition}[Get base gate]
 Get the base gate given a relative gate
@@ -721,7 +721,7 @@ $$
 Let's break down the definition:
 
 - We find any gate $g'$ in the abstract circuit $\abst{f}$; ignoring its output wire $\abst{y}$.
-- For each relative wire in $\grcol(g)$, run $\text{pos}$ to verify with their respective expected column in $\rel(g)$. 
+- For each relative wire in $\grcol(g)$, run $\text{pos}$ on $g'$ to verify with their respective expected column in $\rel(g)$. 
 
 \motivdef it succinctly expresses the base gate of a relative gate if it exists.
 

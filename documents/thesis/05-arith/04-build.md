@@ -19,7 +19,7 @@ $$
 - \projs
   - $\id(\abst{w}): UUID$ - the unique identifier of the wire.
   - $\ty(\abst{w}): \Color$ - the color of the wire.
-- \subnotation{hat} the hat $\abst{w}$ indicates that it is an abstract value, not a concrete value. i.e. $\abst{w} = \wire{i}{t}$ denotes that $\id(\abst{w}) = i$ and $\ty(\abst{w}) = t$.
+- **Notation**: the hat $\abst{w}$ indicates that it is an abstract value, not a concrete value. i.e. $\abst{w} = \wire{i}{t}$ denotes that $\id(\abst{w}) = i$ and $\ty(\abst{w}) = t$.
 
 \motivdef rather than eagerly constructing a circuit, with wires we can construct an abstract circuit which allows reasoning about the circuit structure algebraically with colored properads defined below.
 
@@ -38,7 +38,7 @@ $$
   - $\pout(\abst{g}): \Color^{m(\abst{g})}$ - the profile for the outputs.
   - $\eval(\abst{g}): \Program(\pin(\abst{g}), \pout(\abst{g}))$ - the canonical program of the properad.
   - there are more projections defined later.
-- \subnotation{hat} the hat $\abst{g}$ indicates that properads are abstract gates.
+- **Notation**: the hat $\abst{g}$ indicates that properads are abstract gates.
 
 \motivdef it acts as single source of truth for contributions to the gate constraint polynomial and circuit for gates of its kind. Moreover, circuit construction with it is an expression of an algebraic theory[^properad] which allows us to reason about circuits algebraically, facilitating the following:
 
