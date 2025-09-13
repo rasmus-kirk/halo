@@ -138,7 +138,7 @@ $$
 \end{tabular}
 \end{center}
 
-\motivdef an abstract circuit is simpler than a directed acyclic graph; target vertex; gate, of a given wire is not immediately extractable from the relation. Yet it is minimally sufficient to compute the circuit; a simpler structure for proofs. In the theory of properads, an abstract circuit models a colored pasting scheme[@yau2015-ssec8.2].
+\motivdef an abstract circuit is simpler than a directed acyclic graph. The target vertex; a gate, of a given wire is not immediately extractable from the relation. Yet it is minimally sufficient to compute the circuit. A simpler structure for proofs. In the theory of properads, an abstract circuit models a colored pasting scheme[@yau2015-ssec8.2].
 
 It is worth clarifying the naming conventions. A gadget is a composition of gates (we will define notation for gate and gadget composition as the build predicate later). Thus an abstract circuit is a gadget as well. However when we say circuit, we may refer to the following:
 
