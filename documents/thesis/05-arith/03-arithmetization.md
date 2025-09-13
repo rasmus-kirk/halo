@@ -80,7 +80,7 @@ f[\vec{x}] &= (f(x_1), \ldots, f(x_k))
 \end{array}
 $$
 
-\motivdef it gives a concise notation whilst distinct from a function that takes a vector as an argument. i.e. $f(\vec{x}) \neq f[\vec{x}]$.
+\motivnot it is concise yet distinct from a function that takes a vector as an argument. i.e. $f(\vec{x}) \neq f[\vec{x}]$.
 
 \begin{notation}[Vector Product Isomorphism]
 A vector is coercable into a product.
@@ -110,7 +110,7 @@ $$
 $$
 
 \begin{definition}[Public Input]
-A vector of values that is used by the plonk verifier as public inputs to the circuit.
+A vector of values that is used by the \Plonk verifier as public inputs to the circuit.
 \end{definition}
 \newcommand{\ppub}{\vec{t}_{pub}}
 $$
@@ -124,7 +124,7 @@ $$
 (\vec{x}, \vec{w}) \in R_f
 $$
 
-\begin{definition}[PLONK protocol]
+\begin{definition}[\Plonk protocol]
 \end{definition}
 \newcommand{\Arithmetizepub}{\Arithmetize_{\text{pub}}}
 $$
@@ -135,10 +135,10 @@ V& \PlonkVerifier(\pi) \circ \Arithmetize_{\text{pub}}(f, \vec{x}) &\stackrel{?}
 \end{array}
 $$
 
-\motivdef we have seen the full plonk protocol before. Here, however, the role of arithmetization is clear.
+\motivdef we have seen the full \Plonk protocol before. Here, however, the role of arithmetization is clear.
 
 \begin{definition}[Arithmetization Pipeline]
-The arithmetization pipeline is a sequence of computations that transforms a program $f$ and its witness $\vec{w}$ or public input $\vec{x}$ into a circuit $(R,X,W)$ where $R$ is the public circuit structure, $X$ are public computed values and $W$ are witness computed values that the core plonk protocol operates over via the grand product argument and vanishing argument.
+The arithmetization pipeline is a sequence of computations that transforms a program $f$ and its witness $\vec{w}$ or public input $\vec{x}$ into a circuit $(R,X,W)$ where $R$ is the public circuit structure, $X$ are public computed values and $W$ are witness computed values that the core \Plonk protocol operates over via the grand product argument and vanishing argument.
 
 Intuitively, the arithmetization pipeline can be thought of as a compiler pipeline with the front end parsing the program $f$ into an abstract circuit $\abst{f}$. From this intermediate representation, depending on the private or public variant, it will compute the trace table (to be defined later) via the $\text{trace}$ algorithm. Finally, the last pass interpolates the trace table into polynomials and compute other relevant data to yield the circuit $(R,X,W)$ or $(R,X,\bot)$. This is then fed to the core $\Plonk$ protocol.
 \end{definition}
