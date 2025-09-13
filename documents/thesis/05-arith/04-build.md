@@ -140,11 +140,11 @@ $$
 
 \motivdef an abstract circuit is simpler than a directed acyclic graph. The target vertex; a gate, of a given wire is not immediately extractable from the relation. Yet it is minimally sufficient to compute the circuit. A simpler structure for proofs. In the theory of properads, an abstract circuit models a colored pasting scheme[@yau2015-ssec8.2].
 
-It is worth clarifying the naming conventions. A gadget is a composition of gates (we will define notation for gate and gadget composition as the build predicate later). Thus an abstract circuit is a gadget as well. However when we say circuit, we may refer to the following:
+It is worth clarifying the naming conventions. A gadget is a composition of gates (we will define gate and gadget composition by defining the build predicate later). Thus an abstract circuit is a gadget as well. However when we say circuit, we may refer to the following:
 
 - *abstract circuit* - The top level / global gadget; for program $f$, in the context of some discussion.
 - *trace table* - The concatenation of all constraints as a table. (we will define this later).
-- *arguments to core plonk* - The values $(R,X,W)$ or $(R,X,\bot)$.
+- *arguments to the core \Plonk  protocol* - The values $(R,X,W)$ or $(R,X,\bot)$.
 
 
 \begin{definition}[Build State]
@@ -164,7 +164,7 @@ $$
   - $(\astate{u}{\abst{f}}{\avec{Y}} \cat \astate{u'}{\abst{f}'}{\avec{Y}'}) = \astate{u + u'}{\abst{f} \cup \abst{f}'}{\avec{Y} \cat \avec{Y}'}$ - extending the state
   - $(s \cat \abst{y}) = (s \cat \astate{0}{\emptyset}{\abst{y}})$ - appending output wires to the state
 
-\motivdef it represents stateful data at a point in time whilst the user constructs the abstract circuits by declaring gates.
+\motivdef it represents stateful data at a point in time whilst the user constructs the abstract circuit.
 
 \begin{notation}[Hadamard Product / Zip vectors]
 Element wise product of two vectors of the same length.
@@ -176,7 +176,7 @@ $$
 \end{array}
 $$
 
-\motivnot it is a concise notation for zipping two vectors.
+\motivnot it concisely zips two vectors.
 
 \begin{definition}[New Wires]
 A function that yields new output wires for a gate from the current state's UUID.
@@ -184,7 +184,7 @@ A function that yields new output wires for a gate from the current state's UUID
 $$
 \begin{array}{rl}
 \new &: UUID \to \Ggt \to \Wire^{m \circ \ty(g)} \\
-\new(u,g) &= \wire{-}{-}[(u..u+m \circ \ty(g)) \odot (\pout \circ \ty(g))]
+\new(u,g) &= (\wire{-}{-})[(u..u+m \circ \ty(g)) \odot (\pout \circ \ty(g))]
 \end{array}
 $$
 
@@ -215,7 +215,34 @@ $$
 }
 $$
 
-\motivdef it facilitates reuse of output wires of equivalent gates to reduce the number of constraints in the circuit whilst preserving the same semantics. In future work, we could explore equality saturation techniques; [@egglog], as a candidate for defining gate equivalence.
+\motivdef it facilitates reuse of output wires of equivalent gates to reduce the number of constraints in the circuit whilst preserving the same semantics.
+
+In future work, we could explore equality saturation techniques such as [@egglog], as a candidate for defining gate equivalence.
+
+\begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
+The following are candidate algebraic identities the equality saturation technique can define:
+$$
+\begin{array}{rl}
+\gpair{g}{\abst{x_1}}, \gpair{\text{Neg}(\abst{x_1})}{\abst{x_2}} \in \abst{f} &\implies 
+\text{Id}(\abst{x_1}) \equiv \text{Neg}(\abst{x_2})
+\\
+\\
+\gpair{g_1}{\abst{x_1}}, \gpair{g_2}{\abst{x_2}} \in \abst{f} &\implies \text{Add}(\abst{x_1},\abst{x_2}) \equiv \text{Add}(\abst{x_2},\abst{x_1}) 
+\\
+\\
+\gpair{g}{\abst{x_1}}, \gpair{\text{Hash}(\abst{x_1})}{\abst{x_2}} \in \abst{f} &\implies
+\text{Hash}(\abst{x_2}) \equiv \text{Hash}(\abst{x_1})
+\end{array}
+$$
+
+The minimum that we support is reflexivity, which is behaviourally a cache lookup for existing gate definitions.
+
+$$
+g \equiv g
+$$
+\end{tcolorbox}
+
+Note that equality saturation in tandem with user extensible properads, allows users to define their own algebraic identities custom to their own properads. In addition they can assign weights to terms in their identities reflecting the cost, such that the quotient can replace a gate with an equivalent gate of lower cost.
 
 \begin{definition}[Put gate]
 Add a gate to the current abstract circuit.
