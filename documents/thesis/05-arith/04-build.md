@@ -256,7 +256,7 @@ $$
 
 - **Notation**:
   - $\build{f}{}{}$ states and output values can be omitted if they are not relevant to the discussion.
-  - $\build{f}{s_1}{s_{k+1}} = \bigwedge\limits_{i \in (1..k+1)} \build{f_i}{s_i}{s_{i+1}}$ abstract circuit composition is build predicate conjunction.
+  - $\build{f}{s_1}{s_k} = \bigwedge\limits_{i \in [k]} \build{f_i}{s_i}{s_{i+1}}$ abstract circuit composition is build predicate conjunction.
   - $\build{f = \vec{y}}{}{}$ denotes that $\vec{y}$ are the expected output values of the program $f$. When used in another predicate, they bound the same wire. e.g. $\build{f=y}{}{s} \land \build{g(y)}{s}{} = \build{g(f(\ldots))}{}{}$
 - \subnotation{Declare circuit output wire(s)} $\build{f=y^*}{s}{s' \cat \abst{y}} = \build{f=y}{s}{s'}$ the final output wires can be declared by annotating values with $*$.
 - \subdefinition{Canonical Program in the build predicate} $\build{\eval(\abst{g}, \vec{x}) =\vec{y}}{s}{s'} = \left(\aget(s,\abst{g}(\avec{x})) \stackrel{?}{=} (s', \avec{y})\right)$
