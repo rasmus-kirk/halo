@@ -576,7 +576,7 @@ Lets break down the definition:
 
 \motivdef knowing if a relative wire exists in a valid pre-constraint allows us to determine if the gate is a candidate for a relative gate's base gate. We need to know this to verify if the relative gate can be structurally sound in the circuit.
 
-In future work, it is possible to precompute and cache the set of properads that can make base gates for all properads that can make relative gates. Thus, we simply have to check for $\ty(g)$.
+In future work, it is possible to precompute and cache the set of properads that can make base gates for every relative gate. Thus, we simply have to check for $\ty(g)$.
 
 \begin{definition}[Get base gate]
 Get the base gate given a relative gate
