@@ -88,7 +88,9 @@ As an example to see index map concretely, we define colors $p,q$ and columns $A
 
 Let $\forall t \in \set{p,q}.X(t,A) = X(t,B) = \Unit \land X(t,C) = \Nb$
 
-Let $Y(\_,\_) = \Nb, T_1, T_2: \IndexMap(X, Y)$
+Let $Y(t,\_) = \Nb^{k(t)}$ where $k(t): \Nb$ is a natural number that varies by color.
+
+Let $T_1, T_2: \IndexMap(X, Y)$
 
 \vspace{1em}
 
@@ -122,6 +124,8 @@ $A$ & $B$ & $C$ & $A$ & $B$ & $C$ \\
 \end{tabular}
 
 \vspace{1em}
+
+Notice that $k(q) = 2$ for $T_1$ but for every other column is $1$.
 
 Concatenating the index maps results in the following index map:
 
@@ -379,7 +383,7 @@ We use $k(t)$ to denote that the vectors are of uniform length per color.
 \motivdef pre-Constraints act as a template for a sub-table for gates of the properad. This makes the constraints in the trace table derivable from the properads; a single source of truth.
 
 \begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
-The Pre-constraints for $\build{a + b}{}{}$ and $\build{a \times b}{}{}$. Let $\text{Add}^t, \text{Mul}^t: \Prpd$
+Let the pre-constraints for $\build{a + b}{}{}$ and $\build{a \times b}{}{}$ where $\text{Add}^t, \text{Mul}^t: \Prpd$ be defined as follows:
 
 \begin{center}
 \begin{tabular}{ c c }
@@ -722,11 +726,11 @@ Recall before that constructing a gate, will type check its inputs and we mentio
 \end{notation}
 $$
 g = \abst{g}(\avec{x} \cat \avec{r}) \text{\ denotes\ that\ } 
-\begin{array}{ll}
+\left(\begin{array}{ll}
 & \ty[\avec{x}] = \pin(\abst{g})\\
 \land & |\avec{r}| = b(\abst{g})\\
 \land & (b(\abst{g})) > 0 \implies \base(\abst{f}, g) \neq \bot
-\end{array}
+\end{array}\right)
 $$
 
 \begin{definition}[Relative Constraint]
