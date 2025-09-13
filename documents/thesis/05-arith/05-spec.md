@@ -12,13 +12,12 @@ c: \Column
 $$
 \newcommand{\pcol}{\text{priv}}
 \newcommand{\cccol}{\text{copy}}
-\newcommand{\rcol}{\text{rel}}
 
 - **Notation**: $\Column = \set{A,B,C,Q_l,Q_r,Q_o,Q_m,Q_c,PI, \ldots}$
 - \projs
   - $\pcol(c): \Bb$ - determines column of $X$ or $W$ of the circuit.
   - $\cccol(c): \Bb$ - is $c$ a copy constraint relevant column.
-  - $\rcol(c): \Bb$ - is $c$ a relative wire relevant column (will be motivated when defining relative wires).
+
   - $X(t: \Color,c): \Uni$ - the column thunk argument type (will be motivated when defining thunk and index maps below).
   - $\text{default}(t,c,x: X(t,c)): W(t)$ - the column default value (will be motivated when defining pre-constraints).
 
@@ -382,8 +381,8 @@ Get the $i$th row of the table; informally an index map of vectors, for a specif
 $$
 \begin{array}{rl}
 \row &: \IndexMap(X, F(Y^{k(t)})) \to (t': \Color) \to [k(t')+1] \to ((c:\Column) \to X(t',c) \to Y)\\
-\row(A, t', i) &= f[A](t') \\
-f(t,c,x,\vec{y}) &= y_i
+\row(A, t', i) &= f(i)[A](t') \\
+f(i,t,c,x,\vec{y}) &= y_i
 \end{array}
 $$
 
@@ -541,6 +540,20 @@ $$
 
 \motivdef as mentioned before, relative wires are supposed to be found in the base gate, not the relative gate itself, thus we exclude them from being mentioned in the relative gate's pre-constraints.
 
+\begin{definition}[More on Columns]
+We define the following projection and notation for columns to define relative wires.
+\end{definition}
+$$
+c: \Column
+$$
+
+\newcommand{\rcol}{\text{rel}}
+- \projs
+  - $\rcol(c): \Bb$ - is $c$ a relative wire relevant column.
+  - $\text{pseudo}(c^+): \Bb$ - the column $c^+$ is a pseudo column of $c$ referring to the next row.
+
+\motivdef it allows us to refer to the next row of the column $c$. For example if our column is $Q_x$, we refer to the next row of the same column as $Q_x^+$. In the context of the last row, this refers to the first row. Pre-constraints are banned from defining any such $c^+$ columns, via $\text{pseudo}(c)$ check. We can thus construct a constraint like index map that also includes the relative cells to be fed as an argument to an equation.
+
 \begin{definition}[Get relative wire position]
 Given a gate, column and a relative wire, verify that the gate's first row of pre-constraints contains the relative wire in the column specified. i.e. we are assuming the gate is a base gate.
 \end{definition}
@@ -581,45 +594,85 @@ Given a gate $g$, the base gate $g'$ should exist in the abstract circuit $\abst
 
 \motivdef it succinctly expresses the base gate of a relative gate if it exists.
 
-TODO
+\begin{notation}[Full assertion for gate construction]
+Recall before that constructing a gate, will type check its inputs and we mentioned an assertion to be defined later. Here it is.
+\end{notation}
+$$
+g = \abst{g}(\avec{x} \cat \avec{r}) \text{\ denotes\ that\ } 
+\begin{array}{ll}
+& \ty[\avec{x}] = \pin(\abst{g})\\
+\land & |\avec{r}| = b(\abst{g})\\
+\land & (b(\abst{g})) > 0 \implies \base(\abst{f}, g) \neq \bot
+\end{array}
+$$
 
-- complete assertion for gate construction:
-  - $g = \abst{g}(\avec{x} \cat \avec{r})$ denotes that $\ty[\avec{x} \cat \avec{r}] = \pin(\abst{g})$ and if $|\avec{r}| = b(\abst{g})$ and $b(\abst{g}) > 0$  then $\base(\abst{f}, g) \neq \bot$
+\begin{definition}[Relative Constraint]
+Recall that constraint is a function that extracts a row. We redefine it to account for the next row mapped via pseudo columns.
+\end{definition}
+$$
+\begin{array}{rl}
+\cctrn &: \IndexMap(X, F(W(t')^{k(t')})) \to (t': \Color) \to [k(t')+1] \to ((c:\Column) \to X(t',c) \to W(t')) \\
+\cctrn(T,t',i) &= f(T,i)[A](t') \\
+f(T,i,t,c,x,\vec{y}) &= \begin{cases} 
+  \text{nextRow}(T,i,t,x)(c) & \text{pseudo}(c) \\
+  y_i & \otherwise
+\end{cases} \\
+\text{nextRow}(T,i,t,x) &= \row(T,t,i+1 \mod (k(t)+1))(x) \\
+\end{array}
+$$
 
-TODO
+Let's break down the definition:
 
-- Column + to refer to next row in eqn
-- relGate: index i and next where next can loop back to first row at last,
-- relative wire example
-- spec
-- DONE
+- We get the next row by using the preexisting row function, and incrementing the index $i$ by $1$.
+- We use modulo to wrap around to the first row if we are at the last row.
+- The last row is supplied with the thunk argument $x$, thus we are guaranteed to get the non thunk value.
+- If the column is marked as a pseudo column, we use the next row's value for that column.
 
-\newcommand{\WireType}{\text{WireType}}
+\begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
+We introduce a hypothetical relative gate of the properad $\text{CMul}$.
 
-**Relative Wires Example**
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|}
+\hline
+$\abst{g}$ & $n$ & $m$ & $b$ & $\grcol$ & $\pin$ & $\pout$ & $\eval(\vec{x})$ & $\term$ \\
+\hline
+$\text{CMul}^t$ & $3$ & $1$ & $1$ & $C$ & $(t,t,t)$ & $t$ & $x_1 \times x_2 \times x_3$ & $\term(\text{CMul}^t)$ \\
+\hline
+$\text{Mul}^t$ & $2$ & $1$ & $0$ & $()$ & $(t,t)$ & $t$ & $x_1 \times x_2$ & $F_{GC}^{\plonkm}$ \\
+\hline
+\end{tabular}
 
-Let parts of the pre-constraints for the gadgets $\gpair{\ggtu{\text{CMul}_p}{\abst{d},\abst{e},\abst{c}}}{\abst{r}}, \gpair{\ggtu{\text{Mul}_p}{\abst{a}, \abst{b}}}{\abst{c}} \in \abst{f}$ where $b_{\text{CMul}_p} = 1$, $b_{\text{Mul}_p} = 0$ and $\Rel_{\text{CMul}_p} = \set{C}$, $\Rel_{\text{Mul}_p} = \emptyset$ be as follows:
+$$
+\begin{array}{rl}
+\term(\text{CMul}^t): \Eqn &= Q_s \times (C^+ \times A \times B - C) \\
+F_{GC}^{\plonkm}: \Eqn &= A \times Q_l + B \times Q_r + C \times Q_o + A \times B \times Q_m + Q_c + PI
+\end{array}
+$$
+\end{center}
+
+Let parts of the trace table for the gates $\gpair{\ggtu{\text{CMul}_p}{\abst{d},\abst{e},\abst{c}}}{\abst{r}}, \gpair{\ggtu{\text{Mul}_p}{\abst{a}, \abst{b}}}{\abst{c}} \in \abst{f}$ be as follows:
+
 
 \begin{center}
 \begin{tabular}{c c}
-\begin{tabular}{r|c|c|c|c|c|c|c|c|c}
+\begin{tabular}{r|c|c|c|c|c|c|c|c|}
 \cline{2-9}
-\multirow{2}{*}{$\Ops$} & \multicolumn{8}{c|}{$p$} & \multirow{2}{*}{$\term$} \\
+\multirow{3}{*}{$\Ggt$} & \multicolumn{8}{c|}{$T$} \\
+\cline{2-9}
+& \multicolumn{8}{c|}{$q$} \\
 \cline{2-9}
 & $A$ & $B$ & $C$ & $Q_l$ & $Q_r$ & $Q_o$ & $Q_m$ & $Q_s$ \\
 \hline\hline
-$\text{CMul}_p$ & $\abst{d}$ & $\abst{e}$ & $\abst{r}$ & 0 & 0 & 0 & 0 & 1 &
-$Q_s \times (C_1 \times A \times B - C)$ \\
+$\text{CMul}^q(\abst{d}, \abst{e}, \abst{c})$ & $d$ & $e$ & $r$ & 0 & 0 & 0 & 0 & 1 \\
 \hline
-$\text{Mul}_p$ & $\abst{a}$ & $\abst{b}$ & $\abst{c}$ & 0 & 0 & -1 & 1 & 0 &
-$A \times Q_l + B \times Q_r + C \times Q_o + A \times B \times Q_m$ \\
+$\text{Mul}^q(\abst{a}, \abst{b})$ & $a$ & $b$ & $c$ & 0 & 0 & -1 & 1 & 0 \\
 \hline
 \end{tabular} &
 \begin{tikzpicture}[
   baseline={(current bounding box.center)}
 ]
-\gate{cmul}{(0,0)}{$\abst{d}$,$\abst{e}$,$\abst{c}$}{$\text{CMul}_p$}{1}
-\gate{mul}{($(cmul.north)+(1,0)$)}{$\abst{a}$,$\abst{b}$}{$\text{Mul}_p$}{1}
+\gate{cmul}{(0,0)}{$\abst{d}$,$\abst{e}$,$\abst{c}$}{$\text{CMul}^q$}{1}
+\gate{mul}{($(cmul.north)+(1,0)$)}{$\abst{a}$,$\abst{b}$}{$\text{Mul}^q$}{1}
 \draw[-,thick] ($(mul-in-1)+(0,0.25)$) -- (mul-in-1);
 \draw[-,thick] ($(mul-in-2)+(0,0.25)$) -- (mul-in-2);
 \draw[-,thick] ($(cmul-in-1)+(0,0.25)$) -- (cmul-in-1);
@@ -635,9 +688,28 @@ $A \times Q_l + B \times Q_r + C \times Q_o + A \times B \times Q_m$ \\
 \end{tabular}
 \end{center}
 
-Using the terms, we have $-c + a \cdot b = 0$ enforcing the structure of $\text{Mul}_p$ and $c \cdot d \cdot e - r = 0$ enforcing the structure of $\text{CMul}_p$. Notice $C_1$ is a distinct column that refers to the same column $C$ but one row below current. In this case it is the row for $\ctrn_{\text{Mul}_p}$. Thus, $\build{a \times b \times d \times e = r}{}{}$ is expressed in two rows instead of of three, if we were to use all $\text{Mul}_p$.
+$$
+\begin{array}{rll}
+\term(\text{CMul}^t)(\cctrn(T,q,1)) &= c \times d \times e - r &\stackrel{?}{=} 0 \\
+F_{GC}^{\plonkm}(\cctrn(T,q,2)) &= -c + a \times b &\stackrel{?}{=} 0
+\end{array}
+$$
 
-### Spec
+Notice how the relative wire in the first row for the pseudo column $C^+$ maps to the wire $\abst{c}$ in the next row of the column $C$.
+
+Thus, the structural integrity of the gates hold if the equations evaluate to zero. If we were to use three multiplication gates instead, it will take three constraints instead of two.
+\end{tcolorbox}
+
+The example illustrates its use case in reducing the number of constraints. In our IVC implementation, this feature is exploited heavily by the poseidon gate.
+
+We now conclude this section on abstractions by defining $\Spec$, the penultimate single source of truth object.
+
+\begin{definition}[Spec]
+TODO
+\end{definition}
+
+
+\newcommand{\WireType}{\text{WireType}}
 
 A *specification*[^spec-benefit] defines the config of the protocol. This includes marking columns as private or enabling it for copy constraints. Here is also where default values for columns are defined, used when constructing the trace table. In the previous section on arithmetize, we omitted $s:\Spec$ in $\AState$ leaving $W, \WireType, \Ops$ implicit for $W_s, \WireType_s, \Ops_s$. We will keep the spec instance $s$ implicit beyond this section as well. We conclude with tabulating all objects according to their abstraction levels.
 
