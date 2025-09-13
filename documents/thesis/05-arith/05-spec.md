@@ -88,7 +88,9 @@ As an example to see index map concretely, we define colors $p,q$ and columns $A
 
 Let $\forall t \in \set{p,q}.X(t,A) = X(t,B) = \Unit \land X(t,C) = \Nb$
 
-Let $Y(\_,\_) = \Nb, T_1, T_2: \IndexMap(X, Y)$
+Let $Y(t,\_) = \Nb^{k(t)}$ where $k(t): \Nb$ is a natural number that varies by color.
+
+Let $T_1, T_2: \IndexMap(X, Y)$
 
 \vspace{1em}
 
@@ -122,6 +124,8 @@ $A$ & $B$ & $C$ & $A$ & $B$ & $C$ \\
 \end{tabular}
 
 \vspace{1em}
+
+Notice that $k(q) = 2$ for $T_1$ but for every other color and $T_2$ is $1$.
 
 Concatenating the index maps results in the following index map:
 
@@ -196,7 +200,7 @@ Let $X: \Column \to \Nb$
 
 Let $X(A) = 1, X(B) = 2, X(C) = 3$
 
-Then $f(X) = 1 + 2 \times -3 = -5$
+Then $f(X) = 1 + 2 \times -3 = -5$ since the operators required by $\text{foldEqn}$ are well defined for $\Nb$.
 \end{tcolorbox}
 
 \motivdef it is the single source of truth for an equational definitions that can vary over operand types: scalars, polynomials, curve points, wires and state via build. Examples of equations are gate constraint polynomials, grand product polynomials, quotient polynomial, $\plookup$  compression equation, etc.
@@ -379,7 +383,7 @@ We use $k(t)$ to denote that the vectors are of uniform length per color.
 \motivdef pre-Constraints act as a template for a sub-table for gates of the properad. This makes the constraints in the trace table derivable from the properads; a single source of truth.
 
 \begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
-The Pre-constraints for $\build{a + b}{}{}$ and $\build{a \times b}{}{}$. Let $\text{Add}^t, \text{Mul}^t: \Prpd$
+Let the pre-constraints for $\build{a + b}{}{}$ and $\build{a \times b}{}{}$ where $\text{Add}^t, \text{Mul}^t: \Prpd$ be defined as follows:
 
 \begin{center}
 \begin{tabular}{ c c }
@@ -722,11 +726,11 @@ Recall before that constructing a gate, will type check its inputs and we mentio
 \end{notation}
 $$
 g = \abst{g}(\avec{x} \cat \avec{r}) \text{\ denotes\ that\ } 
-\begin{array}{ll}
+\left(\begin{array}{ll}
 & \ty[\avec{x}] = \pin(\abst{g})\\
 \land & |\avec{r}| = b(\abst{g})\\
 \land & (b(\abst{g})) > 0 \implies \base(\abst{f}, g) \neq \bot
-\end{array}
+\end{array}\right)
 $$
 
 \begin{definition}[Relative Constraint]
@@ -812,6 +816,8 @@ $\text{Mul}^q(\abst{a}, \abst{b})$ & $a$ & $b$ & $c$ & 0 & 0 & -1 & 1 & 0 \\
 \end{tikzpicture}
 \end{tabular}
 \end{center}
+
+Thus, $\text{Mul}^q(\abst{a}, \abst{b})$ is the base gate to $\text{CMul}^q(\abst{d}, \abst{e}, \abst{c})$ where $\abst{c}$ is the relative wire expected to be in column $C$.
 
 $$
 \begin{array}{rll}
