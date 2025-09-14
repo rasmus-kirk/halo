@@ -17,7 +17,7 @@ A monotone function is a function $f: S \to S$ over a directed complete partial 
 
 Note that the precision of our type anotation for monotone functions ends at $f: S \to S$. We will informally describe how the functions we construct are monotonic.
 
-\motivdef informally we can think of applying the function as preserving the progress towards a final state. This is expressed formally by the definition of the Kleene fixpoint theorem below.
+\motivdef informally we can think of applying the function as preserving the progress towards a final state. This is expressed formally by the definition of the Kleene fixed-point theorem below.
 
 \begin{definition}[Ascending Kleene Chain]
 Starting from the least element $s_\bot$, iteratively applying a monotone function $f$ produces an ascending Kleene chain.
@@ -26,10 +26,10 @@ $$
 s_\bot \sqsubseteq f(s_\bot) \sqsubseteq f(f(s_\bot)) \sqsubseteq \ldots f^n(s_\bot) \sqsubseteq \ldots
 $$
 
-\motivdef the chain progresses towards a fixed point, where applying the function does not change the state anymore.
+\motivdef the chain progresses towards a fixed-point, where applying the function does not change the state anymore.
 
-\begin{definition}[Least Fixed Point]
-Informally when the ascending Kleene chain saturates i.e. $f^n(s_\bot) = f^{n+1}(s_\bot)$ where $n$ is the minimum such number, we call $f^n(s_\bot)$ the least fixed point of $f$.
+\begin{definition}[Least fixed-point]
+Informally when the ascending Kleene chain saturates i.e. $f^n(s_\bot) = f^{n+1}(s_\bot)$ where $n$ is the minimum such number, we call $f^n(s_\bot)$ the least fixed-point of $f$.
 \end{definition}
 \newcommand{\lfp}{\text{lfp}}
 $$
@@ -38,8 +38,8 @@ $$
 
 - **Notation**: $\text{sup}$ computes the least upper bound from a subset of the directed complete partial order. Informally, you can think of it as the least element when the ascending Kleene chain saturates.
 
-\begin{definition}[Kleene Iteration]
-The computation of the least fixed point can be expressed as a Kleene iteration, where we repeatedly apply the monotonic function until saturation.
+\begin{definition}[Kleene fixed-point theorem]
+The computation of the least fixed-point can be expressed as Kleene iteration, where we repeatedly apply the monotone function until saturation.
 \end{definition}
 $$
 \begin{array}{rl}
@@ -177,8 +177,16 @@ $$
   - $\rstack(s): \Wire^k$ - the resolve stack, a stack of wires to resolve.
   - More projections are defined later.
 - \opers
-  - $\update_{\text{proj}}(s, x: X): S$ - it returns the same state $s$ with the exception that the projection 'proj' is replaced with $x$. e.g. $\update_v(s, v'): S$ returns $s'$ such that $v(s') = v'$ and all other projections are the same as $s$.
-  - $\update'_{\text{proj}}(f: X \to X, s): S$ - similar to the above but it takes a function to update the projection. e.g. $\update'_v(f, s): S$ returns $s'$ such that $v(s') = f(v(s))$ and all other projections are the same as $s$.
+  - $\update_{\text{proj}}(s, x: X): S$ - it returns the same state $s$ with the exception that the projection 'proj' is replaced.
+  - $\update'_{\text{proj}}(f: X \to X, s): S$ - similar to the above but it takes a function to update the projection.
+
+\begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
+$\update_v(s, v'): S$ returns $s'$ such that $v(s') = v'$ and all other projections are the same as $s$
+
+\vspace{1em}
+
+$\update'_v(f, s): S$ returns $s'$ such that $v(s') = f(v(s))$ and all other projections are the same as $s$.
+\end{tcolorbox}
 
 \motivdef having the state projecting data allows us to extend it with more data as necessary for different monotone functions.
 
@@ -211,7 +219,7 @@ X \times \Unit \times Y &= X \times Y \\
 (x, (), y) &= (x, y)
 \end{array}
 $$
-Thus, when we map unresolved over a vector of wires, we can coerce it into a product, by unital product the units are omitted, we then coerce it back into a vector, thus filtering resolved wires from the original vector. Let $v(s) = \bot[\abst{x} \mapsto 1]$, then:
+Thus, when we map unresolved over a vector of wires, we can coerce it into a product. By unital product, the units are omitted. We then coerce it back into a vector. Thus, filtering resolved wires from the original vector. Let $v(s) = \bot[\abst{x} \mapsto 1]$, then:
 $$
 \begin{array}{rl}
 & \unresolved(s, (\abst{x}, \abst{y})) \\
@@ -243,12 +251,12 @@ $$
 $$
 
 - **Notation**:
-  - $(-[\avec{y} \mapsto \vec{y}])$ uses the placeholder notation to describe a function that takes a vmap and does k-update on it.
+  - $(-[\avec{y} \mapsto \vec{y}])$ uses the placeholder notation to describe a function that takes a vmap and does k-update.
   - Recall $\update'_v$ is the operator that takes a function to update the projection of the state's value map.
   - By vectors coercable to products and unit for products, we have that $((),(), \ldots, ()) = ()$, thus $()$ is sufficient to map all $\avec{y}$ with units.
 
 \begin{definition}[Resolve]
-We can now define the resolve monotone function. It peeks from the stack. If the wire is resolved, it pops the stack. Otherwise, it will query the gate that outputs the wire, get its input wires, and check if they are resolved. If they are, it will compute the output wire values and update the value map, otherwise it will push the unresolved input wires to the stack. The continuation and stack pop are called after.
+We can now define the resolve monotone function.
 \end{definition}
 \newcommand{\continue}{\text{continue}}
 \newcommand{\resolve}{\text{resolve}}
@@ -276,33 +284,46 @@ Let's break down the cases and notation:
 - The last case implies there are no unresolved input wires, yet the output wire is still unresolved. Thus we compute it via $\updatev$, call the continuation, then pop the stack.
 - Notice that the continuation only gets called when the top of the stack is a newly resolved wire, or if the stack is empty.
 
-TODO
-
-- resolve populates projection for initial state
-- resolve saturation function
-
-\newcommand{\WireType}{\text{WireType}}
-
+\begin{definition}[Resolve contributes to initial state]
+Resolves contributes to the least element of $S$ with the following function.
+\end{definition}
 $$
-\begin{array}{ccc}
 \begin{array}{rl}
-\dagger_R &: \RState \to \Bb \\
-\dagger_R(\_, \avec{y}) &= |\avec{y}| = 0 
-\end{array}
-&
-\begin{array}{rl}
-s &: \Wire^m \to W[\tin{}] \to \RState \\
-s^{\avec{Y}}_{\vec{x}} &= (\bot[(0..|\vec{x}|) \mapsto \vec{x}], \avec{Y} \cat \set{\abst{x} \middle\vert \gpair{g}{\bot} \in \abst{f} \land \abst{x} \in \gin(g) \setminus \avec{Y}})
-\end{array}
-&
-\begin{array}{rl}
-s_0 &: \RState \\
-s_0 &= (\bot, ())
-\end{array}
+s_\bot^{\resolve} &: \Wire^k \times (\avec{x}: \Wire^{k'}) \to W[\ty[\avec{x}]] \to S \\
+s_\bot^{\resolve}(\avec{Y}, \avec{x}, \vec{x})
+&= \update'_v(-[\avec{x} \mapsto \vec{x}]) 
+\circ \update'_{\rstack}(\avec{Y} \cat -)(s_\bot)
 \end{array}
 $$
+$$
+\begin{array}{rl}
+v(s_\bot) = \bot & \rstack(s_\bot) = ()
+\end{array}
+$$
+
+It populates the value map with the input of the protocol. For the public variant, its the public inputs $\vec{x}$. Just as there is an input properad for witnesses, there is a public input properad to model public input wires too. For the private variant, its the witnesses $\vec{w}$. It also populates the wire stack with the global output wires $\avec{Y}$ declared by build. Thus, only the wires in the subgraph that can reach those wires will be resolved. There will potentially also be more wires that are resolved, but those will be defined in the next monotone function for gate constraints.
+
+\begin{definition}[Resolve Saturation]
+The saturation function for resolve checks if the stack is empty.
+\end{definition}
+$$
+\begin{array}{rl}
+\text{sat}^{\resolve} &: S \to \Bb \\
+\text{sat}^{\resolve}(s) &= |\rstack(s)| = 0
+\end{array}
+$$
+
+Informally we can reason why resolve is monotone: The abstract circuit is finite. Thus the largest the stack can grow, is all the wires in the circuit. Additionally, the wires have been guaranteed to structurally type checkby the definition of gate literals i.e. $\abst{g}(\avec{x})$, and resolvable by the definition of the canonical programs of the properads for every gate. Thus the stack will be eventually empty.
+
+This works for the public version as well because of how $\updatev$ simply maps units if the wire values are not known. Behaviourally, the stack will update the exact same way in both public and private variants. This is integral to exhibit the structural integrity property of the circuit $(R,X,W)$ and $(R,X,\bot)$ as mentioned in the introduction of this section.
+
+TODO example resolve?
 
 ### Gate Constraints
+
+TODO remember to push assert gates input wires
+
+\newcommand{\WireType}{\text{WireType}}
 
 $\Downarrow_G$ computes the trace table $C$ by enqueing $\vec{g}$ the gadget (and its base recursively if any) with an output of the top of the $\vec{y}$ stack. The same gadget will not appear twice since $\Downarrow_R$ does not call the continuation on resolved wires and base duplicates are avoided by tracking added gadgets in $\Omega$. The pre-constraints of the gadgets are then resolved with vmap. Thus, tabulating the trace table.[^no-pad]
 

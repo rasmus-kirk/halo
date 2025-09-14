@@ -883,7 +883,7 @@ abstraction level | atomics | local | global | use
 -|-|-|-|-
 0 | $w: W(t)$ | $\cctrn$ | $T: \TraceTable$ | protocol
 1 | $\abst{w}: \Wire$ | $g: \Ggt$ | $\abst{f}: \AbsCirc$ | circuit building
-2 | $\boxed{w} : \Cell$ | $\abst{g}: \Ops$ | $S: \Spec$ | config
+2 | $\boxed{w} : \Cell$ | $\abst{g}: \Prpd$ | $S: \Spec$ | config
 
 We can interpret the abstraction levels as:
 
