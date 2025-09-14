@@ -472,7 +472,7 @@ placement &
 
 - **Notation**:
   - Asserts are gates with no output wires
-  - As mentioned at the end of resolve, public input wires have a specialized properad (defined later). Its constraints are conventionally placed at the top of the table. 
+  - Public input constraints are conventionally placed at the top of the table. 
   - Tables for lookup arguments are defined as a properad with a singleton gate with no wires at all. They strictly define the values for the compressed table column. We will not define it here. This is just to illustrate its feasibility.
   - Every other gate thats not relative, is a basic gate.
 
