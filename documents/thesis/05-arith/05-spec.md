@@ -203,7 +203,7 @@ Let $X(A) = 1, X(B) = 2, X(C) = 3$
 Then $f(X) = 1 + 2 \times -3 = -5$ since the operators required by $\text{foldEqn}$ are well defined for $\Nb$.
 \end{tcolorbox}
 
-\motivdef it is the single source of truth for an equational definitions that can vary over operand types: scalars, polynomials, curve points, wires and state via build. Examples of equations are gate constraint polynomials, grand product polynomials, quotient polynomial, $\plookup$  compression equation, etc.
+\motivdef it is the single source of truth for an equational definition that can vary over operand types: scalars, polynomials, curve points, wires and state via build. Examples of equations are gate constraint polynomials, grand product polynomials, quotient polynomial, $\plookup$  compression equation, etc.
 
 When implemented in a programming language such as rust, it is possible to use type variables / generics to define a function over $T$, without having an explicit syntax tree data structure of the $Eqn$'s grammar.
 
@@ -263,7 +263,7 @@ $$
   - $\term(\abst{g}): \Eqn$ - the equation term that the properad contributes to the gate constraint polynomial.
   - We continue to define more projections as their own definitions to eventually define cells and pre-constraints
 
-\motivdef it allows us to define the single source of truth for values in the trace table.
+\motivdef are helper functions for the definitions below. Moreover, $\term(\abst{g})$ is necessary to define gate constraints.
 
 \begin{definition}[Cell Resolvers]
 Functions that reduce a cell to a value.
@@ -300,9 +300,7 @@ f(t, c, x, ()) &: W(t) &= v
 \end{array}
 $$
 
-The resolved value is independent of wire values or thunks, it is simply a constant.
-
-\motivdef it allows us to have a concise notation for a cell that resolves to a constant value.
+\motivdef it allows us to have a concise notation for a cell that resolves to a constant value, independent of wire values or thunks.
 
 \begin{definition}[Wire Cell]
 A wire cell that resolves to the value of a wire.
@@ -314,9 +312,7 @@ f(t, c, x, w) &: W(t) &= w
 \end{array}
 $$
 
-The resolved value is the value of the single cell wire $\bar{w}$.
-
-\motivdef it allows us to have a concise notation for a cell that resolves to a single wire value.
+\motivdef it allows us to have a concise notation for a cell that resolves to a single wire value represented by the cell wire $\bar{w}$.
 
 \newcommand{\cw}{\text{cellWire}}
 - \subdefinition{get cell wire} $\cw(\bar{w}, f): \Option(\CWire(\abst{g})) = \bar{w}$
@@ -355,11 +351,11 @@ Recall that $\text{default}(t,c,x): W(t)$ is a projection of a column, whose typ
 
 \begin{math}
 \begin{array}{ll}
-R(\abst{g},()) & \text{resolver\ type\ notation} \\
-= F(X(t,c) \to W[()] \to W(t)) & \text{definition\ of\ resolver}\\
-= (t: \Color) \to (c: \Column) \to X(t,c) \to W[()] \to W(t) & \text{definition\ of\ } F \\
-= (t: \Color) \to (c: \Column) \to X(t,c) \to \Uni^0 \to W(t) & \text{mapping\ zero\ length\ vector} \\
-= (t: \Color) \to (c: \Column) \to X(t,c) \to W(t) & \text{zero\ length\ is\ unit\ thats\ omissible}
+R(\abst{g},()) & \text{from\ resolver\ type\ notation} \\
+= F(X(t,c) \to W[()] \to W(t)) & \text{by\ definition\ of\ resolver}\\
+= (t: \Color) \to (c: \Column) \to X(t,c) \to W[()] \to W(t) & \text{by\ definition\ of\ } F \\
+= (t: \Color) \to (c: \Column) \to X(t,c) \to \Uni^0 \to W(t) & \text{by\ mapping\ zero\ length\ vector} \\
+= (t: \Color) \to (c: \Column) \to X(t,c) \to W(t) & \text{by\ zero\ length\ is\ unit\ thats\ omissible}
 \end{array}
 \end{math}
 
@@ -380,7 +376,7 @@ We use $k(t)$ to denote that the vectors are of uniform length per color.
 
 - **Notation**: the hat denotes that it is a pre-constraint, not a constraint; an abstract constraint.
 
-\motivdef pre-Constraints act as a template for a sub-table for gates of the properad. This makes the constraints in the trace table derivable from the properads; a single source of truth.
+\motivdef pre-constraints act as a template for a sub-table for gates of the properad. This makes the constraints in the trace table derivable from the properads; a single source of truth.
 
 \begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
 Let the pre-constraints for $\build{a + b}{}{}$ and $\build{a \times b}{}{}$ where $\text{Add}^t, \text{Mul}^t: \Prpd$ be defined as follows:
@@ -575,7 +571,7 @@ F_{GC}^{\plonkm}(\cctrn(T,q,2)) &= w_1 + t -z &\stackrel{?}{=} 0 \\
 \end{array}
 $$
 
-Thus $F_{GC}^{\plonkm}$ implies the structural integrity of the gadgets when it evaluates to zero given the constraints.
+Thus $F_{GC}^{\plonkm}$ implies the structural integrity of the circuit when it evaluates to zero given the constraints.
 \end{tcolorbox}
 
 At this point, we want to emphasize the expressivity of index map as an abstraction. Pre-constraints, trace table and constraints are all defined as / from an index map. Index maps also interface nicely with equations. Subsequently, we will see that even the circuit $(R,X,W)$ are also index maps. All whilst accounting for incomplete protocol specific information via thunk arguments.
@@ -674,11 +670,31 @@ $$
 If our column is $Q_x$, we refer to the next row of the same column as $Q_x^+$.
 \end{tcolorbox}
 
-Pre-constraints are banned from defining any such $c^+$ pseudo columns. We can make this precise using dependent sum types[^dep-sum] and a subtype[^subtype] of non pseudo columns as a witness via the $\text{pseudo}(c)$ check, but we opt to leave this informal.
+\begin{definition}[Non pseudo columns]
+A subset of the columns that are not pseudo columns.
+\end{definition}
+\newcommand{\npcol}{\Column^{-}}
+$$
+\npcol: \pset{\Column} = \{ c \mid \lnot \text{pseudo}(c) \}
+$$
 
-[^dep-sum]: https://ncatlab.org/nlab/show/dependent+sum+type
-[^subtype]: https://ncatlab.org/nlab/show/subtype
+\motivdef we want to quantify over non-pseudo columns, to refine the type signature for pre-constraints.
 
+\begin{definition}[Non pseudo thunk]
+A refinement of the type family used by index maps to exclude pseudo columns in pre-constraints.
+\end{definition}
+$$
+\begin{array}{rl}
+F^-(T) &= (t: \Color) \to (c: \npcol) \to T \\
+\IndexMap^-(X,Y) &= F^-(X(t,c) \to Y(t,c)) \\
+\\
+\PreTable&: \Prpd \to \IndexMap^-(X, F^-(\Cell(\abst{g}, t,c)^{k(t)}))  
+\end{array}
+$$
+
+- **Notation**: The minus superscript denotes the exclusion of pseudo columns.
+
+\motivdef pre-constraints are banned from defining any such $c^+$ pseudo columns.
 
 Despite exclusion from pre-constraints, it is not excluded as an argument for index maps in general. We can thus construct a constraint from an index map that also includes the relative cells; values from next row. This will be made formal in the definition of relative constraints defined later.
 
@@ -704,7 +720,7 @@ Lets break down the definition:
 
 \motivdef knowing if a relative wire exists in a valid pre-constraint allows us to determine if the gate is a candidate for a relative gate's base gate. We need to know this to verify if the relative gate can be structurally sound in the circuit.
 
-In future work, it is possible to precompute and cache the set of properads that can make base gates for every relative gate. Thus, we simply have to check $\ty(g)$ and if the relative wires are in $\text{wires}(\abst{f}, g)$ not as relative wires in $g$ to determine if $g$ is a candidate base gate.
+In future work, it is possible to precompute and cache the set of properads that can make base gates for every relative gate. Thus, we simply have to check $\ty(g)$ and that $g$ has $\abst{w}$ as a non relative wire.
 
 \begin{definition}[Get base gate]
 Get the base gate given a relative gate
@@ -713,15 +729,15 @@ $$
 \begin{array}{rl}
 \base &: \AbsCirc \to \Ggt \to \Option(\Ggt) \\
 \base(\abst{f}, g) &= \maybe{g'}{\begin{array}{l}
-\exists \gpair{g'}{\abst{y}} \in \abst{f}. \forall i. \text{pos}(\abst{f}, g', \grcol(g) @ i, \rel(g) @ i)
+\exists \gpair{g'}{\_} \in \abst{f}. \forall i. \text{pos}(\abst{f}, g', \grcol(g) @ i, \rel(g) @ i)
 \end{array}}
 \end{array}
 $$
 
 Let's break down the definition:
 
-- We find any gate $g'$ in the abstract circuit $\abst{f}$; ignoring its output wire $\abst{y}$.
-- For each relative wire in $\grcol(g)$, run $\text{pos}$ to verify with their respective expected column in $\rel(g)$. 
+- We find any gate $g'$ in the abstract circuit $\abst{f}$; ignoring its output wire.
+- For each relative wire in $\grcol(g)$, run $\text{pos}$ on $g'$ to verify with their respective expected column in $\rel(g)$. 
 
 \motivdef it succinctly expresses the base gate of a relative gate if it exists.
 
@@ -840,37 +856,50 @@ Thus, the structural integrity of the gates hold if the equations evaluate to ze
 We now conclude this section on abstractions by defining $\Spec$, the penultimate single source of truth object.
 
 \begin{definition}[Spec]
-TODO
+Thus far we have implicitly assume colors, columns and properads are fixed global types. Here we make them explicitly the datum of the object being defined. Thus, whilst arithmetizing, the sets can be extended to include new colors, columns and properads. However removing or altering them is not allowed as it would invalidate the circuit already constructed thus far. We will leave the user interaction with the spec object informal.
 \end{definition}
+$$
+S: \Spec
+$$
 
+- \projs
+  - $\Color(S): \pset{\Color}$ - The colors used in the protocol.
+  - $\Column(S): \pset{\Column}$ - The columns used in the protocol.
+  - $\Prpd(S): \pset{\Prpd}$ - The properads used in the protocol.
+- **Notation**: We continue to leave $S: \Spec$ implicit as we have before.
+
+\motivdef with spec as a data structure, it is dynamic and can be extended whilst arithmetizing, without having to alter static code of the arithmetization pipeline.
+
+\begin{definition}[\Plonk  Gate Constraint Polynomial]
+The gate constraint polynomial used by the protocol is a sum of the unique term equations of the properads in the protocol.
+\end{definition}
+$$
+F_{GC}^S: \Eqn = \sum \bigcup_{\abst{g} \in \Prpd(S)} \term(\abst{g})
+$$
+
+We end this section summarizing some key abstractions and categorize them by the abstraction levels, and use cases.
+
+abstraction level | atomics | local | global | use
+-|-|-|-|-
+0 | $w: W(t)$ | $\cctrn$ | $T: \TraceTable$ | protocol
+1 | $\abst{w}: \Wire$ | $g: \Ggt$ | $\abst{f}: \AbsCirc$ | circuit building
+2 | $\boxed{w} : \Cell$ | $\abst{g}: \Ops$ | $S: \Spec$ | config
+
+We can interpret the abstraction levels as:
+
+- 0: We are dealing with concrete values, that are ready to be processed by the interpolate algorithm.
+- 1: We are dealing with wires and gates, that are ready to be composed into a circuit.
+- 2: We are dealing with the configuration of the protocol and templates of sub-tables via $\ctrn$ used to construct the trace table.
+
+We can interpret their categorizations as:
+
+- **atomics**: The smallest unit of data in that abstraction layer.
+- **local**: The atomics grouped by their semantics as an encapsulated local unit.
+  - 0: A constraint is a row in the trace table composed of values.
+  - 1: Gates group wires by inputs.
+  - 2: Properads are templates for gates. It projects pre-constraints that are composed of cells.
+- **global**: The largest unit of data in that abstraction layer.
+- **use**: The intended use case of the abstraction layer.
 
 \newcommand{\WireType}{\text{WireType}}
 
-A *specification*[^spec-benefit] defines the config of the protocol. This includes marking columns as private or enabling it for copy constraints. Here is also where default values for columns are defined, used when constructing the trace table. In the previous section on arithmetize, we omitted $s:\Spec$ in $\AState$ leaving $W, \WireType, \Ops$ implicit for $W_s, \WireType_s, \Ops_s$. We will keep the spec instance $s$ implicit beyond this section as well. We conclude with tabulating all objects according to their abstraction levels.
-
-[^spec-benefit]: With spec as a data structure, it is dynamic and can be extended whilst arithmetizing.
-
-$$
-\begin{array}{cccccc}
-s : \Spec &
-X_s: F(\Uni) &
-D_s: \text{Default} &
-\WireType_s: \Uni &
-W_s: \WireType_s \to \Uni &
-\Ops_s : \pset{\Ops}
-\end{array}
-$$
-$$
-\begin{array}{cccc}
-\Column_s: \pset{\Column} = \bigcup\limits_{g \in \Ops_s} \Column_g &
-F_{GC}: \Eqn = \sum \bigcup\limits_{g \in \Ops_s} \term_g &
-\text{priv}_s: \pset{\Column_s} &
-\text{CC}_s: \pset{\Column_s}
-\end{array}
-$$
-
-abstraction level | atomics | semantic groups | structure | use
--|-|-|-|-
-0 | $w: W(t)$ | $@_i \circ T^t: \text{Gate}$ | $T: \TraceTable$ | protocol
-1 | $\abst{w}: \Wire$ | $g: \Ggt$ | $\abst{f}: \AbsCirc$ | circuit building
-2 | $\boxdot : \Cell$ | $\ty(g): \Ops$ | $s: \Spec$ | config
