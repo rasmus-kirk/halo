@@ -901,5 +901,4 @@ We can interpret their categorizations as:
 - **global**: The largest unit of data in that abstraction layer.
 - **use**: The intended use case of the abstraction layer.
 
-\newcommand{\WireType}{\text{WireType}}
 
