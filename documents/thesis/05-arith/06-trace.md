@@ -481,37 +481,37 @@ Public columns are columns that are not private.
 \end{definition}
 $$
 \begin{array}{rl}
-\Column^{pub}&: \pset{\Column} = \set{c \in \Column | \neg \pcol(c)} \\
-F^{pub}(T) &: (t: \Color) \to (c: \Column^{pub}) \to T \\
+\Column_{pub}&: \pset{\Column} = \set{c \in \Column | \neg \pcol(c)} \\
+F_{pub}(T) &: (t: \Color) \to (c: \Column_{pub}) \to T \\
 \end{array}
 $$
 
 \motivdef the type safety in the case of the public variant can be guaranteed.
 
 \begin{definition}[Resolve cell]
-This function takes a cell and state, uses the value map to resolve the cell to its value. It assumes that if the variant is public, it is not resolving a private column's cell.
+This function takes a cell and state, uses the value map to resolve the cell to its value. It assumes that if the variant is public, it is not resolving a private column's cell, and that the value map contains all the necessary concrete wire values.
 \end{definition}
 \newcommand{\resolvecell}{\text{resolveCell}}
+\newcommand{\Cellresolver}{\text{CellResolver}}
 $$
 \begin{array}{rl}
-\resolvecell&: S \to (g: \Ggt) \to F(\Cell(\ty(g), t,c) \to X(t,c) \to W(t)) \\
-\resolvecell(s, g, t, c, \aavec{w}, r, x) &= r(x) \circ v(s)[\text{wires}(\abst{f}(s), g) @ -][\aavec{w}]\\
-\\
-\resolvecell_{pub}&: S \to (g: \Ggt) \to F^{pub}(\Cell(\ty(g), t,c) \to X(t,c) \to W(t)) \\
-\resolvecell_{pub} = \resolvecell
+\resolvecell&: S \to (g: \Ggt) \to F(X(t,c) \to \Cell(\ty(g), t,c) \to W(t)) \\
+\resolvecell(s, g, t, c, x, \aavec{w}, r) &= r(x, v(s) \circ (\text{wires}(\abst{f}(s), g) @ -)[\aavec{w}])
 \end{array}
 $$
 
 Let's break down the definition:
 
-- The arguments $t,c$ come from $F(\ldots)$; the index map indices.
+- The arguments $t,c$ come from $F(\ldots)$; the index map indices and $x$ is the thunk argument.
 - $\aavec{w}, r$ is the cell itself, recall its type $\Cell(\abst{g},t,c) = (\aavec{w}: \CWire(c, \abst{g})^k) \times R(\abst{g}, \aavec{w},t,c)$
-- $x$ is the thunk argument, recall the resolver type is $R(\abst{g}, \aavec{w},t,c) = X(t,c) \to W [\vec{t}(\abst{g}, \aavec{w})] \to W(t)$
-- Thus we partial apply $x$ i.e. $r(x)$, now we are left ith the values for the cell wires.
-- We use $\text{wires}(\abst{f}(s), g)$ to get the wires of the gate $g$ represented by the cell wires $\aavec{w}$ via the vector index function $- @ -$; transitioning from $\bar{w}$ to $\abst{w}$.
-- With the wires at hand, we can finally query the value map $v(s)$ to get the concrete values of the wire; transitioning from $\abst{w}$ to $w$.
+- Recall the resolver type is $R(\abst{g}, \aavec{w},t,c) = X(t,c) \to W [\vec{t}(\abst{g}, \aavec{w})] \to W(t)$
+- We use $\text{wires}(\abst{f}(s), g)$ to get the wires of the gate $g$ represented by the cell wires $\aavec{w}$ via vector indexing; $- @ -$.
+  - We have transitioned from $\bar{w}$ to $\abst{w}$.
+- With the wires at hand, we can finally query the value map $v(s)$ to get the concrete values of the wire.
+  - We have transitioned from $\abst{w}$ to $w$.
+- We supply the thunk and the concrete values to the resolver.
 
-\motivdef this function is used to concretize pre-constraints into sub-tables ready to be composed into the trace table.
+\motivdef this function is used to concretize pre-constraints into sub-tables ready to be composed into the trace table. Note that when we partially apply $s,g$, we get a function type that can map over pre-constraints that yields a sub-table.
 
 \begin{definition}[Enqueue gates to state]
 This function manages the logic to determine the gates to be pushed to the stack of gates in the state.
@@ -547,11 +547,11 @@ At the end of a phase when the wire stack is empty, we move on to the next phase
 \end{definition}
 $$
 \begin{array}{rl}
-\vec{G}_1(\abst{f}) &= \maybe{\vec{g}}{\gpair{g_i}{\bot} \in \abst{f} \land \neg \isbase(g_i) \land \min \circ \id[\gin(g_{i>1})] > \max \circ \id[\gin(g_{i-1})] } \\
+\vec{G}_1(\abst{f}): \Ggt^k &= \maybe{\vec{g}}{\gpair{g_i}{\bot} \in \abst{f} \land \neg \isbase(g_i) \land \min \circ \id[\gin(g_{i>1})] > \max \circ \id[\gin(g_{i-1})] } \\
 \\
-\vec{G}_2(\abst{f}) &= \maybe{\vec{g}}{\gpair{g_i}{\_} \in \abst{f} \land \exists i. \ty(g_i) = \Pubinp_i \land \id(g_{i>1}) > \id(g_{i-1}) } \\
+\vec{G}_2(\abst{f}): \Ggt^k &= \maybe{\vec{g}}{\gpair{g_i}{\_} \in \abst{f} \land \exists i. \ty(g_i) = \Pubinp_i \land \id(g_{i>1}) > \id(g_{i-1}) } \\
 \\
-\vec{G}_3(\abst{f}) &= \cdots
+\vec{G}_3(\abst{f}): \Ggt^k &= \cdots
 \end{array}
 $$
 
@@ -562,102 +562,132 @@ Let's break down the definition:
 - In both cases, we sort them according to their wire ids.
 - The third batch is left undefined. Informally it is the gates for the lookup argument tables.
 
+\newcommand{\gatemono}{\text{gate}}
+\begin{definition}[Gate Helper 1]
+This helper function simply enqueues the gates for the wire in the stack from the resolve monotone function.
+\end{definition}
+$$
+\begin{array}{rl}
+\gatemono_1 &: S \to S \\
+\gatemono_1(s) &= \begin{cases}
+\enqueg(s,\abst{y})& \rstack(s) = \abst{y} \cat \_ \\
+& \phi' = \phi(s) + 1 \\
+\update_\phi(\phi') \circ \enqueg(s, \vec{G}_{\phi'}) & \phi' \leq 3 \\
+s & \otherwise
+\end{cases}
+\end{array}
+$$
+
+Let's break down the definition:
+
+- The first case peeks the wire stack, and enqueues the gates.
+- Before the second case is syntactic sugar to compute the next phase.
+- If the next phase is valid, we enqueue the next batch of gates and update to the next phase
+- Otherwise we return and do nothing. We have completed the last phase.
+
+\begin{definition}[Table resolver]
+The table resolver function takes a gate and state, and produces the sub-table for that gate's pre-constraints.
+\end{definition}
+\newcommand{\tableresolver}{\text{tableResolver}}
+\newcommand{\Tableresolver}{\text{TableResolver}}
+$$
+\begin{array}{rl}
+\Tableresolver &: S \to \Ggt \to \TraceTable \\
+\tableresolver(s,g) &= \resolvecell(s, g)[\ctrn \circ \ty (g)] \\
+\tableresolver_{pub}(s,g) &= \resolvecell(s, g)[\ctrn_{pub} \circ \ty (g)] 
+\end{array}
+$$
+
+- **Notation**:
+  - We leave it informal that $\ctrn_{pub}$ is the pre-constraints with the private columns omitted.
+
+\begin{definition}[Gate Helper 2]
+This helper function processes the gates in the gate queue computing the trace table.
+\end{definition}
+$$
+\begin{array}{rl}
+\gatemono_2 &: \Tableresolver \to S \to S \\
+\gatemono_2(\text{resolver}, s) &= \begin{cases}
+  & \gqueue(s) = g \cat \_ \\
+  & T' = \text{resolver}(s,g) \\
+\update'_T(- \cat T')  & \phi(s) \leq 1 \\
+\update'_T(T' \cat -) & \phi(s) = 2 \\
+\update'_T(\cdots) & \phi(s) = 3 \\
+s & \otherwise
+\end{cases} \\
+\end{array}
+$$
+
+Let's break down the definition:
+
+- The first syntactic sugar peeks the end of the gate queue.
+- The second syntactic sugar resolves the sub-table for the current gate.
+- The first case is for phase 0 and 1, where we append the sub-table to the end of the trace table.
+- The second case is for phase 2, where we prepend the sub-table to the start of the trace table.
+- The third case is left undefined. Informally it inserts new columns for the lookup argument tables.
+- The last case is when the gate queue is empty or we are done with all the phases, we simply return the state.
+
 \begin{definition}[Gate monotone function]
 We can now define the gate monotone function.
 \end{definition}
-\newcommand{\gatemono}{\text{gate}}
 $$
 \begin{array}{rl}
 \gatemono &: (S \to S) \to S \to S \\
-\gatemono(\continue, s) &= \begin{cases}
-a
-\end{cases}
+\gatemono(\continue, s) &= \update'_{\gqueue}(\pop) \circ \continue \circ \gatemono_2(\tableresolver) \circ \gatemono_1(s) \\
+\gatemono_{pub}(\continue, s) &= \update'_{\gqueue}(\pop) \circ \continue \circ \gatemono_2(\tableresolver_{pub}) \circ \gatemono_1(s) \\
 \end{array}
 $$
 
-TODO 
+Let's break down the definition:
 
-- actual gate monotone function
-- initial state
-- sat
-- DONE
+- We enqueue the gates from the wire stack with $\gatemono_1$.
+- We then process the gate queue with $\gatemono_2$.
+- We call the continuation.
+- We dequeue the gate queue.
 
-\newcommand{\WireType}{\text{WireType}}
-
+\begin{definition}[Gate contributes to initial state]
+Gate contributes to the least element of $S$ with the following function. We leave it informal that the public variant omits the private columns of the trace table.
+\end{definition}
 $$
 \begin{array}{rl}
-\begin{array}{rl}
-A \cat B &= A \sqcup_{\lambda \_,\vec{a}, \vec{b}. \vec{a} \cat \vec{b}} B \\
-\TraceTable &= \IndexMap(X, \lambda t,\_. W(t)^k) \\
-\text{GState}^{k,k'} &= \TraceTable \times \pset{\Ggt} \times \Ggt^{k'} \\
-&\times \Nb \times \RState^k \\
-\vec{G}^{\abst{f}} &: \Ggt^j \times \Ggt^k \times \Ggt^l \\
-\vec{G}^{\abst{f}} &= \left(\begin{array}{l}
-  \left[g \middle\vert \gpair{g}{\abst{y}} \in \abst{f} \land
-  \begin{array}{l}
-    \exists i,t. \ty(g) = \Input^t_i \\
-    \lor \abst{y} = \bot \land \ty(g) \notin \cdots
-  \end{array}\right]\\
-  \left[g \middle\vert \gpair{g}{\_} \in \abst{f} \land \exists i,t. \ty(g) = \text{PI}^t_i\right] \\
-  \left[g \middle\vert \gpair{g}{\_} \in \abst{f} \land \exists j,t. \ty(g) = \text{Tbl}^t_j\right]
-\end{array}\right) \\
+s_\bot^{\gatemono} &: S \to S \\
+s_\bot^{\gatemono}(s)
+&= \update_{T}(T_\bot) \circ \update_{\phi}(0) \circ \update_{\gqueue}((), s) \\
 \\
-\Downarrow &: \AbsCirc \to \VMap \to F(\Cell(t,s)^k \to W(t)^k) \\
-\Downarrow^{\abst{f}}_v(\_,\vec{r}) &= (\lambda (x, \avec{w}, f).f(x,v[\text{wires}^{\abst{f}}_g(\avec{w})]))[\vec{r}] \\
-\\
-\Downarrow &: \AbsCirc \to \Ggt \to \Ggt^k \\
-\Downarrow^{\abst{f}}(g) &= \begin{cases}
-\Downarrow^{\abst{f}}(g') \cat g & g' = \base^{\abst{f}}_g \neq \bot \\
-(g)
-\end{cases}
-\end{array} &
-\begin{array}{rl}
-- \stackrel{\to}{\circ} \Downarrow^{-}_G &: (T \times \text{GState} \to T \times \text{GState}) \to \AbsCirc \\
-&\to T \times \text{GState} \to T \times \text{GState} \\
-f \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} &= \underset{G}{\curvearrowright} \circ f \circ^\uparrow \lambda (C, \Omega, \vec{g}, \phi, v). \\
-&\begin{cases}
-& \vec{g} = \_ \cat g \land \Omega' = \Omega \cup \set{g} \\
-& \phi \leq 1 \Rightarrow C' = C \cat \Downarrow^{\abst{f}}_v[\ctrn_g] \\
-& \phi = 2 \Rightarrow C' = \Downarrow^{\abst{f}}_v[\ctrn_g] \cat C \\
-(C',\Omega', \vec{g},\phi,v) & \phi = 3 \Rightarrow C' = C \cat \Downarrow^{\abst{f}}_v[\ctrn'_g] \\
-(C, \Omega, (), \phi, v)
-& \otherwise
-\end{cases} \\
-&\circ^\uparrow \lambda(\vec{g}, \phi, v, \avec{y}). \\
-&\begin{cases}
-& \phi = 0 \land \avec{y} = \abst{y} \cat \_ \\
-(\Downarrow^{\abst{f}}(g) \cat \vec{g}, 0, v, \avec{y})
-& \gpair{g}{\abst{y}} \in \abst{f} \land g \notin \Omega \\
-(\vec{G}^{\abst{f}}_{\phi +1}, \phi + 1, v, ())
-& \phi < 3 \land |\avec{y}| = |\vec{g}| = 0 \\
-((), 4, v, ()) & \phi = 3 \land |\avec{y}| = |\vec{g}| = 0 \\
-(\vec{g}, \phi, v, \avec{y})
-& \otherwise
-\end{cases}
-\end{array}
+T_{\bot} &: \TraceTable \\
+T_{\bot}(t,c,x) &= ()
 \end{array}
 $$
+
+Let's break down the definition:
+
+- We initialize the trace table to be empty. Notice for each color $t$, column $c$, regardless of the thunk $x$, the value is an empty vector.
+- We initialize the phase to be 0.
+- We initialize the gate queue to be an empty vector.
+
+\begin{definition}[Gate Saturation]
+The saturation function for gate checks if the queue is empty and it is at the last phase.
+\end{definition}
 $$
-\begin{array}{ccc}
 \begin{array}{rl}
-\underset{G}{\curvearrowright} &= \lift(\curvearrowright : \Ggt^k \to \Ggt^{k'})\\
-\curvearrowright (\vec{x}) &= \begin{cases}
-() & \vec{x} = () \\
-\vec{x}' & \vec{x} = \vec{x}' \cat \_ \\
-\end{cases}
-\end{array} &
-\begin{array}{rl}
-\dagger_G &: \text{GState} \to \Bb \\
-\dagger_G &= \lambda(\_, \vec{g}, b, \_). |\vec{g}| = 0 \land b = 4
-\end{array} &
-\begin{array}{rl}
-\iota_G &: \text{RState} \to \text{GState} \\
-\iota_G(s) &= (\lambda \_.\bot[s \mapsto ()], \emptyset, (), 0, s)
-\end{array}
+\text{sat}^{\gatemono} &: S \to \Bb \\
+\text{sat}^{\gatemono}(s) &= |\gqueue(s)| = 0 \land \phi(s) = 3
 \end{array}
 $$
+
+Informally we can reason why gate is monotone: From the monotonicity of resolve, we know that the wire stack will eventually be empty. We are simply peeking that stack, and projecting a finite vector of gates to be enqueued. Most of the time it would be a single gate, unless it is relative, then it would be a small finite dependent chain of gates. It is impossible to construct an infinite chain as the abstract circuit is finite. After the stack is emptied, we enqueue 3 more finite batches of gates. The processing of the gates is not recursive. And we dequeue the gate after processing. Thus the gate queue will eventually be empty. And we will eventually reach phase 3.
+
 
 ### Copy Constraints
+
+The copy constraints monotone function; called copy, does not depend on wire values. It simply looks at the pre-constraints in the columns that are copy constraint relevant, and check for wire cells. Using the abstract circuit, it is able to find the wire the wire cell refers to. It then notes the position of the cell as a coordinate of column and row number. The row number is accumulated as the trace table computed by gate is built. This position is then appended to a vector of coordinates for that wire. This vector is called the loop.
+
+After the trace table has been fully constructed, it iterates through every wire's loop. It then creates an automorphism of coordinates. Each position in a loop, will map to the next position in the loop. If it is the last position, it maps to the first position. This includes a singleton vector, in which the position maps to itself. After iterating through all the loops, if any position is left unmapped, it will map to itself.
+
+This computes the permutation $\sigma$.
+
+<!-- 
+\newcommand{\WireType}{\text{WireType}}
 
 $\Downarrow_C$ From $\ctrn_g$, we populate the *loop*; a vector modelling an equivalence class of *coordinates*; copy constraint column and row number, modulo wire, for every $g$ in the queue. After computing the loop of the full circuit, we compute the position permutation $\sigma$.
 
@@ -726,56 +756,32 @@ L & \otherwise
 \end{array}
 \end{array}
 \end{array}
-$$
+$$ -->
 
 ### Full Plonk Trace
 
+\begin{definition}[Trace]
 We conclude the full trace definition as follows:
-
+\end{definition}
+\newcommand{\trace}{\text{trace}}
 $$
-\begin{array}{ccc}
-\begin{array}{l}
-\text{TraceResult} \\
-= \text{CMap} \times \TraceTable
-\end{array}&
 \begin{array}{rl}
-\text{res} &: \text{CState} \to \text{TraceResult} \\
-\text{res} &= \lambda (\sigma, C, \_). (\sigma, C) \\
-\end{array}
-&
-\begin{array}{rl}
-\text{eq} &: \text{CState} \times \text{CState} \to \Bb \\
-\text{eq}(\_, x) &= \bigwedge\limits_{\dagger \in \set{\dagger_C, \dagger_G, \dagger_R}} \maybe{\dagger(s)}{x=(\_,s)} \\
-\end{array}
-\end{array}
-$$
-$$
-\begin{array}{ccc}
-\begin{array}{rl}
-\Downarrow &: \AbsCirc \to \text{CState} \to \text{CState} \\
-\Downarrow^{\abst{f}} &= \Downarrow^{\abst{f}}_C \stackrel{\to}{\circ} \Downarrow_G^{\abst{f}} \stackrel{\to}{\circ} \Downarrow_R^{\abst{f}} \\
-\end{array}
-&
-\begin{array}{rl}
-\iota &: \text{RState} \to \text{CState} \\
-\iota &= \iota_C \circ \iota_G \\
-\end{array}
-&
-\begin{array}{rl}
-\text{trace} &: W[\tin{}] \to \AbsCirc \to \Wire^m \to \text{TraceResult} \\
-\text{trace} &= \lambda(\vec{x}, \abst{f}, \avec{Y}). \text{res} \circ \text{sup}(\Downarrow^{\abst{f}},\text{eq},\iota(s_0),\iota(s^{\avec{Y}}_{\vec{x}}))
-\end{array}
+f &: S \to S \\
+f &= \resolve(\gatemono(\text{copy})) \\
+f_{pub} &= \resolve(\gatemono_{pub}(\text{copy})) \\
+\\
+s_\bot &: S \\
+s_\bot &= s_\bot^{\text{copy}} \circ s_\bot^{\gatemono} (s_\bot^{\resolve}) \\
+\\
+\text{eq} &: S \to S \to \Bb \\
+\text{eq}(\_, s) &= \text{sat}^{\resolve}(s) \land \text{sat}^{\gatemono}(s) \land \text{sat}^{\text{copy}}(s) \\
+\\
+\text{result} &: S \to \TraceTable \times \text{Permutation} \\
+\text{result}(s) &= (T(s), \sigma(s)) \\
+\\
+\trace(\vec{w}, \abst{f}, \avec{Y}) &= \text{result} \circ \lfp(f,  \text{eq}, s_\bot) \\
+\trace_{pub}(\vec{w}, \abst{f}, \avec{Y}) &= \text{result} \circ \lfp(f_{pub},  \text{eq}, s_\bot)
 \end{array}
 $$
 
-### Public variant
-
-The public variant for arithmetization only differs in trace. In $\Downarrow_R$, the $\avec{x}: W[\tin{}]$ for input gates is instead for public input gates. The vmap values are bools, that marks the wires having been resolved. This will lead to the same wire stack as the original $\Downarrow_R$, consequently trace table layout. $\Downarrow_G$ then will omit columns $c \in \text{priv}$ in $\ctrn_g$. Thus the cells that remain do not need the values to reduce, i.e. all the cells are constants. $\Downarrow_C$ remains the same. Resulting in a trace that differs by its trace table not having private columns.
-
-$$
-\begin{array}{rl}
-(R,x,w) 
-&= \Arithmetize_{\text{public}}(f,\vec{x}') \\ 
-&= \mathrm{interpolate} \circ \mathrm{trace}_{\text{public}}(\vec{x}') \circ \mathrm{build}(f)
-\end{array}
-$$
+Note that the public variant for arithmetization only differs in trace. Resolve is able to dynamically adjust for both variants. Gate has two specialized variants for each case. Copy is the same for both variants as it doesnt depend on wire values.

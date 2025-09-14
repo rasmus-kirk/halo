@@ -1,10 +1,10 @@
 ## Interpolate
 
-At a high level, the interpolation algorithm performs copy constraint and $\plookup$ prep for each wire type.
+At a high level, the interpolation algorithm performs copy constraint and $\plookup$ prep for each color.
 
 For copy constraints, it will compute the root of unity $\omega$ with the minimum order for the number of rows. Then it computes the cosets $\vec{H}$, where there is a coset per copy constraint column. The public columns $\sigma_i$ for copy constraint columns are created with $\sigma$ computing their evaluations.
 
-The trace table then is split into $x, R, w$ where public input column goes into $x$, the rest of the public columns in $R$, and the private columns in $w$. Every column then is mapped with fast fourier interpolate to compute them into polynomials.
+The trace table then is split into $X, R, W$ where public input columns goes into $X$, the rest of the public columns in $R$, and the private columns in $W$. Every column then is mapped with fast fourier interpolate to compute them into polynomials. The public variant does not have $W$.
 
 $$
 \begin{array}{ccc}
