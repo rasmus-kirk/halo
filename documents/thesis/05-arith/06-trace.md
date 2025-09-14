@@ -80,16 +80,7 @@ $$
 Here $g$ is a continuation of $f$.
 \end{tcolorbox}
 
-<!-- $$
-\begin{array}{rl}
-\lift &: (T \to T') \\
-&\to V \times T \times U \to V \times T' \times U\\
-\lift(f) &= \lambda (v,t,u). (v, f(t),u) \\
-g \circ^{\uparrow} f &= \lift(g) \circ \lift(f) 
-\end{array}
-$$ -->
-
-Note that the monotone functions defined in this section are not hardcoded into the arithmetizer. It is simply a candidate for the \Plonk protocal feasible for IVC. Thus it is possible to define different monotone functions for different \Plonk-ish protocols, or even different protocols entirely that uses an abstract circuit structure as an intermediate data structure.
+Note that the monotone functions defined in this section are not hardcoded into the arithmetizer. It is simply a candidate for the \Plonk protocol feasible for IVC. Thus it is possible to define different monotone functions for different Plonk-ish protocols, or even different protocols entirely that uses an abstract circuit structure as an intermediate data structure.
 
 We now define some definitions and notations that will be useful in defining the monotone functions used in trace for \Plonk.
 
@@ -231,6 +222,65 @@ $$
 $$
 \end{tcolorbox}
 
+
+\begin{definition}[Public input Properad]
+Informally, you can think of the input wire as the computed value from the witness. In the private variant, the output wire represents the same value as the input wire. However in the public variant, since the input wire value is unknown; mapped to unit, the output wire is from the public input $\vec{x}$. This is part of the $(\vec{x}, \vec{w}) \in R_f$ check.
+\end{definition}
+
+\newcommand{\Pubinp}{\text{PI}}
+\begin{center}
+\begin{tabular}{ c c c }
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\node[minimum width=2cm, minimum height=1.5cm] (tab) {
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+\multicolumn{6}{|c|}{$\Pubinp_i$} \\
+\hline
+$n$ & $m$ & $\pin$ & $\pout$ & $\eval()$ & $\term$ \\
+\hline
+$1$ & $1$ & ${t_{pub}}_i$ & ${t_{pub}}_i$ & $x_i$ OR $w$ & $F^{\plonkm}_{GC}$ \\
+\hline
+\end{tabular}
+};
+\end{tikzpicture}
+&
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\gate{inp}{(0,0)}{$\ \ \abst{w}\ \ $}{$\Pubinp_i$}{1}
+\draw[-, thick] ($(inp-in-1)+(0,0.4)$) -- (inp-in-1);
+\draw[->,thick] (inp-out-1) -- ($(inp-out-1)+(0,-0.4)$);
+\node[anchor=north east] at (inp-out-1) {$\abst{x_{i}}$};
+\end{tikzpicture}
+&
+\begin{tabular}{|c|c|c|c|}
+\hline
+\multicolumn{4}{|c|}{$\ctrn(\Pubinp_i)$} \\
+\hline
+\multicolumn{3}{|c|}{${t_{wit}}_i$} & $\cdots$ \\
+\hline
+$A$ & $Q_l$ & $PI$ & $\cdots$ \\
+\hline
+$w$ & $1$ & $-x_i$ OR $-w$ \\
+\cline{1-3}
+\end{tabular}
+\end{tabular}
+\end{center}
+
+\begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
+If $X$ were a public input constraint from a public variant trace table, we can visualize that the value $w$ from the witness computed value will be constrained as follows:
+$$
+\begin{array}{rl}
+F_{GC}^{\plonkm}: \Eqn &= A \times Q_l + B \times Q_r + C \times Q_o + A \times B \times Q_m + Q_c + PI \\
+F_{GC}^{\plonkm}(X) &= w - x_i \stackrel{?}{=} 0
+\end{array}
+$$
+\end{tcolorbox}
+
+This is the motivation for the public input properad.
+
 \begin{definition}[Update value map]
 The update function is an operation on state; given a wire, it finds the gate it is an output wire of. It then gets all the output wires of that gate and evaluates its wire value using the gate's canonical program. It then updates the value map with the newly computed wire values. It also handles the public variant by mapping unit to the output wires instead of computing their values.
 \end{definition}
@@ -244,18 +294,27 @@ $$
   \vec{y} &= (\text{compute} \circ \ty(g))(v[\gin(g)]) \\
 \end{array}} \\
 \text{compute}(\abst{g}, \vec{x}) &= \begin{cases}
-() & () \in \vec{x} \\
-\eval(\abst{g}, \vec{x}) & \otherwise
+() & \exists i. \abst{g} = \Input_i \land \eval(\abst{g}) = \bot \\
+\eval(\abst{g}, \vec{x}) & () \notin \vec{x} \\
+\eval(\abst{g}, \vec{x}) & \exists i. \abst{g} = \Pubinp_i \\
+() & \otherwise
 \end{cases}
 \end{array}
 $$
 
 - **Notation**:
   - $(-[\avec{y} \mapsto \vec{y}])$ uses the placeholder notation to describe a function that takes a vmap and does k-update.
-  - Recall $\update'_v$ is the operator that takes a function to update the projection of the state's value map.
   - By vectors coercable to products and unit for products, we have that $((),(), \ldots, ()) = ()$, thus $()$ is sufficient to map all $\avec{y}$ with units.
 
-\begin{definition}[Resolve]
+Let's break down the definition:
+
+- Recall $\update'_v$ is the operator that takes a function to update the projection of the state's value map.
+- The first case of compute, is a guard for the public variant. It will map input wires to unit.
+- The second case is for the private variant where the concrete values are known, thus can be computed.
+- The third case is for the public variant where it retrieves the public input values supplied to it.
+- The fourth case is for the public variant when it does not have the witness computed values and thus simply maps wires to units.
+
+\begin{definition}[Resolve monotone function]
 We can now define the resolve monotone function.
 \end{definition}
 \newcommand{\continue}{\text{continue}}
@@ -282,26 +341,32 @@ Let's break down the cases and notation:
 - Before the third case, we have syntactic sugar for querying the gate that outputs the wire i.e. $\gpair{g}{\abst{y}} \in \abst{f}(s)$.
 - The third case checks if the gate has any unresolved input wires, if so it pushes them to the stack.
 - The last case implies there are no unresolved input wires, yet the output wire is still unresolved. Thus we compute it via $\updatev$, call the continuation, then pop the stack.
-- Notice that the continuation only gets called when the top of the stack is a newly resolved wire, or if the stack is empty.
+- Notice that the continuation only gets called when the top of the stack is a newly resolved wire, or if the stack is empty. This is essential for the continuation that we will define later.
 
 \begin{definition}[Resolve contributes to initial state]
-Resolves contributes to the least element of $S$ with the following function.
+Resolve contributes to the least element of $S$ with the following function.
 \end{definition}
 $$
 \begin{array}{rl}
-s_\bot^{\resolve} &: \Wire^k \times (\avec{x}: \Wire^{k'}) \to W[\ty[\avec{x}]] \to S \\
-s_\bot^{\resolve}(\avec{Y}, \avec{x}, \vec{x})
-&= \update'_v(-[\avec{x} \mapsto \vec{x}]) 
-\circ \update'_{\rstack}(\avec{Y} \cat -)(s_\bot)
+s_\bot^{\resolve} &: \AbsCirc \to \Wire^{k'} \to S \\
+s_\bot^{\resolve}(\abst{f}, \avec{Y})
+&= \update_{\abst{f}}(\abst{f}) \circ \update'_{\rstack}(\avec{Y} \cat -)
+(s_\bot)
 \end{array}
 $$
 $$
-\begin{array}{rl}
-v(s_\bot) = \bot & \rstack(s_\bot) = ()
+\begin{array}{ccc}
+v(s_\bot) = \bot &
+\rstack(s_\bot) = () &
+\abst{f}(s_\bot) = \emptyset
 \end{array}
 $$
 
-It populates the value map with the input of the protocol. For the public variant, its the public inputs $\vec{x}$. Just as there is an input properad for witnesses, there is a public input properad to model public input wires too. For the private variant, its the witnesses $\vec{w}$. It also populates the wire stack with the global output wires $\avec{Y}$ declared by build. Thus, only the wires in the subgraph that can reach those wires will be resolved. There will potentially also be more wires that are resolved, but those will be defined in the next monotone function for gate constraints.
+- **Notation**:
+  - $\update'_{\rstack}(\avec{Y} \cat -)$ pushes the global output wires $\avec{Y}$ to the wire stack.
+  - $\update_{\abst{f}}(\abst{f})$ stores the abstract circuit from build.
+
+Note that the input and public input properads canonical program still needs to be supplied with the vector argument of the trace algorithm. This is passed to the $\Spec$ which is left informal.
 
 \begin{definition}[Resolve Saturation]
 The saturation function for resolve checks if the stack is empty.
@@ -313,30 +378,52 @@ $$
 \end{array}
 $$
 
-Informally we can reason why resolve is monotone: The abstract circuit is finite. Thus the largest the stack can grow, is all the wires in the circuit. Additionally, the wires have been guaranteed to structurally type checkby the definition of gate literals i.e. $\abst{g}(\avec{x})$, and resolvable by the definition of the canonical programs of the properads for every gate. Thus the stack will be eventually empty.
+Informally we can reason why resolve is monotone: The abstract circuit is finite. Thus the largest the stack can grow, is all the wires in the circuit. Additionally, the wires have been guaranteed to structurally type check by the definition of gate literals i.e. $\abst{g}(\avec{x})$, and resolvable by the definition of the canonical programs of the properads for every gate. Thus the stack will be eventually empty.
 
 This works for the public version as well because of how $\updatev$ simply maps units if the wire values are not known. Behaviourally, the stack will update the exact same way in both public and private variants. This is integral to exhibit the structural integrity property of the circuit $(R,X,W)$ and $(R,X,\bot)$ as mentioned in the introduction of this section.
 
-TODO example resolve?
+<!-- TODO example resolve? -->
 
 ### Gate Constraints
 
-TODO remember to push assert gates input wires
+Gate is the next monotone function that is a continuation of resolve. Its role is to peek the stack for newly resolved wires, and then instantiate the pre-constraints into a sub-table to compose the trace table.
 
-\newcommand{\WireType}{\text{WireType}}
+\begin{definition}[Marked base gate]
+A marked base gate is a base gate that has been marked as a dependency by a relative gate in the abstract circuit.
+\end{definition}
+\newcommand{\isbase}{\text{isBase}}
+$$
+\isbase: \Ggt \to \Bb
+$$
 
-$\Downarrow_G$ computes the trace table $C$ by enqueing $\vec{g}$ the gadget (and its base recursively if any) with an output of the top of the $\vec{y}$ stack. The same gadget will not appear twice since $\Downarrow_R$ does not call the continuation on resolved wires and base duplicates are avoided by tracking added gadgets in $\Omega$. The pre-constraints of the gadgets are then resolved with vmap. Thus, tabulating the trace table.[^no-pad]
+It is guaranteed that the base gate of the relative gate is resolved, since the relative wires / inputs to the relative gates are resolved when the output wire is. The relative gate is always declared after its base, because it depends on the wires of the base as input. Thus resolve will always resolve the base gate first. However, we want the base gate constraints to compose after the relative; not before.
 
-[^no-pad]: Note for $\phi=3$ that $\ctrn'_g$ without padding is used, this is how it can be appended as a column.
+This can be resolved by modifying the build's put algorithm. When adding a relative gate to the abstract circuit. It needs to remove entries of its base gate, mark the base gate as a dependency, and re-add it to the abstract circuit. We leave this modification informal, and assume $\isbase$ will determine if the gate is marked. This is then used in the monotone function, to skip adding the base gate's constraints to the trace table. The relative gate instead will be responsible for adding the base gate's constraints after its own.
 
-\begin{tabularx}{\textwidth}{@{} r Y Y Y Y Y @{}}
+\begin{definition}[State projections for gate]
+We define more projections for the state to be used in gate.
+\end{definition}
+$$
+s: S
+$$
+
+\newcommand{\gqueue}{\text{gQueue}}
+- \projs
+  - $\gqueue(s): \Ggt^k$ - the gate queue, a queue of gates to instantiate pre-constraints from.
+  - $\phi(s): \Nb$ - the current phase of the trace table being constructed.
+  - $T(s): \TraceTable$ - the current trace table being constructed.
+
+\motivdef is that the gate queue allows us to push multiple gates given one wire from the wire stack. This is for the case of wires belonging to relative gates. Such that we can tabulate the dependencies in order. The trace table projection is the result we want. The phase however determines the kinds of gates whose sub-tables we are populating. They are defined as follows:
+
+\begin{tabularx}{\textwidth}{@{} r|Y Y Y Y Y @{}}
 \toprule
-kind & Basic & Relative  & Asserts  & PublicInput & \plonkup Table \\
-& & $b_g>0$ & $m_g=0$ & $\ty(g)=\text{PI}^t_i$ & $\ty(g)=\text{Tbl}^t_j$
-\\\hline 
-phase & $\phi=0$ & $\phi=0$ & $\phi=1$ & $\phi=2$ & $\phi=3$
+\multirow{3}{*}{phase} & Basic & Relative  & Asserts  & PublicInput & \plookup  Tables \\
+\cline{2-6}
+& $b(\abst{g})=0$ & $b(\abst{g})>0$ & $m(\abst(g)) = 0$ & $\ty(g)=\Pubinp^t_i$ & $\ty(g)=\text{Tbl}^t_j$
+\\\cline{2-6} 
+ & $\phi=0$ & $\phi=0$ & $\phi=1$ & $\phi=2$ & $\phi=3$
 \\\hline\\
-join &
+placement &
 \begin{tikzpicture}[
   baseline={(current bounding box.center)}
 ]
@@ -382,6 +469,120 @@ join &
 \end{tikzpicture} \\
 \\\toprule
 \end{tabularx}
+
+- **Notation**:
+  - Asserts are gates with no output wires
+  - As mentioned at the end of resolve, public input wires have a specialized properad (defined later). Its constraints are conventionally placed at the top of the table. 
+  - Tables for lookup arguments are defined as a properad with a singleton gate with no wires at all. They strictly define the values for the compressed table column. We will not define it here. This is just to illustrate its feasibility.
+  - Every other gate thats not relative, is a basic gate.
+
+\begin{definition}[Public columns]
+Public columns are columns that are not private.
+\end{definition}
+$$
+\begin{array}{rl}
+\Column^{pub}&: \pset{\Column} = \set{c \in \Column | \neg \pcol(c)} \\
+F^{pub}(T) &: (t: \Color) \to (c: \Column^{pub}) \to T \\
+\end{array}
+$$
+
+\motivdef the type safety in the case of the public variant can be guaranteed.
+
+\begin{definition}[Resolve cell]
+This function takes a cell and state, uses the value map to resolve the cell to its value. It assumes that if the variant is public, it is not resolving a private column's cell.
+\end{definition}
+\newcommand{\resolvecell}{\text{resolveCell}}
+$$
+\begin{array}{rl}
+\resolvecell&: S \to (g: \Ggt) \to F(\Cell(\ty(g), t,c) \to X(t,c) \to W(t)) \\
+\resolvecell(s, g, t, c, \aavec{w}, r, x) &= r(x) \circ v(s)[\text{wires}(\abst{f}(s), g) @ -][\aavec{w}]\\
+\\
+\resolvecell_{pub}&: S \to (g: \Ggt) \to F^{pub}(\Cell(\ty(g), t,c) \to X(t,c) \to W(t)) \\
+\resolvecell_{pub} = \resolvecell
+\end{array}
+$$
+
+Let's break down the definition:
+
+- The arguments $t,c$ come from $F(\ldots)$; the index map indices.
+- $\aavec{w}, r$ is the cell itself, recall its type $\Cell(\abst{g},t,c) = (\aavec{w}: \CWire(c, \abst{g})^k) \times R(\abst{g}, \aavec{w},t,c)$
+- $x$ is the thunk argument, recall the resolver type is $R(\abst{g}, \aavec{w},t,c) = X(t,c) \to W [\vec{t}(\abst{g}, \aavec{w})] \to W(t)$
+- Thus we partial apply $x$ i.e. $r(x)$, now we are left ith the values for the cell wires.
+- We use $\text{wires}(\abst{f}(s), g)$ to get the wires of the gate $g$ represented by the cell wires $\aavec{w}$ via the vector index function $- @ -$; transitioning from $\bar{w}$ to $\abst{w}$.
+- With the wires at hand, we can finally query the value map $v(s)$ to get the concrete values of the wire; transitioning from $\abst{w}$ to $w$.
+
+\motivdef this function is used to concretize pre-constraints into sub-tables ready to be composed into the trace table.
+
+\begin{definition}[Enqueue gates to state]
+This function manages the logic to determine the gates to be pushed to the stack of gates in the state.
+\end{definition}
+\newcommand{\enqueg}{\text{enqueueGates}}
+$$
+\begin{array}{rl}
+\enqueg &: S \to \Wire \to S \\
+\enqueg(s, \abst{y}) &= \maybe{\enqueg'(g, s)}{\abst{f}(s) \ni \gpair{g}{\abst{y}}}\\
+\enqueg'(g,s) &= \begin{cases}
+s & \isbase(g) \\
+& s' = \update'_{\gqueue}(- \cat g, s) \\
+\enqueg'(\base(\abst{f}, g), s') & b \circ \ty(g) > 0 \\
+s' & \otherwise
+\end{cases}
+\end{array}
+$$
+
+Let's break down the definition:
+
+- The first case handles if the gate is marked as a base gate of an existing relative gate, we sill skip it as the relative gate will manage it.
+- Before the second case is syntactic sugar for the state with the gate enqueued.
+- The second case checks if the gate is relative, if so it makes a recursive call in case the base gate is also relative, i.e. a dependent chain of relative gates.
+- The third case is the base case, we just return the state after we enqueued the gate.
+- Note that we enqueue from the end of the vector. Thus we can use the same pop function for the stack to dequeue.
+
+\motivdef this is a queue and not a stack. Thus, the first gate enqueued will be the first to be dequeued. i.e. a relative gate will appear before its base gate. We will use this function to process the wire stack from the resolve monotone function.
+
+For future work, we can consider moving the recursive call to the monotone function. Here we assume that the length of the dependent chain of relative gates is very small.
+
+\begin{definition}[Gate batches]
+At the end of a phase when the wire stack is empty, we move on to the next phase where we might potentially add more wires to be resolved. These gates define those wires.
+\end{definition}
+$$
+\begin{array}{rl}
+\vec{G}_1(\abst{f}) &= \maybe{\vec{g}}{\gpair{g_i}{\bot} \in \abst{f} \land \neg \isbase(g_i) \land \min \circ \id[\gin(g_{i>1})] > \max \circ \id[\gin(g_{i-1})] } \\
+\\
+\vec{G}_2(\abst{f}) &= \maybe{\vec{g}}{\gpair{g_i}{\_} \in \abst{f} \land \exists i. \ty(g_i) = \Pubinp_i \land \id(g_{i>1}) > \id(g_{i-1}) } \\
+\\
+\vec{G}_3(\abst{f}) &= \cdots
+\end{array}
+$$
+
+Let's break down the definition:
+
+- The first batch is for assert gates, which have no output wire. We omit assert gates that are marked as they are handled by relative gates.
+- The second batch is for public input gates.
+- In both cases, we sort them according to their wire ids.
+- The third batch is left undefined. Informally it is the gates for the lookup argument tables.
+
+\begin{definition}[Gate monotone function]
+We can now define the gate monotone function.
+\end{definition}
+\newcommand{\gatemono}{\text{gate}}
+$$
+\begin{array}{rl}
+\gatemono &: (S \to S) \to S \to S \\
+\gatemono(\continue, s) &= \begin{cases}
+a
+\end{cases}
+\end{array}
+$$
+
+TODO 
+
+- actual gate monotone function
+- initial state
+- sat
+- DONE
+
+\newcommand{\WireType}{\text{WireType}}
 
 $$
 \begin{array}{rl}
