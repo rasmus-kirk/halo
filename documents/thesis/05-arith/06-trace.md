@@ -9,13 +9,13 @@ $$
 \end{array}
 $$
 
-Recall that the abstract circuit is informally a directed acylic graph. Thus the trace algorithm amounts to a topologically sorted graph traversal. However to reason and make proofs about the algorithm, it would be more succinct if it is defined as a recursive function. As an implementation however, large graphs would cause stack overflows requiring an imperative approach instead. We bridge this gap by defining the algorithm within the framework of monotone functions [@cousot1979constructive] which can be expressed both recursively and imperatively.
+Recall that the abstract circuit is informally a directed acyclic graph. Thus the trace algorithm amounts to a topologically sorted graph traversal. However to reason and make proofs about the algorithm, it would be more succinct if it is defined as a recursive function. As an implementation however, large graphs would cause stack overflows requiring an imperative approach instead. We bridge this gap by defining the algorithm within the framework of monotone functions [@cousot1979constructive] which can be expressed both recursively and imperatively.
 
 \begin{definition}[Monotone Function]
 A monotone function is a function $f: S \to S$ over a directed complete partial order $(S, \sqsubseteq, s_\bot)$ such that if $s_1,s_2: S$ and $s_1 \sqsubseteq s_2$ then $f(s_1) \sqsubseteq f(s_2)$, additionally $s_\bot$ is the least element.
 \end{definition}
 
-Note that the precision of our type anotation for monotone functions ends at $f: S \to S$. We will informally describe how the functions we construct are monotonic.
+Note that the precision of our type annotation for monotone functions ends at $f: S \to S$. We will informally describe how the functions we construct are monotonic.
 
 \motivdef informally we can think of applying the function as preserving the progress towards a final state. This is expressed formally by the definition of the Kleene fixed-point theorem below.
 
@@ -145,7 +145,7 @@ $$
 Resolve is the first monotone function where its role is to compute the values of wires given the public input or witness values.
 
 \begin{definition}[Value Map]
-A value map is a partial map from wires to their values or a unit value in the case of the pulic variant that is unable to compute private wire values, but still needs to mark it as resolved.
+A value map is a partial map from wires to their values or a unit value in the case of the public variant that is unable to compute private wire values, but still needs to mark it as resolved.
 \end{definition}
 $$
 \VMap = (\abst{w}: \Wire) \pto (W \circ \ty(\abst{w}) + ())
@@ -303,8 +303,8 @@ $$
 $$
 
 - **Notation**:
-  - $(-[\avec{y} \mapsto \vec{y}])$ uses the placeholder notation to describe a function that takes a vmap and does k-update.
-  - By vectors coercable to products and unit for products, we have that $((),(), \ldots, ()) = ()$, thus $()$ is sufficient to map all $\avec{y}$ with units.
+  - $(-[\avec{y} \mapsto \vec{y}])$ uses the placeholder notation to describe a function that takes a value map and does k-update.
+  - By vectors coercible to products and unit for products, we have that $((),(), \ldots, ()) = ()$, thus $()$ is sufficient to map all $\avec{y}$ with units.
 
 Let's break down the definition:
 
@@ -380,7 +380,7 @@ $$
 
 Informally we can reason why resolve is monotone: The abstract circuit is finite. Thus the largest the stack can grow, is all the wires in the circuit. Additionally, the wires have been guaranteed to structurally type check by the definition of gate literals i.e. $\abst{g}(\avec{x})$, and resolvable by the definition of the canonical programs of the properads for every gate. Thus the stack will be eventually empty.
 
-This works for the public version as well because of how $\updatev$ simply maps units if the wire values are not known. Behaviourally, the stack will update the exact same way in both public and private variants. This is integral to exhibit the structural integrity property of the circuit $(R,X,W)$ and $(R,X,\bot)$ as mentioned in the introduction of this section.
+This works for the public version as well because of how $\updatev$ simply maps units if the wire values are not known. Behaviorally, the stack will update the exact same way in both public and private variants. This is integral to exhibit the structural integrity property of the circuit $(R,X,W)$ and $(R,X,\bot)$ as mentioned in the introduction of this section.
 
 <!-- TODO example resolve? -->
 
@@ -794,4 +794,4 @@ $$
 \end{array}
 $$
 
-Note that the public variant for arithmetization only differs in trace. Resolve is able to dynamically adjust for both variants. Gate has two specialized variants for each case. Copy is the same for both variants as it doesnt depend on wire values.
+Note that the public variant for arithmetization only differs in trace. Resolve is able to dynamically adjust for both variants. Gate has two specialized variants for each case. Copy is the same for both variants as it does not depend on wire values.

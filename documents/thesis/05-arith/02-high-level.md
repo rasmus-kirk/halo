@@ -215,7 +215,7 @@ the inputs and $\Bb = \Fb_q$ as the other.
   - $(+_{\text{EC}})$: Add two elliptic curve points.
   - $(\times_{\text{EC}})$: Scale a point with a scalar, it is implicit that
     the scalar is input passed from the scalar-field to the base-field.
-- **Miscelanious:**
+- **Miscellaneous:**
   - $\Hc$: Performs five rounds of the Poseidon hashing on the three given
     base-field elements, representing the Poseidon sponge state.
   - $p \to q$: Message passes an $\Fb_p$ element to the $\Fb_q$ circuit.

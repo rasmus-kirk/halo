@@ -83,7 +83,7 @@ $$
 \motivnot it is concise yet distinct from a function that takes a vector as an argument. i.e. $f(\vec{x}) \neq f[\vec{x}]$.
 
 \begin{notation}[Vector Product Isomorphism]
-A vector is coercable into a product.
+A vector is coercible into a product.
 \end{notation}
 $$
 (t_1, \ldots, t_k): T^k = (t_1, \ldots, t_k): \underbrace{T \times \ldots \times T}_{k}

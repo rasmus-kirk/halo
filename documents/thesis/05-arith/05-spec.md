@@ -451,7 +451,7 @@ Notice that $\boxed{a}, \boxed{b}, \boxed{c}$ are wire cells and $\boxed{1}, \bo
 
 \vspace{1em}
 
-The pre-constraints in this example only define a row for the color $t$ wheras the rest of the colors are empty. Recall that the length of the vector of cells must be uniform within a color, but not across colors. So these pre-constraints type checks / are valid.
+The pre-constraints in this example only define a row for the color $t$ whereas the rest of the colors are empty. Recall that the length of the vector of cells must be uniform within a color, but not across colors. So these pre-constraints type checks / are valid.
 \end{tcolorbox}
 
 In the above example, we use the notation $F_{GC}^{\plonkm}$ for the gate constraint polynomial from [@plonk], the gate constraint in our $\Plonk$ protocol is dependent on the properads that the user defines which we will see later when we define $\Spec$.
@@ -579,7 +579,7 @@ At this point, we want to emphasize the expressivity of index map as an abstract
 ### Relative Wires
 
 \begin{definition}[Relative Wires]
-Relative wires, are wires that are suffixed to the vector of input wires of a gate; it is a subvector at the end. Relative wires cannot be mentioned in the gate's pre-constraints, thus there are no cell wires of it defined by its properad.
+Relative wires, are wires that are suffixed to the vector of input wires of a gate; it is a sub-vector at the end. Relative wires cannot be mentioned in the gate's pre-constraints, thus there are no cell wires of it defined by its properad.
 \end{definition}
 
 \begin{definition}[Relative Gate]
@@ -590,7 +590,7 @@ We call the gate of a relative wire, the relative gate.
 The gate whose pre-constraints first row contains the relative wire; where the wire is not relative, is called the base gate. 
 \end{definition}
 
-The last row of the relative gate's pre-constraints when fed to its term equation can refer to its relative wires in the next row. Thus, the base gate's pre-constraints must appear immediately after the relative gate's pre-constraints in the trace table. This will be ellucidated concretely in the penultimate example of this section.
+The last row of the relative gate's pre-constraints when fed to its term equation can refer to its relative wires in the next row. Thus, the base gate's pre-constraints must appear immediately after the relative gate's pre-constraints in the trace table. This will be elucidated concretely in the penultimate example of this section.
 
 The motivation for these definitions is that relative wires allows us to "reuse" cells in the trace table. This could potentially reduce the number of constraints in the trace table whilst still being able to express the same computation. This is especially useful for gates that have a large number of inputs, such as the poseidon gate.
 
