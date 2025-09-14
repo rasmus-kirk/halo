@@ -531,9 +531,9 @@ $w_1$ & $t$ & $z$ & $1$ & $1$ & $-1$ & $0$ & $0$ & $0$ \\
 \begin{tikzpicture}[
   baseline={(current bounding box.center)}
 ]
-\gate{in0}{(0,0)}{}{$\Input^q_1$}{1}
-\gate{in1}{($(in0.north east)+(0.1,0)$)}{}{$\Input^q_2$}{1}
-\gate{in2}{($(in1.north east)+(0.1,0)$)}{}{$\Input^q_3$}{1}
+\gate{in0}{(0,0)}{}{$\Input_1$}{1}
+\gate{in1}{($(in0.north east)+(0.1,0)$)}{}{$\Input_2$}{1}
+\gate{in2}{($(in1.north east)+(0.1,0)$)}{}{$\Input_3$}{1}
 
 \gate{add}{($(in0.south west)+(0.1875,-0.5)$)}{$\abst{w_1}$, $\abst{t}$}{$\text{Add}^q$}{1}
 \draw[-,thick] ($(add-in-1)+(0,0.25)$) -- (add-in-1);
@@ -751,7 +751,7 @@ g = \abst{g}(\avec{x} \cat \avec{r}) \text{\ denotes\ that\ }
 \left(\begin{array}{ll}
 & \ty[\avec{x}] = \pin(\abst{g})\\
 \land & |\avec{r}| = b(\abst{g})\\
-\land & (b(\abst{g})) > 0 \implies \base(\abst{f}, g) \neq \bot
+\land & (b(\abst{g}) > 0 \implies \base(\abst{f}, g) \neq \bot)
 \end{array}\right)
 $$
 

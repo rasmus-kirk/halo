@@ -80,16 +80,7 @@ $$
 Here $g$ is a continuation of $f$.
 \end{tcolorbox}
 
-<!-- $$
-\begin{array}{rl}
-\lift &: (T \to T') \\
-&\to V \times T \times U \to V \times T' \times U\\
-\lift(f) &= \lambda (v,t,u). (v, f(t),u) \\
-g \circ^{\uparrow} f &= \lift(g) \circ \lift(f) 
-\end{array}
-$$ -->
-
-Note that the monotone functions defined in this section are not hardcoded into the arithmetizer. It is simply a candidate for the \Plonk protocal feasible for IVC. Thus it is possible to define different monotone functions for different \Plonk-ish protocols, or even different protocols entirely that uses an abstract circuit structure as an intermediate data structure.
+Note that the monotone functions defined in this section are not hardcoded into the arithmetizer. It is simply a candidate for the \Plonk protocol feasible for IVC. Thus it is possible to define different monotone functions for different Plonk-ish protocols, or even different protocols entirely that uses an abstract circuit structure as an intermediate data structure.
 
 We now define some definitions and notations that will be useful in defining the monotone functions used in trace for \Plonk.
 
@@ -285,23 +276,28 @@ Let's break down the cases and notation:
 - Notice that the continuation only gets called when the top of the stack is a newly resolved wire, or if the stack is empty.
 
 \begin{definition}[Resolve contributes to initial state]
-Resolves contributes to the least element of $S$ with the following function.
+Resolve contributes to the least element of $S$ with the following function.
 \end{definition}
 $$
 \begin{array}{rl}
-s_\bot^{\resolve} &: \Wire^k \times (\avec{x}: \Wire^{k'}) \to W[\ty[\avec{x}]] \to S \\
-s_\bot^{\resolve}(\avec{Y}, \avec{x}, \vec{x})
-&= \update'_v(-[\avec{x} \mapsto \vec{x}]) 
-\circ \update'_{\rstack}(\avec{Y} \cat -)(s_\bot)
+s_\bot^{\resolve} &: \Color^n \to (\avec{x}: \Wire^{k}) \to W \circ \ty[\avec{x}] \to \AbsCirc \to \Wire^{k'} \to S \\
+s_\bot^{\resolve}(\vec{t}_{wit}, \avec{x}, \vec{x}, \abst{f}, \avec{Y})
+&= \update'_v(-[\avec{x} \mapsto \vec{x}]) \\
+&\circ \update'_v(-[\wire{-}{-}[(0..n) \odot \vec{t}_{wit}] \mapsto ()]) \\
+&\circ \update_{\abst{f}}(\abst{f}) \\
+&\circ \update'_{\rstack}(\avec{Y} \cat -)
+(s_\bot)
 \end{array}
 $$
 $$
-\begin{array}{rl}
-v(s_\bot) = \bot & \rstack(s_\bot) = ()
+\begin{array}{ccc}
+v(s_\bot) = \bot &
+\rstack(s_\bot) = () &
+\abst{f}(s_\bot) = \emptyset
 \end{array}
 $$
 
-It populates the value map with the input of the protocol. For the public variant, its the public inputs $\vec{x}$. Just as there is an input properad for witnesses, there is a public input properad to model public input wires too. For the private variant, its the witnesses $\vec{w}$. It also populates the wire stack with the global output wires $\avec{Y}$ declared by build. Thus, only the wires in the subgraph that can reach those wires will be resolved. There will potentially also be more wires that are resolved, but those will be defined in the next monotone function for gate constraints.
+It populates the value map with the input of the protocol. For the public variant, its the public inputs $\vec{x}$. Just as there is an input properad for witnesses, there is a public input properad to model public input wires too. For the private variant, its the witnesses $\vec{w}$. Note that the witnesses will replace the units that were mapped before. It also populates the wire stack with the global output wires $\avec{Y}$ declared by build. Thus, only the wires in the subgraph that can reach those wires will be resolved. There will potentially also be more wires that are resolved, but those will be defined in the next monotone function for gate constraints.
 
 \begin{definition}[Resolve Saturation]
 The saturation function for resolve checks if the stack is empty.
@@ -313,30 +309,53 @@ $$
 \end{array}
 $$
 
-Informally we can reason why resolve is monotone: The abstract circuit is finite. Thus the largest the stack can grow, is all the wires in the circuit. Additionally, the wires have been guaranteed to structurally type checkby the definition of gate literals i.e. $\abst{g}(\avec{x})$, and resolvable by the definition of the canonical programs of the properads for every gate. Thus the stack will be eventually empty.
+Informally we can reason why resolve is monotone: The abstract circuit is finite. Thus the largest the stack can grow, is all the wires in the circuit. Additionally, the wires have been guaranteed to structurally type check by the definition of gate literals i.e. $\abst{g}(\avec{x})$, and resolvable by the definition of the canonical programs of the properads for every gate. Thus the stack will be eventually empty.
 
 This works for the public version as well because of how $\updatev$ simply maps units if the wire values are not known. Behaviourally, the stack will update the exact same way in both public and private variants. This is integral to exhibit the structural integrity property of the circuit $(R,X,W)$ and $(R,X,\bot)$ as mentioned in the introduction of this section.
 
-TODO example resolve?
+<!-- TODO example resolve? -->
 
 ### Gate Constraints
 
-TODO remember to push assert gates input wires
+Gate is the next monotone function that is a continuation of resolve. Its role is to peek the stack for newly resolved wires, and then instantiate the pre-constraints into a sub-table to compose the trace table.
 
-\newcommand{\WireType}{\text{WireType}}
+\begin{definition}[Marked base gate]
+A marked base gate is a base gate that has been marked as a dependency by a relative gate in the abstract circuit.
+\end{definition}
+\newcommand{\isbase}{\text{isBase}}
+$$
+\isbase: \Ggt \to \Bb
+$$
 
-$\Downarrow_G$ computes the trace table $C$ by enqueing $\vec{g}$ the gadget (and its base recursively if any) with an output of the top of the $\vec{y}$ stack. The same gadget will not appear twice since $\Downarrow_R$ does not call the continuation on resolved wires and base duplicates are avoided by tracking added gadgets in $\Omega$. The pre-constraints of the gadgets are then resolved with vmap. Thus, tabulating the trace table.[^no-pad]
+It is guaranteed that the base gate of the relative gate is resolved, since the relative wires / inputs to the relative gates are resolved when the output wire is. The relative gate is always declared after its base, because it depends on the wires of the base as input. Thus resolve will always resolve the base gate first. However, we want the base gate constraints to compose after the relative; not before.
 
-[^no-pad]: Note for $\phi=3$ that $\ctrn'_g$ without padding is used, this is how it can be appended as a column.
+This can be resolved by modifying the build's put algorithm. When adding a relative gate to the abstract circuit. It needs to remove entries of its base gate, mark the base gate as a dependency, and re-add it to the abstract circuit. We leave this modification informal, and assume $\isbase$ will determine if the gate is marked. This is then used in the monotone function, to skip adding the base gate's constraints to the trace table. The relative gate instead will be responsible for adding the base gate's constraints after its own.
 
-\begin{tabularx}{\textwidth}{@{} r Y Y Y Y Y @{}}
+\begin{definition}[State projections for gate]
+We define more projections for the state to be used in gate.
+\end{definition}
+$$
+s: S
+$$
+
+\newcommand{\gstack}{\text{gStack}}
+- \projs
+  - $\gstack(s): \Ggt^k$ - the gate stack, a stack of gates to instantiate pre-constraints from.
+  - $\phi(s): \Nb$ - the current phase of the trace table being constructed.
+  - $T(s): \TraceTable$ - the current trace table being constructed.
+
+\motivdef is that the gate stack allows us to push multiple gates given one wire from the wire stack. This is for the case of wires belonging to relative gates. Such that we can tabulate the dependencies in order. The trace table projection is the result we want. The phase however determines the kinds of gates whose sub-tables we are populating. They are defined as follows:
+
+\newcommand{\Pubinp}{\text{PI}}
+\begin{tabularx}{\textwidth}{@{} r|Y Y Y Y Y @{}}
 \toprule
-kind & Basic & Relative  & Asserts  & PublicInput & \plonkup Table \\
-& & $b_g>0$ & $m_g=0$ & $\ty(g)=\text{PI}^t_i$ & $\ty(g)=\text{Tbl}^t_j$
-\\\hline 
-phase & $\phi=0$ & $\phi=0$ & $\phi=1$ & $\phi=2$ & $\phi=3$
+\multirow{3}{*}{phase} & Basic & Relative  & Asserts  & PublicInput & \plookup  Tables \\
+\cline{2-6}
+& $b(\abst{g})=0$ & $b(\abst{g})>0$ & $m(\abst(g)) = 0$ & $\ty(g)=\Pubinp^t_i$ & $\ty(g)=\text{Tbl}^t_j$
+\\\cline{2-6} 
+ & $\phi=0$ & $\phi=0$ & $\phi=1$ & $\phi=2$ & $\phi=3$
 \\\hline\\
-join &
+placement &
 \begin{tikzpicture}[
   baseline={(current bounding box.center)}
 ]
@@ -382,6 +401,81 @@ join &
 \end{tikzpicture} \\
 \\\toprule
 \end{tabularx}
+
+- **Notation**:
+  - Asserts are gates with no output wires
+  - As mentioned at the end of resolve, public input wires have a specialized properad. Its constraints are conventionally placed at the top of the table.
+  - Tables for lookup arguments are defined as a properad with a singleton gate with no wires at all. They strictly define the values for the compressed table column.
+  - Every other gate thats not relative, is a basic gate.
+
+
+
+\begin{definition}[Public input Properad]
+Informally, you can think of the input wire as the computed value from the witness. In the private variant, the output wire represents the same value as the input wire. However in the public variant, since the input wire value is unknown; mapped to unit, the output wire is from the public input $\vec{x}$. This is the $(\vec{x}, \vec{w}) \in R_f$ check.
+\end{definition}
+
+
+\begin{center}
+\begin{tabular}{ c c c }
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\node[minimum width=2cm, minimum height=1.5cm] (tab) {
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+\multicolumn{6}{|c|}{$\Pubinp_i$} \\
+\hline
+$n$ & $m$ & $\pin$ & $\pout$ & $\eval()$ & $\term$ \\
+\hline
+$1$ & $1$ & ${t_{pub}}_i$ & ${t_{pub}}_i$ & $x_i$ OR $w$ & $F^{\plonkm}_{GC}$ \\
+\hline
+\end{tabular}
+};
+\end{tikzpicture}
+&
+\begin{tikzpicture}[
+  baseline={(current bounding box.center)}
+]
+\gate{inp}{(0,0)}{$\ \ \abst{w}\ \ $}{$\Pubinp_i$}{1}
+\draw[-, thick] ($(inp-in-1)+(0,0.4)$) -- (inp-in-1);
+\draw[->,thick] (inp-out-1) -- ($(inp-out-1)+(0,-0.4)$);
+\node[anchor=north east] at (inp-out-1) {$\abst{x_{i}}$};
+\end{tikzpicture}
+&
+\begin{tabular}{|c|c|c|c|}
+\hline
+\multicolumn{4}{|c|}{$\ctrn(\Pubinp_i)$} \\
+\hline
+\multicolumn{3}{|c|}{${t_{wit}}_i$} & $\cdots$ \\
+\hline
+$A$ & $Q_l$ & $PI$ & $\cdots$ \\
+\hline
+$w$ & $1$ & $-x_i$ OR $-w$ \\
+\cline{1-3}
+\end{tabular}
+\end{tabular}
+\end{center}
+
+Thus if $X$ were a public input constraint from a public variant trace table, we can visualize that the value $w$ from the witness computed value will be constrained as follows:
+$$
+\begin{array}{rl}
+F_{GC}^{\plonkm}: \Eqn &= A \times Q_l + B \times Q_r + C \times Q_o + A \times B \times Q_m + Q_c + PI \\
+F_{GC}^{\plonkm}(X) &= w - x_i \stackrel{?}{=} 0
+\end{array}
+$$
+
+TODO 
+
+- remember asserts check ismarked, if true, then dont add it again
+- resolve cell function
+- push relative gate and its dependencies
+- gate batch per phase
+- actual gate monotone function
+- initial state
+- sat
+- DONE
+
+\newcommand{\WireType}{\text{WireType}}
 
 $$
 \begin{array}{rl}
