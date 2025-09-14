@@ -1,105 +1,288 @@
 ## Trace
 
-The trace computation is defined as follows:
-$$
-(C, \sigma) = \mathrm{trace}(\vec{x},\abst{f},\avec{Y})
-$$
-
-### Monotonic Functions
-
-$\text{trace}$ computes the least fixed point of a composition of monotonic functions; $\Downarrow_R, \Downarrow_G, \Downarrow_C$, using $\text{sup}$. We also call a monotonic function a continuation if it is called by another. We call lift, to extend the argument of a monotonic function. By the Kleene fixpoint theorem, the least fixed point can be computed by iterating the function until saturation, i.e. when the state does not change anymore.
+With the necessary abstractions defined, we can now define the trace algorithm that transforms the abstract circuit; $\abst{f}$, into a trace table $T$. In this section, we will formalize the following:
 
 $$
 \begin{array}{rl}
+(T, \sigma) = \mathrm{trace}(\vec{w},\abst{f},\avec{Y}) &
+(T_{\text{pub}}, \sigma) = \mathrm{trace}_{\text{pub}}(\vec{x},\abst{f},\avec{Y})
+\end{array}
+$$
+
+Recall that the abstract circuit is informally a directed acylic graph. Thus the trace algorithm amounts to a topologically sorted graph traversal. However to reason and make proofs about the algorithm, it would be more succinct if it is defined as a recursive function. As an implementation however, large graphs would cause stack overflows requiring an imperative approach instead. We bridge this gap by defining the algorithm within the framework of monotone functions [@cousot1979constructive] which can be expressed both recursively and imperatively.
+
+\begin{definition}[Monotone Function]
+A monotone function is a function $f: S \to S$ over a directed complete partial order $(S, \sqsubseteq, s_\bot)$ such that if $s_1,s_2: S$ and $s_1 \sqsubseteq s_2$ then $f(s_1) \sqsubseteq f(s_2)$, additionally $s_\bot$ is the least element.
+\end{definition}
+
+Note that the precision of our type anotation for monotone functions ends at $f: S \to S$. We will informally describe how the functions we construct are monotonic.
+
+\motivdef informally we can think of applying the function as preserving the progress towards a final state. This is expressed formally by the definition of the Kleene fixpoint theorem below.
+
+\begin{definition}[Ascending Kleene Chain]
+Starting from the least element $s_\bot$, iteratively applying a monotone function $f$ produces an ascending Kleene chain.
+\end{definition}
+$$
+s_\bot \sqsubseteq f(s_\bot) \sqsubseteq f(f(s_\bot)) \sqsubseteq \ldots f^n(s_\bot) \sqsubseteq \ldots
+$$
+
+\motivdef the chain progresses towards a fixed point, where applying the function does not change the state anymore.
+
+\begin{definition}[Least Fixed Point]
+Informally when the ascending Kleene chain saturates i.e. $f^n(s_\bot) = f^{n+1}(s_\bot)$ where $n$ is the minimum such number, we call $f^n(s_\bot)$ the least fixed point of $f$.
+\end{definition}
+\newcommand{\lfp}{\text{lfp}}
+$$
+\lfp = \text{sup}(\set{f^n(s_\bot) \middle\vert n \in \Nb})
+$$
+
+- **Notation**: $\text{sup}$ computes the least upper bound from a subset of the directed complete partial order. Informally, you can think of it as the least element when the ascending Kleene chain saturates.
+
+\begin{definition}[Kleene Iteration]
+The computation of the least fixed point can be expressed as a Kleene iteration, where we repeatedly apply the monotonic function until saturation.
+\end{definition}
+$$
+\begin{array}{rl}
+\lfp &: (S \to S) \to (S \to S \to \Bb) \to S \to S \\
+\lfp(f, \text{eq}, s) &= \lfp'(f, \text{eq}, s, f(s)) \\
+\lfp'(f, \text{eq}, s, s') &= \begin{cases}
+s & \text{eq}(s, s') \\
+\lfp'(f, \text{eq}, s', f(s')) & \otherwise
+\end{cases} \\
+\text{eq}(\_, s) &= \text{sat}(s)
+\end{array}
+$$
+
+\begin{algorithm}[H]
+\caption*{
+  \textbf{imperative Kleene iteration:} $\lfp(f, \text{eq}, s)$
+}
+\begin{algorithmic}[1]
+  \State $s' := f(s)$
+  \State \textbf{while} $\neg\text{eq}(s,s')$ \textbf{do} $(s,s') := (s', f(s'))$
+  \State \textbf{return} $s$
+  \end{algorithmic}
+\end{algorithm}
+
+\motivdef the equality function $\text{eq}$ is necessary to determine saturation. Having it as an argument allows us to perform cheaper checks for saturation via $\text{sat}$ instead of comparing the entire element.
+
+\begin{definition}[Continuation]
+Our monotone function will be composed by other monotone functions conditionally, we call the composite functions continuations.
+\end{definition}
+
+\begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
+$$
+f(g,x) = \begin{cases}
+  g(x) & \phi(x) \\
+  x & \otherwise
+\end{cases}
+$$
+Here $g$ is a continuation of $f$.
+\end{tcolorbox}
+
+<!-- $$
 \begin{array}{rl}
 \lift &: (T \to T') \\
 &\to V \times T \times U \to V \times T' \times U\\
 \lift(f) &= \lambda (v,t,u). (v, f(t),u) \\
 g \circ^{\uparrow} f &= \lift(g) \circ \lift(f) 
-\end{array} &
-\begin{array}{rl}
-\text{sup} &: (T \to T) \to (T \to T \to \Bb) \to T \to T \to T \\
-\text{sup}(f, \text{eq}, s, s') &= \begin{cases}
-s & \text{eq}(s, s') \\
-\text{sup}(f, \text{eq}, s', f(s')) & \otherwise
-\end{cases}
 \end{array}
-\end{array}
+$$ -->
+
+Note that the monotone functions defined in this section are not hardcoded into the arithmetizer. It is simply a candidate for the \Plonk protocal feasible for IVC. Thus it is possible to define different monotone functions for different \Plonk-ish protocols, or even different protocols entirely that uses an abstract circuit structure as an intermediate data structure.
+
+We now define some definitions and notations that will be useful in defining the monotone functions used in trace for \Plonk.
+
+\begin{definition}[Pop vector as stacks]
+We model a stack data structure with a vector, and notate pop as follows.
+\end{definition}
+\newcommand{\pop}{\text{pop}}
 $$
-\begin{algorithm}[H]
-\caption*{
-  \textbf{sup:} iterative fixpoint theorem
-}
-\begin{algorithmic}[1]
-  \State \textbf{do:} $(s,s') := (s',f(s'))$ \textbf{while} $\neg\text{eq}(s,s')$
-  \State \textbf{return} $s$
-  \end{algorithmic}
-\end{algorithm}
-
-The monotonic functions defined here are specific to the Plonk protocol, i.e. it can be different for a different \plonk-ish protocol. For each monotonic function, we notate $\dagger$ as a check if the state has saturated. $s$ are the initial states and $\iota$ a constructor of it. 
-
-### Resolve
-
-$\Downarrow_R$ computes the values of wires $\avec{Y}$ and input wires to assert gates given the input gates wire values $\vec{x}$. It does this by peeking from the stack $\avec{y}$, querying $\text{?}$ for unresolved input wires, otherwise it will evaluate the output wire values and cache it in the value map $v$ with $[\cdot]$. The continuation $f$ and stack pop $\curvearrowleft$ are called after.
-
-$$
-\begin{array}{ccc}
 \begin{array}{rl}
-\VMap &= (w: \Wire) \pto W(\ty(w)) \\
-\RState^k &= \VMap \times \Wire^k \\
-\end{array}
-&
-\begin{array}{rl}
-\curvearrowleft &: X^k \to X^{k'} \\
-\curvearrowleft (\vec{x}) &= \begin{cases}
+\pop &: T^k \to T^{k'} \\
+\pop(\vec{x}) &= \begin{cases}
 () & \vec{x} = () \\
 \vec{x}' & \vec{x} = \_ \cat \vec{x}' \\
 \end{cases}
 \end{array}
-&
+$$
+
+\motivdef our directed complete partial order will have stacks as data, and this allows us to succinctly express popping from the stack.
+
+
+\begin{notation}[Partial Map]
+A partial map is a map that is not defined for every element in its domain. We denote undefined values with $\bot$. It is syntactic sugar for functions that returns an option type.
+\end{notation}
+$$
+X \pto Y = X \to \Option(Y)
+$$
+
+- **Notation**:
+  - The $\pto$ half arrow denotes a partial map instead of a standard function.
+  - $\bot: X \pto Y$ denotes an empty partial map where $\bot(x) = \bot$ for all $x: X$.
+- \opers
+  - \subdefinition{update} $-[- \mapsto -]: (X \pto Y) \to X \to Y \to (X \pto Y)$ - extends or overwrites the partial map with a new entry.
+  - \subdefinition{k-update} $-[- \mapsto -]: (X \pto Y) \to X^k \to Y^k \to (X \pto Y)$ - extends or overwrites the partial map with $k$ new entries.
+
+\begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
+Let $f: X \pto Y$ be a partial map. Then we have:
+$$
 \begin{array}{rl}
-\underset{R}{\curvearrowleft} &: T \times \Wire^k \to T \times \Wire^{k'} \\
-\underset{R}{\curvearrowleft} &= \lift(\curvearrowleft)
-\end{array}
+f[x \mapsto y](x) = y &
+(f[\vec{x} \mapsto \vec{y}])[\vec{x}] = \vec{y}
 \end{array}
 $$
+\end{tcolorbox}
+
+\begin{notation}[Sum Type]
+A sum type is a type that can be one of multiple types. We denote it with $+$.
+\end{notation}
+$$
+\begin{array}{cc}
+a: A &
+b: B \\
+\inl(a): A + B &
+\inr(b): A + B \\
+\end{array}
+$$
+
+- **Notation**: If the context is clear, $\inl$ and $\inr$ can be elided.
+
+
+### Resolve
+
+Resolve is the first monotone function where its role is to compute the values of wires given the public input or witness values.
+
+\begin{definition}[Value Map]
+A value map is a partial map from wires to their values or a unit value in the case of the pulic variant that is unable to compute private wire values, but still needs to mark it as resolved.
+\end{definition}
+$$
+\VMap = (\abst{w}: \Wire) \pto (W \circ \ty(\abst{w}) + ())
+$$
+
+\motivdef it is the data in the state used by resolve defined below.
+
+\begin{definition}[State]
+The state is the directed complete partial order for the full monotone function.
+\end{definition}
+$$
+s: S
+$$
+
+\newcommand{\update}{\text{up}}
+\newcommand{\rstack}{\text{rStack}}
+- \projs
+  - $\abst{f}(s): \AbsCirc$ - the abstract circuit from build.
+  - $v(s): \VMap$ - the current value map of the state.
+  - $\rstack(s): \Wire^k$ - the resolve stack, a stack of wires to resolve.
+  - More projections are defined later.
+- \opers
+  - $\update_{\text{proj}}(s, x: X): S$ - it returns the same state $s$ with the exception that the projection 'proj' is replaced with $x$. e.g. $\update_v(s, v'): S$ returns $s'$ such that $v(s') = v'$ and all other projections are the same as $s$.
+  - $\update'_{\text{proj}}(f: X \to X, s): S$ - similar to the above but it takes a function to update the projection. e.g. $\update'_v(f, s): S$ returns $s'$ such that $v(s') = f(v(s))$ and all other projections are the same as $s$.
+
+\motivdef having the state projecting data allows us to extend it with more data as necessary for different monotone functions.
+
+\begin{definition}[Get Unresolved]
+The function takes a wire, and returns the wire if it is unresolved, otherwise it returns unit.
+\end{definition}
+\newcommand{\unresolved}{\text{unresolved}}
 $$
 \begin{array}{rl}
-\begin{array}{rl}
-\text{?} &: \VMap \to \Wire^k \to \Wire^{k'} \\
-v \text{?} \avec{y} &= \begin{cases}
-() & \avec{y} = () \\
-& \avec{y} = \abst{y} \cat \avec{y}' \\
-\abst{y} \cat v \text{?} \avec{y}' & v(\abst{y}) = \bot \\
-v \text{?} \avec{y}' & \otherwise
-\end{cases} \\
-\\
-\left[ \cdot \right] &: \VMap \to \AbsCirc \to \Wire \to \VMap \\
-v_{\abst{f}}\left[\abst{y}\right] &= \maybe{
-  v[\avec{y} \mapsto \vec{y}]
-}{\begin{array}{rl}
-  \abst{f} &\ni \gpair{g}{\abst{y}} \\
-  \avec{y} &= \out(\abst{f},g) \\
-  \vec{y} &= \eval_g(v[\gin(g)]) \\
-\end{array}}
+\unresolved &: S \to \Wire^k \to \Wire^{\leq k} \\
+\unresolved(s, \avec{y}) &= \unresolved'(s)[\avec{y}] \\
+\unresolved'(s,\abst{y}) &= \begin{cases}
+() & v(s, \abst{y}) \neq \bot \\
+\abst{y} & \otherwise
+\end{cases}
 \end{array}
-&
+$$
+
+- **Notation**: The superscript $\leq k$ denotes that the output vector can be of length less than or equal to $k$.
+
+\motivdef it is a helper function for resolve.
+
+\begin{notation}[Unital Product]
+The unit type when in a product is omissible.
+\end{notation}
+\begin{tcolorbox}[breakable, enhanced, colback=GbBg00, title=Example, colframe=GbFg3, coltitle=GbBg00, fonttitle=\bfseries]
+$$
 \begin{array}{rl}
-- \stackrel{\to}{\circ} \Downarrow^{-}_R &: (T \times \RState \to T \times \RState) \to \AbsCirc \\
-&\to T \times \RState \to T \times \RState \\
-f \stackrel{\to}{\circ} \Downarrow^{\abst{f}}_R(t,v, \avec{y}) &= \begin{cases}
-f(t,v,()) & \avec{y} = () \\
+X \times \Unit \times Y &= X \times Y \\
+(x, (), y) &= (x, y)
+\end{array}
+$$
+Thus, when we map unresolved over a vector of wires, we can coerce it into a product, by unital product the units are omitted, we then coerce it back into a vector, thus filtering resolved wires from the original vector. Let $v(s) = \bot[\abst{x} \mapsto 1]$, then:
+$$
+\begin{array}{rl}
+& \unresolved(s, (\abst{x}, \abst{y})) \\
+&= \unresolved'(s)[(\abst{x}, \abst{y})] \\
+&= (\unresolved'(s, \abst{x}), \unresolved'(s, \abst{y})) \\
+&= ((),  \abst{y}) \\
+&= (\abst{y})
+\end{array}
+$$
+\end{tcolorbox}
+
+\begin{definition}[Update value map]
+The update function is an operation on state; given a wire, it finds the gate it is an output wire of. It then gets all the output wires of that gate and evaluates its wire value using the gate's canonical program. It then updates the value map with the newly computed wire values. It also handles the public variant by mapping unit to the output wires instead of computing their values.
+\end{definition}
+\newcommand{\updatev}{\text{updateVmap}}
+$$
+\begin{array}{rl}
+\updatev &: S \to \Wire \to S \\
+\updatev(s, \abst{y}) &= \maybe{\update'_v(-[\avec{y} \mapsto \vec{y}], s)}{\begin{array}{rl}
+  \abst{f}(s) &\ni \gpair{g}{\abst{y}} \\
+  \avec{y} &= \out(\abst{f}(s),g) \\
+  \vec{y} &= (\text{compute} \circ \ty(g))(v[\gin(g)]) \\
+\end{array}} \\
+\text{compute}(\abst{g}, \vec{x}) &= \begin{cases}
+() & () \in \vec{x} \\
+\eval(\abst{g}, \vec{x}) & \otherwise
+\end{cases}
+\end{array}
+$$
+
+- **Notation**:
+  - $(-[\avec{y} \mapsto \vec{y}])$ uses the placeholder notation to describe a function that takes a vmap and does k-update on it.
+  - Recall $\update'_v$ is the operator that takes a function to update the projection of the state's value map.
+  - By vectors coercable to products and unit for products, we have that $((),(), \ldots, ()) = ()$, thus $()$ is sufficient to map all $\avec{y}$ with units.
+
+\begin{definition}[Resolve]
+We can now define the resolve monotone function. It peeks from the stack. If the wire is resolved, it pops the stack. Otherwise, it will query the gate that outputs the wire, get its input wires, and check if they are resolved. If they are, it will compute the output wire values and update the value map, otherwise it will push the unresolved input wires to the stack. The continuation and stack pop are called after.
+\end{definition}
+\newcommand{\continue}{\text{continue}}
+\newcommand{\resolve}{\text{resolve}}
+$$
+\begin{array}{rl}
+\resolve &: (S \to S) \to S \to S \\
+\resolve(\continue, s) &= \begin{cases}
+\continue(s) & \rstack(s) = () \\
 & \avec{y} = \abst{y} \cat \_ \\
-\underset{R}{\curvearrowleft} (t, v, \avec{y}) & v(\abst{y}) \neq \bot \\
-& \gpair{g}{\abst{y}} \in \abst{f} \\
-(t, v, \avec{x} \cat \avec{y}) 
-& \avec{x} = v \text{?} \gin(g) \neq () \\
-\underset{R}{\curvearrowleft} \circ f(t, v_{\abst{f}}[\abst{y}], \avec{y}) 
-& \otherwise
-\end{cases} \\
-\end{array}
+\update'_{\rstack}(\pop, s) & v(s, \abst{y}) \neq \bot \\
+& \gpair{g}{\abst{y}} \in \abst{f}(s) \\
+\update'_{\rstack}(\avec{x} \cat -, s) & \avec{x} = \unresolved(s, \gin(g)) \neq () \\
+\update'_{\rstack}(\pop) \circ \continue \circ \updatev(s, \abst{y}) & \otherwise
+\end{cases} 
 \end{array}
 $$
+
+Let's break down the cases and notation:
+
+- The first case checks if the stack is empty, if so it simply calls the continuation.
+- Before the second case, we have syntactic sugar for peeking the stack i.e. $\avec{y} = \abst{y} \cat \_$.
+- The second case checks if the wire is already resolved, if so it pops the stack.
+- Before the third case, we have syntactic sugar for querying the gate that outputs the wire i.e. $\gpair{g}{\abst{y}} \in \abst{f}(s)$.
+- The third case checks if the gate has any unresolved input wires, if so it pushes them to the stack.
+- The last case implies there are no unresolved input wires, yet the output wire is still unresolved. Thus we compute it via $\updatev$, call the continuation, then pop the stack.
+- Notice that the continuation only gets called when the top of the stack is a newly resolved wire, or if the stack is empty.
+
+TODO
+
+- resolve populates projection for initial state
+- resolve saturation function
+
+\newcommand{\WireType}{\text{WireType}}
+
 $$
 \begin{array}{ccc}
 \begin{array}{rl}

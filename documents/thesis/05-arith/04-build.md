@@ -1,6 +1,10 @@
 ## Build
 
-The build function describes the construction of an abstract circuit from a program $f$. Intuitively it can be thought of as a directed acyclic graph where gadgets are vertices and wires are edges, modelling the structure of the circuit without its concrete values.
+The build function describes the construction of an abstract circuit from a program $f$. Intuitively it can be thought of as a directed acyclic graph where gadgets are vertices and wires are edges, modelling the structure of the circuit without its concrete values. In this section, we will formalize the following:
+
+$$
+(\abst{f}, \avec{Y}) = \mathrm{build}(f)
+$$
 
 \begin{definition}[UUID]
 The set of unique identifiers for wires. The total ordering of the naturals is necessary to determine acyclicity.
