@@ -231,7 +231,7 @@ $\Hc : \Bb^* \to \Eb(\Fb_q)$ can be used to produce the generators. The URS
 can then be derived using a genesis string $s$:
 $$\text{URS} = \{ \Hc(s \cat 1), \Hc(s \cat 2), \dots, \Hc(s \cat D) \}$$
 The genesis string can be any arbitrary string, that convinces outsiders
-that it's not maliciously chosen. This is commonly refered to as
+that it's not maliciously chosen. This is commonly referred to as
 nothing-up-my-sleeve numbers. We used the string:
 
 \begin{quote}

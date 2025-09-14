@@ -15,7 +15,7 @@ of signatures, which would allow safe catchup for light clients on the
 forementioned blockchains. Taking Concordium as the main example; they elect
 a committee once a day and that committee is responsible for signing valid
 blocks. Concordium is a proof of stake blockchain so the committee is elected
-according to the size of thier staked tokens. They could create a parallel
+according to the size of their staked tokens. They could create a parallel
 _IVC blockchain_, one where each block contains:
 $$B_i = \{ \s^{(pk)}_i, j_i = i, pk_i, ptr_i \in \Bb^{256}, \s^{(ptr)}_i \}$$
 
@@ -61,4 +61,4 @@ FROST[@frost]. In the next section we define the IVC scheme that's able to
 support this.
 
 [^hotstuff]: An example is any blockchain based on the HotStuff[@hotstuff]
-consensus, which includes Concordium and Partesia.
+consensus, which includes Concordium and Partisia.

@@ -3,7 +3,7 @@
 We implemented the Plonk prover and verifier in Rust, using the previous
 implementations[@halo-accumulation] of $\ASDL$ and $\PCDL$ as submodules. Both
 submodules still needed pretty significant changes however. Neither submodule
-supported generic curves, which would be needed for Plonk instatiated
+supported generic curves, which would be needed for Plonk instantiated
 over a cycle of curves. A new infrastructure for setup parameters had to
 be implemented, that efficiently supported much higher degree polynomials,
 since the IVC circuit is still quite large. The Fiat-Shamir hashing also

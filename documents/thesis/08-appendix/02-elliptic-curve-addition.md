@@ -74,7 +74,7 @@
 
 **Security:**
 
-Analysing the cases of $P + Q = R$:
+Analyzing the cases of $P + Q = R$:
 
 - $\Oc + \Oc = \Oc$
   - Completeness:

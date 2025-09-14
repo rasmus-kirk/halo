@@ -550,7 +550,7 @@ a single zero row to capture the result of the sum:
 \end{table}
 
 We copy constrain $acc_{17}$ to $I_1$ to indicate that $x = acc_{17}$ must
-hold. Since we only copy constrain $I_1$, a rangecheck can be veiwed as a
+hold. Since we only copy constrain $I_1$, a rangecheck can be viewed as a
 gate with one input and zero outputs.
 
 [^acc0]: Except, this table doesn't capture the fact that $acc_0$ needs to
@@ -567,7 +567,7 @@ convenient for Fiat-Shamir transformations, since information sent to the
 verifier can cleanly be modelled as sponge absorption, and queries made to
 the verifier can be modelled as sponge squeezing. Squeezing and absorbing
 from the sponge a certain number of times, triggers a permutation of the
-sponge state. The original Poseidon paper provide several small veriations
+sponge state. The original Poseidon paper provide several small variations
 on how this permutation can be performed, with a variable number of partial
 and full rounds of permutation. Kimchi's approach to this is to only perform
 the expensive full rounds, but conversely make a highly specialized gate

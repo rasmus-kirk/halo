@@ -9,7 +9,7 @@ We build the IVC construction using the defined Plonk NARK:
 The $(\PlonkProver, \PlonkVerifier)$ pair are the same as those defined
 in the previous section. The $\PlonkVerifierFast$, however, is almost
 the same as $\PlonkVerifier$, but without the $\PCDLCheck$ performed on
-the instances! Instead, the instances can be checked seperately by the
+the instances! Instead, the instances can be checked separately by the
 $\ASDLVerifier$, which lets us define the IVC-circuit, using only sub-linear
 operations.
 

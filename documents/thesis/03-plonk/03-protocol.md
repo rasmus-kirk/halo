@@ -174,7 +174,7 @@ this we need _Copy Constraints._
 
 ### Copy Constraints
 
-For example we want to show that $a(\o^1) = b(\o^1)$, first we concatinate
+For example we want to show that $a(\o^1) = b(\o^1)$, first we concatenate
 the lists $\vec{a}, \vec{b}, \vec{c}$:
 
 $$\vec{f} = [ 2, 7, 3, 12 ] \cat [ 2, 5, 4, 35 ] \cat [ 4, 35, 12, 42 ] = [ 2, 7, 3, 12, 2, 5, 4, 35, 4, 35, 12, 42 ]$$

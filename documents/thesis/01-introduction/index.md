@@ -59,10 +59,10 @@ analyzed and implemented the accumulation and polynomial commitment schemes.
 
 We aim to create a simplified recursive SNARK based on Halo and use it to
 create a _chain of signatures_. We argue that this chain of signatures can be
-used in certain modern blockchains to acheive near-instant blockchain catch-up.
+used in certain modern blockchains to achieve near-instant blockchain catch-up.
 
 In section 3 we define a modified Plonk based on $\PCDL$ and $\ASDL$ with all
-custom gates needed to acheive an IVC-friendly SNARK. In section 4 define an
+custom gates needed to achieve an IVC-friendly SNARK. In section 4 define an
 IVC-circuit for proving the validity of a chain of signatures. In section
 5 we formally define the arithmetization pipeline needed for the defined
 Plonk Scheme. In section 6 we discuss the implementation of the IVC circuit

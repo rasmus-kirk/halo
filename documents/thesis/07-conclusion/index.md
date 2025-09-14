@@ -20,4 +20,4 @@ the Plonk construction is also used as a general-purpose ZK-SNARK. Lookups
 can also be very useful, for certain operations like XOR, which would be
 especially important if the SNARK should be able to model SHA3 efficiently. We
 investigated Plonkup[@plonkup] for this, but ultimately deemed it unnecessary
-to acheive primary goal of IVC.
+to achieve primary goal of IVC.

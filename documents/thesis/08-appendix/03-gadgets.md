@@ -259,7 +259,7 @@ previous accumulation scheme project[@halo-accumulation].
 
 ### $\ASDL$
 
-### Schnor Signatures
+### Schnorr Signatures
 
 \begin{algorithm}[H]
 \caption{$\SchnorrVerifier$}

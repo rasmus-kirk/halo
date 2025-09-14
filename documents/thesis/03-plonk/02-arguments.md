@@ -153,7 +153,7 @@ $$
 \end{aligned}
 $$
 
-Completeness is trivial. As for soundness. We can interpretate each side of
+Completeness is trivial. As for soundness. We can interpret each side of
 the equality as a polynomial variable in $\g$:
 
 $$
