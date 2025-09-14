@@ -39,11 +39,11 @@ crates[^loc]:
 - Schnorr: A simple Schnorr signature implementation, using Poseidon
   for the message hash function.
 
-As the purpose of the code is to prototype the ideas presented, and get some
-benchmarks on the performance of the scheme, there are a few known soundness
-bugs in the implementation (and probably more unknown ones!). Obviously,
-the code should not be used in production. However, none of the soundness
-bugs should affect performance to any significant degree. 
+As the purpose of the code is to prototype the ideas presented, and get
+some benchmarks on the performance of the scheme, there might be soundness
+bugs in the implementation. Obviously, the code should not be used in
+production. However, any soundness bugs should affect performance to any
+significant degree.
 
 Before presenting the benchmarks, we first briefly discuss what performance
 is needed for our IVC approach to be preferred. If Concordium created a light
