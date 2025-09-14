@@ -3,7 +3,19 @@ author:
   - Rasmus Kirk Jakobsen - 201907084
   - Abdul Haliq Abdul Latiff - 202303466
 geometry: margin=2cm
-abstract: This is an abstract
+abstract: This thesis implements and evaluates Incrementally Verifiable Computation
+  (IVC) using the Plonk proof system, inspired by the Halo framework. We build
+  on prior work on polynomial commitment and accumulation schemes to create
+  an IVC-friendly Plonk Protocol, supporting generic elliptic curves over a
+  cycle of curves, and develop an arithmetization layer with custom gates for
+  elliptic curve operations, Boolean logic, and Poseidon-based hashing. \newline \newline
+  Benchmarks show that the prover runs in ~300 seconds (parallel) and the
+  verifier runs in ~3 seconds, with proof sizes around 10 kB. While naive
+  signature verification remains faster in the short term, IVC proofs become
+  more efficient in size after only 87 days, and further optimizations could
+  reduce costs. These results suggest that IVC is close to practical viability
+  for blockchain applications, and that optimized frameworks such as Kimchi
+  or Halo2 are well-positioned for real-world deployment.
 subtitle: "**Supervisor:** Diego Aranha, **Co-supervisor:** Hamidreza Khoshakhlagh"
 toc: true
 thanks: We would like to express our gratitude to Hamidreza Khoshakhlagh and Diego Aranha for their generous advice.
