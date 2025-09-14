@@ -310,7 +310,7 @@ $$
 $$
 
 The DAG can then be defined, with each vertex containing a $\textbf{GateType}$,
-$n$ $\textbf{WireId}$'s representing the id's of the incoming wires and $n$
+$n$ $\textbf{WireId}$'s representing the id's of the incoming wires and $m$
 $\textbf{WireId}$'s representing the id's of the outgoing wires. The edges
 have no associated data:
 
