@@ -765,22 +765,32 @@ We conclude the full trace definition as follows:
 \end{definition}
 \newcommand{\trace}{\text{trace}}
 $$
+\begin{array}{ccc}
 \begin{array}{rl}
 f &: S \to S \\
 f &= \resolve(\gatemono(\text{copy})) \\
-f_{pub} &= \resolve(\gatemono_{pub}(\text{copy})) \\
-\\
+f_{pub} &= \resolve(\gatemono_{pub}(\text{copy}))
+\end{array} &
+\begin{array}{rl}
 s_\bot &: S \\
-s_\bot &= s_\bot^{\text{copy}} \circ s_\bot^{\gatemono} (s_\bot^{\resolve}) \\
-\\
+s_\bot &= s_\bot^{\text{copy}} \circ s_\bot^{\gatemono} (s_\bot^{\resolve})
+\end{array} &
+\begin{array}{rl}
 \text{eq} &: S \to S \to \Bb \\
 \text{eq}(\_, s) &= \text{sat}^{\resolve}(s) \land \text{sat}^{\gatemono}(s) \land \text{sat}^{\text{copy}}(s) \\
-\\
+\end{array}
+\end{array}
+$$
+$$
+\begin{array}{cc}
+\begin{array}{rl}
 \text{result} &: S \to \TraceTable \times \text{Permutation} \\
-\text{result}(s) &= (T(s), \sigma(s)) \\
-\\
+\text{result}(s) &= (T(s), \sigma(s))
+\end{array} &
+\begin{array}{rl}
 \trace(\vec{w}, \abst{f}, \avec{Y}) &= \text{result} \circ \lfp(f,  \text{eq}, s_\bot) \\
 \trace_{pub}(\vec{w}, \abst{f}, \avec{Y}) &= \text{result} \circ \lfp(f_{pub},  \text{eq}, s_\bot)
+\end{array}
 \end{array}
 $$
 

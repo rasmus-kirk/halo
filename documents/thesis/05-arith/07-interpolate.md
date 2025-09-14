@@ -43,3 +43,20 @@ $$
 \end{cases}
 \end{array}
 $$
+
+This concludes the definition of the arithmetization pipeline.
+
+$$
+\begin{array}{rl}
+\begin{array}{rl}
+(R,X,W) 
+&= \Arithmetize(f,\vec{w}) \\ 
+&= \mathrm{interpolate} \circ \mathrm{trace}(\vec{w}) \circ \mathrm{build}(f)
+\end{array} &
+\begin{array}{rl}
+(R,X,\bot)
+&= \Arithmetizepub(f,\vec{x}) \\
+&= \mathrm{interpolate} \circ \mathrm{trace}_{\text{pub}}(\vec{x}) \circ \mathrm{build}(f)
+\end{array}
+\end{array}
+$$
