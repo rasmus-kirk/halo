@@ -95,7 +95,7 @@ $$
 a:A = (a) : A^1
 $$
 
-\motivnot it reduces the use of parentheses; decluttering formal notation.
+\motivnot it reduces the use of parentheses; de-cluttering formal notation.
 
 \begin{definition}[Abstract Circuit]
 An abstract circuit is a one-to-many-or-none relation between gadgets and output wires or none, that is guaranteed acyclic.
@@ -242,7 +242,7 @@ $$
 \end{array}
 $$
 
-The minimum that we support is reflexivity, which is behaviourally a cache lookup for existing gate definitions.
+The minimum that we support is reflexivity, which is behaviorally a cache lookup for existing gate definitions.
 
 $$
 g \equiv g
