@@ -257,8 +257,6 @@ previous accumulation scheme project[@halo-accumulation].
 \end{algorithmic}
 \end{algorithm}
 
-### $\ASDL$
-
 ### Schnorr Signatures
 
 \begin{algorithm}[H]
