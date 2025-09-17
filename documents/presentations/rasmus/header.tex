@@ -1,0 +1,212 @@
+\usepackage[normalem]{ulem}
+\usepackage{xcolor}
+\definecolor{GbBg}{HTML}{fbf1c7}
+\definecolor{GbBg0}{HTML}{f9f5d7}
+\definecolor{GbBg00}{HTML}{fbf8e4}
+\definecolor{GbFg0}{HTML}{282828}
+\definecolor{GbRedNt}{HTML}{cc241d}
+\definecolor{GbGreenNt}{HTML}{98971a}
+\definecolor{GbyellowNt}{HTML}{d79921}
+\definecolor{GbBlueNt}{HTML}{458588}
+\definecolor{GbPurpleNt}{HTML}{b16286}
+\definecolor{GbAquaNt}{HTML}{689da6}
+\definecolor{GbOrangeNt}{HTML}{d65d0e}
+\definecolor{GbGreyNt}{HTML}{7c6f64}
+\definecolor{GbRedDk}{HTML}{9d0006}
+\definecolor{GbGreenDk}{HTML}{79740e}
+\definecolor{GbYellowDk}{HTML}{b57614}
+\definecolor{GbBlueDk}{HTML}{076678}
+\definecolor{GbPurpleDk}{HTML}{8f3f71}
+\definecolor{GbAquaDk}{HTML}{427b58}
+\definecolor{GbGreyDk}{HTML}{3c3836}
+
+\definecolor{Gray}{HTML}{504945}
+
+
+% Change math font
+\usefonttheme[onlymath]{serif}
+
+% Algorithm
+
+\usepackage{caption}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+\newcommand{\Desc}[2]{\hspace*{\algorithmicindent} \makebox[14.5em][l]{#1}\parbox[t]{32em}{#2}}
+
+% Set texttt color
+%\NewCommandCopy\oldtexttt\texttt
+%\renewcommand{\texttt}[1]{\textcolor{dkred}{\oldtexttt{#1}}}
+
+% Beamer Color modification
+
+% Add slide numbers
+\addtobeamertemplate{navigation symbols}{}{%
+    \usebeamerfont{footline}%
+    \usebeamercolor[GbBlueNt]{footline}%
+    \hspace{1em}%
+    \insertframenumber/\inserttotalframenumber
+}
+
+% Set gruvbox inspired colors
+\setbeamercolor{block title}{bg=GbBlueNt!30!GbBg00, fg=GbBlueDk!40!GbFg0}
+\setbeamercolor{block body}{bg=GbBlueNt!15!GbBg00, fg=GbFg0}
+\setbeamercolor{section number projected}{bg=GbBlueDk,fg=GbBg00}
+\setbeamercolor{structure}{fg=GbBlueDk}% to modify  immediately all palettes
+\setbeamercolor{title}{fg=GbBg00}
+\setbeamercolor{title in head/foot}{fg=GbBg00}
+\setbeamercolor{author}{bg=GbBlueDk, fg=GbBg00}
+\setbeamercolor{author in head/foot}{bg=GbBlueNt,fg=GbBg00}
+\setbeamercolor{institute in head/foot}{fg=GbBg00}
+\setbeamercolor{date}{fg=GbFg0}
+\setbeamercolor{institute}{fg=GbFg0}
+\setbeamercolor{background canvas}{bg=GbBg00}
+\setbeamercolor{normal text}{fg=GbFg0}
+\setbeamercolor{titlelike}{fg=GbBg00}
+\setbeamercolor{seperation line}{fg=GbBg00}
+%\setbeamercolor{date}{bg=yellow!10,fg=red!70!black}
+
+% Tikz
+
+\usepackage{subcaption} 
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows, positioning}
+
+\tikzstyle{process} = [rectangle, minimum width=2cm, minimum height=1cm, text centered, draw=black]
+\tikzstyle{data} = [trapezium, trapezium left angle=70, trapezium right angle=110, minimum width=1.5cm, minimum height=1cm, text centered, draw=black]
+\tikzstyle{arrow} = [->, >=latex]
+\tikzstyle{thick-arrow} = [thick, ->, >=latex]
+\tikzstyle{dashed-arrow} = [dashed, ->]
+\tikzstyle{node} = [rectangle, draw=black, minimum width=1cm, minimum height=1cm, text centered]
+
+\tikzstyle{box} = [rectangle, draw, rounded corners, text centered, minimum height=1cm]
+
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{pgfplotstable}
+
+% From the report:
+
+\newcommand*\Bb{\mathbb{B}}
+\newcommand*\Zb{\mathbb{Z}}
+\newcommand*\Fb{\mathbb{F}}
+\newcommand*\Nb{\mathbb{N}}
+\newcommand*\Rb{\mathbb{R}}
+\newcommand*\Eb{\mathbb{E}}
+\newcommand*\Gb{\mathbb{G}}
+\newcommand*\Ac{\mathcal{A}}
+\newcommand*\Bc{\mathcal{B}}
+\newcommand*\Cc{\mathcal{C}}
+\newcommand*\Dc{\mathcal{D}}
+\newcommand*\Ec{\mathcal{E}}
+\newcommand*\Rc{\mathcal{R}}
+\newcommand*\Oc{\mathcal{O}}
+\newcommand*\Uc{\mathcal{U}}
+\newcommand*\Mc{\mathcal{M}}
+\newcommand*\Pc{\mathcal{P}}
+\newcommand*\Vc{\mathcal{V}}
+\newcommand*\Sc{\mathcal{S}}
+\newcommand*\Hc{\mathcal{H}}
+
+\renewcommand*\a{\alpha}
+\renewcommand*\b{\beta}
+\renewcommand*\d{\delta}
+\newcommand*\e{\epsilon}
+\renewcommand*\l{\lambda}
+\newcommand*\p{\phi}
+\renewcommand*\o{\omega}
+\newcommand*\ps{\psi}
+\renewcommand*\S{\Sigma}
+
+\renewcommand*\mod{\bmod}
+\newcommand*\cat{\mathbin{+\mkern-10mu+}}
+\newcommand*\bor{\mathbin{\&\mkern-7mu\&}}
+\newcommand*\xor{\oplus}
+\newcommand*\meq{\stackrel{?}{=}}
+\newcommand*\iso{\cong}
+\renewcommand{\qed}{\hfill \ensuremath{\Box}}
+\newcommand{\defend}{\hfill \ensuremath{\triangle}}
+\newcommand*{\then}{\implies}
+
+\newcommand*\algind{\hspace*{\algorithmicindent}}
+\newcommand*\algindd{\algind \algind}
+
+\newcommand{\textblue}[1]{\textcolor{GbBlueDk}{#1}}
+\newcommand{\mathblue}[1]{\mathcolor{GbBlueDk}{#1}}
+\newcommand{\textgrey}[1]{\textcolor{GbGrey}{#1}}
+\newcommand{\mathgrey}[1]{\mathcolor{GbGrey}{#1}}
+\newcommand{\floor}[1]{\left \lfloor #1 \right \rfloor }
+\newcommand{\ceil}[1]{\left \lceil #1 \right \rceil }
+\renewcommand{\vec}[1]{ \boldsymbol{#1} }
+\newcommand{\ran}[1]{ \mathrm{#1} }
+\newcommand{\ranvec}[1]{ \boldsymbol{\ran{#1}} }
+\newcommand{\dotp}[2]{ \langle #1, #2 \rangle }
+\newcommand{\ip}[2]{ \langle #1, #2 \rangle }
+\newcommand{\IK}[2]{ \mathrm{I.K} }
+
+\newcommand*{\negl}{\text{negl}}
+\newcommand*{\poly}{\text{poly}}
+\newcommand*{\from}{\gets}
+\newcommand*{\pp}{\mathrm{pp}}
+\newcommand*{\acc}{\mathrm{acc}}
+\newcommand*{\ToInstance}{\mathrm{\text{T\scriptsize O}\text{I\scriptsize NSTANCE}}}
+\newcommand*{\Prover}{\mathrm{\text{P\scriptsize ROVER}}}
+\newcommand*{\Verifier}{\mathrm{\text{V\scriptsize ERIFIER}}}
+\newcommand*{\Setup}{\mathrm{\text{S{\scriptsize ETUP}}}}
+\newcommand*{\Generator}{\mathrm{\text{G{\scriptsize ENERATOR}}}}
+\newcommand*{\Trim}{\mathrm{\text{T{\scriptsize RIM}}}}
+\newcommand*{\Commit}{\mathrm{\text{C{\scriptsize OMMIT}}}}
+\newcommand*{\Decider}{\mathrm{\text{D{\scriptsize ECIDER}}}}
+\newcommand*{\SNARKProver}{\mathrm{\text{SNARK}}.\Prover}
+\newcommand*{\SNARKVerifier}{\mathrm{\text{SNARK}}.\Verifier}
+\newcommand*{\SNARKVerifierSlow}{\mathrm{\text{SNARK}}.\mathrm{\text{V\scriptsize ERIFIER}\text{S\scriptsize LOW}}}
+\newcommand*{\SNARKVerifierFast}{\mathrm{\text{SNARK}}.\mathrm{\text{V\scriptsize ERIFIER}\text{F\scriptsize AST}}}
+\newcommand*{\NARKProver}{\mathrm{\text{NARK}}.\Prover}
+\newcommand*{\NARKVerifier}{\mathrm{\text{NARK}}.\Verifier}
+\newcommand*{\NARKVerifierSlow}{\mathrm{\text{NARK}}.\mathrm{\text{V\scriptsize ERIFIER}\text{S\scriptsize LOW}}}
+\newcommand*{\NARKVerifierFast}{\mathrm{\text{NARK}}.\mathrm{\text{V\scriptsize ERIFIER}\text{F\scriptsize AST}}}
+\newcommand*{\IVCProver}{\mathrm{\text{IVC}}.\Prover}
+\newcommand*{\IVCVerifier}{\mathrm{\text{IVC}}.\Verifier}
+\newcommand*{\AS}{\text{AS}}
+\newcommand*{\ASGenerator}{\AS.\Generator}
+\newcommand*{\ASSetup}{\AS.\Setup}
+\newcommand*{\ASProver}{\AS.\Prover}
+\newcommand*{\ASVerifier}{\AS.\Verifier}
+\newcommand*{\ASDecider}{\AS.\Decider}
+\newcommand*{\PC}{\text{PC}}
+\newcommand*{\PCSetup}{\PC.\Setup}
+\newcommand*{\PCTrim}{\PC.\Trim}
+\newcommand*{\PCCommit}{\PC.\Commit}
+\newcommand*{\PCOpen}{\PC.\mathrm{\text{O\scriptsize PEN}}}
+\newcommand*{\PCCheck}{\PC.\mathrm{\text{C\scriptsize HECK}}}
+\newcommand*{\PCDL}{\text{PC}_{\text{DL}}}
+\newcommand*{\PCDLSetup}{\PCDL.\Setup}
+\newcommand*{\PCDLTrim}{\PCDL.\Trim}
+\newcommand*{\PCDLCommit}{\PCDL.\Commit}
+\newcommand*{\PCDLOpen}{\PCDL.\mathrm{\text{O\scriptsize PEN}}}
+\newcommand*{\PCDLSuccinctCheck}{\PCDL.\mathrm{\text{S{\scriptsize UCCINCT}C{\scriptsize HECK}}}}
+\newcommand*{\PCDLCheck}{\PCDL.\mathrm{\text{C\scriptsize HECK}}}
+\newcommand*{\ASDL}{\text{AS}_{\text{DL}}}
+\newcommand*{\ASDLSetup}{\ASDL.\Setup}
+\newcommand*{\ASDLIndexer}{\ASDL.\mathrm{\text{I\scriptsize NDEXER}}}
+\newcommand*{\ASDLCommonSubroutine}{\ASDL.\mathrm{\text{C{\scriptsize OMMON}S{\scriptsize UBROUTINE}}}}
+\newcommand*{\ASDLProver}{\ASDL.\mathrm{\text{P\scriptsize ROVER}}}
+\newcommand*{\ASDLVerifier}{\ASDL.\mathrm{\text{V\scriptsize ERIFIER}}}
+\newcommand*{\ASDLDecider}{\ASDL.\mathrm{\text{D\scriptsize ECIDER}}}
+\newcommand*{\CM}{\mathrm{\text{CM}}}
+\newcommand*{\CMSetup}{\CM.\Setup}
+\newcommand*{\CMTrim}{\CM.\Trim}
+\newcommand*{\CMCommit}{\CM.\Commit}
+
+\newcommand*\Result{\mathbf{Result}}
+\newcommand*\Option{\mathbf{Option}}
+\newcommand*\Acc{\mathbf{Acc}}
+\newcommand*\Instance{\mathbf{Instance}}
+\renewcommand*\Proof{\mathbf{Proof}}
+\newcommand*\Witness{\mathbf{Witness}}
+\newcommand*\PublicInfo{\mathbf{PublicInputs}}
+\newcommand*\PublicInputs{\mathbf{PublicInputs}}
+\newcommand*\Circuit{\mathbf{Circuit}}
+\newcommand*\AccHiding{\mathbf{AccHiding}}
+\newcommand*\EvalProof{\mathbf{EvalProof}}
+

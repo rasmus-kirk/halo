@@ -26,6 +26,7 @@
         });
     contractPkgsF = pkgs: pkgs.callPackage ./documents/project-contract { self = self; };
     thesisPkgsF = pkgs: pkgs.callPackage ./documents/thesis { self = self; };
+    slidesPkgsF = pkgs: pkgs.callPackage ./documents/slides/rasmus { self = self; };
     cratesF = pkgs: pkgs.callPackage ./crates { self = self; rust-overlay = rust-overlay; };
     websiteF = pkgs: website-builder.lib {
       pkgs = pkgs;
@@ -65,6 +66,7 @@
       website = websiteF pkgs;
       contract = contractPkgsF pkgs;
       thesis = thesisPkgsF pkgs;
+      slides = slidesPkgsF pkgs;
       crates = (cratesF pkgs).packages;
       default = website.package;
     });
