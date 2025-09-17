@@ -1,0 +1,571 @@
+% Reproducible Builds
+\pdftrailerid{}
+
+\usepackage{tabu}
+\usepackage[most]{tcolorbox}
+
+% Color stuff
+\usepackage{xcolor}
+\usepackage{colortbl}
+% Gruvbox
+\definecolor{GbBg}{HTML}{fbf1c7}
+\definecolor{GbBg0}{HTML}{f9f5d7}
+\definecolor{GbBg00}{HTML}{fbf8e4}
+\definecolor{GbFg0}{HTML}{282828}
+\definecolor{GbFg1}{HTML}{3c3836}
+\definecolor{GbFg2}{HTML}{504945}
+\definecolor{GbFg3}{HTML}{665c54}
+\definecolor{GbFg4}{HTML}{7c6f64}
+\definecolor{GbAquaDk}{HTML}{427b58}
+\definecolor{GbAquaNt}{HTML}{689da6}
+\definecolor{GbBlueDk}{HTML}{076678}
+\definecolor{GbBlueNt}{HTML}{458588}
+\definecolor{GbGreenDk}{HTML}{79740e}
+\definecolor{GbGreenNt}{HTML}{98971a}
+\definecolor{GbGreyDk}{HTML}{3c3836}
+\definecolor{GbGrey}{HTML}{504945}
+\definecolor{GbGreyNt}{HTML}{7c6f64}
+\definecolor{GbOrangeNt}{HTML}{d65d0e}
+\definecolor{GbPurpleDk}{HTML}{8f3f71}
+\definecolor{GbPurpleNt}{HTML}{b16286}
+\definecolor{GbRedDk}{HTML}{9d0006}
+\definecolor{GbRedNt}{HTML}{cc241d}
+\definecolor{GbYellowDk}{HTML}{b57614}
+\definecolor{GbyellowNt}{HTML}{d79921}
+\usepackage{mathtools}
+
+\usepackage{subcaption}
+\usepackage{pgfmath}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows, positioning, calc, patterns}
+
+\tikzstyle{process} = [rectangle, minimum width=2cm, minimum height=1cm, text centered, draw=black]
+\tikzstyle{data} = [trapezium, trapezium left angle=70, trapezium right angle=110, minimum width=1.5cm, minimum height=1cm, text centered, draw=black]
+\tikzstyle{arrow} = [->, >=latex]
+\tikzstyle{thick-arrow} = [thick, ->, >=latex]
+\tikzstyle{dashed-arrow} = [dashed, ->]
+\tikzstyle{node} = [rectangle, draw=black, minimum width=1cm, minimum height=1cm, text centered]
+\tikzstyle{box} = [rectangle, draw, rounded corners, text centered, minimum height=1cm]
+
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{pgfplotstable}
+
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true, %set true if you want colored links
+    linktoc=all,     %set to all if you want both sections and subsections linked
+    linkcolor=GbBlueNt,    % Internal links (e.g., section links)
+    citecolor=GbGreenNt,   % Citation links
+    urlcolor=GbBlueDk      % External URL links
+}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{nccmath}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{stmaryrd}
+\usepackage{multicol}
+\usepackage{multirow}
+%\usepackage{MnSymbol}
+\usepackage{yfonts}
+\usepackage{amsmath, amssymb}
+\usepackage{graphicx}
+\usepackage{xparse}
+\usepackage{pgffor}
+\usepackage{booktabs}
+\usepackage{etoolbox}
+\usepackage{longtable}
+
+\usepackage{tabularx}
+\newcolumntype{Y}{>{\centering\arraybackslash}X}
+
+\newcommand{\Desc}[2]{\hspace*{\algorithmicindent} \makebox[15.5em][l]{#1}\parbox[t]{32em}{#2}}
+\newcommand{\lrarr}[1]{\xleftrightarrow{\hspace{2em} #1 \hspace{2em}}}
+\newcommand{\larr}[1]{\xleftarrow{\hspace{2em} #1 \hspace{2em}}}
+\newcommand{\rarr}[1]{\xrightarrow{\hspace{2em} #1 \hspace{2em}}}
+
+\usepackage[style=iso]{datetime2}
+
+% Float figures
+\usepackage{float}
+\let\origfigure\figure
+\let\endorigfigure\endfigure
+\renewenvironment{figure}[1][2] {
+    \expandafter\origfigure\expandafter[H]
+} {
+    \endorigfigure
+}
+
+% Circuit Diagram Macros
+\tikzset{
+  port/.pic={
+    % Default height = 1cm (can be scaled using pic scale)
+    \def\h{0.125}
+    \pgfmathsetmacro{\b}{2 / sqrt(3) * \h} % base length from height
+    \pgfmathsetmacro{\bx}{\b / 2} % half-base x offset
+
+    % Vertices: tip at (0,0), base at height h
+    \draw[pic actions, fill=black]
+      (0,0) -- (-\bx,\h) -- (\bx,\h) -- cycle;
+  }
+}
+% TikZ Gate Macro - Clean Version
+% Usage: \gate{id}{coordinate}{input_labels}{gate_operation}{num_outputs}
+% Example: \gate{id}{(0,0)}{$\abst{x}_1$,$\abst{x}_2$,$\abst{x}_3$}{$\ty(g)$}{2}
+% For no inputs: \gate{input1}{(0,0)}{}{$\text{Input}^q_1$}{1}
+\makeatletter
+
+% Helper to check if string is empty
+\newcommand{\gate@ifempty}[3]{%
+  \if\relax\detokenize{#1}\relax
+    #2%
+  \else
+    #3%
+  \fi
+}
+
+% Main gate command
+\newcommand{\gate}[5]{%
+  \begin{scope}[shift={#2}, local bounding box=#1]
+    \begin{scope}[local bounding box=#1-top]
+      \gate@ifempty{#3}{%
+        % No input labels - just place gate operation at origin
+        \node[anchor=north west] (#1-g) at (0,0) {#4};
+      }{%
+        % Process input labels
+        \begin{scope}[local bounding box=#1-in]
+          \expandafter\gate@process@inputs\expandafter{#1}{#3}
+        \end{scope}
+        % Draw internal borders
+        \expandafter\gate@draw@borders\expandafter{#1}{#3}
+        % Bottom border of input section
+        \draw (#1-in.south west) -- (#1-in.south east);
+        % Gate operation below inputs
+        \node[anchor=north] (#1-g) at (#1-in.south) {#4};
+      }
+    \end{scope}
+    % Output ports
+    \gate@draw@outputs{#1}{#5}
+  \end{scope}
+  \draw[rounded corners] (#1.north west) rectangle (#1.south east);
+}
+
+% Process comma-separated input labels
+\newcommand{\gate@process@inputs}[2]{%
+  \def\gate@current@input{1}%
+  \def\gate@port@height{0.125}% Height of port pic
+  \gate@process@input@list{#1}#2,\gate@end@marker,%
+}
+
+\def\gate@process@input@list#1#2,#3\gate@end@marker{%
+  \ifnum\gate@current@input=1
+    % First input: place label below the port height to align top-left corners
+    \node[anchor=north west] (#1-in\gate@current@input l) at (0,-\gate@port@height) {#2};
+  \else
+    \pgfmathtruncatemacro{\gate@prev@input}{\gate@current@input-1}
+    \node[anchor=north west] (#1-in\gate@current@input l) at (#1-in\gate@prev@input l.north east) {#2};
+  \fi
+  % Coordinate at the base of the input port (tip + port height)
+  \coordinate (#1-in-\gate@current@input) at ($(#1-in\gate@current@input l.north)+(0,\gate@port@height)$);
+  \pic[anchor=south] at (#1-in\gate@current@input l.north) {port};
+  \pgfmathtruncatemacro{\gate@current@input}{\gate@current@input+1}
+  \ifx\relax#3\relax\else
+    \gate@process@input@list{#1}#3\gate@end@marker
+  \fi
+}
+
+% Count inputs first
+\newcommand{\gate@count@inputs}[1]{%
+  \def\gate@input@count{0}%
+  \gate@count@input@list#1,\gate@end@marker,%
+}
+
+\def\gate@count@input@list#1,#2\gate@end@marker{%
+  \pgfmathtruncatemacro{\gate@input@count}{\gate@input@count+1}
+  \ifx\relax#2\relax\else
+    \gate@count@input@list#2\gate@end@marker
+  \fi
+}
+
+% Draw vertical borders between inputs
+\newcommand{\gate@draw@borders}[2]{%
+  \gate@count@inputs{#2}%
+  \ifnum\gate@input@count>1
+    \foreach \i in {2,...,\gate@input@count} {
+      \draw (#1-in\i l.north west |- #1-in.north west) -- (#1-in\i l.south west |- #1-in.south west);
+    }
+  \fi
+}
+
+% Draw output ports
+\newcommand{\gate@draw@outputs}[2]{%
+  \ifnum#2>0
+    \foreach \i in {1,...,#2} {
+      \pgfmathsetmacro{\gate@output@pos}{(\i-0.5)/#2}
+      % Coordinate at the base of the output port (tip - port height since yscale=-1)
+      \coordinate (#1-out-\i) at ($(#1-top.south west)!\gate@output@pos!(#1-top.south east)+(0,-0.125)$);
+      \pic[yscale=-1, anchor=north] at ($(#1-top.south west)!\gate@output@pos!(#1-top.south east)$) {port};
+    }
+  \fi
+}
+
+\makeatother
+
+% \newcommand*\Bb{\mathbb{B}}
+% \newcommand*\Zb{\mathbb{Z}}
+% \newcommand*\Fb{\mathbb{F}}
+% \newcommand*\Nb{\mathbb{N}}
+% \newcommand*\Rb{\mathbb{R}}
+% \newcommand*\Eb{\mathbb{E}}
+% \newcommand*\Gb{\mathbb{G}}
+% \newcommand*\Ac{\mathcal{A}}
+% \newcommand*\Ec{\mathcal{E}}
+% \newcommand*\Rc{\mathcal{R}}
+% \newcommand*\Ic{\mathcal{I}}
+% \newcommand*\Oc{\mathcal{O}}
+% \newcommand*\Uc{\mathcal{U}}
+% \newcommand*\Mc{\mathcal{M}}
+% \newcommand*\Pc{\mathcal{P}}
+% \newcommand*\Vc{\mathcal{V}}
+% \newcommand*\Sc{\mathcal{S}}
+% \newcommand*\Hc{\mathcal{H}}
+
+% \renewcommand*\a{\alpha}
+% \renewcommand*\b{\beta}
+% \renewcommand*\d{\delta}
+% \newcommand*\e{\epsilon}
+% \newcommand*\g{\gamma}
+% \renewcommand*\l{\lambda}
+% \newcommand*\p{\phi}
+% \renewcommand*\o{\omega}
+% \newcommand*\s{\sigma}
+% \newcommand*\ps{\psi}
+% \renewcommand*\S{\Sigma}
+
+% \renewcommand*\mod{\bmod}
+% \newcommand*\cat{\mathbin{+\mkern-10mu+}}
+% \newcommand*\bor{\mathbin{\&\mkern-7mu\&}}
+% \newcommand*\xor{\oplus}
+% \newcommand*\meq{\stackrel{?}{=}}
+% \newcommand*\iso{\cong}
+% \newcommand{\qed}{\hfill \ensuremath{\Box}}
+% \newcommand{\defend}{\hfill \ensuremath{\triangle}}
+% \newcommand*{\then}{\implies}
+% \newcommand*{\from}{\leftarrow}
+
+% \newcommand*\algind{\hspace*{\algorithmicindent}}
+% \newcommand*\algindd{\algind \algind}
+
+% \newcommand{\textblue}[1]{\textcolor{GbBlueDk}{#1}}
+% \newcommand{\mathblue}[1]{\mathcolor{GbBlueDk}{#1}}
+% \newcommand{\floor}[1]{\left \lfloor #1 \right \rfloor }
+% \newcommand{\ceil}[1]{\left \lceil #1 \right \rceil }
+% \renewcommand{\vec}[1]{ \boldsymbol{#1} }
+% \newcommand{\ran}[1]{ \mathrm{#1} }
+% \newcommand{\ranvec}[1]{ \boldsymbol{\ran{#1}} }
+% \newcommand{\dotp}[2]{ \langle #1, #2 \rangle }
+% \newcommand{\ip}[2]{ \langle #1, #2 \rangle }
+
+% \newcommand{\negl}{\text{negl}}
+% \newcommand{\poly}{\text{poly}}
+
+% \newcommand*{\pp}{\text{pp}}
+% \newcommand*{\acc}{\text{acc}}
+% \newcommand*{\Prover}{\mathrm{\text{P\scriptsize ROVER}}}
+% \newcommand*{\Verifier}{\mathrm{\text{V\scriptsize ERIFIER}}}
+% \newcommand*{\Setup}{\mathrm{\text{S{\scriptsize ETUP}}}}
+% \newcommand*{\Generator}{\mathrm{\text{G{\scriptsize ENERATOR}}}}
+% \newcommand*{\Trim}{\mathrm{\text{T{\scriptsize RIM}}}}
+% \newcommand*{\Commit}{\mathrm{\text{C{\scriptsize OMMIT}}}}
+% \newcommand*{\Decider}{\mathrm{\text{D{\scriptsize ECIDER}}}}
+% \newcommand*{\SNARKProver}{\mathrm{\text{SNARK}}.\Prover}
+% \newcommand*{\SNARKVerifier}{\mathrm{\text{SNARK}}.\Verifier}
+% \newcommand*{\SNARKVerifierSlow}{\mathrm{\text{SNARK}}.\mathrm{\text{V\scriptsize ERIFIER}\text{S\scriptsize LOW}}}
+% \newcommand*{\IVCProver}{\mathrm{\text{IVC}}.\Prover}
+% \newcommand*{\IVCVerifier}{\mathrm{\text{IVC}}.\Verifier}
+% \newcommand*{\AS}{\text{AS}}
+% \newcommand*{\ASGenerator}{\AS.\Generator}
+% \newcommand*{\ASProver}{\AS.\Prover}
+% \newcommand*{\ASVerifier}{\AS.\Verifier}
+% \newcommand*{\ASDecider}{\AS.\Decider}
+% \newcommand*{\PC}{\text{PC}}
+% \newcommand*{\PCSetup}{\PC.\Setup}
+% \newcommand*{\PCTrim}{\PC.\Trim}
+% \newcommand*{\PCCommit}{\PC.\Commit}
+% \newcommand*{\PCOpen}{\PC.\mathrm{\text{O\scriptsize PEN}}}
+% \newcommand*{\PCCheck}{\PC.\mathrm{\text{C\scriptsize HECK}}}
+% \newcommand*{\PCDL}{\text{PC}_{\text{DL}}}
+% \newcommand*{\PCDLSetup}{\PCDL.\Setup}
+% \newcommand*{\PCDLTrim}{\PCDL.\Trim}
+% \newcommand*{\PCDLCommit}{\PCDL.\Commit}
+% \newcommand*{\PCDLOpen}{\PCDL.\mathrm{\text{O\scriptsize PEN}}}
+% \newcommand*{\PCDLSuccinctCheck}{\PCDL.\mathrm{\text{S{\scriptsize UCCINCT}C{\scriptsize HECK}}}}
+% \newcommand*{\PCDLCheck}{\PCDL.\mathrm{\text{C\scriptsize HECK}}}
+% \newcommand*{\ASDL}{\text{AS}_{\text{DL}}}
+% \newcommand*{\ASDLGenerator}{\ASDL.\Generator}
+% \newcommand*{\ASDLIndexer}{\ASDL.\mathrm{\text{I\scriptsize NDEXER}}}
+% \newcommand*{\ASDLCommonSubroutine}{\ASDL.\mathrm{\text{C{\scriptsize OMMON}S{\scriptsize UBROUTINE}}}}
+% \newcommand*{\ASDLProver}{\ASDL.\mathrm{\text{P\scriptsize ROVER}}}
+% \newcommand*{\ASDLVerifier}{\ASDL.\mathrm{\text{V\scriptsize ERIFIER}}}
+% \newcommand*{\ASDLDecider}{\ASDL.\mathrm{\text{D\scriptsize ECIDER}}}
+% \newcommand*{\CM}{\mathrm{\text{CM}}}
+% \newcommand*{\CMSetup}{\CM.\Setup}
+% \newcommand*{\CMTrim}{\CM.\Trim}
+% \newcommand*{\CMCommit}{\CM.\Commit}
+
+% \newcommand*\Result{\mathbf{Result}}
+% \newcommand*\Option{\mathbf{Option}}
+% \newcommand*\Acc{\mathbf{Acc}}
+% \newcommand*\AccHiding{\mathbf{AccHiding}}
+% \newcommand*\EvalProof{\mathbf{EvalProof}}
+
+\newcommand*\incompleteadd{\boxplus}
+
+\newcommand*\Bb{\mathbb{B}}
+\newcommand*\Zb{\mathbb{Z}}
+\newcommand*\Fb{\mathbb{F}}
+\newcommand*\Nb{\mathbb{N}}
+\newcommand*\Rb{\mathbb{R}}
+\newcommand*\Eb{\mathbb{E}}
+\newcommand*\Gb{\mathbb{G}}
+\newcommand*\Ac{\mathcal{A}}
+\newcommand*\Bc{\mathcal{B}}
+\newcommand*\Cc{\mathcal{C}}
+\newcommand*\Dc{\mathcal{D}}
+\newcommand*\Ec{\mathcal{E}}
+\newcommand*\Rc{\mathcal{R}}
+\newcommand*\Oc{\mathcal{O}}
+\newcommand*\Uc{\mathcal{U}}
+\newcommand*\Mc{\mathcal{M}}
+\newcommand*\Pc{\mathcal{P}}
+\newcommand*\Vc{\mathcal{V}}
+\newcommand*\Tc{\mathcal{T}}
+\newcommand*\Sc{\mathcal{S}}
+\newcommand*\Hc{\mathcal{H}}
+
+\renewcommand*\a{\alpha}
+\renewcommand*\b{\beta}
+\renewcommand*\d{\delta}
+\newcommand*\e{\epsilon}
+\newcommand*\g{\gamma}
+\renewcommand*\l{\lambda}
+\newcommand*\p{\phi}
+\newcommand*\s{\sigma}
+\renewcommand*\o{\omega}
+\newcommand*\ps{\psi}
+\renewcommand*\S{\Sigma}
+
+\renewcommand*\mod{\bmod}
+\newcommand*\cat{\mathbin{+\mkern-10mu+}}
+\newcommand*\bor{\mathbin{\&\mkern-7mu\&}}
+\newcommand*\xor{\oplus}
+\newcommand*\meq{\stackrel{?}{=}}
+\newcommand*\iso{\cong}
+% \newcommand{\qed}{\hfill \ensuremath{\Box}}
+\newcommand{\defend}{\hfill \ensuremath{\triangle}}
+\newcommand*{\then}{\implies}
+\newcommand*{\fft}{\text{fft}}
+\newcommand*{\ifft}{\text{ifft}}
+
+\newcommand*\algind{\hspace*{\algorithmicindent}}
+\newcommand*\algindd{\algind \algind}
+
+\newcommand{\textblue}[1]{\textcolor{GbBlueDk}{#1}}
+\newcommand{\mathblue}[1]{\mathcolor{GbBlueDk}{#1}}
+\newcommand{\textgrey}[1]{\textcolor{GbGrey}{#1}}
+\newcommand{\mathgrey}[1]{\mathcolor{GbGrey}{#1}}
+\newcommand{\floor}[1]{\left \lfloor #1 \right \rfloor }
+\newcommand{\ceil}[1]{\left \lceil #1 \right \rceil }
+\renewcommand{\vec}[1]{ \boldsymbol{#1} }
+\newcommand{\ran}[1]{ \mathrm{#1} }
+\newcommand{\ranvec}[1]{ \boldsymbol{\ran{#1}} }
+\newcommand{\dotp}[2]{ \langle #1, #2 \rangle }
+\newcommand{\ip}[2]{ \langle #1, #2 \rangle }
+\newcommand{\IK}[2]{ \mathrm{I.K} }
+
+\newcommand*{\IP}{\text{IP}}
+\newcommand*{\lagrange}{\text{lagrange}}
+\newcommand*{\negl}{\text{negl}}
+\newcommand*{\poly}{\text{poly}}
+\newcommand*{\from}{\gets}
+\newcommand*{\pp}{\mathrm{pp}}
+\newcommand*{\acc}{\mathrm{acc}}
+\newcommand*{\ToInstance}{\mathrm{\text{T\scriptsize O}\text{I\scriptsize NSTANCE}}}
+\newcommand*{\Prover}{\mathrm{\text{P\scriptsize ROVER}}}
+\newcommand*{\Verifier}{\mathrm{\text{V\scriptsize ERIFIER}}}
+\newcommand*{\Setup}{\mathrm{\text{S{\scriptsize ETUP}}}}
+\newcommand*{\Generator}{\mathrm{\text{G{\scriptsize ENERATOR}}}}
+\newcommand*{\Trim}{\mathrm{\text{T{\scriptsize RIM}}}}
+\newcommand*{\Commit}{\mathrm{\text{C{\scriptsize OMMIT}}}}
+\newcommand*{\Decider}{\mathrm{\text{D{\scriptsize ECIDER}}}}
+\newcommand*{\SNARKProver}{\mathrm{\text{SNARK}}.\Prover}
+\newcommand*{\SNARKVerifier}{\mathrm{\text{SNARK}}.\Verifier}
+\newcommand*{\SNARKVerifierSlow}{\mathrm{\text{SNARK}}.\mathrm{\text{V\scriptsize ERIFIER}\text{S\scriptsize LOW}}}
+\newcommand*{\SNARKVerifierFast}{\mathrm{\text{SNARK}}.\mathrm{\text{V\scriptsize ERIFIER}\text{F\scriptsize AST}}}
+\newcommand*{\NARKProver}{\mathrm{\text{NARK}}.\Prover}
+\newcommand*{\NARKVerifier}{\mathrm{\text{NARK}}.\Verifier}
+\newcommand*{\NARKVerifierSlow}{\mathrm{\text{NARK}}.\mathrm{\text{V\scriptsize ERIFIER}\text{S\scriptsize LOW}}}
+\newcommand*{\NARKVerifierFast}{\mathrm{\text{NARK}}.\mathrm{\text{V\scriptsize ERIFIER}\text{F\scriptsize AST}}}
+\newcommand*{\IVCProver}{\mathrm{\text{IVC}}.\Prover}
+\newcommand*{\IVCVerifier}{\mathrm{\text{IVC}}.\Verifier}
+\newcommand*{\AS}{\text{AS}}
+\newcommand*{\ASGenerator}{\AS.\Generator}
+\newcommand*{\ASSetup}{\AS.\Setup}
+\newcommand*{\ASProver}{\AS.\Prover}
+\newcommand*{\ASVerifier}{\AS.\Verifier}
+\newcommand*{\ASDecider}{\AS.\Decider}
+\newcommand*{\PC}{\text{PC}}
+\newcommand*{\PCSetup}{\PC.\Setup}
+\newcommand*{\PCTrim}{\PC.\Trim}
+\newcommand*{\PCCommit}{\PC.\Commit}
+\newcommand*{\PCOpen}{\PC.\mathrm{\text{O\scriptsize PEN}}}
+\newcommand*{\PCCheck}{\PC.\mathrm{\text{C\scriptsize HECK}}}
+\newcommand*{\PCDL}{\text{PC}_{\text{DL}}}
+\newcommand*{\PCDLSetup}{\PCDL.\Setup}
+\newcommand*{\PCDLTrim}{\PCDL.\Trim}
+\newcommand*{\PCDLCommit}{\PCDL.\Commit}
+\newcommand*{\PCDLOpen}{\PCDL.\mathrm{\text{O\scriptsize PEN}}}
+\newcommand*{\PCDLSuccinctCheck}{\PCDL.\mathrm{\text{S{\scriptsize UCCINCT}C{\scriptsize HECK}}}}
+\newcommand*{\PCDLCheck}{\PCDL.\mathrm{\text{C\scriptsize HECK}}}
+\newcommand*{\ASDL}{\text{AS}_{\text{DL}}}
+\newcommand*{\ASDLSetup}{\ASDL.\Setup}
+\newcommand*{\ASDLIndexer}{\ASDL.\mathrm{\text{I\scriptsize NDEXER}}}
+\newcommand*{\ASDLCommonSubroutine}{\ASDL.\mathrm{\text{C{\scriptsize OMMON}S{\scriptsize UBROUTINE}}}}
+\newcommand*{\ASDLProver}{\ASDL.\mathrm{\text{P\scriptsize ROVER}}}
+\newcommand*{\ASDLVerifier}{\ASDL.\mathrm{\text{V\scriptsize ERIFIER}}}
+\newcommand*{\ASDLDecider}{\ASDL.\mathrm{\text{D\scriptsize ECIDER}}}
+\newcommand*{\CM}{\mathrm{\text{CM}}}
+\newcommand*{\CMSetup}{\CM.\Setup}
+\newcommand*{\CMTrim}{\CM.\Trim}
+\newcommand*{\CMCommit}{\CM.\Commit}
+\newcommand*{\Plonk}{\text{Plonk} }
+\newcommand*{\PlonkVerifier}{\text{PLONK}.\mathrm{\text{V\scriptsize ERIFIER}}}
+\newcommand*{\PlonkProver}{\text{PLONK}.\mathrm{\text{P\scriptsize ROVER}}}
+\newcommand*{\PlonkVerifierFast}{\text{PLONK}.\mathrm{\text{V\scriptsize ERIFIER}\text{F\scriptsize AST}}}
+\newcommand*{\PlonkVerifierSlow}{\text{PLONK}.\mathrm{\text{V\scriptsize ERIFIER}\text{S\scriptsize LOW}}}
+\newcommand*{\SchnorrVerifier}{\mathrm{\text{S\scriptsize CHNORR}}.\mathrm{\text{V\scriptsize ERIFIER}}}
+
+\newcommand*\Result{\mathbf{Result}}
+\newcommand*\Option{\mathbf{Option}}
+\newcommand*\Acc{\mathbf{Acc}}
+\newcommand*\Instance{\mathbf{Instance}}
+\newcommand*\Witness{\mathbf{Witness}}
+\newcommand*\PublicInfo{\mathbf{PublicInputs}}
+\newcommand*\PublicInputs{\mathbf{PublicInputs}}
+\newcommand*\Circuit{\mathbf{Circuit}}
+\newcommand*\AccHiding{\mathbf{AccHiding}}
+\newcommand*\EvalProof{\mathbf{EvalProof}}
+
+\newcommand{\plonkm}{\mathcal{P}\textfrak{lon}\mathcal{K}}
+\newcommand{\plonk}{$\plonkm$}
+% \newcommand{\plookup}{\textfrak{plookup}}
+\newcommand{\plookup}{\text{Plookup}}
+\newcommand{\pcell}{\textfrak{p}}
+\newcommand{\plonkup}{\plonk$\textfrak{up}$}
+\newcommand{\Arithmetize}{\mathrm{\text{A\scriptsize RITHMETIZE}}}
+\newcommand{\PProver}{\mathrm{\text{P\scriptsize ROVER}}}
+\newcommand{\PVerifier}{\mathrm{\text{V\scriptsize ERIFIER}}}
+
+\newcommand{\Unit}{\mathbf{1}}
+\newcommand{\maybe}[2]{ \left\{ #1 \middle\vert #2 \right.}
+\newcommand{\abst}[1]{ \hat{#1} }
+\newcommand{\avec}[1]{\abst{\vec{#1}}}
+\newcommand{\set}[1]{ \left\{ #1 \right\}}
+\newcommand{\build}[3]{\left\llbracket #1 \right\rrbracket^{#2}_{#3}}
+\newcommand{\AbsCirc}{\text{ACirc}}
+\newcommand{\Ggt}{\text{Gate}}
+\makeatletter
+\newcommand{\ggt}[2]{%
+  \text{#1}(
+    \def\ggt@first{1}%
+    \@for\next:=#2\do{%
+      \ifnum\ggt@first=1
+        \abst{\next}%
+        \def\ggt@first{0}%
+      \else
+        ,\abst{\next}%
+      \fi
+    }%
+  )
+}
+\newcommand{\ggtw}[2]{%
+  \text{#1}(
+    \def\ggt@first{1}%
+    \@for\next:=#2\do{%
+      \ifnum\ggt@first=1
+        \next%
+        \def\ggt@first{0}%
+      \else
+        ,\next%
+      \fi
+    }%
+  )
+}
+\newcommand{\ggtu}[2]{%
+  #1(
+    \def\ggt@first{1}%
+    \@for\next:=#2\do{%
+      \ifnum\ggt@first=1
+        \next%
+        \def\ggt@first{0}%
+      \else
+        ,\next%
+      \fi
+    }%
+  )
+}
+\makeatother
+\newcommand{\inr}{\text{inr}}
+\newcommand{\inl}{\text{inl}}
+\newcommand{\gpair}[2]{ \underline{#1\ #2} }
+\newcommand{\Ops}{\text{Op}}
+\newcommand{\AState}{\text{AState}}
+\newcommand{\RState}{\text{RState}}
+\newcommand{\VMap}{\text{VMap}}
+\newcommand{\pto}{\rightharpoonup}
+\newcommand{\Wire}{\text{Wire}}
+\newcommand{\wire}[2]{\underline{#1 : #2}}
+\newcommand{\new}{\text{new}}
+\newcommand{\state}{\text{state}}
+\newcommand{\astate}[3]{\underline{#1\ #2\ #3}}
+\newcommand{\ty}{\text{ty}}
+\newcommand{\id}{\mathrm{id}}
+\newcommand{\idx}{\text{idx}}
+\newcommand{\gin}{\text{in}}
+\newcommand{\tin}[1]{\vec{t}^{\vec{in}\ifstrempty{#1}{}{,#1}}}
+\newcommand{\tout}[1]{\vec{t}^{\vec{out}\ifstrempty{#1}{}{,#1}}}
+\newcommand{\out}{\text{out}}
+\newcommand{\entries}{\text{entries}}
+\newcommand{\aput}{\text{put}}
+\newcommand{\aget}{\text{get}}
+\newcommand{\otherwise}{\text{otherwise}}
+\newcommand{\lift}{\text{lift}}
+\DeclareMathOperator*{\opcirc}{\circ}
+\DeclareMathOperator*{\opcat}{\cat}
+\newcommand{\Slot}{\text{Slot}}
+\newcommand{\Selector}{\text{Selector}}
+\newcommand{\SlotNSelector}{\text{Slot} + \text{Selector}}
+\newcommand{\Column}{\text{Column}}
+\newcommand{\eval}{\text{eval}}
+\newcommand{\refg}{\text{ref}}
+\newcommand{\Base}{\text{Base}}
+\newcommand{\ctrn}{\widehat{\text{constraint}}}
+\newcommand{\term}{\text{term}}
+\newcommand{\IndexMap}{\text{IMap}}
+\newcommand{\Cell}{\text{Cell}}
+\newcommand{\PreTable}{\text{PreTable}}
+\newcommand{\OpGroup}{\text{OGrp}}
+\newcommand{\OpCollection}{\text{OCol}}
+\newcommand{\Grp}{\text{Grp}}
+\newcommand{\Col}{\text{Col}}
+\newcommand{\Spec}{\text{Spec}}
+\newcommand{\FMap}{\text{FMap}}
+\newcommand{\Eqn}{\text{Eqn}}
+\newcommand{\AWire}{\text{AWire}}
+\newcommand{\lin}{\text{lin}}
+\newcommand{\Arg}{\text{Arg}}
+\newcommand{\base}{\text{base}}
+\newcommand{\Input}{\text{Input}}
+\newcommand{\pset}[1]{\mathcal{P}(#1)}
+\newcommand{\Rel}{\text{Rel}}
