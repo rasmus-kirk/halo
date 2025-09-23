@@ -35,6 +35,7 @@
       headerTitle = "Halo Accumulation Scheme";
       includedDirs = [
         (thesisPkgsF pkgs).default
+        (slidesPkgsF pkgs).default
         (contractPkgsF pkgs).default
       ];
       standalonePages = [{
@@ -54,6 +55,10 @@
         {
           title = "Project Contract";
           location = "/contract/contract.pdf";
+        }
+        {
+          title = "Slides";
+          location = "/slides/slides.pdf";
         }
         {
           title = "Github";
