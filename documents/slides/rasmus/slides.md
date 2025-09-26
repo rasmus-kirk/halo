@@ -1,5 +1,5 @@
 ---
-title: Investigating IVC with Accumulation Schemes
+title: Light Node Catchup Using Incrementally Verifiable Chain of Signatures
 author:
   - Rasmus Kirk Jakobsen
 theme: Berlin
@@ -103,7 +103,7 @@ $$
 - **Plonk**: A general-purpose, potentially zero-knowledge, SNARK.
 - **Pasta**: A cycle of elliptic curves, Pallas and Vesta.
 
-## The Gate Constraints
+## The Gate Constraints $3x_1^2 + 5x_2 = 47$
 
 \begin{columns} 
 % Column 1
@@ -249,8 +249,8 @@ $$
                       &+ c(X) q_o(X) \\
                       &+ a(X) b(X) q_m(X) \\
                       &+ q_c(X) \\
-            \forall s \in S &= \{ \o^1, \o^2, \dots, \o^n \} : \\
-            f_{GC}(s) &\meq 0
+            \forall h \in H &= \{ \o^1, \o^2, \dots, \o^n \} : \\
+            f_{GC}(h) &\meq 0
           \end{aligned}
         $$
     \end{column}%
@@ -273,7 +273,7 @@ $$
   \end{tabu}
 \end{center}
 
-## Vanishing Argument: $\forall s \in S : f(s) \meq 0$
+## Vanishing Argument: $\forall h \in H : f(h) \meq 0$
 
 \small
 
@@ -282,35 +282,35 @@ $$
 \begin{array}{>{\displaystyle}l >{\displaystyle}c >{\displaystyle}l}
 \textbf{Prover}(f \in \Fb_{\leq d}[X])    &                                 & \textbf{Verifier}                           \\
 C_f = \PCCommit(f(X), d, \bot)            &                                 &                                             \\
-z_S(X) = \prod_{s \in S}(X - s)           &                                 &                                             \\
-t(X) = \frac{f(X)}{z_S}                   &                                 &                                             \\
+z_S(X) = \prod_{h \in H}(X - s)           &                                 &                                             \\
+t(X) = \frac{f(X)}{z_H(X)}                &                                 &                                             \\
 C_t = \PCCommit(t(X), d, \bot)            & \rarr{C_f, C_t}                 & \xi \in_R \Fb                               \\
 v_f = f(\xi)                              & \larr{\xi}                      &                                             \\
-\pi_f = \PCOpen(f(X), C_f, d, \xi, \bot)  &                                 &                                             \\
+\pi_f = \PCOpen(v_f, C_f, d, \xi, \bot)   &                                 &                                             \\
 v_t = t(\xi)                              &                                 &                                             \\
-\pi_t = \PCOpen(t(X), C_f, d, \xi, \bot)  & \rarr{v_f, \pi_f, v_t, \pi_t}   & v_f \meq v_t \cdot z_S(\xi)                 \\
+\pi_t = \PCOpen(v_t, C_t, d, \xi, \bot)   & \rarr{v_f, \pi_f, v_t, \pi_t}   & v_f \meq v_t \cdot z_H(\xi)                 \\
                                           &                                 & \PCCheck(C_f, d, \xi, v_f, \pi_f)           \\
                                           &                                 & \PCCheck(C_t, d, \xi, v_t, \pi_t)           \\
 \end{array}
 $$
 
-## Vanishing Argument: $\forall s \in S : f(s) \meq 0$
+## Vanishing Argument: $\forall h \in H : f(h) \meq 0$
 
 ### Correctness
 
 $$
 \begin{aligned}
-p(\xi) &= f(\xi) - t(\xi) z_S(\xi) \\
-       &= f(\xi) - \left( \frac{f(\xi)}{z_S(\xi)} \right) z_S(\xi) \\
+p(\xi) &= f(\xi) - t(\xi) z_H(\xi) \\
+       &= f(\xi) - \left( \frac{f(\xi)}{z_H(\xi)} \right) z_H(\xi) \\
        &= 0
 \end{aligned}
 $$
 
 ### Soundness
 
-- $z_S \; | \; f$ only if all of $s \in S : f(s) = 0$ (Factor Theorem)
+- $z_S \; | \; f$ only if all of $h \in H : f(h) = 0$ (Factor Theorem)
 - Schwartz-Zippel Lemma: $\xi \in_R \Fb : Pr[p(\xi) = 0 \; | \; p \neq 0] \leq \frac{\deg(p)}{|\Fb|}$
-- $|\Fb| \gg \deg(p) \implies Pr[p(\xi) \; | \; p \neq 0] \leq \e$
+- $|\Fb| \gg \deg(p) \implies Pr[p(\xi) = 0 \; | \; p \neq 0] \leq \e$
 - $\deg(p) \leq d \leq n$
 
 ## Copy Constraints
@@ -551,7 +551,7 @@ $$
 \begin{array}{>{\displaystyle}l >{\displaystyle}c >{\displaystyle}l}
 \textbf{Prover}(f, g \in \Fb_{\leq d}[X])                        &                        & \textbf{Verifier}                           \\
 C_f = \PCCommit(f(X), d, \bot)                                   &                        &                                             \\
-C_g = \PCCommit(g(X), d, \bot)                                   & \rarr{C_f, C_g}        & \a, \b \in_R \Fb                            \\
+C_g = \PCCommit(g(X), d, \bot)                                   & \rarr{C_f, C_g}        & \g \in_R \Fb                            \\
 z(\o^1) = 1                                                      &                        &                                             \\
 z(\o^i) = \prod_{1 \leq j < i} \frac{f(\o^j) + \g}{g(\o^j) + \g} & \lrarr{\hspace{2.5em}} & \forall h \in H :                           \\
                                                                  & \lrarr{\hspace{2.5em}} & f_{CC_1}(h) \meq l_1(h) (z(h) - 1)          \\
@@ -582,7 +582,7 @@ $$f'(X) = f(X) + \beta \id(X), \quad g'(X) = f(X) + \beta \s(X)$$
 ## Public Inputs
 
 - Public inputs, $\vec{x} : |\vec{x}| = \ell_2$
-- Leading to a public input polynomial, $x(X) = \ifft(\vec{x})$
+- Leading to a public input polynomial, $x(X) = \ifft(-\vec{x})$
 
 \small
 $$f_{GC}(X) = a(X) q_l(X) + b(X) q_r(X) + c(X) q_o(X) + a(X) b(X) q_m(X) + q_c(X) + x(X)$$
@@ -591,7 +591,7 @@ $$f_{GC}(X) = a(X) q_l(X) + b(X) q_r(X) + c(X) q_o(X) + a(X) b(X) q_m(X) + q_c(X
 
 1. Add a new selector polynomial
 2. Create a constraint table 
-3. Convert constraint table to 
+3. Convert constraint table to $f_{GC}$ terms
 
 ## Custom Gates - Double-and-Add
 
@@ -668,7 +668,7 @@ $$
     3      & & $b_i \cdot (b_i - 1)$                         & & $b_i \in \Bb$                                                         \\\hline
     3      & & $x_s - (b_i \cdot x_r + (1 - b_i) \cdot x_q)$ & & $x_s = \textbf{ if } b_i = 1 \textbf{ then } x_r \textbf{ else } x_q$ \\
     3      & & $y_s - (b_i \cdot y_r + (1 - b_i) \cdot y_q)$ & & $y_s = \textbf{ if } b_i = 1 \textbf{ then } y_r \textbf{ else } y_q$ \\\hline
-    3      & & $acc_{i+1} - (acc_i + b_i \cdot 2^i)$         & & $acc_{i+1} - (acc_i + b_i \cdot 2^i)$                                 \\\hline
+    3      & & $acc_{i+1} - (acc_i + b_i \cdot 2^i)$         & & $acc_{i+1} = (acc_i + b_i \cdot 2^i)$                                 \\\hline
   \end{tabu}
 \end{table}
 
@@ -689,16 +689,16 @@ $$
     3      & & $b_i \cdot (b_i - 1)$                         & & $b_i \in \Bb$                                                         \\\hline
     3      & & $x_s - (b_i \cdot x_r + (1 - b_i) \cdot x_q)$ & & $x_s = \textbf{ if } b_i = 1 \textbf{ then } x_r \textbf{ else } x_q$ \\
     3      & & $y_s - (b_i \cdot y_r + (1 - b_i) \cdot y_q)$ & & $y_s = \textbf{ if } b_i = 1 \textbf{ then } y_r \textbf{ else } y_q$ \\\hline
-    3      & & $acc_{i+1} - (acc_i + b_i \cdot 2^i)$         & & $acc_{i+1} - (acc_i + b_i \cdot 2^i)$                                 \\\hline
+    3      & & $acc_{i+1} - (acc_i + b_i \cdot 2^i)$         & & $acc_{i+1} = (acc_i + b_i \cdot 2^i)$                                 \\\hline
   \end{tabu}
 \end{table}
 
 $$
 \begin{alignedat}{1}
 f_{GC}(X) &= \dots + q_{(\cdot)} \cdot ( \\
-          &\quad \zeta^0 \cdot ((1 - x_a \cdot \g_q) \cdot x_q) \\
-          &\quad \zeta^1 \cdot ((1 - x_a \cdot \g_q) \cdot y_q) \\
-          &\quad \zeta^2 \cdot (2 \cdot y_a \cdot \l_q - 3 \cdot x_a^2) \\
+          &\quad \zeta^0 \cdot ((1 - x_a \cdot \g_q) \cdot x_q) + \\
+          &\quad \zeta^1 \cdot ((1 - x_a \cdot \g_q) \cdot y_q) + \\
+          &\quad \zeta^2 \cdot (2 \cdot y_a \cdot \l_q - 3 \cdot x_a^2) + \\
           &\quad \dots \\
           &)
 \end{alignedat}
@@ -739,8 +739,8 @@ $$
     $$
     \begin{aligned}
     f_{GC}(X) &= \dots + q_{(\cdot)}(X) \cdot ( \\
-              &\quad \zeta^0 \cdot ((1 - w_1(X) \cdot \g_q) \cdot w_6(X)) \\
-              &\quad \zeta^1 \cdot ((1 - w_1(X) \cdot \g_q) \cdot w_6(X)) \\
+              &\quad \zeta^0 \cdot ((1 - w_1(X) \cdot w_{11}(X)) \cdot w_6(X)) \\
+              &\quad \zeta^1 \cdot ((1 - w_1(X) \cdot w_{11}(X)) \cdot w_6(X)) \\
               &\quad \zeta^2 \cdot (2 \cdot w_2(X) \cdot w_{12}(X) - 3 \cdot w_1(X)^2) \\
               &\quad \dots \\
               &)
@@ -764,7 +764,7 @@ $$B_i = \{ \s^{(pk)}_i, j_i = i, pk_i, ptr_i \in \Bb^{256}, \s^{(ptr)}_i \}$$
   the IVC circuit.
 - $pk_i$: The public key of the current committee.
 - $ptr_i$: A hash of the most recent block on the main blockchain.
-- $\s^{(ptr)}_i$: A signature on $ptr_i$, signed by the current public key.
+- $\s^{(ptr)}_i$: A signature on $ptr_i$, signed by the current committee.
 
 $$\text{Verify}_{pk_{i-1}}(\s^{(pk)}, pk_i) \land \text{Verify}_{pk_i}(\s^{(ptr)}, ptr_i) \land j_i \meq j_{i-1} + 1$$
 
@@ -879,40 +879,7 @@ $$\text{Verify}_{pk_{i-1}}(\s^{(pk)}, pk_i) \land \text{Verify}_{pk_i}(\s^{(ptr)
 
 ## Conclusion
 
-### The project:
-  - Fully implemented and understood a complex IVC-scheme
+### The goal:
+  - To fully implement and analyze a complex IVC-scheme
   - Showed IVC may be useful in the context of blockchain catch-up
   - Optimizations, lookups, quantum security...
-
-## Plonk Arguments - Batched Evaluation Proofs
-
-\small
-
-$$
-\renewcommand{\arraystretch}{1.75}
-\begin{array}{>{\displaystyle}l >{\displaystyle}c >{\displaystyle}l}
-\textbf{Prover}(\vec{f} \in \Fb_{\leq d}^k[X]) &                         & \textbf{Verifier}                           \\
-C_{f_i} = \PCCommit(f_i(X), d, \bot)           & \rarr{\vec{C_f}}        & \a, \xi \in_R \Fb                           \\
-w(X) = \sum_{i = 0}^{k-1} \a^i f_i(X)          & \larr{\a, \xi}          &                                             \\
-C_w(X) = \PCCommit(w(X), d, \bot)              &                         &                                             \\
-v_{f_i} = f_i(\xi)                             &                         &                                             \\
-\pi_w = \PCOpen(w(X), C_w, d, \xi, \bot)       & \rarr{\pi_w, \vec{v_f}} & C_w = \sum_{i = 0}^{k-1} \a^i C_{f_i}       \\
-                                               &                         & v_w = \sum_{i = 0}^{k-1} \a^i v_{f_i}       \\
-                                               &                         & \PCCheck(C_w, d, \xi, v_w, \pi_w)           \\
-\end{array}
-$$
-
-## Plonk Arguments - Batched Evaluation Proofs Security
-
-### Correctness
-
-- $\PCCheck(C_w, d, \xi, v_w, \pi_w)$
-  - $C_w = \sum_{i = 0}^{k-1} \a^i C_{f_i} = \PCCommit(w(X), d, \bot)$
-  - $v_w = \sum_{i = 0}^{k-1} \a^i v_{f_i} = w(\xi)$
-
-### Soundness
-
-$$p(\a) := \sum_{i=0}^{k-1} \a^i (f_i(\xi) - v_i)$$
-
-- Schwartz-Zippel...
-
