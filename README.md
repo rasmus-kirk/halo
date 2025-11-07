@@ -1,4 +1,7 @@
-## Rust Implementation  
+This project fully implements Halo2 from scratch and describes all the theory
+behind it.
+
+## Rust Implementation
 
 ### Developement Environment using Nix
 
@@ -16,10 +19,9 @@ To run the benchmark, go into the `/crates/plonk` and run `cargo run`.
 
 ## Report  
 
-The full report, *["Investigating IVC with Accumulation
-Schemes"](https://halo.rasmuskirk.com/thesis/thesis.pdf)*, is included in this
-repository and provides a detailed explanation of the theory, constructions,
-and benchmarks.
+The [full report](https://halo.rasmuskirk.com/thesis/thesis.pdf)*, is
+included in this repository and provides a detailed explanation of the theory,
+constructions, and benchmarks.
 
 ## License  
 

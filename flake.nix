@@ -32,14 +32,14 @@
       pkgs = pkgs;
       src = ./.;
       timestamp = self.lastModified;
-      headerTitle = "Halo Accumulation Scheme";
+      headerTitle = "Halo2";
       includedDirs = [
         (thesisPkgsF pkgs).default
         (slidesPkgsF pkgs).default
         (contractPkgsF pkgs).default
       ];
       standalonePages = [{
-        title = "Investigating IVC with Accumulation Schemes";
+        title = "Halo2";
         inputFile = ./README.md;
         outputFile = "index.html";
       }];
