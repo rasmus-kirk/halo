@@ -1,4 +1,4 @@
-## High-Level Arithmetization
+## Arithmetization
 
 In the implementation circuits are written in a custom-made eDSL - an embedded
 Domain Specific Language - that lets a circuit-creator specify circuits as

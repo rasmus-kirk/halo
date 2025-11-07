@@ -2,9 +2,7 @@
 
 Basic knowledge of elliptic curves, groups and interactive arguments
 is assumed in the following text. Basic familiarity with SNARKs is also
-assumed. The polynomial commitment scheme and accumulation scheme used was
-implemented and analyzed in a previous project[@halo-accumulation] by one of
-the authors of this dissertation.
+assumed.
 
 The following subsections introduce the concept of Incrementally Verifiable
 Computation (IVC) along with some background concepts. These concepts lead to

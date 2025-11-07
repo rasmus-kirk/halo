@@ -282,7 +282,7 @@ $$
 \begin{array}{>{\displaystyle}l >{\displaystyle}c >{\displaystyle}l}
 \textbf{Prover}(f \in \Fb_{\leq d}[X])    &                                 & \textbf{Verifier}                           \\
 C_f = \PCCommit(f(X), d, \bot)            &                                 &                                             \\
-z_S(X) = \prod_{h \in H}(X - s)           &                                 &                                             \\
+z_H(X) = \prod_{h \in H}(X - h)           &                                 &                                             \\
 t(X) = \frac{f(X)}{z_H(X)}                &                                 &                                             \\
 C_t = \PCCommit(t(X), d, \bot)            & \rarr{C_f, C_t}                 & \xi \in_R \Fb                               \\
 v_f = f(\xi)                              & \larr{\xi}                      &                                             \\
@@ -308,7 +308,7 @@ $$
 
 ### Soundness
 
-- $z_S \; | \; f$ only if all of $h \in H : f(h) = 0$ (Factor Theorem)
+- $z_H \; | \; f$ only if all of $h \in H : f(h) = 0$ (Factor Theorem)
 - Schwartz-Zippel Lemma: $\xi \in_R \Fb : Pr[p(\xi) = 0 \; | \; p \neq 0] \leq \frac{\deg(p)}{|\Fb|}$
 - $|\Fb| \gg \deg(p) \implies Pr[p(\xi) = 0 \; | \; p \neq 0] \leq \e$
 - $\deg(p) \leq d \leq n$
@@ -612,7 +612,7 @@ $$f_{GC}(X) = a(X) q_l(X) + b(X) q_r(X) + c(X) q_o(X) + a(X) b(X) q_m(X) + q_c(X
     \State $A := S$
   \EndFor
   \State \textbf{assert} $acc \meq x$
-  \State \Return A
+  \State \Return $A$
 \end{algorithmic}
 \end{algorithm}
 
@@ -696,9 +696,9 @@ $$
 $$
 \begin{alignedat}{1}
 f_{GC}(X) &= \dots + q_{(\cdot)} \cdot ( \\
-          &\quad \zeta^0 \cdot ((1 - x_a \cdot \g_q) \cdot x_q) + \\
-          &\quad \zeta^1 \cdot ((1 - x_a \cdot \g_q) \cdot y_q) + \\
-          &\quad \zeta^2 \cdot (2 \cdot y_a \cdot \l_q - 3 \cdot x_a^2) + \\
+          &\quad \zeta^0 \cdot ((1 - x_a \cdot \g_q) \cdot x_q) \; + \\
+          &\quad \zeta^1 \cdot ((1 - x_a \cdot \g_q) \cdot y_q) \; + \\
+          &\quad \zeta^2 \cdot (2 \cdot y_a \cdot \l_q - 3 \cdot x_a^2) \; + \\
           &\quad \dots \\
           &)
 \end{alignedat}
@@ -726,9 +726,9 @@ $$
     $$
     \begin{aligned}
     f_{GC}(X) &= \dots + q_{(\cdot)} \cdot ( \\
-              &\quad \zeta^0 \cdot ((1 - x_a \cdot \g_q) \cdot x_q) \\
-              &\quad \zeta^1 \cdot ((1 - x_a \cdot \g_q) \cdot y_q) \\
-              &\quad \zeta^2 \cdot (2 \cdot y_a \cdot \l_q - 3 \cdot x_a^2) \\
+              &\quad \zeta^0 \cdot ((1 - x_a \cdot \g_q) \cdot x_q) \; + \\
+              &\quad \zeta^1 \cdot ((1 - x_a \cdot \g_q) \cdot y_q) \; + \\
+              &\quad \zeta^2 \cdot (2 \cdot y_a \cdot \l_q - 3 \cdot x_a^2) \; + \\
               &\quad \dots \\
               &)
     \end{aligned}
@@ -739,9 +739,9 @@ $$
     $$
     \begin{aligned}
     f_{GC}(X) &= \dots + q_{(\cdot)}(X) \cdot ( \\
-              &\quad \zeta^0 \cdot ((1 - w_1(X) \cdot w_{11}(X)) \cdot w_6(X)) \\
-              &\quad \zeta^1 \cdot ((1 - w_1(X) \cdot w_{11}(X)) \cdot w_6(X)) \\
-              &\quad \zeta^2 \cdot (2 \cdot w_2(X) \cdot w_{12}(X) - 3 \cdot w_1(X)^2) \\
+              &\quad \zeta^0 \cdot ((1 - w_1(X) \cdot w_{11}(X)) \cdot w_6(X)) \; + \\
+              &\quad \zeta^1 \cdot ((1 - w_1(X) \cdot w_{11}(X)) \cdot w_6(X)) \; + \\
+              &\quad \zeta^2 \cdot (2 \cdot w_2(X) \cdot w_{12}(X) - 3 \cdot w_1(X)^2) \; + \\
               &\quad \dots \\
               &)
     \end{aligned}
@@ -766,7 +766,7 @@ $$B_i = \{ \s^{(pk)}_i, j_i = i, pk_i, ptr_i \in \Bb^{256}, \s^{(ptr)}_i \}$$
 - $ptr_i$: A hash of the most recent block on the main blockchain.
 - $\s^{(ptr)}_i$: A signature on $ptr_i$, signed by the current committee.
 
-$$\text{Verify}_{pk_{i-1}}(\s^{(pk)}, pk_i) \land \text{Verify}_{pk_i}(\s^{(ptr)}, ptr_i) \land j_i \meq j_{i-1} + 1$$
+$$\text{Verify}_{pk_{i-1}}(\s^{(pk)}_i, pk_i) \land \text{Verify}_{pk_i}(\s^{(ptr)}_i, ptr_i) \land j_i \meq j_{i-1} + 1$$
 
 ## IVC
 

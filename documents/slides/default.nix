@@ -83,11 +83,11 @@
 
       pandoc \
         "''${in[@]}" \
-        -H ${self}/documents/slides/rasmus/header.tex \
+        -H ${self}/documents/slides/header.tex \
         -t beamer \
         --slide-level 2 \
         --metadata date="$(date -d "@${toString self.lastModified}" -u "+%Y-%m-%d - %H:%M:%S %Z")" \
-        --highlight-style ${self}/documents/slides/rasmus/gruvbox.theme \
+        --highlight-style ${self}/documents/slides/gruvbox.theme \
         -o "$out/$name"
     '';
   };
@@ -152,7 +152,7 @@
       export FONTCONFIG_FILE=${fonts}
       mkdir -p $out
       ${pkgs.lib.getExe mk-pandoc-script} "slides.pdf" "$out" \
-        ${self}/documents/slides/rasmus
+        ${self}/documents/slides
     '';
   };
 in {
